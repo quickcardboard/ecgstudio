@@ -1,0 +1,258 @@
+<title>LiveHeart ECG Simulator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: one-screen instrument — 3D heart viewport (left) | draggable divider | ECG paper (right);
+   control panel floats over the viewport. Stacks vertically on narrow screens. */
+:root {
+  --bg: #eef1f4;          /* app chrome */
+  --surface: #ffffff;
+  --fg: #1d2a36;
+  --muted: #5d6b78;
+  --line: #d3dae1;
+  --accent: #c2304f;      /* cardiac red: brand + primary action */
+  --accent-fg: #ffffff;
+  --viewport: #13202b;    /* 3D stage stays dark in both themes for tissue contrast */
+  --viewport-fg: #e7eef4;
+  --panel: rgba(16, 27, 37, 0.86);
+  --panel-line: rgba(255, 255, 255, 0.12);
+  --panel-muted: #9fb0bf;
+  --paper: #ffffff;       /* ECG paper convention: always white with pink grid */
+  --grid-minor: #f7cfd7;
+  --grid-major: #ec8fa3;
+  --trace: #111111;
+  --rest: #f2a9bb; --dep: #2f63f0; --rep: #23b462; --cs: #e9b42a;
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b131a; --surface: #121d27; --fg: #e3eaf0; --muted: #93a3b1; --line: #24323f;
+    --accent: #ef5b7a; --accent-fg: #160a0d; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b131a; --surface: #121d27; --fg: #e3eaf0; --muted: #93a3b1; --line: #24323f;
+  --accent: #ef5b7a; --accent-fg: #160a0d; color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.4 var(--font-ui); overflow: hidden; }
+#app {
+  height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px;
+}
+header.top { display: flex; align-items: center; gap: 14px; min-height: 36px; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand h1 { margin: 0; font: 600 21px/1 var(--font-display); letter-spacing: 0.01em; }
+.brand h1 b { color: var(--accent); font-weight: 600; }
+.brand span { color: var(--muted); font-size: 12.5px; }
+.top .spacer { flex: 1; }
+button, .seg label {
+  font: 500 13px/1 var(--font-ui); color: inherit; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 6px; padding: 7px 11px; cursor: pointer;
+}
+button:hover { border-color: var(--muted); }
+button:focus-visible, input:focus-visible + label, input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+#split { flex: 1; min-height: 0; display: flex; gap: 0; --split: 50%; }
+.pane { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+#pane3d { flex: 0 0 var(--split); background: var(--viewport); color: var(--viewport-fg); border-color: transparent; }
+#paneEcg { flex: 1 1 0; background: var(--surface); }
+#divider { flex: 0 0 12px; cursor: col-resize; display: grid; place-items: center; touch-action: none; }
+#divider::after { content: ""; width: 4px; height: 44px; border-radius: 2px; background: var(--line); }
+#divider:hover::after, #divider.drag::after { background: var(--muted); }
+#c3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+.pane-head { position: relative; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
+.pane-head .title { font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+#pane3d .pane-head .title { color: var(--panel-muted); }
+.pane-head .spacer { flex: 1; }
+.pane-head button { padding: 5px 9px; font-size: 12px; }
+#pane3d .pane-head button, #controls button, #controls .seg label { background: rgba(255,255,255,0.06); border-color: var(--panel-line); color: var(--viewport-fg); }
+#pane3d .pane-head button:hover, #controls button:hover { border-color: var(--panel-muted); }
+
+/* control panel over the 3D viewport */
+#controls {
+  position: absolute; z-index: 3; left: 10px; top: 46px; width: 236px; max-height: calc(100% - 100px); overflow: auto;
+  background: var(--panel); border: 1px solid var(--panel-line); border-radius: 10px; color: var(--viewport-fg);
+  backdrop-filter: blur(6px); display: flex; flex-direction: column;
+}
+#controls.collapsed .body { display: none; }
+#controls .head { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; cursor: pointer; }
+#controls .head h2 { margin: 0; font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); }
+#controls .head span { color: var(--panel-muted); font-size: 12px; }
+#controls .body { display: flex; flex-direction: column; gap: 14px; padding: 2px 12px 14px; }
+.ctl { display: flex; flex-direction: column; gap: 6px; }
+.ctl .row { display: flex; justify-content: space-between; align-items: baseline; }
+.ctl .lab { font-size: 12.5px; color: var(--panel-muted); }
+.ctl .val { font: 500 13px/1 var(--font-data); font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { text-align: center; border-radius: 0; padding: 7px 4px; font-size: 12.5px; }
+.seg label:first-of-type { border-radius: 6px 0 0 6px; }
+.seg label:last-of-type { border-radius: 0 6px 6px 0; border-left: 0; }
+#controls .seg input:checked + label { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btnrow { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.next { font-size: 11.5px; color: var(--panel-muted); border-top: 1px solid var(--panel-line); padding-top: 10px; line-height: 1.45; }
+.next b { color: var(--viewport-fg); font-weight: 500; }
+
+/* legend + clock on the viewport */
+.legend { position: absolute; z-index: 2; left: 10px; bottom: 10px; display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--viewport-fg); background: var(--panel); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--panel-line); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.clock { position: absolute; z-index: 2; right: 10px; bottom: 10px; font: 500 12px/1 var(--font-data); color: var(--panel-muted); background: var(--panel); padding: 7px 10px; border-radius: 8px; border: 1px solid var(--panel-line); font-variant-numeric: tabular-nums; }
+.hint { position: absolute; z-index: 2; right: 10px; top: 46px; font-size: 12px; color: var(--panel-muted); }
+
+/* ECG side */
+#interp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 2px 12px 10px; border-bottom: 1px solid var(--line); }
+#rhythm { font: 600 18px/1.15 var(--font-display); text-wrap: balance; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 500 12px/1 var(--font-data); font-variant-numeric: tabular-nums; padding: 5px 7px; border-radius: 5px; background: var(--bg); border: 1px solid var(--line); white-space: nowrap; }
+.chip em { font-style: normal; color: var(--muted); margin-right: 4px; font-family: var(--font-ui); }
+.chip.flag { border-color: var(--accent); }
+#ecgWrap { position: relative; flex: 1; min-height: 0; background: var(--paper); }
+#cecg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.calnote { position: absolute; right: 8px; bottom: 6px; font: 500 11px/1 var(--font-data); color: #8a5a66; background: rgba(255,255,255,0.85); padding: 3px 5px; border-radius: 3px; }
+
+/* modal + loading */
+.overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(5, 10, 15, 0.55); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.sheet { background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; max-width: 640px; width: 100%; max-height: 86%; overflow: auto; padding: 20px 22px; box-sizing: border-box; }
+.sheet h2 { margin: 0 0 4px; font: 600 22px/1.2 var(--font-display); }
+.sheet h3 { margin: 18px 0 6px; font: 600 13px/1.2 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.sheet p, .sheet li { max-width: 65ch; }
+.sheet ul { padding-left: 18px; margin: 6px 0; }
+.sheet .src { font-size: 12px; color: var(--muted); }
+.sheet .close { float: right; }
+#loading .sheet { max-width: 360px; text-align: center; }
+#loadMsg { color: var(--muted); }
+.spin { width: 28px; height: 28px; margin: 6px auto 12px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+
+@media (max-width: 760px) {
+  #split { flex-direction: column; }
+  #pane3d { flex: 0 0 46%; }
+  #divider { flex: 0 0 10px; cursor: row-resize; }
+  #divider::after { width: 44px; height: 4px; }
+  #controls { width: 200px; top: 42px; max-height: calc(100% - 92px); }
+  .brand span { display: none; }
+  .hint { display: none; }
+  .legend { font-size: 11px; gap: 8px; bottom: 44px; right: 10px; }
+}
+</style>
+
+<div id="app">
+  <header class="top">
+    <div class="brand"><h1>Live<b>Heart</b></h1><span>Forward ECG simulator · milestone 1</span></div>
+    <div class="spacer"></div>
+    <button id="btnGuide" type="button">User guide</button>
+  </header>
+
+  <main id="split">
+    <section class="pane" id="pane3d" aria-label="3D heart">
+      <canvas id="c3d"></canvas>
+      <div class="pane-head">
+        <span class="title">Heart · <span id="viewName">external view</span></span>
+        <span class="spacer"></span>
+        <button id="focus3d" type="button" title="Give the heart more room">Expand</button>
+      </div>
+      <div class="hint" id="hint">Drag to rotate · scroll to zoom</div>
+
+      <div id="controls">
+        <div class="head" id="ctlHead" role="button" tabindex="0" aria-expanded="true"><h2>Controls</h2><span id="ctlChevron">Hide</span></div>
+        <div class="body">
+          <div class="ctl">
+            <div class="row"><span class="lab">Sinus rate</span><span class="val" id="rateVal">72 bpm</span></div>
+            <input id="rate" type="range" min="30" max="180" step="1" value="72" aria-label="Sinus rate">
+          </div>
+          <div class="ctl">
+            <div class="row"><span class="lab">Time scale</span><span class="val" id="tsVal">1×</span></div>
+            <input id="timescale" type="range" min="0" max="6" step="1" value="6" aria-label="Time scale">
+          </div>
+          <div class="ctl">
+            <span class="lab">View</span>
+            <div class="seg">
+              <input type="radio" name="view" id="viewExt" value="external" checked><label for="viewExt">External</label>
+              <input type="radio" name="view" id="viewCut" value="cutaway"><label for="viewCut">Cutaway</label>
+            </div>
+          </div>
+          <div class="btnrow">
+            <button id="btnPause" type="button">Pause</button>
+            <button id="btnReset" type="button">Reset</button>
+          </div>
+          <div class="next">Next milestones add <b>Stimulate</b> (PAC/PVC, AF, flutter, VT), <b>Block</b> (SA, AV, bundle and fascicular blocks), <b>Ischemia</b> and <b>Structural</b> changes.</div>
+        </div>
+      </div>
+
+      <div class="legend" aria-label="Colour key">
+        <span><i style="background:var(--rest)"></i>Resting</span>
+        <span><i style="background:var(--dep)"></i>Depolarizing</span>
+        <span><i style="background:var(--rep)"></i>Repolarizing</span>
+        <span id="legendCs" hidden><i style="background:var(--cs)"></i>Conduction system</span>
+      </div>
+      <div class="clock" id="clock">t 0.000 s</div>
+    </section>
+
+    <div id="divider" role="separator" aria-orientation="vertical" tabindex="0" title="Drag to resize · double-click to reset"></div>
+
+    <section class="pane" id="paneEcg" aria-label="12-lead ECG">
+      <div class="pane-head">
+        <span class="title">12-lead ECG · 25 mm/s · 10 mm/mV</span>
+        <span class="spacer"></span>
+        <button id="focusEcg" type="button" title="Give the ECG more room">Expand</button>
+      </div>
+      <div id="interp">
+        <div id="rhythm">Acquiring…</div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div id="ecgWrap"><canvas id="cecg"></canvas><span class="calnote">II rhythm strip · 10 s</span></div>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="guide" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="guideTitle">
+    <button class="close" id="guideClose" type="button">Close</button>
+    <h2 id="guideTitle">Using LiveHeart</h2>
+    <p>LiveHeart computes the ECG forward from the heart. A cellular automaton spreads activation through about 37,000 tissue cells. Each cell carries its own action potential. The 12 leads are calculated from the electrical field those cells produce, so every wave you see comes from the simulated tissue.</p>
+    <h3>Screen</h3>
+    <ul>
+      <li><b>Left:</b> the heart. Pink tissue is resting, blue is depolarizing, green is repolarizing.</li>
+      <li><b>Right:</b> a standard 12-lead layout (2.5 s per column) with a 10 s lead II rhythm strip, written by a sweeping cursor.</li>
+      <li>Drag the divider to resize the two sides, or press <b>Expand</b> on either side. Double-click the divider to return to 50/50.</li>
+    </ul>
+    <h3>Controls</h3>
+    <ul>
+      <li><b>Sinus rate</b> sets the sinus node rate. Below about 48 bpm the AV-junction pacemaker escapes, as it would in a patient.</li>
+      <li><b>Time scale</b> slows the whole simulation, down to 1/50 of real time, so you can follow the wavefront. The ECG slows with it.</li>
+      <li><b>View:</b> External lets you rotate the heart. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches, fascicles and Purkinje network.</li>
+      <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest.</li>
+    </ul>
+    <h3>Banner</h3>
+    <p>The rhythm label comes from the simulator's own state, for example which pacemaker fired. PR, QRS and QT are measured from tissue activation and repolarization times. QTc uses Bazett's formula. The axis is measured from the QRS areas in leads I and aVF.</p>
+    <h3>Model</h3>
+    <p>The anatomy is the average adult four-chamber heart of Rodero et al. (2021), built from CT scans and voxelized at 2 mm. The model includes fibre-dependent conduction, AV-node decremental conduction, restitution, and transmural and apicobasal repolarization gradients with electrotonic modulation. Precordial leads are computed from electrode positions on the chest. Limb leads use the Einthoven projection of the heart vector.</p>
+    <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. LiveHeart is an educational model, not a diagnostic device.</p>
+  </div>
+</div>
+
+<div class="overlay" id="loading">
+  <div class="sheet"><div class="spin"></div><b>Building the heart</b><p id="loadMsg">Reading anatomy…</p></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script type="application/json" id="anatomy-data">/*__ANATOMY__*/</script>
+<script>
+/*__ENGINE__*/
+</script>
+<script>
+/*__APP__*/
+</script>
