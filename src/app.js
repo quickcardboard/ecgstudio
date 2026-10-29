@@ -21,7 +21,7 @@
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const ecg = { buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
 
@@ -100,10 +100,11 @@
     buildSurfaces();
     buildConduction();
     buildCutPlane();
+    buildOverlays();
 
     const ctl = g3.controls = new THREE.OrbitControls(cam, canvas);
     ctl.enableDamping = true; ctl.dampingFactor = 0.12; ctl.enablePan = false;
-    ctl.minDistance = 140; ctl.maxDistance = 700;
+    ctl.minDistance = 140; ctl.maxDistance = 900;
     setView('external');
     new ResizeObserver(resize3D).observe($('pane3d'));
     resize3D();
@@ -141,7 +142,7 @@
 
   function buildSurfaces() {
     const span = A.dims.map((d) => d * A.h);
-    g3.tissueMeshes = []; g3.clipMats = [];
+    g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = [];
     for (const s of A.json.surfaces) {
       const q = decodeB64(s.pos, Uint16Array), idx = decodeB64(s.idx, Uint32Array);
       const pos = new Float32Array(q.length);
@@ -164,6 +165,7 @@
       const mesh = new THREE.Mesh(geo, mat);
       g3.clipMats.push(mat);
       g3.inner.add(mesh);
+      g3.allGeos.push(geo);
     }
     g3.voxCol = new Float32Array(M.nCells * 3);
   }
@@ -215,15 +217,6 @@
       const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 50, emissive: 0x222222 }));
       grp.add(mesh); g3.tubes.push({ geo, col, map });
     }
-    // Purkinje network as points
-    const ids = M.purkLV.concat(M.purkRV);
-    const pp = new Float32Array(ids.length * 3);
-    ids.forEach((id, i) => { const q = nodePos(id, 1.2); pp[3 * i] = q[0]; pp[3 * i + 1] = q[1]; pp[3 * i + 2] = q[2]; });
-    const pg = new THREE.BufferGeometry();
-    pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
-    const pc = new Float32Array(ids.length * 3); pg.setAttribute('color', new THREE.BufferAttribute(pc, 3));
-    grp.add(new THREE.Points(pg, new THREE.PointsMaterial({ size: 1.9, vertexColors: true, sizeAttenuation: true })));
-    g3.purk = { ids, pc, geo: pg };
     // sinus node marker (visible in both views)
     const san = g3.san = new THREE.Mesh(new THREE.SphereGeometry(2.6, 16, 12), new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x333333 }));
     const sp = nodePos(M.sanCell, -1.0); san.position.set(sp[0], sp[1], sp[2]);
@@ -243,30 +236,209 @@
     if (nrm.z < 0) nrm.negate();                               // point anterior
     const p0 = new THREE.Vector3((mv[0] + tv[0]) / 2, (mv[1] + tv[1]) / 2, (mv[2] + tv[2]) / 2);
     g3.cutN = nrm; g3.cutP = p0;
-    // Cap: a flat grid of quads on the cut plane wherever it passes through
-    // myocardium, each coloured live from the voxel underneath.
+    g3.plane = new THREE.Plane();
+    // Cut face by stencil capping. Every surface (which together bound the
+    // heart wall as one closed solid) is drawn into the stencil buffer only:
+    // back faces +1, front faces −1, both clipped by the cut plane. Where the
+    // plane lies inside the wall the count is non-zero, so the cap below is
+    // drawn exactly inside the smooth contour of the sliced mesh.
+    const sg = g3.stencil = new THREE.Group(); g3.inner.add(sg);
+    const sMat = (side, op) => new THREE.MeshBasicMaterial({
+      side, colorWrite: false, depthWrite: false, depthTest: false, clippingPlanes: [g3.plane],
+      stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilFail: op, stencilZFail: op, stencilZPass: op,
+    });
+    const back = sMat(THREE.BackSide, THREE.IncrementWrapStencilOp), front = sMat(THREE.FrontSide, THREE.DecrementWrapStencilOp);
+    for (const geo of g3.allGeos) {
+      const mb = new THREE.Mesh(geo, back), mf = new THREE.Mesh(geo, front);
+      mb.renderOrder = mf.renderOrder = 1; sg.add(mb, mf);
+    }
+    // the cap itself: a fine grid on the plane, vertex-coloured from the tissue underneath
     const u = new THREE.Vector3().crossVectors(nrm, new THREE.Vector3(0, 1, 0)).normalize();
     const v = new THREE.Vector3().crossVectors(u, nrm).normalize();
-    const step = 1.0, half = 0.5 * step, R0 = 110, back = -0.25;
-    const pos = [], cells = [];
-    for (let i = -R0; i < R0; i += step) for (let j = -R0; j < R0; j += step) {
-      const q = p0.clone().addScaledVector(u, i + half).addScaledVector(v, j + half);
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (let c = 0; c < A.n; c++) {
+      const dx = A.pos[3 * c] - p0.x, dy = A.pos[3 * c + 1] - p0.y, dz = A.pos[3 * c + 2] - p0.z;
+      const pu = dx * u.x + dy * u.y + dz * u.z, pv = dx * v.x + dy * v.y + dz * v.z;
+      u0 = Math.min(u0, pu); u1 = Math.max(u1, pu); v0 = Math.min(v0, pv); v1 = Math.max(v1, pv);
+    }
+    u0 -= 4; v0 -= 4; u1 += 4; v1 += 4;
+    const step = 1.0, nu = Math.ceil((u1 - u0) / step) + 1, nv = Math.ceil((v1 - v0) / step) + 1;
+    const pos = new Float32Array(nu * nv * 3), map = new Int32Array(nu * nv), idx = [];
+    for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
+      const q = p0.clone().addScaledVector(u, u0 + i * step).addScaledVector(v, v0 + j * step).addScaledVector(nrm, -0.05);
+      const o = i * nv + j; pos[3 * o] = q.x; pos[3 * o + 1] = q.y; pos[3 * o + 2] = q.z;
       const c = A.at(Math.floor((q.x - A.origin[0]) / A.h), Math.floor((q.y - A.origin[1]) / A.h), Math.floor((q.z - A.origin[2]) / A.h));
-      if (c < 0 || !M.kind[c]) continue;
-      const corner = (di, dj) => p0.clone().addScaledVector(u, i + di).addScaledVector(v, j + dj).addScaledVector(nrm, back);
-      const q00 = corner(0, 0), q10 = corner(step, 0), q11 = corner(step, step), q01 = corner(0, step);
-      for (const qq of [q00, q10, q11, q00, q11, q01]) pos.push(qq.x, qq.y, qq.z);
-      cells.push(c);
+      if (c >= 0 && M.kind[c]) map[o] = c;
+      else if (c >= 0) map[o] = -A.label[c];                      // vessel / valve tissue: static colour
+      else { const n2 = nearestTissue(q.x, q.y, q.z); map[o] = n2 >= 0 ? n2 : -1; }
+      if (i && j) { const a0 = (i - 1) * nv + j - 1, a1 = i * nv + j - 1, a2 = i * nv + j, a3 = (i - 1) * nv + j; idx.push(a0, a1, a2, a0, a2, a3); }
     }
     const cg = new THREE.BufferGeometry();
-    cg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    cg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const ccol = new Float32Array(pos.length);
     cg.setAttribute('color', new THREE.BufferAttribute(ccol, 3));
-    cg.computeVertexNormals();
-    const cap = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+    cg.setIndex(idx);
+    const cap = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({
+      vertexColors: true, side: THREE.DoubleSide,
+      stencilWrite: true, stencilRef: 0, stencilFunc: THREE.NotEqualStencilFunc,
+      stencilFail: THREE.ReplaceStencilOp, stencilZFail: THREE.ReplaceStencilOp, stencilZPass: THREE.ReplaceStencilOp,
+    }));
+    cap.renderOrder = 2;
+    cap.onAfterRender = (r) => r.clearStencil();
     g3.inner.add(cap);
-    g3.slab = { im: cap, ids: cells, col: ccol, geo: cg };
-    g3.plane = new THREE.Plane();
+    const stat = {}; for (const [k, hex] of Object.entries(STATIC)) { const cc = new THREE.Color(hex); stat[k] = [cc.r, cc.g, cc.b]; }
+    g3.slab = { im: cap, map, col: ccol, geo: cg, stat };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Overlays: anatomical labels and ECG lead vectors
+  // ---------------------------------------------------------------------------
+  function buildOverlays() {
+    const layer = $('labels');
+    const Cv = M.center, V3 = (p) => new THREE.Vector3(p[0], p[1], p[2]);
+    const voxCentroid = (f) => { const s = [0, 0, 0]; let n = 0; for (let c = 0; c < A.n; c++) if (f(c)) { s[0] += A.pos[3 * c]; s[1] += A.pos[3 * c + 1]; s[2] += A.pos[3 * c + 2]; n++; } return n ? s.map((x) => x / n) : null; };
+    const farthest = (f, d) => {
+      let best = -1, bs = -Infinity; const l = Math.hypot(...d);
+      for (let c = 0; c < A.n; c++) { if (!f(c)) continue; const sc = ((A.pos[3 * c] - Cv[0]) * d[0] + (A.pos[3 * c + 1] - Cv[1]) * d[1] + (A.pos[3 * c + 2] - Cv[2]) * d[2]) / l; if (sc > bs) { bs = sc; best = c; } }
+      return A.p(best);
+    };
+    const lab = (L) => (c) => A.label[c] === L;
+    const epiOf = (L) => (c) => A.label[c] === L && A.epi[c];
+    const mid = (ids, f = 0.5) => { const id = ids[Math.floor((ids.length - 1) * f)]; return [M.x[id], M.y[id], M.z[id]]; };
+    g3.labels = [];
+    const add = (text, p, view, kind = 'anat', nrm = null) => {
+      const el = document.createElement('div'); el.className = `tag ${kind}`; el.textContent = text; layer.appendChild(el);
+      const pos = V3(p);
+      g3.labels.push({ el, pos, view, nrm: nrm || pos.clone().sub(V3(Cv)).normalize(), space: 'heart' });
+    };
+    // external view: surface anchors, hidden when they face away from the camera
+    add('Right atrium', farthest(epiOf(4), [-1, 0.2, 0.3]), 'external');
+    add('Left atrium', farthest(epiOf(3), [0.2, 0.3, -1]), 'external');
+    add('Right ventricle', farthest(epiOf(2), [-0.3, -0.3, 1]), 'external');
+    add('Left ventricle', farthest(epiOf(1), [1, -0.2, -0.2]), 'external');
+    add('Apex', farthest(epiOf(1), [0.5, -0.64, 0.58]), 'external');
+    add('Aorta', farthest(lab(5), [0, 1, 0]), 'external');
+    add('Pulmonary trunk', farthest(lab(6), [0.2, 0.7, 0.7]), 'external');
+    add('SVC', A.landmarks.SVC.c, 'external');
+    add('IVC', A.landmarks.IVC.c, 'external');
+    add('SA node', [M.x[M.sanCell], M.y[M.sanCell], M.z[M.sanCell]], 'both', 'cs');
+    // cutaway: chamber names at the centre of each chamber's cross-section on the cut plane
+    const n = g3.cutN, p0 = g3.cutP;
+    const dPlane = (c) => (A.pos[3 * c] - p0.x) * n.x + (A.pos[3 * c + 1] - p0.y) * n.y + (A.pos[3 * c + 2] - p0.z) * n.z;
+    const inSlab = (f) => (c) => f(c) && Math.abs(dPlane(c)) < 3;
+    const onPlane = (p) => { const q = V3(p); return q.addScaledVector(n, -q.clone().sub(p0).dot(n)).toArray(); };
+    // ventricles: centre of the cavity's cross-section; atria: centre of the wall ring
+    const cavCentroid = (L) => {
+      const [nx, ny, nz] = A.dims, s3 = [0, 0, 0]; let cnt = 0;
+      for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
+        const cid = A.cavityComp[(i * ny + j) * nz + k]; if (cid <= 0 || A.cavityLabel[cid] !== L) continue;
+        const x = A.origin[0] + (i + 0.5) * A.h, y = A.origin[1] + (j + 0.5) * A.h, z = A.origin[2] + (k + 0.5) * A.h;
+        if (Math.abs((x - p0.x) * n.x + (y - p0.y) * n.y + (z - p0.z) * n.z) > 3) continue;
+        s3[0] += x; s3[1] += y; s3[2] += z; cnt++;
+      }
+      return cnt ? s3.map((v) => v / cnt) : null;
+    };
+    for (const [L, name] of [[4, 'RA'], [3, 'LA'], [2, 'RV'], [1, 'LV']]) {
+      const c = (L <= 2 && cavCentroid(L)) || voxCentroid(inSlab((x) => A.label[x] === L));
+      if (c) add(name, c, 'cutaway', 'chamber');
+    }
+    const sept = voxCentroid(inSlab((x) => A.label[x] === 1 && Math.abs(A.phi[x]) < 0.4 && A.zuvc[x] > 0.3 && A.zuvc[x] < 0.6));
+    if (sept) add('Septum', sept, 'cutaway');
+    add('Mitral valve', onPlane(A.landmarks.MV.c), 'cutaway');
+    add('Tricuspid valve', onPlane(A.landmarks.TV.c), 'cutaway');
+    const S_ = M.csSegments;
+    add('AV node', mid(S_.AVN), 'cutaway', 'cs');
+    add('His bundle', mid(S_.HIS, 0.7), 'cutaway', 'cs');
+    add('Left bundle', mid(S_.LBB), 'cutaway', 'cs');
+    add('Left anterior fascicle', mid(S_.LAF, 0.75), 'cutaway', 'cs');
+    add('Left posterior fascicle', mid(S_.LPF, 0.75), 'cutaway', 'cs');
+    add('Septal fascicle', mid(S_.LSF, 0.9), 'cutaway', 'cs');
+    add('Right bundle', mid(S_.RBB, 0.45), 'cutaway', 'cs');
+    add('Moderator band', mid(S_.RBB, 0.85), 'cutaway', 'cs');
+
+    // lead vectors, drawn in the torso frame shifted to the heart centre
+    const grp = g3.leads = new THREE.Group(); grp.visible = false; g3.scene.add(grp);
+    const hc = M.heartCenterTorso;
+    const arrowMat = (hex) => new THREE.MeshBasicMaterial({ color: hex, depthTest: false, transparent: true, opacity: 0.95 });
+    const arrow = (dir, len, hex, head = 7) => {
+      const a = new THREE.ArrowHelper(dir.clone().normalize(), new THREE.Vector3(), len, hex, head, head * 0.55);
+      a.line.material.depthTest = false; a.line.material.transparent = true; a.cone.material.depthTest = false;
+      a.renderOrder = 10; a.line.renderOrder = 10; a.cone.renderOrder = 10;
+      grp.add(a); return a;
+    };
+    const leadTag = (text, p, kind) => {
+      const el = document.createElement('div'); el.className = `tag ${kind}`; el.textContent = text; layer.appendChild(el);
+      g3.labels.push({ el, pos: p, view: 'leads', space: 'scene' });
+      return g3.labels[g3.labels.length - 1];
+    };
+    const LIMB = [['I', 0], ['II', 60], ['III', 120], ['aVR', -150], ['aVL', -30], ['aVF', 90]], Rl = 95;
+    for (const [name, deg] of LIMB) {
+      const a = deg * Math.PI / 180, d = new THREE.Vector3(Math.cos(a), -Math.sin(a), 0);
+      const neg = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), d.clone().multiplyScalar(-Rl)]),
+        new THREE.LineDashedMaterial({ color: 0xf0b429, dashSize: 4, gapSize: 3, depthTest: false, transparent: true, opacity: 0.45 }));
+      neg.computeLineDistances(); neg.renderOrder = 10; grp.add(neg);
+      arrow(d, Rl, 0xf0b429);
+      leadTag(name, d.clone().multiplyScalar(Rl + 9), 'lead limb');
+    }
+    for (const k of ['V1', 'V2', 'V3', 'V4', 'V5', 'V6']) {
+      const e = M.electrodes[k], q = new THREE.Vector3(e[0] - hc[0], e[1] - hc[1], e[2] - hc[2]);
+      arrow(q, q.length() - 3, 0x38c6e8, 6);
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(3.2, 14, 10), arrowMat(0x38c6e8)); dot.position.copy(q); dot.renderOrder = 11; grp.add(dot);
+      leadTag(k, q.clone().multiplyScalar(1.07), 'lead chest');
+    }
+    g3.heartVec = arrow(new THREE.Vector3(1, 0, 0), 10, 0xffffff, 9);
+    g3.heartVecTag = leadTag('Heart vector', new THREE.Vector3(), 'lead hv');
+  }
+
+  function updateOverlays() {
+    const showLabels = ui.labels, showLeads = ui.leads;
+    g3.leads.visible = showLeads;
+    if (showLeads) {
+      const D = S.dipole || [0, 0, 0], mag = Math.hypot(D[0], D[1], D[2]);
+      const on = mag > 0.04;
+      g3.heartVec.visible = on; g3.heartVecTag.hidden = !on;
+      if (on) {
+        g3.heartVec.setDirection(new THREE.Vector3(D[0] / mag, D[1] / mag, D[2] / mag));
+        const L = Math.min(150, 12 + mag * 75); g3.heartVec.setLength(L, 9, 5);
+        g3.heartVecTag.pos.set(D[0] / mag, D[1] / mag, D[2] / mag).multiplyScalar(L + 10);
+      }
+    }
+    if (!showLabels && !showLeads) { for (const l of g3.labels) l.el.hidden = true; return; }
+    const cam = g3.camera, el = $('pane3d'), w = el.clientWidth, h = el.clientHeight;
+    const mw = g3.inner.matrixWorld, nmat = new THREE.Matrix3().getNormalMatrix(mw);
+    const tmp = new THREE.Vector3(), nw = new THREE.Vector3(), toCam = new THREE.Vector3();
+    const cut = ui.view === 'cutaway';
+    for (const l of g3.labels) {
+      let vis;
+      if (l.view === 'leads') vis = showLeads && !(l.hidden);
+      else vis = showLabels && (l.view === 'both' || (l.view === 'cutaway') === cut);
+      if (l === g3.heartVecTag) vis = showLeads && !g3.heartVecTag.hidden;
+      if (vis) {
+        if (l.space === 'heart') tmp.copy(l.pos).applyMatrix4(mw); else tmp.copy(l.pos);
+        if (l.view === 'external' || (l.view === 'both' && !cut)) {
+          nw.copy(l.nrm).applyMatrix3(nmat).normalize(); toCam.copy(cam.position).sub(tmp);
+          if (nw.dot(toCam) < 0) vis = false;                 // anchor faces away from the viewer
+        }
+        if (vis) {
+          tmp.project(cam);
+          if (tmp.z > 1) vis = false;
+          else { l.sx = (tmp.x + 1) / 2 * w; l.sy = (1 - tmp.y) / 2 * h; }
+        }
+      }
+      l.el.hidden = !vis;
+      l.vis = vis;
+    }
+    // simple de-overlap: place labels in order, nudging each clear of those already placed
+    const placed = [];
+    for (const l of g3.labels) {
+      if (!l.vis) continue;
+      if (!l.w) { l.w = l.el.offsetWidth; l.hh = l.el.offsetHeight; }
+      let y = l.sy;
+      const hit = (yy) => placed.some((q) => l.sx < q.x + q.w && l.sx + l.w > q.x && yy - 9 < q.y - 9 + q.h + 2 && yy - 9 + l.hh + 2 > q.y - 9);
+      for (let k = 1; k <= 6 && hit(y); k++) y = l.sy + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (l.hh + 3);
+      placed.push({ x: l.sx, y, w: l.w, h: l.hh });
+      l.el.style.transform = `translate(${l.sx.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    }
   }
 
   function worldCutPlane() {
@@ -284,7 +456,7 @@
     g3.plane.setFromNormalAndCoplanarPoint(n.clone().negate(), p);   // keep the posterior half
     // clip tissue only: the conduction system stays whole so it can be seen (and later clicked)
     for (const m of g3.clipMats) { m.clippingPlanes = cut ? [g3.plane] : null; m.needsUpdate = true; }
-    g3.cs.visible = cut; g3.slab.im.visible = cut;
+    g3.cs.visible = cut; g3.slab.im.visible = cut; g3.stencil.visible = cut;
     $('legendCs').hidden = !cut;
     $('viewName').textContent = cut ? 'anterior cutaway (four-chamber)' : 'external view';
     $('hint').textContent = cut ? 'Fixed anterior cutaway · scroll to zoom' : 'Drag to rotate · scroll to zoom';
@@ -292,10 +464,11 @@
     ctl.target.set(0, 0, 0);
     if (cut) {
       const dir = n.clone(); dir.y *= 0.6; dir.normalize();
-      cam.position.copy(dir.multiplyScalar(360));
+      cam.position.copy(dir.multiplyScalar(ui.leads ? 660 : 360));
       ctl.enableRotate = false;
     } else {
       cam.position.set(40, 30, 380);
+      if (ui.leads) cam.position.setLength(660);
       ctl.enableRotate = true;
     }
     cam.up.set(0, 1, 0); cam.lookAt(0, 0, 0); ctl.update();
@@ -331,22 +504,21 @@
     const sc = [0, 0, 0];
     stateColor(M.sanCell, t, sc, 0, [1, 1, 1]); g3.san.material.color.setRGB(sc[0], sc[1], sc[2]);
     if (ui.view === 'cutaway') {
-      const sl = g3.slab, cc = sl.col;
-      for (let i = 0; i < sl.ids.length; i++) {
-        const c = sl.ids[i], o = 18 * i, r = vc[3 * c] * 0.9, g = vc[3 * c + 1] * 0.9, b = vc[3 * c + 2] * 0.9;   // cut face slightly darker
-        for (let k = 0; k < 18; k += 3) { cc[o + k] = r; cc[o + k + 1] = g; cc[o + k + 2] = b; }
+      const sl = g3.slab, cc = sl.col, mp = sl.map;
+      for (let i = 0; i < mp.length; i++) {
+        const c = mp[i], o = 3 * i;
+        if (c >= 0) { cc[o] = vc[3 * c] * 0.88; cc[o + 1] = vc[3 * c + 1] * 0.88; cc[o + 2] = vc[3 * c + 2] * 0.88; }   // cut face slightly darker
+        else { const st = sl.stat[-c] || C.rest; cc[o] = st[0] * 0.88; cc[o + 1] = st[1] * 0.88; cc[o + 2] = st[2] * 0.88; }
       }
       sl.geo.attributes.color.needsUpdate = true;
       for (const tb of g3.tubes) {
         for (let v = 0; v < tb.map.length; v++) stateColor(tb.map[v], t, tb.col, 3 * v, C.cs);
         tb.geo.attributes.color.needsUpdate = true;
       }
-      const pk = g3.purk;
-      for (let i = 0; i < pk.ids.length; i++) stateColor(pk.ids[i], t, pk.pc, 3 * i, C.cs);
-      pk.geo.attributes.color.needsUpdate = true;
     }
     g3.controls.update();
     g3.renderer.render(g3.scene, g3.camera);
+    updateOverlays();
   }
 
   // ---------------------------------------------------------------------------
@@ -495,6 +667,13 @@
     const ts = $('timescale');
     ts.addEventListener('input', () => { ui.scaleIdx = +ts.value; $('tsVal').textContent = SCALE_LABEL[ui.scaleIdx]; });
     for (const id of ['viewExt', 'viewCut']) $(id).addEventListener('change', (e) => setView(e.target.value));
+    $('ovLabels').addEventListener('change', (e) => { ui.labels = e.target.checked; });
+    $('ovLeads').addEventListener('change', (e) => {
+      ui.leads = e.target.checked;
+      $('legendLeads').hidden = !ui.leads;
+      // pull back so the chest electrodes fit in view
+      if (ui.leads && g3.camera.position.length() < 600) { g3.camera.position.setLength(660); g3.controls.update(); }
+    });
     $('btnPause').addEventListener('click', () => { ui.paused = !ui.paused; $('btnPause').textContent = ui.paused ? 'Resume' : 'Pause'; });
     $('btnReset').addEventListener('click', () => { newSim(); });
     const toggle = () => {

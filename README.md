@@ -15,8 +15,8 @@ Three.js r128 and OrbitControls from CDNs.
 | Anatomy | Average adult four-chamber heart (Rodero et al. 2021), voxelized at 2 mm (≈37k cells), with decimated surfaces for rendering |
 | Conduction system | SA node, crista terminalis, Bachmann's bundle, AV node (5 decremental segments), His, LBB → LAF/LPF/septal fascicle, RBB → moderator band, LV/RV Purkinje networks, escape pacemakers |
 | Engine | Event-driven automaton with sub-ms arrival times, fibre anisotropy, APD/CV restitution, AV-node decrement and autonomic coupling, per-cell parametric action potential, electrotonic APD modulation |
-| ECG | Precordial leads from chest-electrode lead fields (Wilson terminal); limb leads from the Einthoven projection of the heart vector; Goldberger augmented leads |
-| UI | 3D external and four-chamber cutaway views, 12-lead + rhythm strip on standard paper, interpretation banner, rate and time-scale controls, resizable split |
+| ECG | Limb leads from the Einthoven projection of the heart vector (Goldberger augmented leads); precordial leads blend the heart vector projected on distance-weighted lead vectors (70%) with near-field chest-electrode potentials (30%) |
+| UI | 3D external and four-chamber cutaway views (stencil-capped cut face), label and lead-vector overlays with a live heart vector, 12-lead + rhythm strip on standard paper, interpretation banner, rate and time-scale controls, resizable split |
 
 ### Sinus-rhythm validation (headless engine, `node tools/sim.js`)
 
@@ -26,10 +26,14 @@ Three.js r128 and OrbitControls from CDNs.
 | 72 bpm | 142 ms | 76–80 ms | 368 / 403 ms | P +70°, QRS +10–14°, T +73° |
 | 100 bpm | 133 ms | 76 ms | 334 / 431 ms | |
 | 130 bpm | 129 ms | 76 ms | 308 / 453 ms | |
-| < 48 bpm | junctional escape at 48 bpm with retrograde atrial activation | | | |
 
-Morphology at 72 bpm: septal q in I/aVL/V5/V6, rS in V1–V2, transition at V3–V4, negative
-aVR, upright T in I, II and V2–V6. See `docs/validation-sinus-72.png`.
+Morphology at 72 bpm: septal q in I/aVL/V5/V6; normal R-wave progression (V1 0.3/0.9 →
+V2 0.5/1.6 → V3 0.8/1.7 → V4 0.9/0.8 → V5 1.2/0.3 → V6 0.9/0.3 mV R/S); negative aVR; upright T
+in I, II and V2–V6.
+
+Rhythm source is block-dependent, not rate-dependent: every slider rate stays sinus; blocking
+the SA or AV node brings out a junctional escape (48 bpm), and blocking the His bundle a
+ventricular escape (40 bpm, QRS ≈ 117 ms) dissociated from the sinus P waves. See `docs/validation-sinus-72.png`.
 
 ## Layout
 

@@ -128,7 +128,9 @@
     rbbSeptalDelay: 13,    // ms extra delay into the RV septal Purkinje
 
     lafPhi: 1.95, lafZ: 0.42, lpfPhi: -1.85, lpfZ: 0.42, lsfPhi: 0.05, lsfZ: 0.42,
-    heartRotation: 20,      // degrees about the AP axis (+ = more vertical heart)
+    heartRotation: 25,
+    apexX: 72, apexY: -20,  // apex position in the chest (mm from midline / from V4 level)
+    chestGap: 15,          // closest heart–anterior chest wall distance (mm)      // degrees about the AP axis (+ = more vertical heart)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
     purkZmaxLV: 0.95, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)   // distal fraction of septal RBB giving off RV septal Purkinje
     pmjAntero: 2,          // Purkinje -> muscle junction delay (ms)
@@ -160,10 +162,14 @@
     // Automaticity (cycle lengths, ms)
     sinusRate: 72,
     junctionalRate: 48,
-    ventEscapeRate: 38,
+    ventEscapeRate: 40,
 
     // ECG
     ecgGain: 0.0174,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm)
+    precordialDipoleW: 0.7,     // share of the precordial signal from the heart-vector projection
+    precordialDipoleGain: 1.7,
+    leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
+ // precordial lead-vector length relative to the limb leads
     dipoleGain: 1.65,       // heart-vector scale for the limb leads (mV per unit dipole)
   };
 
@@ -679,11 +685,11 @@
       for (let c = 0; c < A.n; c++) if (A.label[c] === LAB.LV && A.zuvc[c] >= 0 && A.zuvc[c] < 0.04 && A.epi[c]) { apex = add(apex, A.p(c)); cnt++; }
       apex = rotP(mul(apex, 1 / cnt));
       // apex behind the 5th intercostal space, mid-clavicular line
-      const tx = 72 - apex[0], ty = -6 - apex[1];
+      const tx = P.apexX - apex[0], ty = P.apexY - apex[1];
       let tz = Infinity;
       for (let c = 0; c < A.n; c++) {
         const q = rotP(A.p(c));
-        tz = Math.min(tz, surfZ(q[0] + tx) - 15 - q[2]);   // RV ≥15 mm behind chest wall
+        tz = Math.min(tz, surfZ(q[0] + tx) - P.chestGap - q[2]);   // gap between RV and chest wall
       }
       this.offset = [tx, ty, tz];
       this.toTorso = (p) => add(rotP(p), this.offset);
@@ -697,6 +703,14 @@
         V5: on(124, 0), V6: [160, 0, 0],
       };
       this.torso = { a, b };
+      // precordial lead directions (unit vectors heart centre -> electrode), torso frame
+      const hc = add(C, this.offset);
+      this.heartCenterTorso = hc;
+      // Lead-vector length falls with electrode distance (torso image-surface
+      // lead vectors are longest for V2–V4 and shorter for V1 and V6).
+      const dist = ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k) => len(sub(this.electrodes[k], hc)));
+      const ref = dist.reduce((a, b) => a + b, 0) / dist.length;
+      this.leadDir = ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k, i) => mul(norm(sub(this.electrodes[k], hc)), Math.pow(ref / dist[i], P.leadDistExp)));
     }
 
     // ---- Lead weights.  Infinite homogeneous volume conductor:
@@ -786,8 +800,17 @@
       this.listeners = [];
       this.pacemakers = [];
       this.setRate(this.P.sinusRate);
-      this._addPacemaker(model.junctionalCell, 60000 / this.P.junctionalRate, 'junctional');
-      this._addPacemaker(model.ventEscapeCell, 60000 / this.P.ventEscapeRate, 'ventricular');
+      // Subsidiary pacemakers are source-dependent: each takes over only when
+      // conduction from above it is interrupted, never because the sinus rate
+      // is merely slow.
+      //   junctional  — sinus node blocked/arrested, or block within the AV node
+      //   ventricular — block below the AV node (His bundle, or both bundle branches)
+      const anyBlocked = (ids) => ids.some((c) => this.blocked[c]);
+      const M = model, cs = M.csSegments;
+      this._addPacemaker(M.junctionalCell, 60000 / this.P.junctionalRate, 'junctional',
+        () => this.blocked[M.sanCell] || this.sinusArrest || anyBlocked(M.avn));
+      this._addPacemaker(M.ventEscapeCell, 60000 / this.P.ventEscapeRate, 'ventricular',
+        () => anyBlocked(cs.HIS) || (anyBlocked(cs.LBB) && anyBlocked(cs.RBB)));
       // beat bookkeeping for interval measurement
       this.log = { atrial: [], vent: [] };
       this.fireLog = [];   // spontaneous pacemaker discharges {name, t}
@@ -843,10 +866,10 @@
       }
     }
 
-    _addPacemaker(cell, cl, name) {
+    _addPacemaker(cell, cl, name, armed = null) {
       // subsidiary pacemakers start their cycle at t=0 (they only escape if not overdriven)
       this.tAct[cell] = 0; this.repEnd[cell] = 0; this.refEnd[cell] = 0;
-      this.pacemakers.push({ cell, cl, name });
+      this.pacemakers.push({ cell, cl, name, armed });
     }
     // The sinus-rate control stands in for autonomic tone: vagal tone slows the
     // sinus node and AV node together, sympathetic tone speeds both, so PR
@@ -962,7 +985,8 @@
       // 1. automaticity: a pacemaker fires when its cycle length has elapsed
       //    since it was last activated (being activated resets it: overdrive suppression)
       for (const pm of this.pacemakers) {
-        if (pm.cl <= 0 || this.blocked[pm.cell]) continue;
+        if (pm.cl <= 0 || this.blocked[pm.cell] || (pm.armed && !pm.armed())) continue;
+        if (pm.name === 'sinus' && this.sinusArrest) continue;
         if (t - this.tAct[pm.cell] >= pm.cl && t >= this.refEnd[pm.cell]) {
           this.schedule(pm.cell, t);
           this.fireLog.push({ name: pm.name, t }); if (this.fireLog.length > 40) this.fireLog.shift();
@@ -1016,9 +1040,15 @@
       L[1] = c60 * D[0] - s60 * D[1];
       L[2] = -c60 * D[0] - s60 * D[1];
       L[3] = -(L[0] + L[1]) / 2; L[4] = (L[0] - L[2]) / 2; L[5] = (L[1] + L[2]) / 2;
-      // Precordial leads: near-field electrode potentials vs Wilson's central terminal
-      const wct = (v(0) + v(1) + v(2)) / 3;
-      for (let k = 0; k < 6; k++) L[6 + k] = v(3 + k) - wct;
+      // Precordial leads: a blend of (a) the heart vector projected on each
+      // lead's direction (the dominant, dipolar part of chest potentials) and
+      // (b) the near-field electrode potential vs Wilson's central terminal,
+      // which keeps each lead sensitive to the tissue beneath it.
+      const wct = (v(0) + v(1) + v(2)) / 3, P = this.P, dir = this.M.leadDir;
+      for (let k = 0; k < 6; k++) {
+        const u = dir[k], proj = D[0] * u[0] + D[1] * u[1] + D[2] * u[2];
+        L[6 + k] = P.precordialDipoleW * P.precordialDipoleGain * proj + (1 - P.precordialDipoleW) * (v(3 + k) - wct);
+      }
       for (const f of this.listeners) f(t, L);
     }
     // Contribution of heterogeneous resting potentials (zero unless ischaemic)

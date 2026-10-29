@@ -24,7 +24,7 @@
   --grid-minor: #f7cfd7;
   --grid-major: #ec8fa3;
   --trace: #111111;
-  --rest: #f2a9bb; --dep: #2f63f0; --rep: #23b462; --cs: #e9b42a;
+  --rest: #f2a9bb; --dep: #2f63f0; --rep: #23b462; --cs: #e9b42a; --limb: #f0b429; --chest: #38c6e8;
   --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -104,6 +104,29 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .next { font-size: 11.5px; color: var(--panel-muted); border-top: 1px solid var(--panel-line); padding-top: 10px; line-height: 1.45; }
 .next b { color: var(--viewport-fg); font-weight: 500; }
 
+/* overlay toggles */
+.toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.tog { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; padding: 7px 4px; border-radius: 6px; border: 1px solid var(--panel-line); background: rgba(255,255,255,0.06); cursor: pointer; text-align: center; }
+.tog input { position: absolute; opacity: 0; pointer-events: none; }
+.tog:has(input:checked) { background: rgba(240,180,41,0.18); border-color: var(--limb); }
+.tog:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tog span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; border: 1px solid var(--panel-muted); vertical-align: 0; }
+.tog:has(input:checked) span::before { background: var(--limb); border-color: var(--limb); }
+
+/* projected labels */
+#labels { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.tag { position: absolute; left: 0; top: 0; white-space: nowrap; font: 500 11.5px/1 var(--font-ui); color: var(--viewport-fg);
+  padding: 3px 6px 3px 12px; border-radius: 4px; background: rgba(10, 18, 26, 0.72); margin: -9px 0 0 -4px; }
+.tag::before { content: ""; position: absolute; left: 1px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--viewport-fg); }
+.tag.chamber { font: 600 13px/1 var(--font-display); letter-spacing: 0.06em; padding-left: 6px; margin: -10px 0 0 -14px; background: rgba(10, 18, 26, 0.55); }
+.tag.chamber::before { display: none; }
+.tag.cs::before { background: var(--cs); }
+.tag.lead { font: 600 12px/1 var(--font-data); padding: 3px 5px; margin: -9px 0 0 -12px; background: rgba(10, 18, 26, 0.7); }
+.tag.lead::before { display: none; }
+.tag.limb { color: var(--limb); }
+.tag.chest { color: var(--chest); }
+.tag.hv { color: #ffffff; font-family: var(--font-ui); font-weight: 500; }
+
 /* legend + clock on the viewport */
 .legend { position: absolute; z-index: 2; left: 10px; bottom: 10px; display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--viewport-fg); background: var(--panel); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--panel-line); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
@@ -158,6 +181,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   <main id="split">
     <section class="pane" id="pane3d" aria-label="3D heart">
       <canvas id="c3d"></canvas>
+      <div id="labels" aria-hidden="true"></div>
       <div class="pane-head">
         <span class="title">Heart · <span id="viewName">external view</span></span>
         <span class="spacer"></span>
@@ -183,6 +207,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
               <input type="radio" name="view" id="viewCut" value="cutaway"><label for="viewCut">Cutaway</label>
             </div>
           </div>
+          <div class="ctl">
+            <span class="lab">Overlays</span>
+            <div class="toggles">
+              <label class="tog" for="ovLabels"><input type="checkbox" id="ovLabels"><span>Labels</span></label>
+              <label class="tog" for="ovLeads"><input type="checkbox" id="ovLeads"><span>Lead vectors</span></label>
+            </div>
+          </div>
           <div class="btnrow">
             <button id="btnPause" type="button">Pause</button>
             <button id="btnReset" type="button">Reset</button>
@@ -196,6 +227,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         <span><i style="background:var(--dep)"></i>Depolarizing</span>
         <span><i style="background:var(--rep)"></i>Repolarizing</span>
         <span id="legendCs" hidden><i style="background:var(--cs)"></i>Conduction system</span>
+        <span id="legendLeads" hidden><i style="background:var(--limb)"></i>Limb leads <i style="background:var(--chest); margin-left:8px"></i>Chest leads <i style="background:#ffffff; margin-left:8px"></i>Heart vector</span>
       </div>
       <div class="clock" id="clock">t 0.000 s</div>
     </section>
@@ -230,9 +262,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     </ul>
     <h3>Controls</h3>
     <ul>
-      <li><b>Sinus rate</b> sets the sinus node rate. Below about 48 bpm the AV-junction pacemaker escapes, as it would in a patient.</li>
+      <li><b>Sinus rate</b> sets the sinus node rate (30–180 bpm). The rhythm stays sinus at every rate. Escape rhythms depend on where conduction is blocked, not on rate: a junctional escape (about 48 bpm) takes over when the sinus node or AV node is blocked, and a ventricular escape (40 bpm) when the block is below the AV node. Blocks arrive in milestone 2.</li>
       <li><b>Time scale</b> slows the whole simulation, down to 1/50 of real time, so you can follow the wavefront. The ECG slows with it.</li>
-      <li><b>View:</b> External lets you rotate the heart. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches, fascicles and Purkinje network.</li>
+      <li><b>View:</b> External lets you rotate the heart. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches and fascicles. The Purkinje network runs in the model but is not drawn.</li>
+      <li><b>Overlays:</b> Labels names the chambers and vessels, and in the cutaway the conduction system too. Lead vectors draws the limb-lead hexaxial reference (amber; dashed lines are each lead's negative half), the chest electrodes V1–V6 with their lead vectors (blue), and the live heart vector (white). When the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
       <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest.</li>
     </ul>
     <h3>Banner</h3>
@@ -381,7 +414,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     rbbSeptalDelay: 13,    // ms extra delay into the RV septal Purkinje
 
     lafPhi: 1.95, lafZ: 0.42, lpfPhi: -1.85, lpfZ: 0.42, lsfPhi: 0.05, lsfZ: 0.42,
-    heartRotation: 20,      // degrees about the AP axis (+ = more vertical heart)
+    heartRotation: 25,
+    apexX: 72, apexY: -20,  // apex position in the chest (mm from midline / from V4 level)
+    chestGap: 15,          // closest heart–anterior chest wall distance (mm)      // degrees about the AP axis (+ = more vertical heart)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
     purkZmaxLV: 0.95, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)   // distal fraction of septal RBB giving off RV septal Purkinje
     pmjAntero: 2,          // Purkinje -> muscle junction delay (ms)
@@ -413,10 +448,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     // Automaticity (cycle lengths, ms)
     sinusRate: 72,
     junctionalRate: 48,
-    ventEscapeRate: 38,
+    ventEscapeRate: 40,
 
     // ECG
     ecgGain: 0.0174,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm)
+    precordialDipoleW: 0.7,     // share of the precordial signal from the heart-vector projection
+    precordialDipoleGain: 1.7,
+    leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
+ // precordial lead-vector length relative to the limb leads
     dipoleGain: 1.65,       // heart-vector scale for the limb leads (mV per unit dipole)
   };
 
@@ -932,11 +971,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       for (let c = 0; c < A.n; c++) if (A.label[c] === LAB.LV && A.zuvc[c] >= 0 && A.zuvc[c] < 0.04 && A.epi[c]) { apex = add(apex, A.p(c)); cnt++; }
       apex = rotP(mul(apex, 1 / cnt));
       // apex behind the 5th intercostal space, mid-clavicular line
-      const tx = 72 - apex[0], ty = -6 - apex[1];
+      const tx = P.apexX - apex[0], ty = P.apexY - apex[1];
       let tz = Infinity;
       for (let c = 0; c < A.n; c++) {
         const q = rotP(A.p(c));
-        tz = Math.min(tz, surfZ(q[0] + tx) - 15 - q[2]);   // RV ≥15 mm behind chest wall
+        tz = Math.min(tz, surfZ(q[0] + tx) - P.chestGap - q[2]);   // gap between RV and chest wall
       }
       this.offset = [tx, ty, tz];
       this.toTorso = (p) => add(rotP(p), this.offset);
@@ -950,6 +989,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         V5: on(124, 0), V6: [160, 0, 0],
       };
       this.torso = { a, b };
+      // precordial lead directions (unit vectors heart centre -> electrode), torso frame
+      const hc = add(C, this.offset);
+      this.heartCenterTorso = hc;
+      // Lead-vector length falls with electrode distance (torso image-surface
+      // lead vectors are longest for V2–V4 and shorter for V1 and V6).
+      const dist = ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k) => len(sub(this.electrodes[k], hc)));
+      const ref = dist.reduce((a, b) => a + b, 0) / dist.length;
+      this.leadDir = ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k, i) => mul(norm(sub(this.electrodes[k], hc)), Math.pow(ref / dist[i], P.leadDistExp)));
     }
 
     // ---- Lead weights.  Infinite homogeneous volume conductor:
@@ -1039,8 +1086,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       this.listeners = [];
       this.pacemakers = [];
       this.setRate(this.P.sinusRate);
-      this._addPacemaker(model.junctionalCell, 60000 / this.P.junctionalRate, 'junctional');
-      this._addPacemaker(model.ventEscapeCell, 60000 / this.P.ventEscapeRate, 'ventricular');
+      // Subsidiary pacemakers are source-dependent: each takes over only when
+      // conduction from above it is interrupted, never because the sinus rate
+      // is merely slow.
+      //   junctional  — sinus node blocked/arrested, or block within the AV node
+      //   ventricular — block below the AV node (His bundle, or both bundle branches)
+      const anyBlocked = (ids) => ids.some((c) => this.blocked[c]);
+      const M = model, cs = M.csSegments;
+      this._addPacemaker(M.junctionalCell, 60000 / this.P.junctionalRate, 'junctional',
+        () => this.blocked[M.sanCell] || this.sinusArrest || anyBlocked(M.avn));
+      this._addPacemaker(M.ventEscapeCell, 60000 / this.P.ventEscapeRate, 'ventricular',
+        () => anyBlocked(cs.HIS) || (anyBlocked(cs.LBB) && anyBlocked(cs.RBB)));
       // beat bookkeeping for interval measurement
       this.log = { atrial: [], vent: [] };
       this.fireLog = [];   // spontaneous pacemaker discharges {name, t}
@@ -1096,10 +1152,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       }
     }
 
-    _addPacemaker(cell, cl, name) {
+    _addPacemaker(cell, cl, name, armed = null) {
       // subsidiary pacemakers start their cycle at t=0 (they only escape if not overdriven)
       this.tAct[cell] = 0; this.repEnd[cell] = 0; this.refEnd[cell] = 0;
-      this.pacemakers.push({ cell, cl, name });
+      this.pacemakers.push({ cell, cl, name, armed });
     }
     // The sinus-rate control stands in for autonomic tone: vagal tone slows the
     // sinus node and AV node together, sympathetic tone speeds both, so PR
@@ -1215,7 +1271,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       // 1. automaticity: a pacemaker fires when its cycle length has elapsed
       //    since it was last activated (being activated resets it: overdrive suppression)
       for (const pm of this.pacemakers) {
-        if (pm.cl <= 0 || this.blocked[pm.cell]) continue;
+        if (pm.cl <= 0 || this.blocked[pm.cell] || (pm.armed && !pm.armed())) continue;
+        if (pm.name === 'sinus' && this.sinusArrest) continue;
         if (t - this.tAct[pm.cell] >= pm.cl && t >= this.refEnd[pm.cell]) {
           this.schedule(pm.cell, t);
           this.fireLog.push({ name: pm.name, t }); if (this.fireLog.length > 40) this.fireLog.shift();
@@ -1269,9 +1326,15 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       L[1] = c60 * D[0] - s60 * D[1];
       L[2] = -c60 * D[0] - s60 * D[1];
       L[3] = -(L[0] + L[1]) / 2; L[4] = (L[0] - L[2]) / 2; L[5] = (L[1] + L[2]) / 2;
-      // Precordial leads: near-field electrode potentials vs Wilson's central terminal
-      const wct = (v(0) + v(1) + v(2)) / 3;
-      for (let k = 0; k < 6; k++) L[6 + k] = v(3 + k) - wct;
+      // Precordial leads: a blend of (a) the heart vector projected on each
+      // lead's direction (the dominant, dipolar part of chest potentials) and
+      // (b) the near-field electrode potential vs Wilson's central terminal,
+      // which keeps each lead sensitive to the tissue beneath it.
+      const wct = (v(0) + v(1) + v(2)) / 3, P = this.P, dir = this.M.leadDir;
+      for (let k = 0; k < 6; k++) {
+        const u = dir[k], proj = D[0] * u[0] + D[1] * u[1] + D[2] * u[2];
+        L[6 + k] = P.precordialDipoleW * P.precordialDipoleGain * proj + (1 - P.precordialDipoleW) * (v(3 + k) - wct);
+      }
       for (const f of this.listeners) f(t, L);
     }
     // Contribution of heterogeneous resting potentials (zero unless ischaemic)
@@ -1321,7 +1384,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const ecg = { buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
 
@@ -1400,10 +1463,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     buildSurfaces();
     buildConduction();
     buildCutPlane();
+    buildOverlays();
 
     const ctl = g3.controls = new THREE.OrbitControls(cam, canvas);
     ctl.enableDamping = true; ctl.dampingFactor = 0.12; ctl.enablePan = false;
-    ctl.minDistance = 140; ctl.maxDistance = 700;
+    ctl.minDistance = 140; ctl.maxDistance = 900;
     setView('external');
     new ResizeObserver(resize3D).observe($('pane3d'));
     resize3D();
@@ -1441,7 +1505,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
   function buildSurfaces() {
     const span = A.dims.map((d) => d * A.h);
-    g3.tissueMeshes = []; g3.clipMats = [];
+    g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = [];
     for (const s of A.json.surfaces) {
       const q = decodeB64(s.pos, Uint16Array), idx = decodeB64(s.idx, Uint32Array);
       const pos = new Float32Array(q.length);
@@ -1464,6 +1528,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const mesh = new THREE.Mesh(geo, mat);
       g3.clipMats.push(mat);
       g3.inner.add(mesh);
+      g3.allGeos.push(geo);
     }
     g3.voxCol = new Float32Array(M.nCells * 3);
   }
@@ -1515,15 +1580,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 50, emissive: 0x222222 }));
       grp.add(mesh); g3.tubes.push({ geo, col, map });
     }
-    // Purkinje network as points
-    const ids = M.purkLV.concat(M.purkRV);
-    const pp = new Float32Array(ids.length * 3);
-    ids.forEach((id, i) => { const q = nodePos(id, 1.2); pp[3 * i] = q[0]; pp[3 * i + 1] = q[1]; pp[3 * i + 2] = q[2]; });
-    const pg = new THREE.BufferGeometry();
-    pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
-    const pc = new Float32Array(ids.length * 3); pg.setAttribute('color', new THREE.BufferAttribute(pc, 3));
-    grp.add(new THREE.Points(pg, new THREE.PointsMaterial({ size: 1.9, vertexColors: true, sizeAttenuation: true })));
-    g3.purk = { ids, pc, geo: pg };
     // sinus node marker (visible in both views)
     const san = g3.san = new THREE.Mesh(new THREE.SphereGeometry(2.6, 16, 12), new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x333333 }));
     const sp = nodePos(M.sanCell, -1.0); san.position.set(sp[0], sp[1], sp[2]);
@@ -1543,30 +1599,209 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     if (nrm.z < 0) nrm.negate();                               // point anterior
     const p0 = new THREE.Vector3((mv[0] + tv[0]) / 2, (mv[1] + tv[1]) / 2, (mv[2] + tv[2]) / 2);
     g3.cutN = nrm; g3.cutP = p0;
-    // Cap: a flat grid of quads on the cut plane wherever it passes through
-    // myocardium, each coloured live from the voxel underneath.
+    g3.plane = new THREE.Plane();
+    // Cut face by stencil capping. Every surface (which together bound the
+    // heart wall as one closed solid) is drawn into the stencil buffer only:
+    // back faces +1, front faces −1, both clipped by the cut plane. Where the
+    // plane lies inside the wall the count is non-zero, so the cap below is
+    // drawn exactly inside the smooth contour of the sliced mesh.
+    const sg = g3.stencil = new THREE.Group(); g3.inner.add(sg);
+    const sMat = (side, op) => new THREE.MeshBasicMaterial({
+      side, colorWrite: false, depthWrite: false, depthTest: false, clippingPlanes: [g3.plane],
+      stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilFail: op, stencilZFail: op, stencilZPass: op,
+    });
+    const back = sMat(THREE.BackSide, THREE.IncrementWrapStencilOp), front = sMat(THREE.FrontSide, THREE.DecrementWrapStencilOp);
+    for (const geo of g3.allGeos) {
+      const mb = new THREE.Mesh(geo, back), mf = new THREE.Mesh(geo, front);
+      mb.renderOrder = mf.renderOrder = 1; sg.add(mb, mf);
+    }
+    // the cap itself: a fine grid on the plane, vertex-coloured from the tissue underneath
     const u = new THREE.Vector3().crossVectors(nrm, new THREE.Vector3(0, 1, 0)).normalize();
     const v = new THREE.Vector3().crossVectors(u, nrm).normalize();
-    const step = 1.0, half = 0.5 * step, R0 = 110, back = -0.25;
-    const pos = [], cells = [];
-    for (let i = -R0; i < R0; i += step) for (let j = -R0; j < R0; j += step) {
-      const q = p0.clone().addScaledVector(u, i + half).addScaledVector(v, j + half);
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (let c = 0; c < A.n; c++) {
+      const dx = A.pos[3 * c] - p0.x, dy = A.pos[3 * c + 1] - p0.y, dz = A.pos[3 * c + 2] - p0.z;
+      const pu = dx * u.x + dy * u.y + dz * u.z, pv = dx * v.x + dy * v.y + dz * v.z;
+      u0 = Math.min(u0, pu); u1 = Math.max(u1, pu); v0 = Math.min(v0, pv); v1 = Math.max(v1, pv);
+    }
+    u0 -= 4; v0 -= 4; u1 += 4; v1 += 4;
+    const step = 1.0, nu = Math.ceil((u1 - u0) / step) + 1, nv = Math.ceil((v1 - v0) / step) + 1;
+    const pos = new Float32Array(nu * nv * 3), map = new Int32Array(nu * nv), idx = [];
+    for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
+      const q = p0.clone().addScaledVector(u, u0 + i * step).addScaledVector(v, v0 + j * step).addScaledVector(nrm, -0.05);
+      const o = i * nv + j; pos[3 * o] = q.x; pos[3 * o + 1] = q.y; pos[3 * o + 2] = q.z;
       const c = A.at(Math.floor((q.x - A.origin[0]) / A.h), Math.floor((q.y - A.origin[1]) / A.h), Math.floor((q.z - A.origin[2]) / A.h));
-      if (c < 0 || !M.kind[c]) continue;
-      const corner = (di, dj) => p0.clone().addScaledVector(u, i + di).addScaledVector(v, j + dj).addScaledVector(nrm, back);
-      const q00 = corner(0, 0), q10 = corner(step, 0), q11 = corner(step, step), q01 = corner(0, step);
-      for (const qq of [q00, q10, q11, q00, q11, q01]) pos.push(qq.x, qq.y, qq.z);
-      cells.push(c);
+      if (c >= 0 && M.kind[c]) map[o] = c;
+      else if (c >= 0) map[o] = -A.label[c];                      // vessel / valve tissue: static colour
+      else { const n2 = nearestTissue(q.x, q.y, q.z); map[o] = n2 >= 0 ? n2 : -1; }
+      if (i && j) { const a0 = (i - 1) * nv + j - 1, a1 = i * nv + j - 1, a2 = i * nv + j, a3 = (i - 1) * nv + j; idx.push(a0, a1, a2, a0, a2, a3); }
     }
     const cg = new THREE.BufferGeometry();
-    cg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    cg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const ccol = new Float32Array(pos.length);
     cg.setAttribute('color', new THREE.BufferAttribute(ccol, 3));
-    cg.computeVertexNormals();
-    const cap = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+    cg.setIndex(idx);
+    const cap = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({
+      vertexColors: true, side: THREE.DoubleSide,
+      stencilWrite: true, stencilRef: 0, stencilFunc: THREE.NotEqualStencilFunc,
+      stencilFail: THREE.ReplaceStencilOp, stencilZFail: THREE.ReplaceStencilOp, stencilZPass: THREE.ReplaceStencilOp,
+    }));
+    cap.renderOrder = 2;
+    cap.onAfterRender = (r) => r.clearStencil();
     g3.inner.add(cap);
-    g3.slab = { im: cap, ids: cells, col: ccol, geo: cg };
-    g3.plane = new THREE.Plane();
+    const stat = {}; for (const [k, hex] of Object.entries(STATIC)) { const cc = new THREE.Color(hex); stat[k] = [cc.r, cc.g, cc.b]; }
+    g3.slab = { im: cap, map, col: ccol, geo: cg, stat };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Overlays: anatomical labels and ECG lead vectors
+  // ---------------------------------------------------------------------------
+  function buildOverlays() {
+    const layer = $('labels');
+    const Cv = M.center, V3 = (p) => new THREE.Vector3(p[0], p[1], p[2]);
+    const voxCentroid = (f) => { const s = [0, 0, 0]; let n = 0; for (let c = 0; c < A.n; c++) if (f(c)) { s[0] += A.pos[3 * c]; s[1] += A.pos[3 * c + 1]; s[2] += A.pos[3 * c + 2]; n++; } return n ? s.map((x) => x / n) : null; };
+    const farthest = (f, d) => {
+      let best = -1, bs = -Infinity; const l = Math.hypot(...d);
+      for (let c = 0; c < A.n; c++) { if (!f(c)) continue; const sc = ((A.pos[3 * c] - Cv[0]) * d[0] + (A.pos[3 * c + 1] - Cv[1]) * d[1] + (A.pos[3 * c + 2] - Cv[2]) * d[2]) / l; if (sc > bs) { bs = sc; best = c; } }
+      return A.p(best);
+    };
+    const lab = (L) => (c) => A.label[c] === L;
+    const epiOf = (L) => (c) => A.label[c] === L && A.epi[c];
+    const mid = (ids, f = 0.5) => { const id = ids[Math.floor((ids.length - 1) * f)]; return [M.x[id], M.y[id], M.z[id]]; };
+    g3.labels = [];
+    const add = (text, p, view, kind = 'anat', nrm = null) => {
+      const el = document.createElement('div'); el.className = `tag ${kind}`; el.textContent = text; layer.appendChild(el);
+      const pos = V3(p);
+      g3.labels.push({ el, pos, view, nrm: nrm || pos.clone().sub(V3(Cv)).normalize(), space: 'heart' });
+    };
+    // external view: surface anchors, hidden when they face away from the camera
+    add('Right atrium', farthest(epiOf(4), [-1, 0.2, 0.3]), 'external');
+    add('Left atrium', farthest(epiOf(3), [0.2, 0.3, -1]), 'external');
+    add('Right ventricle', farthest(epiOf(2), [-0.3, -0.3, 1]), 'external');
+    add('Left ventricle', farthest(epiOf(1), [1, -0.2, -0.2]), 'external');
+    add('Apex', farthest(epiOf(1), [0.5, -0.64, 0.58]), 'external');
+    add('Aorta', farthest(lab(5), [0, 1, 0]), 'external');
+    add('Pulmonary trunk', farthest(lab(6), [0.2, 0.7, 0.7]), 'external');
+    add('SVC', A.landmarks.SVC.c, 'external');
+    add('IVC', A.landmarks.IVC.c, 'external');
+    add('SA node', [M.x[M.sanCell], M.y[M.sanCell], M.z[M.sanCell]], 'both', 'cs');
+    // cutaway: chamber names at the centre of each chamber's cross-section on the cut plane
+    const n = g3.cutN, p0 = g3.cutP;
+    const dPlane = (c) => (A.pos[3 * c] - p0.x) * n.x + (A.pos[3 * c + 1] - p0.y) * n.y + (A.pos[3 * c + 2] - p0.z) * n.z;
+    const inSlab = (f) => (c) => f(c) && Math.abs(dPlane(c)) < 3;
+    const onPlane = (p) => { const q = V3(p); return q.addScaledVector(n, -q.clone().sub(p0).dot(n)).toArray(); };
+    // ventricles: centre of the cavity's cross-section; atria: centre of the wall ring
+    const cavCentroid = (L) => {
+      const [nx, ny, nz] = A.dims, s3 = [0, 0, 0]; let cnt = 0;
+      for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
+        const cid = A.cavityComp[(i * ny + j) * nz + k]; if (cid <= 0 || A.cavityLabel[cid] !== L) continue;
+        const x = A.origin[0] + (i + 0.5) * A.h, y = A.origin[1] + (j + 0.5) * A.h, z = A.origin[2] + (k + 0.5) * A.h;
+        if (Math.abs((x - p0.x) * n.x + (y - p0.y) * n.y + (z - p0.z) * n.z) > 3) continue;
+        s3[0] += x; s3[1] += y; s3[2] += z; cnt++;
+      }
+      return cnt ? s3.map((v) => v / cnt) : null;
+    };
+    for (const [L, name] of [[4, 'RA'], [3, 'LA'], [2, 'RV'], [1, 'LV']]) {
+      const c = (L <= 2 && cavCentroid(L)) || voxCentroid(inSlab((x) => A.label[x] === L));
+      if (c) add(name, c, 'cutaway', 'chamber');
+    }
+    const sept = voxCentroid(inSlab((x) => A.label[x] === 1 && Math.abs(A.phi[x]) < 0.4 && A.zuvc[x] > 0.3 && A.zuvc[x] < 0.6));
+    if (sept) add('Septum', sept, 'cutaway');
+    add('Mitral valve', onPlane(A.landmarks.MV.c), 'cutaway');
+    add('Tricuspid valve', onPlane(A.landmarks.TV.c), 'cutaway');
+    const S_ = M.csSegments;
+    add('AV node', mid(S_.AVN), 'cutaway', 'cs');
+    add('His bundle', mid(S_.HIS, 0.7), 'cutaway', 'cs');
+    add('Left bundle', mid(S_.LBB), 'cutaway', 'cs');
+    add('Left anterior fascicle', mid(S_.LAF, 0.75), 'cutaway', 'cs');
+    add('Left posterior fascicle', mid(S_.LPF, 0.75), 'cutaway', 'cs');
+    add('Septal fascicle', mid(S_.LSF, 0.9), 'cutaway', 'cs');
+    add('Right bundle', mid(S_.RBB, 0.45), 'cutaway', 'cs');
+    add('Moderator band', mid(S_.RBB, 0.85), 'cutaway', 'cs');
+
+    // lead vectors, drawn in the torso frame shifted to the heart centre
+    const grp = g3.leads = new THREE.Group(); grp.visible = false; g3.scene.add(grp);
+    const hc = M.heartCenterTorso;
+    const arrowMat = (hex) => new THREE.MeshBasicMaterial({ color: hex, depthTest: false, transparent: true, opacity: 0.95 });
+    const arrow = (dir, len, hex, head = 7) => {
+      const a = new THREE.ArrowHelper(dir.clone().normalize(), new THREE.Vector3(), len, hex, head, head * 0.55);
+      a.line.material.depthTest = false; a.line.material.transparent = true; a.cone.material.depthTest = false;
+      a.renderOrder = 10; a.line.renderOrder = 10; a.cone.renderOrder = 10;
+      grp.add(a); return a;
+    };
+    const leadTag = (text, p, kind) => {
+      const el = document.createElement('div'); el.className = `tag ${kind}`; el.textContent = text; layer.appendChild(el);
+      g3.labels.push({ el, pos: p, view: 'leads', space: 'scene' });
+      return g3.labels[g3.labels.length - 1];
+    };
+    const LIMB = [['I', 0], ['II', 60], ['III', 120], ['aVR', -150], ['aVL', -30], ['aVF', 90]], Rl = 95;
+    for (const [name, deg] of LIMB) {
+      const a = deg * Math.PI / 180, d = new THREE.Vector3(Math.cos(a), -Math.sin(a), 0);
+      const neg = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), d.clone().multiplyScalar(-Rl)]),
+        new THREE.LineDashedMaterial({ color: 0xf0b429, dashSize: 4, gapSize: 3, depthTest: false, transparent: true, opacity: 0.45 }));
+      neg.computeLineDistances(); neg.renderOrder = 10; grp.add(neg);
+      arrow(d, Rl, 0xf0b429);
+      leadTag(name, d.clone().multiplyScalar(Rl + 9), 'lead limb');
+    }
+    for (const k of ['V1', 'V2', 'V3', 'V4', 'V5', 'V6']) {
+      const e = M.electrodes[k], q = new THREE.Vector3(e[0] - hc[0], e[1] - hc[1], e[2] - hc[2]);
+      arrow(q, q.length() - 3, 0x38c6e8, 6);
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(3.2, 14, 10), arrowMat(0x38c6e8)); dot.position.copy(q); dot.renderOrder = 11; grp.add(dot);
+      leadTag(k, q.clone().multiplyScalar(1.07), 'lead chest');
+    }
+    g3.heartVec = arrow(new THREE.Vector3(1, 0, 0), 10, 0xffffff, 9);
+    g3.heartVecTag = leadTag('Heart vector', new THREE.Vector3(), 'lead hv');
+  }
+
+  function updateOverlays() {
+    const showLabels = ui.labels, showLeads = ui.leads;
+    g3.leads.visible = showLeads;
+    if (showLeads) {
+      const D = S.dipole || [0, 0, 0], mag = Math.hypot(D[0], D[1], D[2]);
+      const on = mag > 0.04;
+      g3.heartVec.visible = on; g3.heartVecTag.hidden = !on;
+      if (on) {
+        g3.heartVec.setDirection(new THREE.Vector3(D[0] / mag, D[1] / mag, D[2] / mag));
+        const L = Math.min(150, 12 + mag * 75); g3.heartVec.setLength(L, 9, 5);
+        g3.heartVecTag.pos.set(D[0] / mag, D[1] / mag, D[2] / mag).multiplyScalar(L + 10);
+      }
+    }
+    if (!showLabels && !showLeads) { for (const l of g3.labels) l.el.hidden = true; return; }
+    const cam = g3.camera, el = $('pane3d'), w = el.clientWidth, h = el.clientHeight;
+    const mw = g3.inner.matrixWorld, nmat = new THREE.Matrix3().getNormalMatrix(mw);
+    const tmp = new THREE.Vector3(), nw = new THREE.Vector3(), toCam = new THREE.Vector3();
+    const cut = ui.view === 'cutaway';
+    for (const l of g3.labels) {
+      let vis;
+      if (l.view === 'leads') vis = showLeads && !(l.hidden);
+      else vis = showLabels && (l.view === 'both' || (l.view === 'cutaway') === cut);
+      if (l === g3.heartVecTag) vis = showLeads && !g3.heartVecTag.hidden;
+      if (vis) {
+        if (l.space === 'heart') tmp.copy(l.pos).applyMatrix4(mw); else tmp.copy(l.pos);
+        if (l.view === 'external' || (l.view === 'both' && !cut)) {
+          nw.copy(l.nrm).applyMatrix3(nmat).normalize(); toCam.copy(cam.position).sub(tmp);
+          if (nw.dot(toCam) < 0) vis = false;                 // anchor faces away from the viewer
+        }
+        if (vis) {
+          tmp.project(cam);
+          if (tmp.z > 1) vis = false;
+          else { l.sx = (tmp.x + 1) / 2 * w; l.sy = (1 - tmp.y) / 2 * h; }
+        }
+      }
+      l.el.hidden = !vis;
+      l.vis = vis;
+    }
+    // simple de-overlap: place labels in order, nudging each clear of those already placed
+    const placed = [];
+    for (const l of g3.labels) {
+      if (!l.vis) continue;
+      if (!l.w) { l.w = l.el.offsetWidth; l.hh = l.el.offsetHeight; }
+      let y = l.sy;
+      const hit = (yy) => placed.some((q) => l.sx < q.x + q.w && l.sx + l.w > q.x && yy - 9 < q.y - 9 + q.h + 2 && yy - 9 + l.hh + 2 > q.y - 9);
+      for (let k = 1; k <= 6 && hit(y); k++) y = l.sy + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (l.hh + 3);
+      placed.push({ x: l.sx, y, w: l.w, h: l.hh });
+      l.el.style.transform = `translate(${l.sx.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    }
   }
 
   function worldCutPlane() {
@@ -1584,7 +1819,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     g3.plane.setFromNormalAndCoplanarPoint(n.clone().negate(), p);   // keep the posterior half
     // clip tissue only: the conduction system stays whole so it can be seen (and later clicked)
     for (const m of g3.clipMats) { m.clippingPlanes = cut ? [g3.plane] : null; m.needsUpdate = true; }
-    g3.cs.visible = cut; g3.slab.im.visible = cut;
+    g3.cs.visible = cut; g3.slab.im.visible = cut; g3.stencil.visible = cut;
     $('legendCs').hidden = !cut;
     $('viewName').textContent = cut ? 'anterior cutaway (four-chamber)' : 'external view';
     $('hint').textContent = cut ? 'Fixed anterior cutaway · scroll to zoom' : 'Drag to rotate · scroll to zoom';
@@ -1592,10 +1827,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     ctl.target.set(0, 0, 0);
     if (cut) {
       const dir = n.clone(); dir.y *= 0.6; dir.normalize();
-      cam.position.copy(dir.multiplyScalar(360));
+      cam.position.copy(dir.multiplyScalar(ui.leads ? 660 : 360));
       ctl.enableRotate = false;
     } else {
       cam.position.set(40, 30, 380);
+      if (ui.leads) cam.position.setLength(660);
       ctl.enableRotate = true;
     }
     cam.up.set(0, 1, 0); cam.lookAt(0, 0, 0); ctl.update();
@@ -1631,22 +1867,21 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const sc = [0, 0, 0];
     stateColor(M.sanCell, t, sc, 0, [1, 1, 1]); g3.san.material.color.setRGB(sc[0], sc[1], sc[2]);
     if (ui.view === 'cutaway') {
-      const sl = g3.slab, cc = sl.col;
-      for (let i = 0; i < sl.ids.length; i++) {
-        const c = sl.ids[i], o = 18 * i, r = vc[3 * c] * 0.9, g = vc[3 * c + 1] * 0.9, b = vc[3 * c + 2] * 0.9;   // cut face slightly darker
-        for (let k = 0; k < 18; k += 3) { cc[o + k] = r; cc[o + k + 1] = g; cc[o + k + 2] = b; }
+      const sl = g3.slab, cc = sl.col, mp = sl.map;
+      for (let i = 0; i < mp.length; i++) {
+        const c = mp[i], o = 3 * i;
+        if (c >= 0) { cc[o] = vc[3 * c] * 0.88; cc[o + 1] = vc[3 * c + 1] * 0.88; cc[o + 2] = vc[3 * c + 2] * 0.88; }   // cut face slightly darker
+        else { const st = sl.stat[-c] || C.rest; cc[o] = st[0] * 0.88; cc[o + 1] = st[1] * 0.88; cc[o + 2] = st[2] * 0.88; }
       }
       sl.geo.attributes.color.needsUpdate = true;
       for (const tb of g3.tubes) {
         for (let v = 0; v < tb.map.length; v++) stateColor(tb.map[v], t, tb.col, 3 * v, C.cs);
         tb.geo.attributes.color.needsUpdate = true;
       }
-      const pk = g3.purk;
-      for (let i = 0; i < pk.ids.length; i++) stateColor(pk.ids[i], t, pk.pc, 3 * i, C.cs);
-      pk.geo.attributes.color.needsUpdate = true;
     }
     g3.controls.update();
     g3.renderer.render(g3.scene, g3.camera);
+    updateOverlays();
   }
 
   // ---------------------------------------------------------------------------
@@ -1795,6 +2030,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const ts = $('timescale');
     ts.addEventListener('input', () => { ui.scaleIdx = +ts.value; $('tsVal').textContent = SCALE_LABEL[ui.scaleIdx]; });
     for (const id of ['viewExt', 'viewCut']) $(id).addEventListener('change', (e) => setView(e.target.value));
+    $('ovLabels').addEventListener('change', (e) => { ui.labels = e.target.checked; });
+    $('ovLeads').addEventListener('change', (e) => {
+      ui.leads = e.target.checked;
+      $('legendLeads').hidden = !ui.leads;
+      // pull back so the chest electrodes fit in view
+      if (ui.leads && g3.camera.position.length() < 600) { g3.camera.position.setLength(660); g3.controls.update(); }
+    });
     $('btnPause').addEventListener('click', () => { ui.paused = !ui.paused; $('btnPause').textContent = ui.paused ? 'Resume' : 'Pause'; });
     $('btnReset').addEventListener('click', () => { newSim(); });
     const toggle = () => {

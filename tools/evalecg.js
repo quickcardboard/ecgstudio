@@ -26,6 +26,7 @@ function evaluate(params, verbose) {
     paxis: Math.round(Math.atan2(lead(5, a0, q0).reduce((s, v) => s + v, 0), lead(0, a0, q0).reduce((s, v) => s + v, 0)) * 180 / Math.PI),
     PII: +Math.max(...lead(1, a0, a0 + 130)).toFixed(2),
     init: Object.fromEntries(['I', 'V1', 'V6'].map(n => { const k = LH.LEADS.indexOf(n); const y = lead(k, q0, q0 + 18); return [n, +y.reduce((a, b) => Math.abs(b) > Math.abs(a) ? b : a, 0).toFixed(2)]; })),
+    prog: ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((n) => { const a = ampl[LH.LEADS.indexOf(n)]; return a[1].toFixed(1) + '/' + (-a[2]).toFixed(1); }).join(' '),
     axis: Math.round(frontal), taxis: Math.round(taxis),
     T: Object.fromEntries(['I', 'II', 'aVR', 'V1', 'V2', 'V4', 'V6'].map(n => [n, +tw[LH.LEADS.indexOf(n)].toFixed(2)])),
     vmaxFrontal: Math.round(Math.atan2(-vm[1], vm[0]) * 180 / Math.PI), vmaxHoriz: Math.round(Math.atan2(-vm[2], vm[0]) * 180 / Math.PI),

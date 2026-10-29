@@ -24,7 +24,7 @@
   --grid-minor: #f7cfd7;
   --grid-major: #ec8fa3;
   --trace: #111111;
-  --rest: #f2a9bb; --dep: #2f63f0; --rep: #23b462; --cs: #e9b42a;
+  --rest: #f2a9bb; --dep: #2f63f0; --rep: #23b462; --cs: #e9b42a; --limb: #f0b429; --chest: #38c6e8;
   --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -104,6 +104,29 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .next { font-size: 11.5px; color: var(--panel-muted); border-top: 1px solid var(--panel-line); padding-top: 10px; line-height: 1.45; }
 .next b { color: var(--viewport-fg); font-weight: 500; }
 
+/* overlay toggles */
+.toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.tog { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; padding: 7px 4px; border-radius: 6px; border: 1px solid var(--panel-line); background: rgba(255,255,255,0.06); cursor: pointer; text-align: center; }
+.tog input { position: absolute; opacity: 0; pointer-events: none; }
+.tog:has(input:checked) { background: rgba(240,180,41,0.18); border-color: var(--limb); }
+.tog:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tog span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; border: 1px solid var(--panel-muted); vertical-align: 0; }
+.tog:has(input:checked) span::before { background: var(--limb); border-color: var(--limb); }
+
+/* projected labels */
+#labels { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.tag { position: absolute; left: 0; top: 0; white-space: nowrap; font: 500 11.5px/1 var(--font-ui); color: var(--viewport-fg);
+  padding: 3px 6px 3px 12px; border-radius: 4px; background: rgba(10, 18, 26, 0.72); margin: -9px 0 0 -4px; }
+.tag::before { content: ""; position: absolute; left: 1px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--viewport-fg); }
+.tag.chamber { font: 600 13px/1 var(--font-display); letter-spacing: 0.06em; padding-left: 6px; margin: -10px 0 0 -14px; background: rgba(10, 18, 26, 0.55); }
+.tag.chamber::before { display: none; }
+.tag.cs::before { background: var(--cs); }
+.tag.lead { font: 600 12px/1 var(--font-data); padding: 3px 5px; margin: -9px 0 0 -12px; background: rgba(10, 18, 26, 0.7); }
+.tag.lead::before { display: none; }
+.tag.limb { color: var(--limb); }
+.tag.chest { color: var(--chest); }
+.tag.hv { color: #ffffff; font-family: var(--font-ui); font-weight: 500; }
+
 /* legend + clock on the viewport */
 .legend { position: absolute; z-index: 2; left: 10px; bottom: 10px; display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--viewport-fg); background: var(--panel); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--panel-line); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
@@ -158,6 +181,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   <main id="split">
     <section class="pane" id="pane3d" aria-label="3D heart">
       <canvas id="c3d"></canvas>
+      <div id="labels" aria-hidden="true"></div>
       <div class="pane-head">
         <span class="title">Heart · <span id="viewName">external view</span></span>
         <span class="spacer"></span>
@@ -183,6 +207,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
               <input type="radio" name="view" id="viewCut" value="cutaway"><label for="viewCut">Cutaway</label>
             </div>
           </div>
+          <div class="ctl">
+            <span class="lab">Overlays</span>
+            <div class="toggles">
+              <label class="tog" for="ovLabels"><input type="checkbox" id="ovLabels"><span>Labels</span></label>
+              <label class="tog" for="ovLeads"><input type="checkbox" id="ovLeads"><span>Lead vectors</span></label>
+            </div>
+          </div>
           <div class="btnrow">
             <button id="btnPause" type="button">Pause</button>
             <button id="btnReset" type="button">Reset</button>
@@ -196,6 +227,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         <span><i style="background:var(--dep)"></i>Depolarizing</span>
         <span><i style="background:var(--rep)"></i>Repolarizing</span>
         <span id="legendCs" hidden><i style="background:var(--cs)"></i>Conduction system</span>
+        <span id="legendLeads" hidden><i style="background:var(--limb)"></i>Limb leads <i style="background:var(--chest); margin-left:8px"></i>Chest leads <i style="background:#ffffff; margin-left:8px"></i>Heart vector</span>
       </div>
       <div class="clock" id="clock">t 0.000 s</div>
     </section>
@@ -230,9 +262,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     </ul>
     <h3>Controls</h3>
     <ul>
-      <li><b>Sinus rate</b> sets the sinus node rate. Below about 48 bpm the AV-junction pacemaker escapes, as it would in a patient.</li>
+      <li><b>Sinus rate</b> sets the sinus node rate (30–180 bpm). The rhythm stays sinus at every rate. Escape rhythms depend on where conduction is blocked, not on rate: a junctional escape (about 48 bpm) takes over when the sinus node or AV node is blocked, and a ventricular escape (40 bpm) when the block is below the AV node. Blocks arrive in milestone 2.</li>
       <li><b>Time scale</b> slows the whole simulation, down to 1/50 of real time, so you can follow the wavefront. The ECG slows with it.</li>
-      <li><b>View:</b> External lets you rotate the heart. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches, fascicles and Purkinje network.</li>
+      <li><b>View:</b> External lets you rotate the heart. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches and fascicles. The Purkinje network runs in the model but is not drawn.</li>
+      <li><b>Overlays:</b> Labels names the chambers and vessels, and in the cutaway the conduction system too. Lead vectors draws the limb-lead hexaxial reference (amber; dashed lines are each lead's negative half), the chest electrodes V1–V6 with their lead vectors (blue), and the live heart vector (white). When the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
       <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest.</li>
     </ul>
     <h3>Banner</h3>
