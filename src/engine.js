@@ -153,7 +153,7 @@
     // Action potential durations (ms) at long diastolic interval
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
-    apdVentApexExtra: 10, // apex shorter than base (apex repolarises first)
+    apdVentApexExtra: -20, // apex shorter than base (apex repolarises first)
     apdRVoffset: 30,
     apdAtrial: 190,
     apdPurk: 340,
@@ -169,8 +169,8 @@
 
     // Transmembrane potential shape
     vRest: -85, vAmp: 105,
-    plateauDecline: 0.18,  // fractional fall in plateau over the APD
-    repWVent: 140, repWAtrial: 120,   // width of phase-3 repolarisation window (ms)
+    plateauDecline: 0.05,  // fractional fall in plateau over the APD
+    repWVent: 180, repWAtrial: 220,   // width of phase-3 repolarisation window (ms)
     upW: 2.0,                        // width of phase-0 upstroke (ms)
 
     // Automaticity (cycle lengths, ms)

@@ -23,11 +23,12 @@ Three.js r128 and OrbitControls from CDNs.
 | Rate | PR | QRS | QT / QTc |
 |---|---|---|---|
 | 45 bpm | 157 ms | 83 ms | 425 / 368 ms |
-| 72 bpm | 140 ms | 86 ms | 371 / 406 ms |
+| 72 bpm | 140 ms | 86 ms | 376 / 411 ms |
 | 100 bpm | 132 ms | 83 ms | 331 / 427 ms |
 | 160 bpm | 126 ms | 83 ms | 283 / 462 ms |
 
-Frontal axes at 72 bpm: P +79°, QRS +34° (area) / +42° (net deflection), T +51°. Septal q in I and
+Frontal axes at 72 bpm: P +81°, QRS +24° (area) / +45° (net deflection), T +74°. J points and
+ST segments within ±0.04 mV in all leads (`node tools/stcheck.js`). Septal q in I and
 V6, r in V1, R/S transition at V4, upright T in I, II and V2–V6.
 
 | Condition | QRS axis (area / deflection) | QRS | Pattern |
