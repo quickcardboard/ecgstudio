@@ -1,0 +1,28 @@
+{
+ "lvWallLayers": 2,
+ "torso": "tools/data/torso_leadfield.json",
+ "params": {
+  "heartRotation": 29,
+  "heartPitch": 12,
+  "sigmaRatio": 8.4,
+  "lafPhi": 2.29,
+  "lafZ": 0.63,
+  "lpfPhi": -1.87,
+  "lpfZ": 0.32,
+  "lbbSplitZ": 0.81,
+  "lpfTerrLo": -2.05,
+  "lpfTerrHi": 0.27,
+  "lpfApexZ": 0.21,
+  "septalTerrHalf": 0,
+  "lbbSeptalFrac": 0,
+  "purkCrossSlow": 11.85,
+  "cvBundle": 2.61,
+  "cvPurkinje": 2.28,
+  "purkZmaxLV": 0.96,
+  "fascConnectFrac": 0.59,
+  "rbbSeptalDelay": 16.92
+ },
+ "normal": "axis 22/47 QRS 80 q(I) -0.09 r(V1) 0.15 prog 0.2/0.8 0.3/1.2 0.4/1.2 0.6/0.6 1.0/0.1 0.9/0.1",
+ "LAFB": "axis -45/-43 QRS 108 II 0.3/0.5 aVF 0.3/0.7 aVL 0.8/0.1 init aVF 0.05",
+ "LPFB": "axis 96/97 QRS 103 I 0.1/0.2 III 0.9/0.1 init I 0.03"
+}

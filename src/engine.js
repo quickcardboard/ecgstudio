@@ -189,34 +189,76 @@
   // Anatomy: decode the embedded voxel grid
   // ---------------------------------------------------------------------------
   class Anatomy {
-    constructor(json) {
+    // opts.lvWallLayers: grow (+) or strip (−) whole voxel layers on the outer
+    // (epicardial) surface of the LV free wall, leaving septum and base alone.
+    constructor(json, opts = {}) {
       this.json = json;
-      const h = this.h = json.h;
+      this.h = json.h;
       const [nx, ny, nz] = this.dims = json.dims;
       this.origin = json.origin;
-      const n = this.n = json.count;
-      const idx = decode(json.index, Uint32Array);
-      this.label = decode(json.label, Uint8Array);
-      const q = (k) => { const a = decode(json[k], Int8Array), o = new Float32Array(n); for (let i = 0; i < n; i++) o[i] = a[i] / 127; return o; };
-      this.rho = q('rho'); this.zuvc = q('z'); this.phi = q('phi');
-      for (let i = 0; i < n; i++) this.phi[i] *= Math.PI;
-      this.vside = decode(json.vside, Int8Array);
-      const f = decode(json.fiber, Int8Array);
-      this.fiber = new Float32Array(3 * n);
-      for (let i = 0; i < 3 * n; i++) this.fiber[i] = f[i] / 127;
+      const n0 = json.count;
+      const idx = decode(json.index, Uint32Array), lab = decode(json.label, Uint8Array);
+      const q = (k) => { const a = decode(json[k], Int8Array), o = new Float32Array(n0); for (let i = 0; i < n0; i++) o[i] = a[i] / 127; return o; };
+      const rho = q('rho'), zz = q('z'), ph = q('phi'), vs = decode(json.vside, Int8Array), fb = decode(json.fiber, Int8Array);
+      const V = [];   // editable voxel list
+      for (let c = 0; c < n0; c++) V.push({ g: idx[c], l: lab[c], rho: rho[c], z: zz[c], phi: ph[c] * Math.PI, vs: vs[c], f: [fb[3 * c] / 127, fb[3 * c + 1] / 127, fb[3 * c + 2] / 127] });
+      if (opts.lvWallLayers) this._editLVWall(V, opts.lvWallLayers);
+      this._materialize(V);
+      this.landmarks = json.landmarks;
+      this._classifySurfaces();
+    }
+
+    _materialize(V) {
+      const [nx, ny, nz] = this.dims, h = this.h, n = this.n = V.length;
+      this.label = new Uint8Array(n); this.rho = new Float32Array(n); this.zuvc = new Float32Array(n); this.phi = new Float32Array(n);
+      this.vside = new Int8Array(n); this.fiber = new Float32Array(3 * n);
       this.ii = new Int16Array(n); this.jj = new Int16Array(n); this.kk = new Int16Array(n);
       this.pos = new Float32Array(3 * n);
       this.grid = new Int32Array(nx * ny * nz).fill(-1);
-      for (let c = 0; c < n; c++) {
-        const g = idx[c], k = g % nz, j = ((g / nz) | 0) % ny, i = (g / (ny * nz)) | 0;
+      V.forEach((v, c) => {
+        const g = v.g, k = g % nz, j = ((g / nz) | 0) % ny, i = (g / (ny * nz)) | 0;
+        this.label[c] = v.l; this.rho[c] = v.rho; this.zuvc[c] = v.z; this.phi[c] = v.phi; this.vside[c] = v.vs;
+        this.fiber[3 * c] = v.f[0]; this.fiber[3 * c + 1] = v.f[1]; this.fiber[3 * c + 2] = v.f[2];
         this.ii[c] = i; this.jj[c] = j; this.kk[c] = k; this.grid[g] = c;
         this.pos[3 * c] = this.origin[0] + (i + 0.5) * h;
         this.pos[3 * c + 1] = this.origin[1] + (j + 0.5) * h;
         this.pos[3 * c + 2] = this.origin[2] + (k + 0.5) * h;
-      }
-      this.landmarks = json.landmarks;
-      this._classifySurfaces();
+      });
     }
+
+    _editLVWall(V, layers) {
+      const [nx, ny, nz] = this.dims, N = nx * ny * nz;
+      const nb = (g) => { const k = g % nz, j = ((g / nz) | 0) % ny, i = (g / (ny * nz)) | 0, out = [];
+        if (i > 0) out.push(g - ny * nz); if (i < nx - 1) out.push(g + ny * nz);
+        if (j > 0) out.push(g - nz); if (j < ny - 1) out.push(g + nz);
+        if (k > 0) out.push(g - 1); if (k < nz - 1) out.push(g + 1); return out; };
+      const outside = () => {           // flood-fill empty space from the grid corner
+        const occ = new Int32Array(N).fill(-1); V.forEach((v, c) => { occ[v.g] = c; });
+        const out = new Uint8Array(N), st = [0]; out[0] = 1;
+        while (st.length) { const g = st.pop(); for (const w of nb(g)) if (!out[w] && occ[w] < 0) { out[w] = 1; st.push(w); } }
+        return { occ, out };
+      };
+      const free = (v) => v.l === LAB.LV && v.z >= 0 && v.z < 0.88 && Math.abs(v.phi) > 0.6;   // LV free wall below the base
+      for (let L = 0; L < Math.abs(layers); L++) {
+        const { occ, out } = outside();
+        if (layers > 0) {
+          const add = new Map();
+          for (const v of V) {
+            if (!free(v)) continue;
+            for (const w of nb(v.g)) if (out[w] && !add.has(w)) {
+              // keep clear of other structures (atria, great vessels, RV)
+              if (nb(w).some((x) => occ[x] >= 0 && V[occ[x]].l !== LAB.LV)) continue;
+              add.set(w, { g: w, l: LAB.LV, rho: 1, z: v.z, phi: v.phi, vs: v.vs, f: v.f.slice() });
+            }
+          }
+          for (const v of add.values()) V.push(v);
+        } else {
+          const keep = V.filter((v) => !(free(v) && nb(v.g).some((w) => out[w])));
+          V.length = 0; for (const v of keep) V.push(v);
+        }
+      }
+    }
+
     at(i, j, k) {
       const [nx, ny, nz] = this.dims;
       if (i < 0 || j < 0 || k < 0 || i >= nx || j >= ny || k >= nz) return -2; // outside grid
@@ -773,7 +815,33 @@
       const names = ['RA', 'LA', 'LL', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
       this.eNames = names;
       // + three uniform-field "leads" giving the heart dipole vector (VCG X,Y,Z)
-      const NE = names.length + 3;
+      // + optionally limb leads I and II from a bounded-torso lead field
+      const TF = this.P.torsoField || null;
+      const NE = names.length + 3 + (TF ? 2 : 0);
+      let tfSample = null, tfScale = 1;
+      if (TF) {
+        if (!TF._I) { TF._I = decode(TF.I, Float32Array); TF._II = decode(TF.II, Float32Array); }
+        const [nx, ny, nz] = TF.dims, o = TF.origin, th = TF.h;
+        // trilinear sample of a lead's gradient field at a torso-frame point
+        tfSample = (F, p) => {
+          const fx = (p[0] - o[0]) / th, fy = (p[1] - o[1]) / th, fz = (p[2] - o[2]) / th;
+          const i0 = Math.max(0, Math.min(nx - 2, Math.floor(fx))), j0 = Math.max(0, Math.min(ny - 2, Math.floor(fy))), k0 = Math.max(0, Math.min(nz - 2, Math.floor(fz)));
+          const tx = Math.min(1, Math.max(0, fx - i0)), ty = Math.min(1, Math.max(0, fy - j0)), tz = Math.min(1, Math.max(0, fz - k0));
+          const out = [0, 0, 0];
+          for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) for (let e = 0; e < 2; e++) {
+            const wgt = (a ? tx : 1 - tx) * (b ? ty : 1 - ty) * (e ? tz : 1 - tz);
+            const q = 3 * (((i0 + a) * ny + (j0 + b)) * nz + (k0 + e));
+            out[0] += wgt * F[q]; out[1] += wgt * F[q + 1]; out[2] += wgt * F[q + 2];
+          }
+          return out;
+        };
+        // scale so lead I has the same mean sensitivity over the heart as the
+        // uniform-field (Einthoven) model; lead II keeps its relative length
+        let sum = 0, cnt = 0;
+        for (let c = 0; c < n; c += 7) { if (!this.kind[c]) continue; const v = tfSample(TF._I, this.toTorso(A.p(c))); sum += Math.hypot(v[0], v[1], v[2]); cnt++; }
+        tfScale = 1e-4 / (sum / cnt);
+        this.torsoLimb = true;
+      }
       const W = new Float32Array(n * NE);
       const E = names.map((k) => this.electrodes[k]);
       const R = this.rot;
@@ -830,6 +898,11 @@
           for (let d = 0; d < 3; d++) {                           // VCG: uniform lead fields
             const cc = 1e-4 * h * h * sc * (ex[d] + re * rr[d] + fe * ff[d]);
             W[w * NE + 9 + d] += cc; W[c * NE + 9 + d] -= cc;
+          }
+          if (TF) for (let q = 0; q < 2; q++) {                    // bounded-torso limb leads I, II
+            const Lv = tfSample(q ? TF._II : TF._I, m);
+            const cc = tfScale * h * h * sc * ((Lv[0] * ex[0] + Lv[1] * ex[1] + Lv[2] * ex[2]) + re * (Lv[0] * rr[0] + Lv[1] * rr[1] + Lv[2] * rr[2]) + fe * (Lv[0] * ff[0] + Lv[1] * ff[1] + Lv[2] * ff[2]));
+            W[w * NE + 12 + q] += cc; W[c * NE + 12 + q] -= cc;
           }
           for (let e = 0; e < 9; e++) {
             const rx = E[e][0] - m[0], ry = E[e][1] - m[1], rz = E[e][2] - m[2];
@@ -1125,9 +1198,14 @@
       // lead axes (I 0°, II +60°, III +120°; +angles are inferior), then
       // Goldberger's augmented leads — the limb electrodes are far-field.
       const L = this.leadsLatest, c60 = 0.5, s60 = 0.8660254;
-      L[0] = D[0];
-      L[1] = c60 * D[0] - s60 * D[1];
-      L[2] = -c60 * D[0] - s60 * D[1];
+      if (this.M.torsoLimb) {
+        // bounded-torso lead fields (a computed Burger triangle)
+        L[0] = v(12) * this.P.dipoleGain; L[1] = v(13) * this.P.dipoleGain; L[2] = L[1] - L[0];
+      } else {
+        L[0] = D[0];
+        L[1] = c60 * D[0] - s60 * D[1];
+        L[2] = -c60 * D[0] - s60 * D[1];
+      }
       L[3] = -(L[0] + L[1]) / 2; L[4] = (L[0] - L[2]) / 2; L[5] = (L[1] + L[2]) / 2;
       // Precordial leads: a blend of (a) the heart vector projected on each
       // lead's direction (the dominant, dipolar part of chest potentials) and
