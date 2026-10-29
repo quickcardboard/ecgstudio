@@ -265,13 +265,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Sinus rate</b> sets the sinus node rate (30–180 bpm). The rhythm stays sinus at every rate. Escape rhythms depend on where conduction is blocked, not on rate: a junctional escape (about 48 bpm) takes over when the sinus node or AV node is blocked, and a ventricular escape (40 bpm) when the block is below the AV node. Blocks arrive in milestone 2.</li>
       <li><b>Time scale</b> slows the whole simulation, down to 1/50 of real time, so you can follow the wavefront. The ECG slows with it.</li>
       <li><b>View:</b> External lets you rotate the heart. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches and fascicles. The Purkinje network runs in the model but is not drawn.</li>
-      <li><b>Overlays:</b> Labels names the chambers and vessels, and in the cutaway the conduction system too. Lead vectors draws the limb-lead hexaxial reference (amber; dashed lines are each lead's negative half), the chest electrodes V1–V6 with their lead vectors (blue), and the live heart vector (white). When the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
+      <li><b>Overlays:</b> Labels names the chambers and vessels, and in the cutaway the conduction system too. Lead vectors draws the limb-lead hexaxial reference (amber, drawn from the torso's own lead vectors, so lead I is visibly shorter than II and III; dashed lines are each lead's negative half), the chest electrodes V1–V6 with their lead vectors (blue), and the live heart vector (white). When the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
       <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest.</li>
     </ul>
     <h3>Banner</h3>
     <p>The rhythm label comes from the simulator's own state, for example which pacemaker fired. PR, QRS and QT are measured from tissue activation and repolarization times. QTc uses Bazett's formula. The axis is measured from the QRS areas in leads I and aVF.</p>
     <h3>Model</h3>
-    <p>The anatomy is the average adult four-chamber heart of Rodero et al. (2021), built from CT scans and voxelized at 2 mm. The model includes fibre-dependent conduction, AV-node decremental conduction, restitution, and transmural and apicobasal repolarization gradients with electrotonic modulation. Precordial leads are computed from electrode positions on the chest. Limb leads use the Einthoven projection of the heart vector.</p>
+    <p>The anatomy is the average adult four-chamber heart of Rodero et al. (2021), built from CT scans and voxelized at 2 mm. The model includes fibre-dependent conduction, AV-node decremental conduction, restitution, and transmural and apicobasal repolarization gradients with electrotonic modulation. Electrical sources are stronger along muscle fibres than across them. Limb leads come from the lead fields of an insulated torso (a computed Burger triangle), and precordial leads blend the heart-vector projection with the near-field potential at each chest electrode. The averaged CT heart's LV free wall is thickened by about 6 mm and the heart sits slightly more vertical than in the scan; with these settings the model reproduces normal, left anterior and left posterior fascicular block axes.</p>
     <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. LiveHeart is an educational model, not a diagnostic device.</p>
   </div>
 </div>
@@ -283,6 +283,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script type="application/json" id="anatomy-data">/*__ANATOMY__*/</script>
+<script type="application/json" id="torso-data">/*__TORSO__*/</script>
 <script>
 /*__ENGINE__*/
 </script>

@@ -2,7 +2,7 @@
 //   node tools/fascsearch.js '[{...},{...}]'     evaluate a list
 // Prints axis/QRS/morphology for each and a combined score (lower is better).
 const fs = require('fs'); const LH = require('../src/engine.js');
-const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json')), { lvWallLayers: +(process.env.LVWALL || 0) });
+const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json')), { lvWallLayers: process.env.LVWALL !== undefined ? +process.env.LVWALL : undefined });
 const BLOCKALL = !!process.env.BLOCKALL;
 const LEAD = (n) => LH.LEADS.indexOf(n);
 
@@ -24,7 +24,7 @@ function beat(M, blk) {
   return { axis, ampAxis, qrs: q1 - q0, rs, init };
 }
 
-const TORSO = process.env.TORSO ? JSON.parse(fs.readFileSync(process.env.TORSO)) : null;
+const TORSO = process.env.TORSO ? JSON.parse(fs.readFileSync(process.env.TORSO)) : null;   // default torso is bundled; override with TORSO=path
 function evaluate(p) {
   const M = new LH.Model(A, TORSO ? Object.assign({ torsoField: TORSO }, p) : p);
   const n = beat(M, []), lafb = beat(M, BLOCKALL ? M.csSegments.LAF : M.csSegments.LAF.slice(0, 3)), lpfb = beat(M, BLOCKALL ? M.csSegments.LPF : M.csSegments.LPF.slice(0, 3));

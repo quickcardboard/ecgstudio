@@ -118,41 +118,43 @@
     bachmannReach: 0.25,   // Bachmann insertion: fraction of the way SVC→LAA
     csPos: 0.45,           // CS-ostium interatrial connection: fraction CFB→IVC
     cvHis: 1.50,
-    cvBundle: 2.00,        // bundle branches and fascicles
+    cvBundle: 2.56,        // bundle branches and fascicles
     // Spec: conduction system ~3x faster than ventricular myocardium
-    cvPurkinje: 2.00,
+    cvPurkinje: 2.28,
     avnSegDelay: 17,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
     avnSegments: 5,
     avnToneExp: 0.45,      // AV-nodal delay ∝ (72/rate)^exp (autonomic coupling)
     rbbSeptalFrac: 0.15,
-    rbbSeptalDelay: 13,    // ms extra delay into the RV septal Purkinje
+    rbbSeptalDelay: 19.39,    // ms extra delay into the RV septal Purkinje
 
-    lafPhi: 1.2, lafZ: 0.42, lpfPhi: -1.2, lpfZ: 0.42, lsfPhi: 0.05, lsfZ: 0.42,
+    lafPhi: 2.28, lafZ: 0.63, lpfPhi: -1.87, lpfZ: 0.27, lsfPhi: 0.05, lsfZ: 0.42,
     septalFascicle: false,  // optional left septal fascicle (anatomically debated; off)
-    fascConnectFrac: 0.35,  // distal fraction of LAF/LPF giving off Purkinje branches
-    lbbSplitZ: 0.72, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
-    septalTerrHalf: 0.5,    // half-width (rad) of the mid-septal Purkinje territory
+    fascConnectFrac: 0.59,  // distal fraction of LAF/LPF giving off Purkinje branches
+    lbbSplitZ: 0.84, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
+    septalTerrHalf: 0,    // half-width (rad) of the mid-septal Purkinje territory
     lbbSeptalFrac: 0,           // distal fraction of the LBB trunk giving off septal Purkinje
-    lpfApexZ: 0,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
-    lpfTerrLo: -2.6, lpfTerrHi: 0.0,  // LPF territory in rotational UVC (inferior/posterior wall)
+    lpfApexZ: 0.21,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
+    lpfTerrLo: -1.88, lpfTerrHi: 0.46,  // LPF territory in rotational UVC (inferior/posterior wall)
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
-    purkCrossSlow: 1.0,     // conduction-time factor on Purkinje links between fascicle territories
-    sigmaRatio: 1,          // intracellular conductivity along:across fibres (1 = isotropic sources)
+    purkCrossSlow: 11.85,     // conduction-time factor on Purkinje links between fascicle territories
+    ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
+    precordialGain: 0.625,        // overall chest-lead gain
+    sigmaRatio: 8.42,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
-    heartPitch: 0,          // degrees about the left–right axis (+ tips the anterior wall upward)
-    heartRotation: 25,
+    heartPitch: -4.6,          // degrees about the left–right axis (+ tips the anterior wall upward)
+    heartRotation: 17.4,
     apexX: 72, apexY: -20,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)      // degrees about the AP axis (+ = more vertical heart)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
-    purkZmaxLV: 0.95, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)   // distal fraction of septal RBB giving off RV septal Purkinje
+    purkZmaxLV: 0.96, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)   // distal fraction of septal RBB giving off RV septal Purkinje
     pmjAntero: 2,          // Purkinje -> muscle junction delay (ms)
-    pmjRetro: 9,           // muscle -> Purkinje (retrograde) junction delay (ms)
+    pmjRetro: 20,           // muscle -> Purkinje (retrograde) junction delay (ms)
 
     // Action potential durations (ms) at long diastolic interval
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
-    apdVentEndoExtra: 65,  // endocardium longer than epicardium (upright T waves)
-    apdVentApexExtra: -15, // apex shorter than base (apex repolarises first)
-    apdRVoffset: 15,
+    apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
+    apdVentApexExtra: 10, // apex shorter than base (apex repolarises first)
+    apdRVoffset: 30,
     apdAtrial: 190,
     apdPurk: 340,
     apdAVN: 160,
@@ -162,7 +164,7 @@
     cvRestK: 0.6, cvRestTau: 30,
     avnCvRestK: 1.8, avnCvRestTau: 110,  // AV-node decremental conduction
     avnErpExtra: 110,      // post-repolarisation refractoriness of AV node (ms)
-    electrotonicK: 1.0,    // APD shortening per ms of later activation (cardiac memory)
+    electrotonicK: 1.4,    // APD shortening per ms of later activation (cardiac memory)
     erpFrac: 0.92,         // ERP as fraction of APD (myocardium)
 
     // Transmembrane potential shape
@@ -179,10 +181,10 @@
     // ECG
     ecgGain: 0.0174,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm)
     precordialDipoleW: 0.7,     // share of the precordial signal from the heart-vector projection
-    precordialDipoleGain: 1.7,
+    precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
- // precordial lead-vector length relative to the limb leads
-    dipoleGain: 1.65,       // heart-vector scale for the limb leads (mV per unit dipole)
+    ecgLowpass: 40,             // Hz, ECG machine low-pass (0 = off; diagnostic carts use up to 150)
+    dipoleGain: 1.65,           // heart-vector scale for the limb leads (mV per unit dipole)
   };
 
   // ---------------------------------------------------------------------------
@@ -202,7 +204,12 @@
       const rho = q('rho'), zz = q('z'), ph = q('phi'), vs = decode(json.vside, Int8Array), fb = decode(json.fiber, Int8Array);
       const V = [];   // editable voxel list
       for (let c = 0; c < n0; c++) V.push({ g: idx[c], l: lab[c], rho: rho[c], z: zz[c], phi: ph[c] * Math.PI, vs: vs[c], f: [fb[3 * c] / 127, fb[3 * c + 1] / 127, fb[3 * c + 2] / 127] });
-      if (opts.lvWallLayers) this._editLVWall(V, opts.lvWallLayers);
+      // The averaged CT heart's LV free wall is thickened by 3 voxel layers
+      // (~6 mm): with it the model reproduces normal, LAFB and LPFB axes
+      // together (see tools/research and tools/data/fascicular_candidate_v2.json).
+      const layers = opts.lvWallLayers !== undefined ? opts.lvWallLayers : 3;
+      this.lvWallLayers = layers;
+      if (layers) this._editLVWall(V, layers);
       this._materialize(V);
       this.landmarks = json.landmarks;
       this._classifySurfaces();
@@ -816,7 +823,7 @@
       this.eNames = names;
       // + three uniform-field "leads" giving the heart dipole vector (VCG X,Y,Z)
       // + optionally limb leads I and II from a bounded-torso lead field
-      const TF = this.P.torsoField || null;
+      const TF = this.P.torsoField !== undefined ? this.P.torsoField : DEFAULT_TORSO;
       const NE = names.length + 3 + (TF ? 2 : 0);
       let tfSample = null, tfScale = 1;
       if (TF) {
@@ -841,6 +848,11 @@
         for (let c = 0; c < n; c += 7) { if (!this.kind[c]) continue; const v = tfSample(TF._I, this.toTorso(A.p(c))); sum += Math.hypot(v[0], v[1], v[2]); cnt++; }
         tfScale = 1e-4 / (sum / cnt);
         this.torsoLimb = true;
+        // heart-averaged lead vectors of leads I and II (torso frame, lead I = unit length): Burger's triangle
+        const mI = [0, 0, 0], mII = [0, 0, 0];
+        for (let c = 0; c < n; c += 7) { if (this.kind[c] !== KIND.VENT) continue; const p = this.toTorso(A.p(c)); const a = tfSample(TF._I, p), b = tfSample(TF._II, p); for (let d = 0; d < 3; d++) { mI[d] += a[d]; mII[d] += b[d]; } }
+        const lI = len(mI);
+        this.limbLeadVectors = { I: mul(mI, 1 / lI), II: mul(mII, 1 / lI) };
       }
       const W = new Float32Array(n * NE);
       const E = names.map((k) => this.electrodes[k]);
@@ -878,7 +890,7 @@
       for (let c = 0; c < n; c++) {
         const kc = this.kind[c]; if (!kc) continue;
         const i = A.ii[c], j = A.jj[c], k = A.kk[c];
-        const sc = kc === KIND.VENT && aniso ? anorm : 1;
+        const sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : 1;
         for (let a = 0; a < 3; a++) {
           const w = A.at(i + (a === 0), j + (a === 1), k + (a === 2));
           if (w < 0 || this.kind[w] !== kc) continue;
@@ -1214,9 +1226,26 @@
       const wct = (v(0) + v(1) + v(2)) / 3, P = this.P, dir = this.M.leadDir;
       for (let k = 0; k < 6; k++) {
         const u = dir[k], proj = D[0] * u[0] + D[1] * u[1] + D[2] * u[2];
-        L[6 + k] = P.precordialDipoleW * P.precordialDipoleGain * proj + (1 - P.precordialDipoleW) * (v(3 + k) - wct);
+        L[6 + k] = P.precordialGain * (P.precordialDipoleW * P.precordialDipoleGain * proj + (1 - P.precordialDipoleW) * (v(3 + k) - wct));
+      }
+      // recording chain: 2nd-order Butterworth low-pass per lead (ECG machine filter)
+      if (this.P.ecgLowpass > 0) {
+        const bq = this._bq || (this._bq = this._makeLowpass(this.P.ecgLowpass));
+        const st = this._bqState || (this._bqState = new Float64Array(12 * 2));
+        for (let k = 0; k < 12; k++) {            // transposed direct form II
+          const x = L[k], y = bq.b0 * x + st[2 * k];
+          st[2 * k] = bq.b1 * x - bq.a1 * y + st[2 * k + 1];
+          st[2 * k + 1] = bq.b2 * x - bq.a2 * y;
+          L[k] = y;
+        }
       }
       for (const f of this.listeners) f(t, L);
+    }
+
+    _makeLowpass(fc) {                             // bilinear-transform Butterworth, fs = 1 kHz
+      const K = Math.tan(Math.PI * fc / 1000), q = Math.SQRT1_2, norm = 1 / (1 + K / q + K * K);
+      const b0 = K * K * norm;
+      return { b0, b1: 2 * b0, b2: b0, a1: 2 * (K * K - 1) * norm, a2: (1 - K / q + K * K) * norm };
     }
     // Contribution of heterogeneous resting potentials (zero unless ischaemic)
     _computeBaseline() {
@@ -1235,7 +1264,15 @@
 
   const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
 
-  const api = { Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng };
+  // Bounded-torso limb-lead fields (tools/torso_leadfield.py). Bundled next to
+  // the engine in Node; the browser page passes the embedded copy in.
+  let DEFAULT_TORSO = null;
+  if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+    try { DEFAULT_TORSO = require(__dirname + '/torso_leadfield.json'); } catch (e) { DEFAULT_TORSO = null; }
+  }
+  const setDefaultTorso = (tf) => { DEFAULT_TORSO = tf; };
+
+  const api = { Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.LiveHeart = api;
 })(typeof window !== 'undefined' ? window : globalThis);

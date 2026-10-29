@@ -34,6 +34,7 @@
   async function boot() {
     if (!window.THREE) { setLoading('The 3D library could not load. Check your connection and reload.'); return; }
     await tick();
+    LH.setDefaultTorso(JSON.parse($('torso-data').textContent));
     A = new LH.Anatomy(JSON.parse($('anatomy-data').textContent));
     setLoading('Building tissue graph and conduction system…'); await tick();
     M = new LH.Model(A);
@@ -141,8 +142,53 @@
     return best;
   }
 
+  // The simulated LV free wall is thickened by whole voxel layers on its outer
+  // surface; push the displayed epicardium out by the same amount so the
+  // picture matches the tissue. The offset fades out at the septal junctions,
+  // the base and near other structures, which keeps the surface set closed.
+  function thickenLV(geo, dist, others) {
+    const pos = geo.attributes.position.array, nrm = geo.attributes.normal.array, nv = pos.length / 3;
+    const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+    const isOutside = (x, y, z) => {
+      const i = Math.floor((x - A.origin[0]) / A.h), j = Math.floor((y - A.origin[1]) / A.h), k = Math.floor((z - A.origin[2]) / A.h);
+      const c = A.at(i, j, k); if (c === -2) return true; if (c >= 0) return false;
+      const [nx, ny, nz] = A.dims; return A.cavityComp[(i * ny + j) * nz + k] === 0;
+    };
+    for (let v = 0; v < nv; v++) {
+      const x = pos[3 * v], y = pos[3 * v + 1], z = pos[3 * v + 2], ax = nrm[3 * v], ay = nrm[3 * v + 1], az = nrm[3 * v + 2];
+      if (!isOutside(x + ax * (dist + 2), y + ay * (dist + 2), z + az * (dist + 2))) continue;   // endocardial face
+      const c = nearestTissue(x, y, z); if (c < 0 || A.label[c] !== 1 || A.zuvc[c] < 0) continue;
+      let w = smooth((Math.abs(A.phi[c]) - 0.6) / 0.4) * smooth((0.88 - A.zuvc[c]) / 0.12);
+      if (!w) continue;
+      w *= smooth((others.nearest(x, y, z) - 3) / 9);
+      pos[3 * v] += ax * dist * w; pos[3 * v + 1] += ay * dist * w; pos[3 * v + 2] += az * dist * w;
+    }
+    geo.attributes.position.needsUpdate = true;
+    geo.computeVertexNormals();
+  }
+
+  // spatial hash of vertices of every non-LV surface (distance queries)
+  function vertexIndex(list) {
+    const cell = 6, map = new Map(), key = (a, b, c) => `${a},${b},${c}`;
+    for (const p of list) { const k = key(Math.floor(p[0] / cell), Math.floor(p[1] / cell), Math.floor(p[2] / cell)); if (!map.has(k)) map.set(k, []); map.get(k).push(p); }
+    return { nearest(x, y, z) {
+      const i = Math.floor(x / cell), j = Math.floor(y / cell), k = Math.floor(z / cell); let best = 40;
+      for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) for (let c = -2; c <= 2; c++) {
+        const l = map.get(key(i + a, j + b, k + c)); if (l) for (const p of l) { const d = Math.hypot(p[0] - x, p[1] - y, p[2] - z); if (d < best) best = d; }
+      }
+      return best;
+    } };
+  }
+
   function buildSurfaces() {
     const span = A.dims.map((d) => d * A.h);
+    const otherList = [];
+    for (const s of A.json.surfaces) {
+      if (s.label === 1) continue;
+      const q = decodeB64(s.pos, Uint16Array);
+      for (let i = 0; i < q.length; i += 9) otherList.push([0, 1, 2].map((d) => A.origin[d] + (q[i + d] / 65535) * span[d]));
+    }
+    const otherVerts = vertexIndex(otherList);
     g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = [];
     for (const s of A.json.surfaces) {
       const q = decodeB64(s.pos, Uint16Array), idx = decodeB64(s.idx, Uint32Array);
@@ -152,6 +198,7 @@
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       geo.setIndex(new THREE.BufferAttribute(idx, 1));
       geo.computeVertexNormals();
+      if (s.label === 1 && A.lvWallLayers) thickenLV(geo, A.lvWallLayers * A.h, otherVerts);
       let mat;
       if (s.label <= 4) {
         const nv = pos.length / 3, col = new Float32Array(pos.length), vmap = new Int32Array(nv);
@@ -372,14 +419,25 @@
       g3.labels.push({ el, pos: p, view: 'leads', space: 'scene' });
       return g3.labels[g3.labels.length - 1];
     };
-    const LIMB = [['I', 0], ['II', 60], ['III', 120], ['aVR', -150], ['aVL', -30], ['aVF', 90]], Rl = 95;
-    for (const [name, deg] of LIMB) {
-      const a = deg * Math.PI / 180, d = new THREE.Vector3(Math.cos(a), -Math.sin(a), 0);
-      const neg = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), d.clone().multiplyScalar(-Rl)]),
+    // limb leads: the torso's own heart-averaged lead vectors (a computed
+    // Burger triangle) when available, else Einthoven's hexaxial directions
+    const lv = M.limbLeadVectors, V3v = (a) => new THREE.Vector3(a[0], a[1], a[2]);
+    let LIMB;
+    if (lv) {
+      const LI = V3v(lv.I), LII = V3v(lv.II), LIII = LII.clone().sub(LI);
+      LIMB = [['I', LI], ['II', LII], ['III', LIII], ['aVR', LI.clone().add(LII).multiplyScalar(-0.5)],
+        ['aVL', LI.clone().sub(LIII).multiplyScalar(0.5)], ['aVF', LII.clone().add(LIII).multiplyScalar(0.5)]];
+    } else {
+      LIMB = [['I', 0], ['II', 60], ['III', 120], ['aVR', -150], ['aVL', -30], ['aVF', 90]].map(([n, deg]) => { const a = deg * Math.PI / 180; return [n, new THREE.Vector3(Math.cos(a), -Math.sin(a), 0)]; });
+    }
+    const Lmax = Math.max(...LIMB.map((x) => x[1].length())), Rl = 95;
+    for (const [name, vec] of LIMB) {
+      const len0 = vec.length(), d = vec.clone().normalize(), Rk = Rl * (0.55 + 0.45 * len0 / Lmax);
+      const neg = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), d.clone().multiplyScalar(-Rk)]),
         new THREE.LineDashedMaterial({ color: 0xf0b429, dashSize: 4, gapSize: 3, depthTest: false, transparent: true, opacity: 0.45 }));
       neg.computeLineDistances(); neg.renderOrder = 10; grp.add(neg);
-      arrow(d, Rl, 0xf0b429);
-      leadTag(name, d.clone().multiplyScalar(Rl + 9), 'lead limb');
+      arrow(d, Rk, 0xf0b429);
+      leadTag(name, d.clone().multiplyScalar(Rk + 9), 'lead limb');
     }
     for (const k of ['V1', 'V2', 'V3', 'V4', 'V5', 'V6']) {
       const e = M.electrodes[k], q = new THREE.Vector3(e[0] - hc[0], e[1] - hc[1], e[2] - hc[2]);
