@@ -8,5 +8,9 @@ for (let i = 0; i < N; i++) {
   const p = Object.assign({}, base);
   for (const [k, d] of Object.entries(jitter)) if (k in p && rnd() < 0.5) p[k] = +(p[k] + (rnd() * 2 - 1) * d).toFixed(2);
   p.sigmaRatio = Math.max(1, Math.min(10, p.sigmaRatio)); p.purkZmaxLV = Math.min(1.01, p.purkZmaxLV);
+  // optional orientation bounds (anatomical constraint)
+  const RMIN = process.env.ROTMIN, RMAX = process.env.ROTMAX, PMIN = process.env.PITCHMIN, PMAX = process.env.PITCHMAX;
+  if (RMIN !== undefined) p.heartRotation = +(+RMIN + rnd() * (+RMAX - +RMIN)).toFixed(1);
+  if (PMIN !== undefined) p.heartPitch = +(+PMIN + rnd() * (+PMAX - +PMIN)).toFixed(1);
   try { const r = evaluate(p); console.log(JSON.stringify({ score: r.score, p, normal: r.normal, LAFB: r.LAFB, LPFB: r.LPFB })); } catch (e) { console.log(JSON.stringify({ score: 999, err: e.message })); }
 }
