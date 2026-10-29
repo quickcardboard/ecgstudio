@@ -4,7 +4,7 @@
 //    heart-vector contribution through the QRS.
 // 2. Search region weights in [0.5, 2] so all five conditions meet textbook
 //    axis and morphology targets. Leads are linear in the weights.
-const fs = require('fs'); const LH = require('../../src/engine.js');
+const fs = require('fs'); const LH = require(__dirname + '/../../src/engine.js');
 const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../../src/anatomy.json')));
 const P = JSON.parse(process.argv[2] || '{}'), NS = +(process.argv[3] || 200000);
 const M = new LH.Model(A, P), NE = M.NE, W = M.W;

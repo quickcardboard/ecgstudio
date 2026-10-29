@@ -1,6 +1,6 @@
 // Oracle: impose a delay field on the normal activation map and compute the limb leads exactly
-const fs = require('fs'); const LH = require('../../src/engine.js');
-const A = new LH.Anatomy(JSON.parse(fs.readFileSync('../../src/anatomy.json')));
+const fs = require('fs'); const LH = require(__dirname + '/../../src/engine.js');
+const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../../src/anatomy.json')));
 const P = JSON.parse(process.argv[2] || '{}');
 const M = new LH.Model(A, P); const NE = M.NE, W = M.W;
 const S = new LH.Sim(M, { seed: 1 }); S.run(1100);

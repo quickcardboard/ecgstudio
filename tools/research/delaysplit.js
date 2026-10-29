@@ -1,6 +1,6 @@
 // Decompose the simulated block-induced delay field's effect on the QRS area by region
-const fs = require('fs'); const LH = require('../../src/engine.js');
-const A = new LH.Anatomy(JSON.parse(fs.readFileSync('../../src/anatomy.json')));
+const fs = require('fs'); const LH = require(__dirname + '/../../src/engine.js');
+const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../../src/anatomy.json')));
 const P = JSON.parse(process.argv[2] || '{}');
 const M = new LH.Model(A, P);
 const NE = M.NE, W = M.W, K = 1e4;

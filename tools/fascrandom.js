@@ -7,7 +7,7 @@ const U = (a, b) => +(a + (b - a) * rnd()).toFixed(2);
 for (let i = 0; i < N; i++) {
   const sep = rnd() < 0.6;
   const p = Object.assign({}, base, {
-    heartRotation: Math.round(U(-20, 20)),
+    heartRotation: Math.round(U(-10, 40)), heartPitch: Math.round(U(-30, 30)), sigmaRatio: U(2, 8),
     lafPhi: U(1.5, 2.6), lafZ: U(0.4, 0.75), lpfPhi: U(-1.8, -0.8), lpfZ: U(0.25, 0.5),
     lbbSplitZ: U(0.6, 0.82), lpfTerrLo: U(-2.8, -2.0), lpfTerrHi: U(0.2, 0.9), lpfApexZ: U(0, 0.5),
     septalTerrHalf: sep ? U(0.3, 0.6) : 0, lbbSeptalFrac: sep ? U(0.1, 0.4) : 0,

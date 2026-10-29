@@ -1,6 +1,6 @@
 // Orientation scan with oracle delays: which heart positions allow sinus + LAFB + LPFB axes?
-const fs = require('fs'); const LH = require('../../src/engine.js');
-const A = new LH.Anatomy(JSON.parse(fs.readFileSync('../../src/anatomy.json')));
+const fs = require('fs'); const LH = require(__dirname + '/../../src/engine.js');
+const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../../src/anatomy.json')));
 const base = JSON.parse(process.argv[2] || '{}');
 // activation map is orientation-independent: compute once
 const M0 = new LH.Model(A, base); const S = new LH.Sim(M0, { seed: 1 }); S.run(1100);

@@ -423,6 +423,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     lpfTerrLo: -2.6, lpfTerrHi: 0.0,  // LPF territory in rotational UVC (inferior/posterior wall)
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
     purkCrossSlow: 1.0,     // conduction-time factor on Purkinje links between fascicle territories
+    sigmaRatio: 1,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
     heartPitch: 0,          // degrees about the left–right axis (+ tips the anterior wall upward)
     heartRotation: 25,
@@ -1081,9 +1082,21 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         if (gl < 0.03) continue;                                   // mid-septum etc.: no defined radial direction
         for (let d = 0; d < 3; d++) rhat[3 * c + d] = (R[3 * d] * g[0] + R[3 * d + 1] * g[1] + R[3 * d + 2] * g[2]) / gl;   // torso frame
       }
+      // Intracellular conductivity is anisotropic: σi = σt·I + (σl − σt)·f fᵀ
+      // (f = fibre direction), so the source −σi∇Vm is stronger for gradients
+      // along fibres than across them. Normalised by the mean diagonal so the
+      // average source strength is unchanged; only the directional balance moves.
+      const kap = this.P.sigmaRatio || 1, aniso = kap - 1, anorm = 1 / (1 + aniso / 3);
+      const fb = A.fiber, fwd = new Float32Array(3 * n);
+      if (aniso) for (let c = 0; c < n; c++) {
+        if (this.kind[c] !== KIND.VENT) continue;
+        const f = [fb[3 * c], fb[3 * c + 1], fb[3 * c + 2]], fl = Math.hypot(f[0], f[1], f[2]) || 1;
+        for (let d = 0; d < 3; d++) fwd[3 * c + d] = (R[3 * d] * f[0] + R[3 * d + 1] * f[1] + R[3 * d + 2] * f[2]) / fl;   // torso frame
+      }
       for (let c = 0; c < n; c++) {
         const kc = this.kind[c]; if (!kc) continue;
         const i = A.ii[c], j = A.jj[c], k = A.kk[c];
+        const sc = kc === KIND.VENT && aniso ? anorm : 1;
         for (let a = 0; a < 3; a++) {
           const w = A.at(i + (a === 0), j + (a === 1), k + (a === 2));
           if (w < 0 || this.kind[w] !== kc) continue;
@@ -1092,14 +1105,22 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           // midpoint radial direction and its component along the pair
           const rr = [0.5 * (rhat[3 * c] + rhat[3 * w]), 0.5 * (rhat[3 * c + 1] + rhat[3 * w + 1]), 0.5 * (rhat[3 * c + 2] + rhat[3 * w + 2])];
           const re = B * (rr[0] * ex[0] + rr[1] * ex[1] + rr[2] * ex[2]);
+          // pair-midpoint fibre (sign-aligned average), and its component along the pair
+          let ff = [0, 0, 0], fe = 0;
+          if (aniso && kc === KIND.VENT) {
+            const sgn = fwd[3 * c] * fwd[3 * w] + fwd[3 * c + 1] * fwd[3 * w + 1] + fwd[3 * c + 2] * fwd[3 * w + 2] < 0 ? -1 : 1;
+            ff = [fwd[3 * c] + sgn * fwd[3 * w], fwd[3 * c + 1] + sgn * fwd[3 * w + 1], fwd[3 * c + 2] + sgn * fwd[3 * w + 2]];
+            const fl = Math.hypot(ff[0], ff[1], ff[2]) || 1; ff = ff.map((v) => v / fl);
+            fe = aniso * (ff[0] * ex[0] + ff[1] * ex[1] + ff[2] * ex[2]);
+          }
           for (let d = 0; d < 3; d++) {                           // VCG: uniform lead fields
-            const cc = 1e-4 * h * h * (ex[d] + re * rr[d]);
+            const cc = 1e-4 * h * h * sc * (ex[d] + re * rr[d] + fe * ff[d]);
             W[w * NE + 9 + d] += cc; W[c * NE + 9 + d] -= cc;
           }
           for (let e = 0; e < 9; e++) {
             const rx = E[e][0] - m[0], ry = E[e][1] - m[1], rz = E[e][2] - m[2];
             const r = Math.sqrt(rx * rx + ry * ry + rz * rz);
-            const cc = h * h * ((rx * ex[0] + ry * ex[1] + rz * ex[2]) + re * (rx * rr[0] + ry * rr[1] + rz * rr[2])) / (r * r * r);
+            const cc = h * h * sc * ((rx * ex[0] + ry * ex[1] + rz * ex[2]) + re * (rx * rr[0] + ry * rr[1] + rz * rr[2]) + fe * (rx * ff[0] + ry * ff[1] + rz * ff[2])) / (r * r * r);
             W[w * NE + e] += cc; W[c * NE + e] -= cc;
           }
         }

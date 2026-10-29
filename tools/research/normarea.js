@@ -1,6 +1,6 @@
 // Normal QRS area vector (Σ W·t_act, torso frame) split by region, for several parameter sets
-const fs = require('fs'); const LH = require('../../src/engine.js');
-const A = new LH.Anatomy(JSON.parse(fs.readFileSync('../../src/anatomy.json')));
+const fs = require('fs'); const LH = require(__dirname + '/../../src/engine.js');
+const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../../src/anatomy.json')));
 const region = (c) => A.label[c] === 2 ? 'RV' : (Math.abs(A.phi[c]) < 0.6 ? 'LVsept' : A.zuvc[c] > 0.75 ? 'LVbase' : A.zuvc[c] < 0.3 ? 'LVapex' : A.phi[c] > 0 ? 'LVant' : A.phi[c] < -2.4 ? 'LVlat' : 'LVinf');
 for (const p of JSON.parse(process.argv[2])) {
   const M = new LH.Model(A, p); const NE = M.NE, W = M.W, K = 1e4;

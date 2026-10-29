@@ -1,6 +1,6 @@
 // QRS area vector (frontal X,Y of the heart vector, mV·ms) for normal / LAFB / LPFB
-const fs = require('fs'); const LH = require('../../src/engine.js');
-const A = new LH.Anatomy(JSON.parse(fs.readFileSync('../../src/anatomy.json')));
+const fs = require('fs'); const LH = require(__dirname + '/../../src/engine.js');
+const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../../src/anatomy.json')));
 const M = new LH.Model(A, JSON.parse(process.argv[2] || '{}'));
 const run = (blk) => {
   const S = new LH.Sim(M, { seed: 1 }); const v = []; S.onSample(() => v.push([S.dipole[0], S.dipole[1]]));
