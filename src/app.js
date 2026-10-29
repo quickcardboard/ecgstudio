@@ -129,12 +129,12 @@
     return new Type(u8.buffer);
   }
 
-  // nearest excitable voxel to a heart-frame point (within 2 voxels)
-  function nearestTissue(x, y, z) {
+  // nearest excitable voxel to a heart-frame point (within r voxels)
+  function nearestTissue(x, y, z, r = 2) {
     const h = A.h, o = A.origin;
     const i0 = Math.floor((x - o[0]) / h), j0 = Math.floor((y - o[1]) / h), k0 = Math.floor((z - o[2]) / h);
     let best = -1, bd = Infinity;
-    for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) for (let e = -2; e <= 2; e++) {
+    for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) for (let e = -r; e <= r; e++) {
       const c = A.at(i0 + a, j0 + b, k0 + e); if (c < 0 || !M.kind[c]) continue;
       const dx = A.pos[3 * c] - x, dy = A.pos[3 * c + 1] - y, dz = A.pos[3 * c + 2] - z, d = dx * dx + dy * dy + dz * dz;
       if (d < bd) { bd = d; best = c; }
@@ -154,14 +154,31 @@
       const c = A.at(i, j, k); if (c === -2) return true; if (c >= 0) return false;
       const [nx, ny, nz] = A.dims; return A.cavityComp[(i * ny + j) * nz + k] === 0;
     };
+    // 1. raw weight from the shared thickness map (epicardial vertices only)
+    const w = new Float32Array(nv), epi = new Uint8Array(nv);
     for (let v = 0; v < nv; v++) {
       const x = pos[3 * v], y = pos[3 * v + 1], z = pos[3 * v + 2], ax = nrm[3 * v], ay = nrm[3 * v + 1], az = nrm[3 * v + 2];
       if (!isOutside(x + ax * (dist + 2), y + ay * (dist + 2), z + az * (dist + 2))) continue;   // endocardial face
-      const c = nearestTissue(x, y, z); if (c < 0 || A.label[c] !== 1 || A.zuvc[c] < 0) continue;
-      let w = smooth((Math.abs(A.phi[c]) - 0.6) / 0.4) * smooth((0.88 - A.zuvc[c]) / 0.12);
-      if (!w) continue;
-      w *= smooth((others.nearest(x, y, z) - 3) / 9);
-      pos[3 * v] += ax * dist * w; pos[3 * v + 1] += ay * dist * w; pos[3 * v + 2] += az * dist * w;
+      epi[v] = 1;
+      const c = nearestTissue(x, y, z); if (c < 0 || A.label[c] !== 1) continue;
+      w[v] = LH.lvThickenWeight(A.phi[c], A.zuvc[c]) * smooth((others.nearest(x, y, z) - 3) / 9);
+    }
+    // 2. smooth the weight over the mesh so neighbouring vertices agree (no voxel-scale noise)
+    const idx = geo.index.array, nbr = Array.from({ length: nv }, () => []);
+    for (let f = 0; f < idx.length; f += 3) for (let e = 0; e < 3; e++) { const a = idx[f + e], b = idx[f + (e + 1) % 3]; nbr[a].push(b); nbr[b].push(a); }
+    let cur = w;
+    for (let it = 0; it < 25; it++) {
+      const nx = new Float32Array(nv);
+      for (let v = 0; v < nv; v++) {
+        if (!epi[v]) continue;
+        let s = cur[v], n = 1; for (const u of nbr[v]) if (epi[u]) { s += cur[u]; n++; }
+        nx[v] = s / n;
+      }
+      cur = nx;
+    }
+    for (let v = 0; v < nv; v++) {
+      const d = dist * cur[v]; if (!d) continue;
+      pos[3 * v] += nrm[3 * v] * d; pos[3 * v + 1] += nrm[3 * v + 1] * d; pos[3 * v + 2] += nrm[3 * v + 2] * d;
     }
     geo.attributes.position.needsUpdate = true;
     geo.computeVertexNormals();
@@ -202,7 +219,10 @@
       let mat;
       if (s.label <= 4) {
         const nv = pos.length / 3, col = new Float32Array(pos.length), vmap = new Int32Array(nv);
-        for (let v = 0; v < nv; v++) vmap[v] = nearestTissue(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2]);
+        for (let v = 0; v < nv; v++) {
+          vmap[v] = nearestTissue(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2]);
+          if (vmap[v] < 0) vmap[v] = nearestTissue(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2], 4);
+        }
         geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
         mat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 22, specular: 0x222222, side: THREE.DoubleSide });
         g3.tissueMeshes.push({ geo, vmap, col });
@@ -318,7 +338,7 @@
       const c = A.at(Math.floor((q.x - A.origin[0]) / A.h), Math.floor((q.y - A.origin[1]) / A.h), Math.floor((q.z - A.origin[2]) / A.h));
       if (c >= 0 && M.kind[c]) map[o] = c;
       else if (c >= 0) map[o] = -A.label[c];                      // vessel / valve tissue: static colour
-      else { const n2 = nearestTissue(q.x, q.y, q.z); map[o] = n2 >= 0 ? n2 : -1; }
+      else { const n2 = nearestTissue(q.x, q.y, q.z, 4); map[o] = n2 >= 0 ? n2 : -1; }
       if (i && j) { const a0 = (i - 1) * nv + j - 1, a1 = i * nv + j - 1, a2 = i * nv + j, a3 = (i - 1) * nv + j; idx.push(a0, a1, a2, a0, a2, a3); }
     }
     const cg = new THREE.BufferGeometry();

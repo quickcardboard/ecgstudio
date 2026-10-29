@@ -187,6 +187,16 @@
     dipoleGain: 1.65,           // heart-vector scale for the limb leads (mV per unit dipole)
   };
 
+  // Smooth LV free-wall thickening map (0..1) over rotational (phi) and
+  // apicobasal (z) coordinates: zero at the septal junctions, ramping to full
+  // over the free wall, tapering to the base and to the (normally thin) apex.
+  // Shared by the voxel tissue and the displayed surface so they agree.
+  function lvThickenWeight(phi, z) {
+    if (!(z >= 0)) return 0;
+    const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+    return sm((Math.abs(phi) - 0.5) / 0.9) * sm((0.9 - z) / 0.25) * sm((z - 0.04) / 0.2);
+  }
+
   // ---------------------------------------------------------------------------
   // Anatomy: decode the embedded voxel grid
   // ---------------------------------------------------------------------------
@@ -245,13 +255,15 @@
         while (st.length) { const g = st.pop(); for (const w of nb(g)) if (!out[w] && occ[w] < 0) { out[w] = 1; st.push(w); } }
         return { occ, out };
       };
-      const free = (v) => v.l === LAB.LV && v.z >= 0 && v.z < 0.88 && Math.abs(v.phi) > 0.6;   // LV free wall below the base
+      const nL = Math.abs(layers);
+      // a voxel joins growth layer L when the smooth thickness map asks for at least L of nL layers
+      const free = (v, L) => v.l === LAB.LV && lvThickenWeight(v.phi, v.z) >= (L + 0.5) / nL;
       for (let L = 0; L < Math.abs(layers); L++) {
         const { occ, out } = outside();
         if (layers > 0) {
           const add = new Map();
           for (const v of V) {
-            if (!free(v)) continue;
+            if (!free(v, L)) continue;
             for (const w of nb(v.g)) if (out[w] && !add.has(w)) {
               // keep clear of other structures (atria, great vessels, RV)
               if (nb(w).some((x) => occ[x] >= 0 && V[occ[x]].l !== LAB.LV)) continue;
@@ -260,7 +272,7 @@
           }
           for (const v of add.values()) V.push(v);
         } else {
-          const keep = V.filter((v) => !(free(v) && nb(v.g).some((w) => out[w])));
+          const keep = V.filter((v) => !(free(v, L) && nb(v.g).some((w) => out[w])));
           V.length = 0; for (const v of keep) V.push(v);
         }
       }
@@ -1272,7 +1284,7 @@
   }
   const setDefaultTorso = (tf) => { DEFAULT_TORSO = tf; };
 
-  const api = { Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso };
+  const api = { Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, lvThickenWeight };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.LiveHeart = api;
 })(typeof window !== 'undefined' ? window : globalThis);

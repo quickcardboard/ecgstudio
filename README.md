@@ -44,7 +44,8 @@ junctional escape (48 bpm) and His block a ventricular escape (40 bpm). Plots: `
 
 Realistic LAFB/LPFB axes required, together: fibre-direction-dependent sources (intracellular
 along:across ≈ 8.4:1), limb leads from an insulated-torso lead field (`tools/torso_leadfield.py`, a
-computed Burger triangle), and an LV free wall thickened by ~6 mm. The heart sits 67° below horizontal
+computed Burger triangle), and an LV free wall thickened by up to ~6 mm on a smooth map that
+tapers to the septal junctions, base and apex (`lvThickenWeight`, shared by tissue and display). The heart sits 67° below horizontal
 (CT: 52°) with 39° anterior tilt. `tools/research/` reproduces the investigation, and
 `tools/data/fascicular_candidate_v2.json` records the parameter set. The ECG output passes a 40 Hz
 low-pass (`ecgLowpass`), as on a monitoring ECG.
