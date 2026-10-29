@@ -123,8 +123,11 @@
     cvPurkinje: 2.28,
     avnSegDelay: 17,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
     avnSegments: 5,
+    avnFirstDegreeMul: 2.6, // AV-nodal delay factor for 1st-degree block
+    // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
+    wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
     avnToneExp: 0.45,      // AV-nodal delay ∝ (72/rate)^exp (autonomic coupling)
-    rbbSeptalFrac: 0.15,
+    rbbSeptalFrac: 0.15,   // distal fraction of septal RBB giving off RV septal Purkinje
     rbbSeptalDelay: 19.39,    // ms extra delay into the RV septal Purkinje
 
     lafPhi: 2.28, lafZ: 0.63, lpfPhi: -1.87, lpfZ: 0.27, lsfPhi: 0.05, lsfZ: 0.42,
@@ -142,13 +145,14 @@
     sigmaRatio: 8.42,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
     heartPitch: -4.6,          // degrees about the left–right axis (+ tips the anterior wall upward)
-    heartRotation: 17.4,
+    heartRotation: 17.4,    // degrees about the AP axis (+ = more vertical heart)
     apexX: 72, apexY: -20,  // apex position in the chest (mm from midline / from V4 level)
-    chestGap: 15,          // closest heart–anterior chest wall distance (mm)      // degrees about the AP axis (+ = more vertical heart)
+    chestGap: 15,          // closest heart–anterior chest wall distance (mm)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
-    purkZmaxLV: 0.96, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)   // distal fraction of septal RBB giving off RV septal Purkinje
+    purkZmaxLV: 0.96, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)
     pmjAntero: 2,          // Purkinje -> muscle junction delay (ms)
-    pmjRetro: 20,           // muscle -> Purkinje (retrograde) junction delay (ms)
+    pmjRetro: 20,          // muscle -> Purkinje (retrograde) junction delay (ms)
+    pmjRetroRV: 35,        // retrograde PMJ delay in the RV (thin wall, sparse junctions)
 
     // Action potential durations (ms) at long diastolic interval
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
@@ -678,7 +682,7 @@
       const nodes = chosen.map((c) => {
         const id = this.addNode(KIND.PURK, seg, A.p(c));
         this.edge(id, c, P.pmjAntero, false);   // anterograde PMJ
-        this.edge(c, id, P.pmjRetro, false);    // retrograde PMJ
+        this.edge(c, id, seg === SEG.PURK_RV ? P.pmjRetroRV : P.pmjRetro, false);    // retrograde PMJ
         return id;
       });
       const idOf = new Map(chosen.map((c, i) => [c, nodes[i]]));
@@ -994,12 +998,17 @@
       const anyBlocked = (ids) => ids.some((c) => this.blocked[c]);
       const M = model, cs = M.csSegments;
       this._addPacemaker(M.junctionalCell, 60000 / this.P.junctionalRate, 'junctional',
-        () => this.blocked[M.sanCell] || this.sinusArrest || anyBlocked(M.avn));
+        () => this.blocked[M.sanCell] || this.sinusArrest || this.t < this.sinusPauseUntil || anyBlocked(M.avn));
       this._addPacemaker(M.ventEscapeCell, 60000 / this.P.ventEscapeRate, 'ventricular',
         () => anyBlocked(cs.HIS) || (anyBlocked(cs.LBB) && anyBlocked(cs.RBB)));
       // beat bookkeeping for interval measurement
       this.log = { atrial: [], vent: [] };
+      this.blockLog = [];  // impulses stopped by a fixed-ratio/intermittent block {t, at}
       this.fireLog = [];   // spontaneous pacemaker discharges {name, t}
+      this.stimLog = [];   // external stimuli {t, cell, kind, captured}
+      this.blocks = {};    // active conduction blocks by structure: {SAN, AVN, HIS, LBB, RBB, LAF, LPF}
+      this.gates = new Map();   // cell -> {mode, n, count}: fixed-ratio / pattern conduction
+      this.sinusPauseUntil = -1; this.saExit = null; this.avnBlockMul = 1;
       this._curA = null; this._curV = null;
     }
 
@@ -1062,11 +1071,83 @@
     // shortens in sinus tachycardia and lengthens in sinus bradycardia.
     setRate(bpm) {
       this.sinusBpm = bpm;
-      const tone = Math.pow(72 / bpm, this.P.avnToneExp);
-      for (const c of this.M.avn) this.cvMul[c] = tone;
+      this._avnTone = Math.pow(72 / bpm, this.P.avnToneExp);
+      this._applyAvn();
       const cl = 60000 / bpm;
       const pm = this.pacemakers.find((p) => p.name === 'sinus');
       if (pm) pm.cl = cl; else this.pacemakers.unshift({ cell: this.M.sanCell, cl, name: 'sinus' });
+    }
+
+    // ---- Conduction blocks ---------------------------------------------------
+    // Block types by structure (the UI offers the ones listed for each site):
+    //   SAN: 'sa-exit' (2nd-degree SA exit block, n:n−1), 'pause' (one sinus pause), 'arrest'
+    //   AVN: 'first' (1st degree), 'wenckebach' (Mobitz I), 'two-to-one', 'complete'
+    //   HIS: 'mobitz2' (infranodal intermittent, n:n−1), 'complete'
+    //   LBB, RBB, LAF, LPF: 'complete'
+    setBlock(site, type, opts = {}) {
+      const M = this.M, P = this.P, cs = M.csSegments;
+      const cells = site === 'SAN' ? [M.sanCell] : site === 'AVN' ? M.avn : cs[site];
+      // clear what this site had
+      for (const c of cells) { this.blocked[c] = 0; this.gates.delete(c); }
+      if (site === 'SAN') { this.saExit = null; this.sinusArrest = false; this.sinusPauseUntil = -1; }
+      if (site === 'AVN') { this.avnBlockMul = 1; for (const c of M.avn) { this.erpExtra[c] = P.avnErpExtra; this.cvK[c] = P.avnCvRestK; this.cvTau[c] = P.avnCvRestTau; } }
+      delete this.blocks[site];
+      if (!type) { this._applyAvn(); return; }
+      this.blocks[site] = { type, ...opts };
+      const gate = (cell, mode, n) => this.gates.set(cell, { mode, n, count: 0, site });
+      if (site === 'SAN') {
+        if (type === 'sa-exit') this.saExit = { n: opts.n || 3, count: 0 };
+        else if (type === 'pause') { this.sinusPauseUntil = this.t + (opts.ms || 2800); }
+        else if (type === 'arrest') this.sinusArrest = true;
+      } else if (site === 'AVN') {
+        if (type === 'first') this.avnBlockMul = P.avnFirstDegreeMul;
+        else if (type === 'wenckebach') {
+          // Diseased AV node described by its recovery curve: nodal conduction
+          // time grows as the recovery time since the previous His activation
+          // shortens, and fails below R_eff. Longer conduction leaves less
+          // recovery for the next beat, so PR lengthens until a P is blocked.
+          this.gates.set(M.avn[0], { mode: 'av-recovery', site: 'AVN', count: 0 });
+        } else if (type === 'two-to-one') gate(M.avn[0], 'conduct-1-of', 2);
+        else if (type === 'complete') for (const c of M.avn) this.blocked[c] = 1;
+      } else if (site === 'HIS') {
+        if (type === 'mobitz2') gate(cs.HIS[1], 'drop-1-of', opts.n || 4);
+        else if (type === 'complete') for (const c of cs.HIS) this.blocked[c] = 1;
+      } else if (type === 'complete') for (const c of cells) this.blocked[c] = 1;
+      this._applyAvn();
+    }
+    clearBlocks() { for (const s of Object.keys(this.blocks)) this.setBlock(s, null); }
+    _applyAvn() { for (const c of this.M.avn) this.cvMul[c] = (this._avnTone || 1) * (this.avnBlockMul || 1); }
+    // One decision per beat: a site is reached by several converging
+    // wavelets within a few ms; they all share the first one's fate.
+    _gatePass(g, ta) {
+      if (g.lastT !== undefined && ta - g.lastT < 120) return g.last;
+      if (g.mode === 'av-recovery') {
+        const P = this.P, M = this.M, R = ta - this.tAct[M.his[0]];   // recovery since last nodal output
+        g.lastT = ta;
+        if (R < P.wkReff) { g.last = false; return false; }
+        const ah = P.wkAHmin + P.wkAlpha * Math.exp(-(R - P.wkReff) / P.wkTau);
+        // spread the required nodal delay over the AV-node segments for this beat
+        const mul = ah / (P.avnSegDelay * (M.avn.length - 1));
+        for (const c of M.avn) this.cvMul[c] = mul;
+        g.last = true; return true;
+      }
+      g.count++; g.lastT = ta;
+      g.last = g.mode === 'conduct-1-of' ? g.count % g.n === 1 % g.n    // conducts 1 of every n
+        : g.count % g.n !== 0;                                            // drops 1 of every n
+      return g.last;
+    }
+
+    // ---- External stimulation (clicks now; pacing leads later) ---------------
+    // Captures only if the tissue is excitable; logged so the interpreter can
+    // label the beat (PAC / PVC) and the UI can flash the site.
+    stimulate(c, time = this.t) {
+      const t = Math.max(time, this.t), k = this.M.kind[c];
+      const kind = k === KIND.ATRIAL ? 'atrial' : k === KIND.VENT ? 'ventricular' : 'conduction';
+      const rec = { t, cell: c, kind, captured: false };
+      this.stimLog.push(rec); if (this.stimLog.length > 40) this.stimLog.shift();
+      if (this.blocked[c] || t < this.refEnd[c]) return rec;      // refractory: no capture
+      this.schedule(c, t); this._pendingStim = rec;
+      return rec;
     }
 
     schedule(c, time) {
@@ -1077,8 +1158,6 @@
       this.buckets[((b % RING) + RING) % RING].push(c, time);
     }
 
-    // External stimulus (used by pacemakers, clicks, future pacing leads)
-    stimulate(c, time = this.t) { this.schedule(c, Math.max(time, this.t)); }
 
     _activate(c, ta) {
       const P = this.P;
@@ -1089,6 +1168,7 @@
       this.repEnd[c] = ta + apd;
       this.refEnd[c] = ta + apd * P.erpFrac + this.erpExtra[c];
       this.arrive[c] = Infinity;
+      if (this._pendingStim && this._pendingStim.cell === c) { this._pendingStim.captured = true; this._pendingStim = null; }
       if (c < this.M.nVox && this.M.kind[c]) this._ecgEnter(c, ta, apd);
       this._logActivation(c, ta);
       // propagate
@@ -1172,8 +1252,13 @@
       //    since it was last activated (being activated resets it: overdrive suppression)
       for (const pm of this.pacemakers) {
         if (pm.cl <= 0 || this.blocked[pm.cell] || (pm.armed && !pm.armed())) continue;
-        if (pm.name === 'sinus' && this.sinusArrest) continue;
+        if (pm.name === 'sinus' && (this.sinusArrest || t < this.sinusPauseUntil)) continue;
         if (t - this.tAct[pm.cell] >= pm.cl && t >= this.refEnd[pm.cell]) {
+          // SA exit block: the node keeps its rhythm, but every nth impulse fails to exit
+          if (pm.name === 'sinus' && this.saExit && ++this.saExit.count % this.saExit.n === 0) {
+            this.tAct[pm.cell] = t; this.fireLog.push({ name: 'sinus-blocked', t });
+            continue;
+          }
           this.schedule(pm.cell, t);
           this.fireLog.push({ name: pm.name, t }); if (this.fireLog.length > 40) this.fireLog.shift();
         }
@@ -1184,6 +1269,8 @@
         const c = bucket[q], ta = bucket[q + 1];
         if (ta !== this.arrive[c]) continue;          // superseded
         if (this.blocked[c] || ta < this.refEnd[c]) { this.arrive[c] = Infinity; continue; }
+        const gate = this.gates.get(c);
+        if (gate && !this._gatePass(gate, ta)) { this.arrive[c] = Infinity; this.blockLog.push({ t: ta, at: gate.site }); if (this.blockLog.length > 40) this.blockLog.shift(); continue; }
         this._activate(c, ta);
       }
       bucket.length = 0;

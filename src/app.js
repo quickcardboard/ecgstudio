@@ -17,11 +17,12 @@
   const C = {
     rest: [0.95, 0.62, 0.71], front: [0.10, 0.30, 1.00], dep: [0.30, 0.47, 0.90],
     rep: [0.14, 0.72, 0.38], cs: [0.93, 0.71, 0.16],
+    blocked: [0.88, 0.19, 0.25], partial: [1.0, 0.54, 0.12],
   };
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const ecg = { buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
 
@@ -43,6 +44,15 @@
     try { init3D(); } catch (e) { setLoading('WebGL is not available in this browser, so the 3D view cannot start.'); console.error(e); return; }
     initECG(); initUI();
     $('loading').hidden = true;
+    // handle for automation (tests, future quiz mode): simulator, model and a projector
+    window.LiveHeartApp = {
+      get sim() { return S; }, model: M,
+      screenOf(id) {
+        const p = new THREE.Vector3(M.x[id], M.y[id], M.z[id]).applyMatrix4(g3.inner.matrixWorld).project(g3.camera);
+        const r = $('c3d').getBoundingClientRect();
+        return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
+      },
+    };
     ui.last = performance.now();
     requestAnimationFrame(loop);
   }
@@ -206,7 +216,7 @@
       for (let i = 0; i < q.length; i += 9) otherList.push([0, 1, 2].map((d) => A.origin[d] + (q[i + d] / 65535) * span[d]));
     }
     const otherVerts = vertexIndex(otherList);
-    g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = [];
+    g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = []; g3.pickTissue = [];
     for (const s of A.json.surfaces) {
       const q = decodeB64(s.pos, Uint16Array), idx = decodeB64(s.idx, Uint32Array);
       const pos = new Float32Array(q.length);
@@ -231,6 +241,7 @@
         mat = new THREE.MeshPhongMaterial({ color: STATIC[s.label], shininess: 15, side: THREE.DoubleSide, transparent: valve, opacity: valve ? 0.55 : 1 });
       }
       const mesh = new THREE.Mesh(geo, mat);
+      if (s.label <= 4) g3.pickTissue.push(mesh);
       g3.clipMats.push(mat);
       g3.inner.add(mesh);
       g3.allGeos.push(geo);
@@ -261,7 +272,7 @@
 
   function buildConduction() {
     const grp = g3.cs = new THREE.Group(); g3.inner.add(grp);
-    g3.tubes = [];
+    g3.tubes = []; g3.pickTubes = [];
     const segs = M.csSegments;
     const last = (a) => a[a.length - 1];
     const paths = [
@@ -284,11 +295,17 @@
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
       const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 50, emissive: 0x222222 }));
       grp.add(mesh); g3.tubes.push({ geo, col, map });
+      // invisible, thicker twin for easy clicking
+      const pgeo = new THREE.TubeGeometry(curve, tub, 3.2, rad, false);
+      const pick = new THREE.Mesh(pgeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      pick.userData.map = map; grp.add(pick); g3.pickTubes.push(pick);
     }
     // sinus node marker (visible in both views)
     const san = g3.san = new THREE.Mesh(new THREE.SphereGeometry(2.6, 16, 12), new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x333333 }));
     const sp = nodePos(M.sanCell, -1.0); san.position.set(sp[0], sp[1], sp[2]);
     g3.inner.add(san);
+    const sanPick = g3.sanPick = new THREE.Mesh(new THREE.SphereGeometry(6, 10, 8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+    sanPick.position.copy(san.position); g3.inner.add(sanPick);
   }
 
   // Four-chamber cut: plane through the LV apex and both AV-valve centres;
@@ -537,6 +554,8 @@
     for (const m of g3.clipMats) { m.clippingPlanes = cut ? [g3.plane] : null; m.needsUpdate = true; }
     g3.cs.visible = cut; g3.slab.im.visible = cut; g3.stencil.visible = cut;
     $('legendCs').hidden = !cut;
+    $('legendBlock').hidden = !cut || !Object.keys(S.blocks).length;
+    updateActionNote(); hideBlockMenu();
     $('viewName').textContent = cut ? 'anterior cutaway (four-chamber)' : 'external view';
     $('hint').textContent = cut ? 'Fixed anterior cutaway · scroll to zoom' : 'Drag to rotate · scroll to zoom';
     const ctl = g3.controls, cam = g3.camera;
@@ -581,7 +600,7 @@
       m.geo.attributes.color.needsUpdate = true;
     }
     const sc = [0, 0, 0];
-    stateColor(M.sanCell, t, sc, 0, [1, 1, 1]); g3.san.material.color.setRGB(sc[0], sc[1], sc[2]);
+    stateColor(M.sanCell, t, sc, 0, S.blocks.SAN ? blockColour('SAN') : [1, 1, 1]); g3.san.material.color.setRGB(sc[0], sc[1], sc[2]);
     if (ui.view === 'cutaway') {
       const sl = g3.slab, cc = sl.col, mp = sl.map;
       for (let i = 0; i < mp.length; i++) {
@@ -591,13 +610,127 @@
       }
       sl.geo.attributes.color.needsUpdate = true;
       for (const tb of g3.tubes) {
-        for (let v = 0; v < tb.map.length; v++) stateColor(tb.map[v], t, tb.col, 3 * v, C.cs);
+        for (let v = 0; v < tb.map.length; v++) stateColor(tb.map[v], t, tb.col, 3 * v, restColourOf(tb.map[v]));
         tb.geo.attributes.color.needsUpdate = true;
       }
     }
     g3.controls.update();
     g3.renderer.render(g3.scene, g3.camera);
     updateOverlays();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Blocks and stimulation by clicking
+  // ---------------------------------------------------------------------------
+  const SITE_NAME = { SAN: 'SA node', AVN: 'AV node', HIS: 'His bundle', LBB: 'Left bundle branch', RBB: 'Right bundle branch', LAF: 'Left anterior fascicle', LPF: 'Left posterior fascicle', LSF: 'Septal fascicle' };
+  const BLOCK_MENU = {
+    SAN: [['sa-exit', '2nd-degree SA exit block (3:2)', { n: 3 }], ['pause', 'Sinus pause (2.8 s)', { ms: 2800 }], ['arrest', 'Sinus arrest']],
+    AVN: [['first', '1st-degree AV block'], ['wenckebach', '2nd-degree AV block, Mobitz I (Wenckebach)'], ['two-to-one', '2:1 AV block'], ['complete', '3rd-degree (complete) AV block']],
+    HIS: [['mobitz2', '2nd-degree AV block, Mobitz II (4:3)', { n: 4 }], ['complete', '3rd-degree (complete) block in the His bundle']],
+    LBB: [['complete', 'Left bundle branch block']], RBB: [['complete', 'Right bundle branch block']],
+    LAF: [['complete', 'Left anterior fascicular block']], LPF: [['complete', 'Left posterior fascicular block']],
+    LSF: [['complete', 'Septal fascicular block']],
+  };
+  const SEG_SITE = { [LH.SEG.AVN]: 'AVN', [LH.SEG.HIS]: 'HIS', [LH.SEG.LBB]: 'LBB', [LH.SEG.RBB]: 'RBB', [LH.SEG.LAF]: 'LAF', [LH.SEG.LPF]: 'LPF', [LH.SEG.LSF]: 'LSF' };
+  const isComplete = (b) => b && (b.type === 'complete' || b.type === 'arrest');
+  function blockColour(site) { const b = S.blocks[site]; return isComplete(b) ? C.blocked : C.partial; }
+  function restColourOf(id) { const site = SEG_SITE[M.seg[id]]; return site && S.blocks[site] ? blockColour(site) : C.cs; }
+  function blockLabel(site) {
+    const b = S.blocks[site]; if (!b) return '';
+    const item = BLOCK_MENU[site].find((x) => x[0] === b.type);
+    return item ? item[1] : `${SITE_NAME[site]} block`;
+  }
+
+  function renderBlockList() {
+    const sites = Object.keys(S.blocks);
+    $('blockListWrap').hidden = !sites.length;
+    $('legendBlock').hidden = !sites.length || ui.view !== 'cutaway';
+    $('blockList').innerHTML = sites.map((s) => `<div class="bchip${isComplete(S.blocks[s]) ? '' : ' partial'}"><span>${SITE_NAME[s]}: ${blockLabel(s)}</span><button type="button" data-site="${s}" aria-label="Remove ${SITE_NAME[s]} block">×</button></div>`).join('');
+    for (const b of $('blockList').querySelectorAll('button')) b.addEventListener('click', () => { S.setBlock(b.dataset.site, null); renderBlockList(); interpret(true); });
+  }
+
+  function showBlockMenu(site, defType, x, y) {
+    const menu = $('blockMenu'), pane = $('pane3d');
+    $('blockMenuTitle').textContent = SITE_NAME[site];
+    const cur = S.blocks[site];
+    const items = BLOCK_MENU[site].map(([type, label, opts]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem');
+      b.textContent = (cur && cur.type === type ? '✓ ' : '') + label;
+      if (type === defType) b.classList.add('default');
+      b.addEventListener('click', () => { S.setBlock(site, type, opts || {}); hideBlockMenu(); renderBlockList(); interpret(true); });
+      return b;
+    });
+    if (cur) {
+      const r = document.createElement('button'); r.type = 'button'; r.className = 'remove'; r.textContent = 'Remove block';
+      r.addEventListener('click', () => { S.setBlock(site, null); hideBlockMenu(); renderBlockList(); interpret(true); });
+      items.push(r);
+    }
+    $('blockMenuItems').replaceChildren(...items);
+    menu.hidden = false;
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    menu.style.left = `${Math.max(8, Math.min(pane.clientWidth - w - 8, x + 12))}px`;
+    menu.style.top = `${Math.max(46, Math.min(pane.clientHeight - h - 8, y - 20))}px`;
+    (items.find((b) => b.classList.contains('default')) || items[0]).focus();
+  }
+  function hideBlockMenu() { $('blockMenu').hidden = true; }
+
+  function flash(x, y, text) {
+    const f = $('flash'); $('flashText').textContent = text;
+    f.hidden = true; void f.offsetWidth; f.hidden = false;
+    f.style.transform = `translate(${x}px, ${y}px)`;
+    clearTimeout(flash.timer); flash.timer = setTimeout(() => { f.hidden = true; }, 1200);
+  }
+
+  function updateActionNote() {
+    const cut = ui.view === 'cutaway';
+    $('actionNote').textContent = ui.action === 'stimulate'
+      ? 'Click the atria for a PAC or the ventricles for a PVC.'
+      : cut ? 'Click the SA node, AV node, His bundle, a bundle branch or a fascicle to choose a block.'
+        : 'Switch to Cutaway to reach the conduction system. The SA node (white dot) can be clicked here.';
+  }
+
+  // pointer handling on the 3D canvas: a click (not a drag) acts
+  function initPicking() {
+    const canvas = $('c3d'), ray = new THREE.Raycaster();
+    let down = null;
+    canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });
+    canvas.addEventListener('pointerup', (e) => {
+      if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; }
+      down = null;
+      const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
+      hideBlockMenu();
+      if (ui.action === 'block') pickBlock(ray, x, y); else pickStimulus(ray, x, y);
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideBlockMenu(); });
+    $('blockMenuCancel').addEventListener('click', hideBlockMenu);
+  }
+
+  function pickBlock(ray, x, y) {
+    const targets = [g3.sanPick].concat(ui.view === 'cutaway' ? g3.pickTubes : []);
+    const hit = ray.intersectObjects(targets, false)[0];
+    if (!hit) { flash(x, y, ui.view === 'cutaway' ? 'Click the conduction system' : 'Use Cutaway for blocks'); return; }
+    if (hit.object === g3.sanPick) { showBlockMenu('SAN', 'sa-exit', x, y); return; }
+    const id = hit.object.userData.map[hit.face.a], site = SEG_SITE[M.seg[id]];
+    if (!site) return;
+    let def = BLOCK_MENU[site][0][0];
+    if (site === 'AVN') def = M.avn.indexOf(id) <= 1 ? 'first' : 'wenckebach';   // proximal node: 1st degree; distal: Wenckebach
+    showBlockMenu(site, def, x, y);
+  }
+
+  function pickStimulus(ray, x, y) {
+    const cut = ui.view === 'cutaway';
+    const targets = g3.pickTissue.concat(cut ? [g3.slab.im] : []);
+    for (const hit of ray.intersectObjects(targets, false)) {
+      if (cut && hit.object !== g3.slab.im && g3.plane.distanceToPoint(hit.point) < -0.3) continue;   // clipped away
+      const p = g3.inner.worldToLocal(hit.point.clone());
+      const c = nearestTissue(p.x, p.y, p.z, hit.object === g3.slab.im ? 1 : 3);
+      if (c < 0) continue;
+      const rec = S.stimulate(c);
+      const refractory = S.t < S.refEnd[c];
+      flash(x, y, refractory ? 'No capture (refractory)' : rec.kind === 'atrial' ? 'PAC' : 'PVC');
+      return;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -701,39 +834,87 @@
   // ---------------------------------------------------------------------------
   // Interpretation banner (ground truth from the simulator + measurements)
   // ---------------------------------------------------------------------------
+  // The rhythm statement is the simulator's ground truth (which pacemaker
+  // fired, which blocks are active, which beats were stimulated); intervals
+  // and the axis are measured from the simulated activation and ECG.
   function interpret() {
     const V = S.log.vent.filter((b) => S.t > b.repEnd + 60), Aa = S.log.atrial;
     if (V.length < 2) return;
     const vb = V[V.length - 1];
-    const rr = V.slice(-4).map((b, i, a) => (i ? b.on - a[i - 1].on : null)).filter(Boolean);
-    const RR = rr.reduce((s, v) => s + v, 0) / rr.length, rate = 60000 / RR;
-    const ab = Aa.filter((a) => a.on < vb.on - 40 && a.on > vb.on - 450).pop();
-    const PR = ab ? vb.on - ab.on : null;
+    const recent = V.filter((b) => b.on > S.t - 10000);
+    const rrs = recent.slice(1).map((b, i) => b.on - recent[i].on);
+    const RR = rrs.length ? rrs.reduce((a, c) => a + c, 0) / rrs.length : vb.on - V[V.length - 2].on, rate = 60000 / RR;
+    const aRecent = Aa.filter((a) => a.on > S.t - 10000);
+    const aRate = aRecent.length > 1 ? 60000 * (aRecent.length - 1) / (aRecent[aRecent.length - 1].on - aRecent[0].on) : 0;
+    const prOf = (v) => { const a = Aa.filter((x) => x.on < v.on - 40 && x.on > v.on - 480).pop(); return a ? v.on - a.on : null; };
+    const PRs = recent.map(prOf).filter((x) => x !== null);
+    const PR = prOf(vb);
+    const prVar = PRs.length > 1 && Math.max(...PRs) - Math.min(...PRs) > 25;
     const QRS = vb.last - vb.on + 4;
-    const QT = vb.repEnd + 40 - vb.on, QTc = QT / Math.sqrt(RR / 1000);
-    // QRS axis from net QRS areas in I and aVF
+    const lastRR = vb.on - V[V.length - 2].on;
+    const QT = vb.repEnd + 40 - vb.on, QTc = QT / Math.sqrt(Math.max(lastRR, 300) / 1000);
+    // QRS axis from net areas in I and aVF. With RBBB the delayed terminal RV
+    // forces are excluded (clinical convention: first 60 ms of the QRS).
+    const B = S.blocks;
+    const axisWin = B.RBB && !B.LBB && QRS >= 110 ? 60 : QRS;
     let aI = 0, aF = 0; const base = Math.floor(vb.on - 15) % PAGE;
-    for (let t = Math.floor(vb.on); t <= Math.ceil(vb.on + QRS); t++) {
+    for (let t = Math.floor(vb.on); t <= Math.ceil(vb.on + axisWin); t++) {
       const i = t % PAGE; aI += ecg.buf[0][i] - ecg.buf[0][base]; aF += ecg.buf[5][i] - ecg.buf[5][base];
     }
     const axis = Math.round(Math.atan2(aF, aI) * 180 / Math.PI);
-    // what drove the last ventricular beat?
-    const fired = S.fireLog.filter((f) => f.t > vb.on - 160 && f.t <= vb.on + 1).pop();
+
+    // ---- rhythm (ground truth)
+    const recentFires = S.fireLog.filter((f) => f.t > S.t - 10000);
+    const fired = (name) => recent.some((v) => recentFires.some((f) => f.name === name && f.t > v.on - 160 && f.t <= v.on + 1));
+    const stims = S.stimLog.filter((x) => x.captured && x.t > S.t - 10000);
+    const nPVC = stims.filter((x) => x.kind === 'ventricular').length, nPAC = stims.filter((x) => x.kind === 'atrial').length;
+    const sinusLabel = (r) => r < 60 ? 'Sinus bradycardia' : r > 100 ? 'Sinus tachycardia' : 'Normal sinus rhythm';
+    const avComplete = (B.AVN && B.AVN.type === 'complete') || (B.HIS && B.HIS.type === 'complete') || (B.LBB && B.RBB);
     let rhythm;
-    if (fired && fired.name === 'ventricular') rhythm = 'Ventricular escape rhythm';
-    else if (fired && fired.name === 'junctional') rhythm = 'Junctional escape rhythm';
-    else if (PR !== null) rhythm = rate < 60 ? 'Sinus bradycardia' : rate > 100 ? 'Sinus tachycardia' : 'Normal sinus rhythm';
-    else rhythm = 'Rhythm being analysed';
-    if (PR !== null && PR > 200) rhythm += ' with 1st-degree AV block';
+    if (avComplete) {
+      const esc = fired('ventricular') ? 'ventricular' : 'junctional';
+      rhythm = `3rd-degree (complete) AV block with ${esc} escape rhythm`;
+    } else if (B.SAN && B.SAN.type === 'arrest') rhythm = 'Sinus arrest with junctional escape rhythm';
+    else if (B.SAN && B.SAN.type === 'pause' && S.t < S.sinusPauseUntil + 6000) rhythm = `Sinus rhythm with sinus pause${fired('junctional') ? ' and junctional escape beats' : ''}`;
+    else if (B.SAN && B.SAN.type === 'sa-exit') rhythm = 'Sinus rhythm with 2nd-degree SA exit block';
+    else if (B.AVN && B.AVN.type === 'wenckebach') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz I (Wenckebach)';
+    else if (B.AVN && B.AVN.type === 'two-to-one') rhythm = 'Sinus rhythm with 2:1 AV block';
+    else if (B.HIS && B.HIS.type === 'mobitz2') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz II';
+    else if (fired('junctional')) rhythm = 'Junctional escape rhythm';
+    else if (fired('ventricular')) rhythm = 'Ventricular escape rhythm';
+    else rhythm = sinusLabel(aRate || rate);
+    if (B.AVN && B.AVN.type === 'first') rhythm += ' with 1st-degree AV block';
+    // ventricular conduction
+    const iv = [];
+    if (!avComplete) {
+      if (B.LBB) iv.push('left bundle branch block');
+      else {
+        if (B.RBB && B.LAF) iv.push('bifascicular block (RBBB + LAFB)');
+        else if (B.RBB && B.LPF) iv.push('bifascicular block (RBBB + LPFB)');
+        else {
+          if (B.RBB) iv.push('right bundle branch block');
+          if (B.LAF) iv.push('left anterior fascicular block');
+          if (B.LPF) iv.push('left posterior fascicular block');
+        }
+      }
+    }
+    if (iv.length) rhythm += `; ${iv.join(', ')}`;
+    const ect = [];
+    if (nPAC) ect.push(`${nPAC} PAC${nPAC > 1 ? 's' : ''}`);
+    if (nPVC) ect.push(`${nPVC} PVC${nPVC > 1 ? 's' : ''}`);
+    if (ect.length) rhythm += ` with ${ect.join(' and ')}`;
+
     const axisTxt = axis < -30 ? 'left axis deviation' : axis > 90 ? 'right axis deviation' : 'normal axis';
     $('rhythm').textContent = rhythm;
     const chip = (k, v, flag) => `<span class="chip${flag ? ' flag' : ''}"><em>${k}</em>${v}</span>`;
+    const dissociated = avComplete || Math.abs(aRate - rate) > 4;
     $('chips').innerHTML = [
-      chip('Rate', `${Math.round(rate)} bpm`, rate < 60 || rate > 100),
-      chip('PR', PR !== null ? `${Math.round(PR)} ms` : '—', PR !== null && (PR > 200 || PR < 120)),
+      chip(dissociated ? 'Ventricular' : 'Rate', `${Math.round(rate)} bpm`, rate < 60 || rate > 100),
+      dissociated && aRate ? chip('Atrial', `${Math.round(aRate)} bpm`, aRate < 60 || aRate > 100) : '',
+      chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
       chip('QRS', `${Math.round(QRS)} ms`, QRS >= 120),
       chip('QT/QTc', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 460),
-      chip('Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
+      chip(axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
   }
 
@@ -754,7 +935,9 @@
       if (ui.leads && g3.camera.position.length() < 600) { g3.camera.position.setLength(660); g3.controls.update(); }
     });
     $('btnPause').addEventListener('click', () => { ui.paused = !ui.paused; $('btnPause').textContent = ui.paused ? 'Resume' : 'Pause'; });
-    $('btnReset').addEventListener('click', () => { newSim(); });
+    $('btnReset').addEventListener('click', () => { newSim(); renderBlockList(); hideBlockMenu(); });
+    for (const id of ['actStim', 'actBlock']) $(id).addEventListener('change', (e) => { ui.action = e.target.value; updateActionNote(); hideBlockMenu(); });
+    initPicking(); updateActionNote();
     const toggle = () => {
       const c = $('controls').classList.toggle('collapsed');
       $('ctlChevron').textContent = c ? 'Show' : 'Hide'; $('ctlHead').setAttribute('aria-expanded', String(!c));

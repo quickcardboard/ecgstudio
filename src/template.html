@@ -24,7 +24,7 @@
   --grid-minor: #f7cfd7;
   --grid-major: #ec8fa3;
   --trace: #111111;
-  --rest: #f2a9bb; --dep: #2f63f0; --rep: #23b462; --cs: #e9b42a; --limb: #f0b429; --chest: #38c6e8;
+  --rest: #f2a9bb; --dep: #2f63f0; --rep: #23b462; --cs: #e9b42a; --limb: #f0b429; --chest: #38c6e8; --blocked: #e0303f; --partial: #ff8a1f;
   --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -104,6 +104,26 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .next { font-size: 11.5px; color: var(--panel-muted); border-top: 1px solid var(--panel-line); padding-top: 10px; line-height: 1.45; }
 .next b { color: var(--viewport-fg); font-weight: 500; }
 
+/* click actions, block menu, stimulus flash */
+.note { font-size: 11.5px; color: var(--panel-muted); line-height: 1.4; }
+.blocklist { display: flex; flex-direction: column; gap: 5px; }
+.bchip { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; padding: 5px 6px 5px 9px; border-radius: 6px; background: rgba(224,48,63,0.16); border: 1px solid rgba(224,48,63,0.5); }
+.bchip.partial { background: rgba(255,138,31,0.14); border-color: rgba(255,138,31,0.5); }
+.bchip button { padding: 2px 7px; font-size: 12px; line-height: 1.2; }
+.popover { position: absolute; z-index: 5; min-width: 230px; max-width: 280px; background: var(--panel); border: 1px solid var(--panel-line); border-radius: 10px; padding: 10px; color: var(--viewport-fg); backdrop-filter: blur(6px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+.pop-title { font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); margin-bottom: 8px; }
+.pop-items { display: flex; flex-direction: column; gap: 5px; }
+.pop-items button, .pop-cancel { text-align: left; background: rgba(255,255,255,0.06); border-color: var(--panel-line); color: var(--viewport-fg); font-size: 12.5px; line-height: 1.3; padding: 7px 9px; }
+.pop-items button.default { border-color: var(--partial); }
+.pop-items button.remove { color: #ff9aa4; }
+.pop-items button:hover, .pop-cancel:hover { border-color: var(--panel-muted); }
+.pop-cancel { margin-top: 6px; width: 100%; text-align: center; }
+.flash { position: absolute; z-index: 4; left: 0; top: 0; pointer-events: none; width: 0; height: 0; }
+.flash::before { content: ""; position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ffffff; animation: ring 0.9s ease-out forwards; }
+.flash span { position: absolute; left: 14px; top: -24px; white-space: nowrap; font: 600 12px/1 var(--font-ui); color: #fff; background: rgba(10,18,26,0.8); padding: 4px 7px; border-radius: 4px; }
+@keyframes ring { from { transform: scale(0.3); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .flash::before { animation: none; } }
+
 /* overlay toggles */
 .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .tog { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; padding: 7px 4px; border-radius: 6px; border: 1px solid var(--panel-line); background: rgba(255,255,255,0.06); cursor: pointer; text-align: center; }
@@ -173,7 +193,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
 <div id="app">
   <header class="top">
-    <div class="brand"><h1>Live<b>Heart</b></h1><span>Forward ECG simulator · milestone 1</span></div>
+    <div class="brand"><h1>Live<b>Heart</b></h1><span>Forward ECG simulator · milestone 2</span></div>
     <div class="spacer"></div>
     <button id="btnGuide" type="button">User guide</button>
   </header>
@@ -208,6 +228,18 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
             </div>
           </div>
           <div class="ctl">
+            <span class="lab">Click on the heart to</span>
+            <div class="seg">
+              <input type="radio" name="action" id="actStim" value="stimulate" checked><label for="actStim">Stimulate</label>
+              <input type="radio" name="action" id="actBlock" value="block"><label for="actBlock">Block</label>
+            </div>
+            <div class="note" id="actionNote">Click the atria for a PAC or the ventricles for a PVC.</div>
+          </div>
+          <div class="ctl" id="blockListWrap" hidden>
+            <span class="lab">Active blocks</span>
+            <div class="blocklist" id="blockList"></div>
+          </div>
+          <div class="ctl">
             <span class="lab">Overlays</span>
             <div class="toggles">
               <label class="tog" for="ovLabels"><input type="checkbox" id="ovLabels"><span>Labels</span></label>
@@ -218,15 +250,22 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
             <button id="btnPause" type="button">Pause</button>
             <button id="btnReset" type="button">Reset</button>
           </div>
-          <div class="next">Next milestones add <b>Stimulate</b> (PAC/PVC, AF, flutter, VT), <b>Block</b> (SA, AV, bundle and fascicular blocks), <b>Ischemia</b> and <b>Structural</b> changes.</div>
+          <div class="next">Coming next: <b>Ischemia</b> (coronary occlusion, time course), <b>Structural</b> changes (atrial enlargement, hypertrophy, accessory pathways) and <b>re-entry</b> (AF, flutter, AVNRT, VT, VF).</div>
         </div>
       </div>
 
+      <div class="popover" id="blockMenu" hidden role="menu" aria-labelledby="blockMenuTitle">
+        <div class="pop-title" id="blockMenuTitle">AV node</div>
+        <div class="pop-items" id="blockMenuItems"></div>
+        <button type="button" class="pop-cancel" id="blockMenuCancel">Cancel</button>
+      </div>
+      <div class="flash" id="flash" hidden><span id="flashText">PVC</span></div>
       <div class="legend" aria-label="Colour key">
         <span><i style="background:var(--rest)"></i>Resting</span>
         <span><i style="background:var(--dep)"></i>Depolarizing</span>
         <span><i style="background:var(--rep)"></i>Repolarizing</span>
         <span id="legendCs" hidden><i style="background:var(--cs)"></i>Conduction system</span>
+        <span id="legendBlock" hidden><i style="background:var(--blocked)"></i>Blocked <i style="background:var(--partial); margin-left:8px"></i>Partial block</span>
         <span id="legendLeads" hidden><i style="background:var(--limb)"></i>Limb leads <i style="background:var(--chest); margin-left:8px"></i>Chest leads <i style="background:#ffffff; margin-left:8px"></i>Heart vector</span>
       </div>
       <div class="clock" id="clock">t 0.000 s</div>
@@ -266,7 +305,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Time scale</b> slows the whole simulation, down to 1/50 of real time, so you can follow the wavefront. The ECG slows with it.</li>
       <li><b>View:</b> External lets you rotate the heart. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches and fascicles. The Purkinje network runs in the model but is not drawn.</li>
       <li><b>Overlays:</b> Labels names the chambers and vessels, and in the cutaway the conduction system too. Lead vectors draws the limb-lead hexaxial reference (amber, drawn from the torso's own lead vectors, so lead I is visibly shorter than II and III; dashed lines are each lead's negative half), the chest electrodes V1–V6 with their lead vectors (blue), and the live heart vector (white). When the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
-      <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest.</li>
+      <li><b>Click on the heart to Stimulate:</b> click atrial tissue for a premature atrial complex (PAC) or ventricular tissue for a premature ventricular complex (PVC), in either view. Tissue that is still refractory does not capture. Click twice quickly for a couplet.</li>
+      <li><b>Click on the heart to Block:</b> in the cutaway, click any part of the conduction system and choose a block. The SA node offers SA exit block, a sinus pause or sinus arrest. The AV node offers 1st-degree, Mobitz I (Wenckebach), 2:1 and complete block. The His bundle offers Mobitz II and complete block. The bundle branches and fascicles can each be blocked. Blocked segments turn red, or orange for partial blocks, and are listed under Active blocks, where you can remove them. Escape rhythms appear only when conduction above them is lost.</li>
+      <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest and clears all blocks.</li>
     </ul>
     <h3>Banner</h3>
     <p>The rhythm label comes from the simulator's own state, for example which pacemaker fired. PR, QRS and QT are measured from tissue activation and repolarization times. QTc uses Bazett's formula. The axis is measured from the QRS areas in leads I and aVF.</p>

@@ -24,7 +24,7 @@
   --grid-minor: #f7cfd7;
   --grid-major: #ec8fa3;
   --trace: #111111;
-  --rest: #f2a9bb; --dep: #2f63f0; --rep: #23b462; --cs: #e9b42a; --limb: #f0b429; --chest: #38c6e8;
+  --rest: #f2a9bb; --dep: #2f63f0; --rep: #23b462; --cs: #e9b42a; --limb: #f0b429; --chest: #38c6e8; --blocked: #e0303f; --partial: #ff8a1f;
   --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -104,6 +104,26 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .next { font-size: 11.5px; color: var(--panel-muted); border-top: 1px solid var(--panel-line); padding-top: 10px; line-height: 1.45; }
 .next b { color: var(--viewport-fg); font-weight: 500; }
 
+/* click actions, block menu, stimulus flash */
+.note { font-size: 11.5px; color: var(--panel-muted); line-height: 1.4; }
+.blocklist { display: flex; flex-direction: column; gap: 5px; }
+.bchip { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; padding: 5px 6px 5px 9px; border-radius: 6px; background: rgba(224,48,63,0.16); border: 1px solid rgba(224,48,63,0.5); }
+.bchip.partial { background: rgba(255,138,31,0.14); border-color: rgba(255,138,31,0.5); }
+.bchip button { padding: 2px 7px; font-size: 12px; line-height: 1.2; }
+.popover { position: absolute; z-index: 5; min-width: 230px; max-width: 280px; background: var(--panel); border: 1px solid var(--panel-line); border-radius: 10px; padding: 10px; color: var(--viewport-fg); backdrop-filter: blur(6px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+.pop-title { font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); margin-bottom: 8px; }
+.pop-items { display: flex; flex-direction: column; gap: 5px; }
+.pop-items button, .pop-cancel { text-align: left; background: rgba(255,255,255,0.06); border-color: var(--panel-line); color: var(--viewport-fg); font-size: 12.5px; line-height: 1.3; padding: 7px 9px; }
+.pop-items button.default { border-color: var(--partial); }
+.pop-items button.remove { color: #ff9aa4; }
+.pop-items button:hover, .pop-cancel:hover { border-color: var(--panel-muted); }
+.pop-cancel { margin-top: 6px; width: 100%; text-align: center; }
+.flash { position: absolute; z-index: 4; left: 0; top: 0; pointer-events: none; width: 0; height: 0; }
+.flash::before { content: ""; position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ffffff; animation: ring 0.9s ease-out forwards; }
+.flash span { position: absolute; left: 14px; top: -24px; white-space: nowrap; font: 600 12px/1 var(--font-ui); color: #fff; background: rgba(10,18,26,0.8); padding: 4px 7px; border-radius: 4px; }
+@keyframes ring { from { transform: scale(0.3); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .flash::before { animation: none; } }
+
 /* overlay toggles */
 .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .tog { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; padding: 7px 4px; border-radius: 6px; border: 1px solid var(--panel-line); background: rgba(255,255,255,0.06); cursor: pointer; text-align: center; }
@@ -173,7 +193,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
 <div id="app">
   <header class="top">
-    <div class="brand"><h1>Live<b>Heart</b></h1><span>Forward ECG simulator · milestone 1</span></div>
+    <div class="brand"><h1>Live<b>Heart</b></h1><span>Forward ECG simulator · milestone 2</span></div>
     <div class="spacer"></div>
     <button id="btnGuide" type="button">User guide</button>
   </header>
@@ -208,6 +228,18 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
             </div>
           </div>
           <div class="ctl">
+            <span class="lab">Click on the heart to</span>
+            <div class="seg">
+              <input type="radio" name="action" id="actStim" value="stimulate" checked><label for="actStim">Stimulate</label>
+              <input type="radio" name="action" id="actBlock" value="block"><label for="actBlock">Block</label>
+            </div>
+            <div class="note" id="actionNote">Click the atria for a PAC or the ventricles for a PVC.</div>
+          </div>
+          <div class="ctl" id="blockListWrap" hidden>
+            <span class="lab">Active blocks</span>
+            <div class="blocklist" id="blockList"></div>
+          </div>
+          <div class="ctl">
             <span class="lab">Overlays</span>
             <div class="toggles">
               <label class="tog" for="ovLabels"><input type="checkbox" id="ovLabels"><span>Labels</span></label>
@@ -218,15 +250,22 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
             <button id="btnPause" type="button">Pause</button>
             <button id="btnReset" type="button">Reset</button>
           </div>
-          <div class="next">Next milestones add <b>Stimulate</b> (PAC/PVC, AF, flutter, VT), <b>Block</b> (SA, AV, bundle and fascicular blocks), <b>Ischemia</b> and <b>Structural</b> changes.</div>
+          <div class="next">Coming next: <b>Ischemia</b> (coronary occlusion, time course), <b>Structural</b> changes (atrial enlargement, hypertrophy, accessory pathways) and <b>re-entry</b> (AF, flutter, AVNRT, VT, VF).</div>
         </div>
       </div>
 
+      <div class="popover" id="blockMenu" hidden role="menu" aria-labelledby="blockMenuTitle">
+        <div class="pop-title" id="blockMenuTitle">AV node</div>
+        <div class="pop-items" id="blockMenuItems"></div>
+        <button type="button" class="pop-cancel" id="blockMenuCancel">Cancel</button>
+      </div>
+      <div class="flash" id="flash" hidden><span id="flashText">PVC</span></div>
       <div class="legend" aria-label="Colour key">
         <span><i style="background:var(--rest)"></i>Resting</span>
         <span><i style="background:var(--dep)"></i>Depolarizing</span>
         <span><i style="background:var(--rep)"></i>Repolarizing</span>
         <span id="legendCs" hidden><i style="background:var(--cs)"></i>Conduction system</span>
+        <span id="legendBlock" hidden><i style="background:var(--blocked)"></i>Blocked <i style="background:var(--partial); margin-left:8px"></i>Partial block</span>
         <span id="legendLeads" hidden><i style="background:var(--limb)"></i>Limb leads <i style="background:var(--chest); margin-left:8px"></i>Chest leads <i style="background:#ffffff; margin-left:8px"></i>Heart vector</span>
       </div>
       <div class="clock" id="clock">t 0.000 s</div>
@@ -266,7 +305,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Time scale</b> slows the whole simulation, down to 1/50 of real time, so you can follow the wavefront. The ECG slows with it.</li>
       <li><b>View:</b> External lets you rotate the heart. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches and fascicles. The Purkinje network runs in the model but is not drawn.</li>
       <li><b>Overlays:</b> Labels names the chambers and vessels, and in the cutaway the conduction system too. Lead vectors draws the limb-lead hexaxial reference (amber, drawn from the torso's own lead vectors, so lead I is visibly shorter than II and III; dashed lines are each lead's negative half), the chest electrodes V1–V6 with their lead vectors (blue), and the live heart vector (white). When the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
-      <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest.</li>
+      <li><b>Click on the heart to Stimulate:</b> click atrial tissue for a premature atrial complex (PAC) or ventricular tissue for a premature ventricular complex (PVC), in either view. Tissue that is still refractory does not capture. Click twice quickly for a couplet.</li>
+      <li><b>Click on the heart to Block:</b> in the cutaway, click any part of the conduction system and choose a block. The SA node offers SA exit block, a sinus pause or sinus arrest. The AV node offers 1st-degree, Mobitz I (Wenckebach), 2:1 and complete block. The His bundle offers Mobitz II and complete block. The bundle branches and fascicles can each be blocked. Blocked segments turn red, or orange for partial blocks, and are listed under Active blocks, where you can remove them. Escape rhythms appear only when conduction above them is lost.</li>
+      <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest and clears all blocks.</li>
     </ul>
     <h3>Banner</h3>
     <p>The rhythm label comes from the simulator's own state, for example which pacemaker fired. PR, QRS and QT are measured from tissue activation and repolarization times. QTc uses Bazett's formula. The axis is measured from the QRS areas in leads I and aVF.</p>
@@ -410,8 +451,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     cvPurkinje: 2.28,
     avnSegDelay: 17,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
     avnSegments: 5,
+    avnFirstDegreeMul: 2.6, // AV-nodal delay factor for 1st-degree block
+    // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
+    wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
     avnToneExp: 0.45,      // AV-nodal delay ∝ (72/rate)^exp (autonomic coupling)
-    rbbSeptalFrac: 0.15,
+    rbbSeptalFrac: 0.15,   // distal fraction of septal RBB giving off RV septal Purkinje
     rbbSeptalDelay: 19.39,    // ms extra delay into the RV septal Purkinje
 
     lafPhi: 2.28, lafZ: 0.63, lpfPhi: -1.87, lpfZ: 0.27, lsfPhi: 0.05, lsfZ: 0.42,
@@ -429,13 +473,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     sigmaRatio: 8.42,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
     heartPitch: -4.6,          // degrees about the left–right axis (+ tips the anterior wall upward)
-    heartRotation: 17.4,
+    heartRotation: 17.4,    // degrees about the AP axis (+ = more vertical heart)
     apexX: 72, apexY: -20,  // apex position in the chest (mm from midline / from V4 level)
-    chestGap: 15,          // closest heart–anterior chest wall distance (mm)      // degrees about the AP axis (+ = more vertical heart)
+    chestGap: 15,          // closest heart–anterior chest wall distance (mm)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
-    purkZmaxLV: 0.96, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)   // distal fraction of septal RBB giving off RV septal Purkinje
+    purkZmaxLV: 0.96, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)
     pmjAntero: 2,          // Purkinje -> muscle junction delay (ms)
-    pmjRetro: 20,           // muscle -> Purkinje (retrograde) junction delay (ms)
+    pmjRetro: 20,          // muscle -> Purkinje (retrograde) junction delay (ms)
+    pmjRetroRV: 35,        // retrograde PMJ delay in the RV (thin wall, sparse junctions)
 
     // Action potential durations (ms) at long diastolic interval
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
@@ -965,7 +1010,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const nodes = chosen.map((c) => {
         const id = this.addNode(KIND.PURK, seg, A.p(c));
         this.edge(id, c, P.pmjAntero, false);   // anterograde PMJ
-        this.edge(c, id, P.pmjRetro, false);    // retrograde PMJ
+        this.edge(c, id, seg === SEG.PURK_RV ? P.pmjRetroRV : P.pmjRetro, false);    // retrograde PMJ
         return id;
       });
       const idOf = new Map(chosen.map((c, i) => [c, nodes[i]]));
@@ -1281,12 +1326,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const anyBlocked = (ids) => ids.some((c) => this.blocked[c]);
       const M = model, cs = M.csSegments;
       this._addPacemaker(M.junctionalCell, 60000 / this.P.junctionalRate, 'junctional',
-        () => this.blocked[M.sanCell] || this.sinusArrest || anyBlocked(M.avn));
+        () => this.blocked[M.sanCell] || this.sinusArrest || this.t < this.sinusPauseUntil || anyBlocked(M.avn));
       this._addPacemaker(M.ventEscapeCell, 60000 / this.P.ventEscapeRate, 'ventricular',
         () => anyBlocked(cs.HIS) || (anyBlocked(cs.LBB) && anyBlocked(cs.RBB)));
       // beat bookkeeping for interval measurement
       this.log = { atrial: [], vent: [] };
+      this.blockLog = [];  // impulses stopped by a fixed-ratio/intermittent block {t, at}
       this.fireLog = [];   // spontaneous pacemaker discharges {name, t}
+      this.stimLog = [];   // external stimuli {t, cell, kind, captured}
+      this.blocks = {};    // active conduction blocks by structure: {SAN, AVN, HIS, LBB, RBB, LAF, LPF}
+      this.gates = new Map();   // cell -> {mode, n, count}: fixed-ratio / pattern conduction
+      this.sinusPauseUntil = -1; this.saExit = null; this.avnBlockMul = 1;
       this._curA = null; this._curV = null;
     }
 
@@ -1349,11 +1399,83 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     // shortens in sinus tachycardia and lengthens in sinus bradycardia.
     setRate(bpm) {
       this.sinusBpm = bpm;
-      const tone = Math.pow(72 / bpm, this.P.avnToneExp);
-      for (const c of this.M.avn) this.cvMul[c] = tone;
+      this._avnTone = Math.pow(72 / bpm, this.P.avnToneExp);
+      this._applyAvn();
       const cl = 60000 / bpm;
       const pm = this.pacemakers.find((p) => p.name === 'sinus');
       if (pm) pm.cl = cl; else this.pacemakers.unshift({ cell: this.M.sanCell, cl, name: 'sinus' });
+    }
+
+    // ---- Conduction blocks ---------------------------------------------------
+    // Block types by structure (the UI offers the ones listed for each site):
+    //   SAN: 'sa-exit' (2nd-degree SA exit block, n:n−1), 'pause' (one sinus pause), 'arrest'
+    //   AVN: 'first' (1st degree), 'wenckebach' (Mobitz I), 'two-to-one', 'complete'
+    //   HIS: 'mobitz2' (infranodal intermittent, n:n−1), 'complete'
+    //   LBB, RBB, LAF, LPF: 'complete'
+    setBlock(site, type, opts = {}) {
+      const M = this.M, P = this.P, cs = M.csSegments;
+      const cells = site === 'SAN' ? [M.sanCell] : site === 'AVN' ? M.avn : cs[site];
+      // clear what this site had
+      for (const c of cells) { this.blocked[c] = 0; this.gates.delete(c); }
+      if (site === 'SAN') { this.saExit = null; this.sinusArrest = false; this.sinusPauseUntil = -1; }
+      if (site === 'AVN') { this.avnBlockMul = 1; for (const c of M.avn) { this.erpExtra[c] = P.avnErpExtra; this.cvK[c] = P.avnCvRestK; this.cvTau[c] = P.avnCvRestTau; } }
+      delete this.blocks[site];
+      if (!type) { this._applyAvn(); return; }
+      this.blocks[site] = { type, ...opts };
+      const gate = (cell, mode, n) => this.gates.set(cell, { mode, n, count: 0, site });
+      if (site === 'SAN') {
+        if (type === 'sa-exit') this.saExit = { n: opts.n || 3, count: 0 };
+        else if (type === 'pause') { this.sinusPauseUntil = this.t + (opts.ms || 2800); }
+        else if (type === 'arrest') this.sinusArrest = true;
+      } else if (site === 'AVN') {
+        if (type === 'first') this.avnBlockMul = P.avnFirstDegreeMul;
+        else if (type === 'wenckebach') {
+          // Diseased AV node described by its recovery curve: nodal conduction
+          // time grows as the recovery time since the previous His activation
+          // shortens, and fails below R_eff. Longer conduction leaves less
+          // recovery for the next beat, so PR lengthens until a P is blocked.
+          this.gates.set(M.avn[0], { mode: 'av-recovery', site: 'AVN', count: 0 });
+        } else if (type === 'two-to-one') gate(M.avn[0], 'conduct-1-of', 2);
+        else if (type === 'complete') for (const c of M.avn) this.blocked[c] = 1;
+      } else if (site === 'HIS') {
+        if (type === 'mobitz2') gate(cs.HIS[1], 'drop-1-of', opts.n || 4);
+        else if (type === 'complete') for (const c of cs.HIS) this.blocked[c] = 1;
+      } else if (type === 'complete') for (const c of cells) this.blocked[c] = 1;
+      this._applyAvn();
+    }
+    clearBlocks() { for (const s of Object.keys(this.blocks)) this.setBlock(s, null); }
+    _applyAvn() { for (const c of this.M.avn) this.cvMul[c] = (this._avnTone || 1) * (this.avnBlockMul || 1); }
+    // One decision per beat: a site is reached by several converging
+    // wavelets within a few ms; they all share the first one's fate.
+    _gatePass(g, ta) {
+      if (g.lastT !== undefined && ta - g.lastT < 120) return g.last;
+      if (g.mode === 'av-recovery') {
+        const P = this.P, M = this.M, R = ta - this.tAct[M.his[0]];   // recovery since last nodal output
+        g.lastT = ta;
+        if (R < P.wkReff) { g.last = false; return false; }
+        const ah = P.wkAHmin + P.wkAlpha * Math.exp(-(R - P.wkReff) / P.wkTau);
+        // spread the required nodal delay over the AV-node segments for this beat
+        const mul = ah / (P.avnSegDelay * (M.avn.length - 1));
+        for (const c of M.avn) this.cvMul[c] = mul;
+        g.last = true; return true;
+      }
+      g.count++; g.lastT = ta;
+      g.last = g.mode === 'conduct-1-of' ? g.count % g.n === 1 % g.n    // conducts 1 of every n
+        : g.count % g.n !== 0;                                            // drops 1 of every n
+      return g.last;
+    }
+
+    // ---- External stimulation (clicks now; pacing leads later) ---------------
+    // Captures only if the tissue is excitable; logged so the interpreter can
+    // label the beat (PAC / PVC) and the UI can flash the site.
+    stimulate(c, time = this.t) {
+      const t = Math.max(time, this.t), k = this.M.kind[c];
+      const kind = k === KIND.ATRIAL ? 'atrial' : k === KIND.VENT ? 'ventricular' : 'conduction';
+      const rec = { t, cell: c, kind, captured: false };
+      this.stimLog.push(rec); if (this.stimLog.length > 40) this.stimLog.shift();
+      if (this.blocked[c] || t < this.refEnd[c]) return rec;      // refractory: no capture
+      this.schedule(c, t); this._pendingStim = rec;
+      return rec;
     }
 
     schedule(c, time) {
@@ -1364,8 +1486,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       this.buckets[((b % RING) + RING) % RING].push(c, time);
     }
 
-    // External stimulus (used by pacemakers, clicks, future pacing leads)
-    stimulate(c, time = this.t) { this.schedule(c, Math.max(time, this.t)); }
 
     _activate(c, ta) {
       const P = this.P;
@@ -1376,6 +1496,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       this.repEnd[c] = ta + apd;
       this.refEnd[c] = ta + apd * P.erpFrac + this.erpExtra[c];
       this.arrive[c] = Infinity;
+      if (this._pendingStim && this._pendingStim.cell === c) { this._pendingStim.captured = true; this._pendingStim = null; }
       if (c < this.M.nVox && this.M.kind[c]) this._ecgEnter(c, ta, apd);
       this._logActivation(c, ta);
       // propagate
@@ -1459,8 +1580,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       //    since it was last activated (being activated resets it: overdrive suppression)
       for (const pm of this.pacemakers) {
         if (pm.cl <= 0 || this.blocked[pm.cell] || (pm.armed && !pm.armed())) continue;
-        if (pm.name === 'sinus' && this.sinusArrest) continue;
+        if (pm.name === 'sinus' && (this.sinusArrest || t < this.sinusPauseUntil)) continue;
         if (t - this.tAct[pm.cell] >= pm.cl && t >= this.refEnd[pm.cell]) {
+          // SA exit block: the node keeps its rhythm, but every nth impulse fails to exit
+          if (pm.name === 'sinus' && this.saExit && ++this.saExit.count % this.saExit.n === 0) {
+            this.tAct[pm.cell] = t; this.fireLog.push({ name: 'sinus-blocked', t });
+            continue;
+          }
           this.schedule(pm.cell, t);
           this.fireLog.push({ name: pm.name, t }); if (this.fireLog.length > 40) this.fireLog.shift();
         }
@@ -1471,6 +1597,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         const c = bucket[q], ta = bucket[q + 1];
         if (ta !== this.arrive[c]) continue;          // superseded
         if (this.blocked[c] || ta < this.refEnd[c]) { this.arrive[c] = Infinity; continue; }
+        const gate = this.gates.get(c);
+        if (gate && !this._gatePass(gate, ta)) { this.arrive[c] = Infinity; this.blockLog.push({ t: ta, at: gate.site }); if (this.blockLog.length > 40) this.blockLog.shift(); continue; }
         this._activate(c, ta);
       }
       bucket.length = 0;
@@ -1597,11 +1725,12 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   const C = {
     rest: [0.95, 0.62, 0.71], front: [0.10, 0.30, 1.00], dep: [0.30, 0.47, 0.90],
     rep: [0.14, 0.72, 0.38], cs: [0.93, 0.71, 0.16],
+    blocked: [0.88, 0.19, 0.25], partial: [1.0, 0.54, 0.12],
   };
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const ecg = { buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
 
@@ -1623,6 +1752,15 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     try { init3D(); } catch (e) { setLoading('WebGL is not available in this browser, so the 3D view cannot start.'); console.error(e); return; }
     initECG(); initUI();
     $('loading').hidden = true;
+    // handle for automation (tests, future quiz mode): simulator, model and a projector
+    window.LiveHeartApp = {
+      get sim() { return S; }, model: M,
+      screenOf(id) {
+        const p = new THREE.Vector3(M.x[id], M.y[id], M.z[id]).applyMatrix4(g3.inner.matrixWorld).project(g3.camera);
+        const r = $('c3d').getBoundingClientRect();
+        return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
+      },
+    };
     ui.last = performance.now();
     requestAnimationFrame(loop);
   }
@@ -1786,7 +1924,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       for (let i = 0; i < q.length; i += 9) otherList.push([0, 1, 2].map((d) => A.origin[d] + (q[i + d] / 65535) * span[d]));
     }
     const otherVerts = vertexIndex(otherList);
-    g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = [];
+    g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = []; g3.pickTissue = [];
     for (const s of A.json.surfaces) {
       const q = decodeB64(s.pos, Uint16Array), idx = decodeB64(s.idx, Uint32Array);
       const pos = new Float32Array(q.length);
@@ -1811,6 +1949,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         mat = new THREE.MeshPhongMaterial({ color: STATIC[s.label], shininess: 15, side: THREE.DoubleSide, transparent: valve, opacity: valve ? 0.55 : 1 });
       }
       const mesh = new THREE.Mesh(geo, mat);
+      if (s.label <= 4) g3.pickTissue.push(mesh);
       g3.clipMats.push(mat);
       g3.inner.add(mesh);
       g3.allGeos.push(geo);
@@ -1841,7 +1980,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
   function buildConduction() {
     const grp = g3.cs = new THREE.Group(); g3.inner.add(grp);
-    g3.tubes = [];
+    g3.tubes = []; g3.pickTubes = [];
     const segs = M.csSegments;
     const last = (a) => a[a.length - 1];
     const paths = [
@@ -1864,11 +2003,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
       const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 50, emissive: 0x222222 }));
       grp.add(mesh); g3.tubes.push({ geo, col, map });
+      // invisible, thicker twin for easy clicking
+      const pgeo = new THREE.TubeGeometry(curve, tub, 3.2, rad, false);
+      const pick = new THREE.Mesh(pgeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      pick.userData.map = map; grp.add(pick); g3.pickTubes.push(pick);
     }
     // sinus node marker (visible in both views)
     const san = g3.san = new THREE.Mesh(new THREE.SphereGeometry(2.6, 16, 12), new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x333333 }));
     const sp = nodePos(M.sanCell, -1.0); san.position.set(sp[0], sp[1], sp[2]);
     g3.inner.add(san);
+    const sanPick = g3.sanPick = new THREE.Mesh(new THREE.SphereGeometry(6, 10, 8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+    sanPick.position.copy(san.position); g3.inner.add(sanPick);
   }
 
   // Four-chamber cut: plane through the LV apex and both AV-valve centres;
@@ -2117,6 +2262,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     for (const m of g3.clipMats) { m.clippingPlanes = cut ? [g3.plane] : null; m.needsUpdate = true; }
     g3.cs.visible = cut; g3.slab.im.visible = cut; g3.stencil.visible = cut;
     $('legendCs').hidden = !cut;
+    $('legendBlock').hidden = !cut || !Object.keys(S.blocks).length;
+    updateActionNote(); hideBlockMenu();
     $('viewName').textContent = cut ? 'anterior cutaway (four-chamber)' : 'external view';
     $('hint').textContent = cut ? 'Fixed anterior cutaway · scroll to zoom' : 'Drag to rotate · scroll to zoom';
     const ctl = g3.controls, cam = g3.camera;
@@ -2161,7 +2308,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       m.geo.attributes.color.needsUpdate = true;
     }
     const sc = [0, 0, 0];
-    stateColor(M.sanCell, t, sc, 0, [1, 1, 1]); g3.san.material.color.setRGB(sc[0], sc[1], sc[2]);
+    stateColor(M.sanCell, t, sc, 0, S.blocks.SAN ? blockColour('SAN') : [1, 1, 1]); g3.san.material.color.setRGB(sc[0], sc[1], sc[2]);
     if (ui.view === 'cutaway') {
       const sl = g3.slab, cc = sl.col, mp = sl.map;
       for (let i = 0; i < mp.length; i++) {
@@ -2171,13 +2318,127 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       }
       sl.geo.attributes.color.needsUpdate = true;
       for (const tb of g3.tubes) {
-        for (let v = 0; v < tb.map.length; v++) stateColor(tb.map[v], t, tb.col, 3 * v, C.cs);
+        for (let v = 0; v < tb.map.length; v++) stateColor(tb.map[v], t, tb.col, 3 * v, restColourOf(tb.map[v]));
         tb.geo.attributes.color.needsUpdate = true;
       }
     }
     g3.controls.update();
     g3.renderer.render(g3.scene, g3.camera);
     updateOverlays();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Blocks and stimulation by clicking
+  // ---------------------------------------------------------------------------
+  const SITE_NAME = { SAN: 'SA node', AVN: 'AV node', HIS: 'His bundle', LBB: 'Left bundle branch', RBB: 'Right bundle branch', LAF: 'Left anterior fascicle', LPF: 'Left posterior fascicle', LSF: 'Septal fascicle' };
+  const BLOCK_MENU = {
+    SAN: [['sa-exit', '2nd-degree SA exit block (3:2)', { n: 3 }], ['pause', 'Sinus pause (2.8 s)', { ms: 2800 }], ['arrest', 'Sinus arrest']],
+    AVN: [['first', '1st-degree AV block'], ['wenckebach', '2nd-degree AV block, Mobitz I (Wenckebach)'], ['two-to-one', '2:1 AV block'], ['complete', '3rd-degree (complete) AV block']],
+    HIS: [['mobitz2', '2nd-degree AV block, Mobitz II (4:3)', { n: 4 }], ['complete', '3rd-degree (complete) block in the His bundle']],
+    LBB: [['complete', 'Left bundle branch block']], RBB: [['complete', 'Right bundle branch block']],
+    LAF: [['complete', 'Left anterior fascicular block']], LPF: [['complete', 'Left posterior fascicular block']],
+    LSF: [['complete', 'Septal fascicular block']],
+  };
+  const SEG_SITE = { [LH.SEG.AVN]: 'AVN', [LH.SEG.HIS]: 'HIS', [LH.SEG.LBB]: 'LBB', [LH.SEG.RBB]: 'RBB', [LH.SEG.LAF]: 'LAF', [LH.SEG.LPF]: 'LPF', [LH.SEG.LSF]: 'LSF' };
+  const isComplete = (b) => b && (b.type === 'complete' || b.type === 'arrest');
+  function blockColour(site) { const b = S.blocks[site]; return isComplete(b) ? C.blocked : C.partial; }
+  function restColourOf(id) { const site = SEG_SITE[M.seg[id]]; return site && S.blocks[site] ? blockColour(site) : C.cs; }
+  function blockLabel(site) {
+    const b = S.blocks[site]; if (!b) return '';
+    const item = BLOCK_MENU[site].find((x) => x[0] === b.type);
+    return item ? item[1] : `${SITE_NAME[site]} block`;
+  }
+
+  function renderBlockList() {
+    const sites = Object.keys(S.blocks);
+    $('blockListWrap').hidden = !sites.length;
+    $('legendBlock').hidden = !sites.length || ui.view !== 'cutaway';
+    $('blockList').innerHTML = sites.map((s) => `<div class="bchip${isComplete(S.blocks[s]) ? '' : ' partial'}"><span>${SITE_NAME[s]}: ${blockLabel(s)}</span><button type="button" data-site="${s}" aria-label="Remove ${SITE_NAME[s]} block">×</button></div>`).join('');
+    for (const b of $('blockList').querySelectorAll('button')) b.addEventListener('click', () => { S.setBlock(b.dataset.site, null); renderBlockList(); interpret(true); });
+  }
+
+  function showBlockMenu(site, defType, x, y) {
+    const menu = $('blockMenu'), pane = $('pane3d');
+    $('blockMenuTitle').textContent = SITE_NAME[site];
+    const cur = S.blocks[site];
+    const items = BLOCK_MENU[site].map(([type, label, opts]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem');
+      b.textContent = (cur && cur.type === type ? '✓ ' : '') + label;
+      if (type === defType) b.classList.add('default');
+      b.addEventListener('click', () => { S.setBlock(site, type, opts || {}); hideBlockMenu(); renderBlockList(); interpret(true); });
+      return b;
+    });
+    if (cur) {
+      const r = document.createElement('button'); r.type = 'button'; r.className = 'remove'; r.textContent = 'Remove block';
+      r.addEventListener('click', () => { S.setBlock(site, null); hideBlockMenu(); renderBlockList(); interpret(true); });
+      items.push(r);
+    }
+    $('blockMenuItems').replaceChildren(...items);
+    menu.hidden = false;
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    menu.style.left = `${Math.max(8, Math.min(pane.clientWidth - w - 8, x + 12))}px`;
+    menu.style.top = `${Math.max(46, Math.min(pane.clientHeight - h - 8, y - 20))}px`;
+    (items.find((b) => b.classList.contains('default')) || items[0]).focus();
+  }
+  function hideBlockMenu() { $('blockMenu').hidden = true; }
+
+  function flash(x, y, text) {
+    const f = $('flash'); $('flashText').textContent = text;
+    f.hidden = true; void f.offsetWidth; f.hidden = false;
+    f.style.transform = `translate(${x}px, ${y}px)`;
+    clearTimeout(flash.timer); flash.timer = setTimeout(() => { f.hidden = true; }, 1200);
+  }
+
+  function updateActionNote() {
+    const cut = ui.view === 'cutaway';
+    $('actionNote').textContent = ui.action === 'stimulate'
+      ? 'Click the atria for a PAC or the ventricles for a PVC.'
+      : cut ? 'Click the SA node, AV node, His bundle, a bundle branch or a fascicle to choose a block.'
+        : 'Switch to Cutaway to reach the conduction system. The SA node (white dot) can be clicked here.';
+  }
+
+  // pointer handling on the 3D canvas: a click (not a drag) acts
+  function initPicking() {
+    const canvas = $('c3d'), ray = new THREE.Raycaster();
+    let down = null;
+    canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });
+    canvas.addEventListener('pointerup', (e) => {
+      if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; }
+      down = null;
+      const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
+      hideBlockMenu();
+      if (ui.action === 'block') pickBlock(ray, x, y); else pickStimulus(ray, x, y);
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideBlockMenu(); });
+    $('blockMenuCancel').addEventListener('click', hideBlockMenu);
+  }
+
+  function pickBlock(ray, x, y) {
+    const targets = [g3.sanPick].concat(ui.view === 'cutaway' ? g3.pickTubes : []);
+    const hit = ray.intersectObjects(targets, false)[0];
+    if (!hit) { flash(x, y, ui.view === 'cutaway' ? 'Click the conduction system' : 'Use Cutaway for blocks'); return; }
+    if (hit.object === g3.sanPick) { showBlockMenu('SAN', 'sa-exit', x, y); return; }
+    const id = hit.object.userData.map[hit.face.a], site = SEG_SITE[M.seg[id]];
+    if (!site) return;
+    let def = BLOCK_MENU[site][0][0];
+    if (site === 'AVN') def = M.avn.indexOf(id) <= 1 ? 'first' : 'wenckebach';   // proximal node: 1st degree; distal: Wenckebach
+    showBlockMenu(site, def, x, y);
+  }
+
+  function pickStimulus(ray, x, y) {
+    const cut = ui.view === 'cutaway';
+    const targets = g3.pickTissue.concat(cut ? [g3.slab.im] : []);
+    for (const hit of ray.intersectObjects(targets, false)) {
+      if (cut && hit.object !== g3.slab.im && g3.plane.distanceToPoint(hit.point) < -0.3) continue;   // clipped away
+      const p = g3.inner.worldToLocal(hit.point.clone());
+      const c = nearestTissue(p.x, p.y, p.z, hit.object === g3.slab.im ? 1 : 3);
+      if (c < 0) continue;
+      const rec = S.stimulate(c);
+      const refractory = S.t < S.refEnd[c];
+      flash(x, y, refractory ? 'No capture (refractory)' : rec.kind === 'atrial' ? 'PAC' : 'PVC');
+      return;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -2281,39 +2542,87 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   // ---------------------------------------------------------------------------
   // Interpretation banner (ground truth from the simulator + measurements)
   // ---------------------------------------------------------------------------
+  // The rhythm statement is the simulator's ground truth (which pacemaker
+  // fired, which blocks are active, which beats were stimulated); intervals
+  // and the axis are measured from the simulated activation and ECG.
   function interpret() {
     const V = S.log.vent.filter((b) => S.t > b.repEnd + 60), Aa = S.log.atrial;
     if (V.length < 2) return;
     const vb = V[V.length - 1];
-    const rr = V.slice(-4).map((b, i, a) => (i ? b.on - a[i - 1].on : null)).filter(Boolean);
-    const RR = rr.reduce((s, v) => s + v, 0) / rr.length, rate = 60000 / RR;
-    const ab = Aa.filter((a) => a.on < vb.on - 40 && a.on > vb.on - 450).pop();
-    const PR = ab ? vb.on - ab.on : null;
+    const recent = V.filter((b) => b.on > S.t - 10000);
+    const rrs = recent.slice(1).map((b, i) => b.on - recent[i].on);
+    const RR = rrs.length ? rrs.reduce((a, c) => a + c, 0) / rrs.length : vb.on - V[V.length - 2].on, rate = 60000 / RR;
+    const aRecent = Aa.filter((a) => a.on > S.t - 10000);
+    const aRate = aRecent.length > 1 ? 60000 * (aRecent.length - 1) / (aRecent[aRecent.length - 1].on - aRecent[0].on) : 0;
+    const prOf = (v) => { const a = Aa.filter((x) => x.on < v.on - 40 && x.on > v.on - 480).pop(); return a ? v.on - a.on : null; };
+    const PRs = recent.map(prOf).filter((x) => x !== null);
+    const PR = prOf(vb);
+    const prVar = PRs.length > 1 && Math.max(...PRs) - Math.min(...PRs) > 25;
     const QRS = vb.last - vb.on + 4;
-    const QT = vb.repEnd + 40 - vb.on, QTc = QT / Math.sqrt(RR / 1000);
-    // QRS axis from net QRS areas in I and aVF
+    const lastRR = vb.on - V[V.length - 2].on;
+    const QT = vb.repEnd + 40 - vb.on, QTc = QT / Math.sqrt(Math.max(lastRR, 300) / 1000);
+    // QRS axis from net areas in I and aVF. With RBBB the delayed terminal RV
+    // forces are excluded (clinical convention: first 60 ms of the QRS).
+    const B = S.blocks;
+    const axisWin = B.RBB && !B.LBB && QRS >= 110 ? 60 : QRS;
     let aI = 0, aF = 0; const base = Math.floor(vb.on - 15) % PAGE;
-    for (let t = Math.floor(vb.on); t <= Math.ceil(vb.on + QRS); t++) {
+    for (let t = Math.floor(vb.on); t <= Math.ceil(vb.on + axisWin); t++) {
       const i = t % PAGE; aI += ecg.buf[0][i] - ecg.buf[0][base]; aF += ecg.buf[5][i] - ecg.buf[5][base];
     }
     const axis = Math.round(Math.atan2(aF, aI) * 180 / Math.PI);
-    // what drove the last ventricular beat?
-    const fired = S.fireLog.filter((f) => f.t > vb.on - 160 && f.t <= vb.on + 1).pop();
+
+    // ---- rhythm (ground truth)
+    const recentFires = S.fireLog.filter((f) => f.t > S.t - 10000);
+    const fired = (name) => recent.some((v) => recentFires.some((f) => f.name === name && f.t > v.on - 160 && f.t <= v.on + 1));
+    const stims = S.stimLog.filter((x) => x.captured && x.t > S.t - 10000);
+    const nPVC = stims.filter((x) => x.kind === 'ventricular').length, nPAC = stims.filter((x) => x.kind === 'atrial').length;
+    const sinusLabel = (r) => r < 60 ? 'Sinus bradycardia' : r > 100 ? 'Sinus tachycardia' : 'Normal sinus rhythm';
+    const avComplete = (B.AVN && B.AVN.type === 'complete') || (B.HIS && B.HIS.type === 'complete') || (B.LBB && B.RBB);
     let rhythm;
-    if (fired && fired.name === 'ventricular') rhythm = 'Ventricular escape rhythm';
-    else if (fired && fired.name === 'junctional') rhythm = 'Junctional escape rhythm';
-    else if (PR !== null) rhythm = rate < 60 ? 'Sinus bradycardia' : rate > 100 ? 'Sinus tachycardia' : 'Normal sinus rhythm';
-    else rhythm = 'Rhythm being analysed';
-    if (PR !== null && PR > 200) rhythm += ' with 1st-degree AV block';
+    if (avComplete) {
+      const esc = fired('ventricular') ? 'ventricular' : 'junctional';
+      rhythm = `3rd-degree (complete) AV block with ${esc} escape rhythm`;
+    } else if (B.SAN && B.SAN.type === 'arrest') rhythm = 'Sinus arrest with junctional escape rhythm';
+    else if (B.SAN && B.SAN.type === 'pause' && S.t < S.sinusPauseUntil + 6000) rhythm = `Sinus rhythm with sinus pause${fired('junctional') ? ' and junctional escape beats' : ''}`;
+    else if (B.SAN && B.SAN.type === 'sa-exit') rhythm = 'Sinus rhythm with 2nd-degree SA exit block';
+    else if (B.AVN && B.AVN.type === 'wenckebach') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz I (Wenckebach)';
+    else if (B.AVN && B.AVN.type === 'two-to-one') rhythm = 'Sinus rhythm with 2:1 AV block';
+    else if (B.HIS && B.HIS.type === 'mobitz2') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz II';
+    else if (fired('junctional')) rhythm = 'Junctional escape rhythm';
+    else if (fired('ventricular')) rhythm = 'Ventricular escape rhythm';
+    else rhythm = sinusLabel(aRate || rate);
+    if (B.AVN && B.AVN.type === 'first') rhythm += ' with 1st-degree AV block';
+    // ventricular conduction
+    const iv = [];
+    if (!avComplete) {
+      if (B.LBB) iv.push('left bundle branch block');
+      else {
+        if (B.RBB && B.LAF) iv.push('bifascicular block (RBBB + LAFB)');
+        else if (B.RBB && B.LPF) iv.push('bifascicular block (RBBB + LPFB)');
+        else {
+          if (B.RBB) iv.push('right bundle branch block');
+          if (B.LAF) iv.push('left anterior fascicular block');
+          if (B.LPF) iv.push('left posterior fascicular block');
+        }
+      }
+    }
+    if (iv.length) rhythm += `; ${iv.join(', ')}`;
+    const ect = [];
+    if (nPAC) ect.push(`${nPAC} PAC${nPAC > 1 ? 's' : ''}`);
+    if (nPVC) ect.push(`${nPVC} PVC${nPVC > 1 ? 's' : ''}`);
+    if (ect.length) rhythm += ` with ${ect.join(' and ')}`;
+
     const axisTxt = axis < -30 ? 'left axis deviation' : axis > 90 ? 'right axis deviation' : 'normal axis';
     $('rhythm').textContent = rhythm;
     const chip = (k, v, flag) => `<span class="chip${flag ? ' flag' : ''}"><em>${k}</em>${v}</span>`;
+    const dissociated = avComplete || Math.abs(aRate - rate) > 4;
     $('chips').innerHTML = [
-      chip('Rate', `${Math.round(rate)} bpm`, rate < 60 || rate > 100),
-      chip('PR', PR !== null ? `${Math.round(PR)} ms` : '—', PR !== null && (PR > 200 || PR < 120)),
+      chip(dissociated ? 'Ventricular' : 'Rate', `${Math.round(rate)} bpm`, rate < 60 || rate > 100),
+      dissociated && aRate ? chip('Atrial', `${Math.round(aRate)} bpm`, aRate < 60 || aRate > 100) : '',
+      chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
       chip('QRS', `${Math.round(QRS)} ms`, QRS >= 120),
       chip('QT/QTc', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 460),
-      chip('Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
+      chip(axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
   }
 
@@ -2334,7 +2643,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       if (ui.leads && g3.camera.position.length() < 600) { g3.camera.position.setLength(660); g3.controls.update(); }
     });
     $('btnPause').addEventListener('click', () => { ui.paused = !ui.paused; $('btnPause').textContent = ui.paused ? 'Resume' : 'Pause'; });
-    $('btnReset').addEventListener('click', () => { newSim(); });
+    $('btnReset').addEventListener('click', () => { newSim(); renderBlockList(); hideBlockMenu(); });
+    for (const id of ['actStim', 'actBlock']) $(id).addEventListener('change', (e) => { ui.action = e.target.value; updateActionNote(); hideBlockMenu(); });
+    initPicking(); updateActionNote();
     const toggle = () => {
       const c = $('controls').classList.toggle('collapsed');
       $('ctlChevron').textContent = c ? 'Show' : 'Hide'; $('ctlHead').setAttribute('aria-expanded', String(!c));

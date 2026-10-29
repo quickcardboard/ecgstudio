@@ -8,7 +8,7 @@ electrical field.
 Open `index.html` in a browser. It is a single self-contained file (≈4.7 MB) that loads
 Three.js r128 and OrbitControls from CDNs.
 
-## Status: milestone 1
+## Status: milestone 2 (blocks and ectopy) on top of milestone 1
 
 | Area | Done |
 |---|---|
@@ -50,6 +50,23 @@ tapers to the septal junctions, base and apex (`lvThickenWeight`, shared by tiss
 (CT: 52°) with 39° anterior tilt. `tools/research/` reproduces the investigation, and
 `tools/data/fascicular_candidate_v2.json` records the parameter set. The ECG output passes a 40 Hz
 low-pass (`ecgLowpass`), as on a monitoring ECG.
+
+### Milestone 2: conduction blocks and ectopy
+
+Click a structure in the cutaway (Block mode) to choose a block, or click tissue (Stimulate mode) for
+a PAC/PVC. Engine API: `sim.setBlock(site, type, opts)`, `sim.stimulate(cell)`.
+
+| Site | Blocks | Mechanism |
+|---|---|---|
+| SA node | SA exit block (n:n−1), sinus pause, sinus arrest | node keeps its rhythm but impulses fail to exit / node stops |
+| AV node | 1st degree; Mobitz I; 2:1; complete | slowed nodal conduction; AV-nodal recovery curve (Wenckebach emerges and is rate-dependent); 1-in-2 conduction; conduction loss → junctional escape |
+| His bundle | Mobitz II (n:n−1); complete | intermittent infranodal failure with fixed PR; conduction loss → ventricular escape 40 bpm |
+| Bundle branches, fascicles | complete | segment non-conducting |
+
+Checked in-app (`tools/blocks.js`, rhythm strips in `docs/m2/`): Wenckebach at 72 bpm runs PR 197→276→327→372→423
+ms then drops (1:1 with long PR at 60 bpm, 3:2 at 90 bpm); RBBB 124–128 ms with rsR′ in V1 (axis read from the
+first 60 ms); LBBB 143 ms; RBBB+LAFB −69°; PACs reset the sinus node (non-compensatory pause); PVCs give a full
+compensatory pause. The interpretation banner states rhythm, AV and intraventricular conduction and ectopy.
 
 ## Layout
 
