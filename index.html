@@ -413,7 +413,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     rbbSeptalFrac: 0.15,
     rbbSeptalDelay: 13,    // ms extra delay into the RV septal Purkinje
 
-    lafPhi: 1.95, lafZ: 0.42, lpfPhi: -1.85, lpfZ: 0.42, lsfPhi: 0.05, lsfZ: 0.42,
+    lafPhi: 1.2, lafZ: 0.42, lpfPhi: -1.2, lpfZ: 0.42, lsfPhi: 0.05, lsfZ: 0.42,
+    septalFascicle: false,  // optional left septal fascicle (anatomically debated; off)
+    fascConnectFrac: 0.35,  // distal fraction of LAF/LPF giving off Purkinje branches
+    septalTerrHalf: 0.5,    // half-width (rad) of the mid-septal Purkinje territory
+    lbbSeptalFrac: 0,           // distal fraction of the LBB trunk giving off septal Purkinje
+    lpfTerrLo: -2.6, lpfTerrHi: 0.0,  // LPF territory in rotational UVC (inferior/posterior wall)
+    purkCrossSlow: 1.0,     // conduction-time factor on Purkinje links between fascicle territories
     heartRotation: 25,
     apexX: 72, apexY: -20,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)      // degrees about the AP axis (+ = more vertical heart)
@@ -764,12 +770,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         const path = A.path(A.nearest(this.pt(lbbEnd), endoLV), tgt, endoLV).map(P2);
         return this.chain(KIND.BUNDLE, seg, path, P.cvBundle, 2.0, lbbEnd);
       };
-      // Fascicle terminals follow Durrer's early LV endocardial sites:
-      // high anterior paraseptal (LAF), posterior paraseptal ~1/3 from the
-      // apex (LPF) and central left septum (LSF).
+      // Two-fascicle left bundle: terminals at Durrer's anterior and posterior
+      // paraseptal early-activation sites; their Purkinje branches reach the
+      // left septal surface, giving the normal left-to-right septal
+      // depolarisation. A separate septal fascicle can be switched on.
       this.laf = fasc(SEG.LAF, P.lafPhi, P.lafZ);
       this.lpf = fasc(SEG.LPF, P.lpfPhi, P.lpfZ);
-      this.lsf = fasc(SEG.LSF, P.lsfPhi, P.lsfZ);
+      this.lsf = P.septalFascicle ? fasc(SEG.LSF, P.lsfPhi, P.lsfZ) : [];
       this.lbb = lbb;
 
       // ---- Right bundle branch: RV side of septum, then moderator band to
@@ -789,23 +796,38 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       this.rbb = rbbSept.concat(mb);
 
       // ---- Purkinje networks: sparse nodes over the endocardium (not basal)
-      this.purkLV = this._purkinjeNet(endoLV, P.purkZmaxLV, SEG.PURK_LV);
+      // each LV Purkinje node belongs to the territory of the nearer fascicle
+      const fascs = [this.laf, this.lpf].concat(this.lsf.length ? [this.lsf] : []);
+      // LPF supplies the inferior/posterior wall (rotational UVC between
+      // lpfTerrLo and lpfTerrHi); LAF the anterior and lateral walls; an
+      // optional septal fascicle takes the mid-septum.
+      // The mid-septal surface is its own territory, fed by the LBB's septal
+      // branches (or the septal fascicle when enabled).
+      const territory = (c) => {
+        const ph = A.phi[c];
+        if (Math.abs(ph) < P.septalTerrHalf && A.zuvc[c] > 0.25) return 2;
+        return ph > P.lpfTerrLo && ph < P.lpfTerrHi ? 1 : 0;
+      };
+      this.purkLV = this._purkinjeNet(endoLV, P.purkZmaxLV, SEG.PURK_LV, territory);
       this.purkRV = this._purkinjeNet((c) => endoRV(c), P.purkZmaxRV, SEG.PURK_RV);
 
       // Fascicle terminals fan into the Purkinje network
-      const connect = (nodes, net, frac, radius, extra = 0) => {
+      const inTerr = (k) => (b) => this.purkTerritory.get(b) === k;
+      const connect = (nodes, net, frac, radius, extra = 0, ok = null) => {
         const from = Math.floor(nodes.length * (1 - frac));
         for (let s = from; s < nodes.length; s++) {
           const a = nodes[s], pa = this.pt(a);
           for (const b of net) {
+            if (ok && !ok(b)) continue;
             const d = len(sub(pa, this.pt(b)));
             if (d < radius) this.edge(a, b, d / P.cvPurkinje + 0.5 + extra);
           }
         }
       };
-      connect(this.laf, this.purkLV, 0.35, 6);
-      connect(this.lpf, this.purkLV, 0.35, 6);
-      connect(this.lsf, this.purkLV, 0.50, 6);
+      if (P.lbbSeptalFrac > 0) connect(lbb, this.purkLV, P.lbbSeptalFrac, 8, 0, inTerr(2));   // LBB fans over the left septal surface
+      connect(this.laf, this.purkLV, P.fascConnectFrac, 6, 0, inTerr(0));
+      connect(this.lpf, this.purkLV, P.fascConnectFrac, 6, 0, inTerr(1));
+      if (this.lsf.length) connect(this.lsf, this.purkLV, 0.50, 6, 0, inTerr(2));
       connect(mb, this.purkRV, 0.30, 7);
       // apical septal RV Purkinje (thin RBB branches: activate the RV septal
       // surface shortly after the LV septum, giving the normal septal q/r)
@@ -850,7 +872,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     // Poisson-disc sample endocardial voxels into Purkinje nodes; link nodes
     // within a radius (same chamber), and couple each node to the muscle it
     // lies on through a Purkinje–muscle junction (PMJ).
-    _purkinjeNet(filter, zMax, seg) {
+    _purkinjeNet(filter, zMax, seg, territory = null) {
       const A = this.A, P = this.P, R = 3.6, rnd = rng(1234 + seg);
       const cand = [];
       for (let c = 0; c < A.n; c++) if (filter(c) && A.zuvc[c] >= 0 && A.zuvc[c] < zMax) cand.push(c);
@@ -878,12 +900,15 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         return id;
       });
       const idOf = new Map(chosen.map((c, i) => [c, nodes[i]]));
+      const terr = new Map(chosen.map((c) => [c, territory ? territory(c) : 0]));
+      this.purkTerritory = this.purkTerritory || new Map();
+      for (const c of chosen) this.purkTerritory.set(idOf.get(c), terr.get(c));
       for (const c of chosen) {
         const p = A.p(c);
         for (const q of near(p, P.purkLinkR * R)) {
           if (q <= c) continue;
           const d = len(sub(A.p(q), p));
-          if (d < P.purkLinkR * R) this.edge(idOf.get(c), idOf.get(q), d / P.cvPurkinje);
+          if (d < P.purkLinkR * R) this.edge(idOf.get(c), idOf.get(q), d / P.cvPurkinje * (terr.get(c) !== terr.get(q) ? P.purkCrossSlow : 1));
         }
       }
       return nodes;
@@ -1715,7 +1740,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     add('Left bundle', mid(S_.LBB), 'cutaway', 'cs');
     add('Left anterior fascicle', mid(S_.LAF, 0.75), 'cutaway', 'cs');
     add('Left posterior fascicle', mid(S_.LPF, 0.75), 'cutaway', 'cs');
-    add('Septal fascicle', mid(S_.LSF, 0.9), 'cutaway', 'cs');
+    if (S_.LSF.length) add('Septal fascicle', mid(S_.LSF, 0.9), 'cutaway', 'cs');
     add('Right bundle', mid(S_.RBB, 0.45), 'cutaway', 'cs');
     add('Moderator band', mid(S_.RBB, 0.85), 'cutaway', 'cs');
 

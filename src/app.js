@@ -352,7 +352,7 @@
     add('Left bundle', mid(S_.LBB), 'cutaway', 'cs');
     add('Left anterior fascicle', mid(S_.LAF, 0.75), 'cutaway', 'cs');
     add('Left posterior fascicle', mid(S_.LPF, 0.75), 'cutaway', 'cs');
-    add('Septal fascicle', mid(S_.LSF, 0.9), 'cutaway', 'cs');
+    if (S_.LSF.length) add('Septal fascicle', mid(S_.LSF, 0.9), 'cutaway', 'cs');
     add('Right bundle', mid(S_.RBB, 0.45), 'cutaway', 'cs');
     add('Moderator band', mid(S_.RBB, 0.85), 'cutaway', 'cs');
 

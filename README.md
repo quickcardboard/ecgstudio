@@ -13,7 +13,7 @@ Three.js r128 and OrbitControls from CDNs.
 | Area | Done |
 |---|---|
 | Anatomy | Average adult four-chamber heart (Rodero et al. 2021), voxelized at 2 mm (≈37k cells), with decimated surfaces for rendering |
-| Conduction system | SA node, crista terminalis, Bachmann's bundle, AV node (5 decremental segments), His, LBB → LAF/LPF/septal fascicle, RBB → moderator band, LV/RV Purkinje networks, escape pacemakers |
+| Conduction system | SA node, crista terminalis, Bachmann's bundle, AV node (5 decremental segments), His, LBB → LAF/LPF (two-fascicle model; an optional septal fascicle is off by default), RBB → moderator band, LV/RV Purkinje networks, escape pacemakers |
 | Engine | Event-driven automaton with sub-ms arrival times, fibre anisotropy, APD/CV restitution, AV-node decrement and autonomic coupling, per-cell parametric action potential, electrotonic APD modulation |
 | ECG | Limb leads from the Einthoven projection of the heart vector (Goldberger augmented leads); precordial leads blend the heart vector projected on distance-weighted lead vectors (70%) with near-field chest-electrode potentials (30%) |
 | UI | 3D external and four-chamber cutaway views (stencil-capped cut face), label and lead-vector overlays with a live heart vector, 12-lead + rhythm strip on standard paper, interpretation banner, rate and time-scale controls, resizable split |
@@ -23,12 +23,12 @@ Three.js r128 and OrbitControls from CDNs.
 | Sinus rate | PR | QRS | QT / QTc | Frontal axes |
 |---|---|---|---|---|
 | 55 bpm | 151 ms | 76 ms | 392 / 375 ms | |
-| 72 bpm | 142 ms | 76–80 ms | 368 / 403 ms | P +70°, QRS +10–14°, T +73° |
+| 72 bpm | 147 ms | 73 ms | 364 / 399 ms | P +76°, QRS +12°, T +80° |
 | 100 bpm | 133 ms | 76 ms | 334 / 431 ms | |
 | 130 bpm | 129 ms | 76 ms | 308 / 453 ms | |
 
-Morphology at 72 bpm: septal q in I/aVL/V5/V6; normal R-wave progression (V1 0.3/0.9 →
-V2 0.5/1.6 → V3 0.8/1.7 → V4 0.9/0.8 → V5 1.2/0.3 → V6 0.9/0.3 mV R/S); negative aVR; upright T
+Morphology at 72 bpm: septal q in I/aVL/V5/V6; normal R-wave progression (V1 0.1/0.9 →
+V2 0.2/1.6 → V3 0.6/1.6 → V4 0.8/0.7 → V5 1.2/0.2 → V6 0.9/0.1 mV R/S); negative aVR; upright T
 in I, II and V2–V6.
 
 Rhythm source is block-dependent, not rate-dependent: every slider rate stays sinus; blocking
