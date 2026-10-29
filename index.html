@@ -416,10 +416,15 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     lafPhi: 1.2, lafZ: 0.42, lpfPhi: -1.2, lpfZ: 0.42, lsfPhi: 0.05, lsfZ: 0.42,
     septalFascicle: false,  // optional left septal fascicle (anatomically debated; off)
     fascConnectFrac: 0.35,  // distal fraction of LAF/LPF giving off Purkinje branches
+    lbbSplitZ: 0.72, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
     septalTerrHalf: 0.5,    // half-width (rad) of the mid-septal Purkinje territory
     lbbSeptalFrac: 0,           // distal fraction of the LBB trunk giving off septal Purkinje
+    lpfApexZ: 0,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
     lpfTerrLo: -2.6, lpfTerrHi: 0.0,  // LPF territory in rotational UVC (inferior/posterior wall)
+    purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
     purkCrossSlow: 1.0,     // conduction-time factor on Purkinje links between fascicle territories
+    brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
+    heartPitch: 0,          // degrees about the left–right axis (+ tips the anterior wall upward)
     heartRotation: 25,
     apexX: 72, apexY: -20,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)      // degrees about the AP axis (+ = more vertical heart)
@@ -590,7 +595,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       this.tm = new Float32Array(n).fill(-1);
       for (let c = 0; c < n; c++) if (isV(c)) {
         const a = dEndo[c], b = dEpi[c];
-        this.tm[c] = isFinite(a) && isFinite(b) ? a / (a + b) : 0;
+        this.tm[c] = isFinite(a) && isFinite(b) ? (a + b > 0 ? a / (a + b) : 0.5) : 0;   // 0.5 where a voxel is both endo- and epicardial
       }
     }
 
@@ -760,7 +765,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
       // ---- Left bundle branch down the LV septal endocardium, then fascicles
       const lbbStart = A.nearest(hisEndP, endoLV);
-      const lbbSplit = this._uvcNearest(endoLV, 0.0, 0.72);
+      const lbbSplit = this._uvcNearest(endoLV, P.lbbSplitPhi, P.lbbSplitZ);   // LBB length set by where it divides
       const lbbPath = A.path(lbbStart, lbbSplit, endoLV).map(P2);
       const lbb = this.chain(KIND.BUNDLE, SEG.LBB, lbbPath, P.cvBundle, 2.0, hisEnd);
       const lbbEnd = lbb[lbb.length - 1];
@@ -806,6 +811,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const territory = (c) => {
         const ph = A.phi[c];
         if (Math.abs(ph) < P.septalTerrHalf && A.zuvc[c] > 0.25) return 2;
+        if (A.zuvc[c] >= 0 && A.zuvc[c] < P.lpfApexZ) return 1;          // the broad LPF fans to the apex
         return ph > P.lpfTerrLo && ph < P.lpfTerrHi ? 1 : 0;
       };
       this.purkLV = this._purkinjeNet(endoLV, P.purkZmaxLV, SEG.PURK_LV, territory);
@@ -908,7 +914,16 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         for (const q of near(p, P.purkLinkR * R)) {
           if (q <= c) continue;
           const d = len(sub(A.p(q), p));
-          if (d < P.purkLinkR * R) this.edge(idOf.get(c), idOf.get(q), d / P.cvPurkinje * (terr.get(c) !== terr.get(q) ? P.purkCrossSlow : 1));
+          if (d >= P.purkLinkR * R) continue;
+          // Links between fascicle territories: normal Purkinje links near the
+          // apex (the anastomoses through which a blocked division's territory
+          // is reached), slowed by purkCrossSlow elsewhere.
+          let f = 1;
+          if (terr.get(c) !== terr.get(q)) {
+            const apical = A.zuvc[c] >= 0 && A.zuvc[c] < P.purkCrossApexZ && A.zuvc[q] >= 0 && A.zuvc[q] < P.purkCrossApexZ;
+            f = apical ? 1 : P.purkCrossSlow;
+          }
+          this.edge(idOf.get(c), idOf.get(q), d / P.cvPurkinje * f);
         }
       }
       return nodes;
@@ -988,9 +1003,16 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       for (let c = 0; c < A.n; c++) if (A.label[c] === LAB.LV || A.label[c] === LAB.RV) { C = add(C, A.p(c)); nc++; }
       C = mul(C, 1 / nc);
       const th = -P.heartRotation * Math.PI / 180, ct = Math.cos(th), st = Math.sin(th);
-      this.rot = [ct, -st, 0, st, ct, 0, 0, 0, 1];   // row-major Rz(−θ)
+      // R = Rz(−θ) · Rx(pitch): pitch (about the left–right axis) tips the
+      // anterior wall upward (+) or downward (−).
+      const pa = (P.heartPitch || 0) * Math.PI / 180, cp = Math.cos(pa), sp = Math.sin(pa);
+      const Rx = [1, 0, 0, 0, cp, -sp, 0, sp, cp], Rz = [ct, -st, 0, st, ct, 0, 0, 0, 1];
+      const Rm = new Array(9).fill(0);
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) Rm[3 * i + j] += Rz[3 * i + k] * Rx[3 * k + j];
+      this.rot = Rm;   // row-major
       this.center = C;
-      const rotP = (p) => { const x = p[0] - C[0], y = p[1] - C[1]; return [ct * x - st * y + C[0], st * x + ct * y + C[1], p[2]]; };
+      const rotP = (p) => { const x = p[0] - C[0], y = p[1] - C[1], z = p[2] - C[2];
+        return [Rm[0] * x + Rm[1] * y + Rm[2] * z + C[0], Rm[3] * x + Rm[4] * y + Rm[5] * z + C[1], Rm[6] * x + Rm[7] * y + Rm[8] * z + C[2]]; };
       // apex = LV epicardial voxels with the lowest apicobasal coordinate
       let apex = [0, 0, 0], cnt = 0;
       for (let c = 0; c < A.n; c++) if (A.label[c] === LAB.LV && A.zuvc[c] >= 0 && A.zuvc[c] < 0.04 && A.epi[c]) { apex = add(apex, A.p(c)); cnt++; }
@@ -1040,7 +1062,25 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const W = new Float32Array(n * NE);
       const E = names.map((k) => this.electrodes[k]);
       const R = this.rot;
-      const axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]].map((f) => [R[0] * f[0] + R[1] * f[1], R[3] * f[0] + R[4] * f[1], f[2]]);
+      const axes = [0, 1, 2].map((j) => [R[j], R[3 + j], R[6 + j]]);   // columns of R
+      // Brody effect: the highly conductive cavity blood amplifies radial
+      // (transmural) ventricular sources relative to tangential ones. Model the
+      // effective source as −(I + B·r̂r̂ᵀ)∇Vm, r̂ = local transmural direction.
+      const B = this.P.brody || 0;
+      const rhat = new Float32Array(3 * n);
+      if (B) for (let c = 0; c < n; c++) {
+        if (this.kind[c] !== KIND.VENT) continue;
+        const i = A.ii[c], j = A.jj[c], k = A.kk[c], g = [0, 0, 0];
+        for (let a = 0; a < 3; a++) {
+          const o = [a === 0, a === 1, a === 2].map(Number);
+          const p1 = A.at(i + o[0], j + o[1], k + o[2]), m1 = A.at(i - o[0], j - o[1], k - o[2]);
+          const tp = p1 >= 0 && A.tm[p1] >= 0 ? A.tm[p1] : null, tq = m1 >= 0 && A.tm[m1] >= 0 ? A.tm[m1] : null;
+          g[a] = tp !== null && tq !== null ? (tp - tq) / 2 : tp !== null ? tp - A.tm[c] : tq !== null ? A.tm[c] - tq : 0;
+        }
+        const gl = Math.hypot(g[0], g[1], g[2]);
+        if (gl < 0.03) continue;                                   // mid-septum etc.: no defined radial direction
+        for (let d = 0; d < 3; d++) rhat[3 * c + d] = (R[3 * d] * g[0] + R[3 * d + 1] * g[1] + R[3 * d + 2] * g[2]) / gl;   // torso frame
+      }
       for (let c = 0; c < n; c++) {
         const kc = this.kind[c]; if (!kc) continue;
         const i = A.ii[c], j = A.jj[c], k = A.kk[c];
@@ -1049,14 +1089,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           if (w < 0 || this.kind[w] !== kc) continue;
           const m = this.toTorso(lerp(A.p(c), A.p(w), 0.5));   // pair midpoint, torso frame
           const ex = axes[a];                                     // pair direction, torso frame
+          // midpoint radial direction and its component along the pair
+          const rr = [0.5 * (rhat[3 * c] + rhat[3 * w]), 0.5 * (rhat[3 * c + 1] + rhat[3 * w + 1]), 0.5 * (rhat[3 * c + 2] + rhat[3 * w + 2])];
+          const re = B * (rr[0] * ex[0] + rr[1] * ex[1] + rr[2] * ex[2]);
           for (let d = 0; d < 3; d++) {                           // VCG: uniform lead fields
-            const cc = 1e-4 * h * h * ex[d];
+            const cc = 1e-4 * h * h * (ex[d] + re * rr[d]);
             W[w * NE + 9 + d] += cc; W[c * NE + 9 + d] -= cc;
           }
           for (let e = 0; e < 9; e++) {
             const rx = E[e][0] - m[0], ry = E[e][1] - m[1], rz = E[e][2] - m[2];
             const r = Math.sqrt(rx * rx + ry * ry + rz * rz);
-            const cc = h * h * (rx * ex[0] + ry * ex[1] + rz * ex[2]) / (r * r * r);
+            const cc = h * h * ((rx * ex[0] + ry * ex[1] + rz * ex[2]) + re * (rx * rr[0] + ry * rr[1] + rz * rr[2])) / (r * r * r);
             W[w * NE + e] += cc; W[c * NE + e] -= cc;
           }
         }
@@ -1480,7 +1523,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     // heart frame -> display: centre on the ventricles, apply the same chest
     // rotation the ECG lead fields use
     const outer = g3.outer = new THREE.Group();
-    outer.rotation.z = -M.P.heartRotation * Math.PI / 180;
+    const R9 = M.rot;   // same heart-to-torso rotation the lead fields use
+    outer.setRotationFromMatrix(new THREE.Matrix4().set(R9[0], R9[1], R9[2], 0, R9[3], R9[4], R9[5], 0, R9[6], R9[7], R9[8], 0, 0, 0, 0, 1));
     const inner = g3.inner = new THREE.Group();
     inner.position.set(-M.center[0], -M.center[1], -M.center[2]);
     outer.add(inner); scene.add(outer);

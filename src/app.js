@@ -92,7 +92,8 @@
     // heart frame -> display: centre on the ventricles, apply the same chest
     // rotation the ECG lead fields use
     const outer = g3.outer = new THREE.Group();
-    outer.rotation.z = -M.P.heartRotation * Math.PI / 180;
+    const R9 = M.rot;   // same heart-to-torso rotation the lead fields use
+    outer.setRotationFromMatrix(new THREE.Matrix4().set(R9[0], R9[1], R9[2], 0, R9[3], R9[4], R9[5], 0, R9[6], R9[7], R9[8], 0, 0, 0, 0, 1));
     const inner = g3.inner = new THREE.Group();
     inner.position.set(-M.center[0], -M.center[1], -M.center[2]);
     outer.add(inner); scene.add(outer);
