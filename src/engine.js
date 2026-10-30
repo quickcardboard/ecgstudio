@@ -728,6 +728,13 @@
         else voxNode[c] = nearestOf(lvSurface, c, uvcDist);
       }
       // nodal arteries (right-dominant): SA-node artery from the proximal RCA, AV-node artery from the crux
+      // Only the main vessels are offered (LM trunk, LAD, LCx, RCA, PDA): the
+      // side branches' territories go to the point where each branch leaves
+      // its parent, so an occlusion proximal to that point still takes them.
+      const MAIN = ['LM', 'LAD', 'LCx', 'RCA', 'PDA'];
+      const mainOf = (id) => { while (id >= 0 && !MAIN.includes(nodes[id].branch)) id = nodes[id].parent; return id; };
+      for (let c = 0; c < A.n; c++) if (voxNode[c] >= 0) voxNode[c] = mainOf(voxNode[c]);
+      for (const b of Object.keys(branches)) if (!MAIN.includes(b)) delete branches[b];
       this.coronary = { nodes, branches, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
     }
 
@@ -1342,10 +1349,16 @@
       const P = this.P, sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
       if (kind === 'subendo') s *= 1 - sm((tm - 0.12) / 0.2);                // confined to the inner wall
       if (s <= 0.01) return null;
-      const katp = sm(h / P.ischKatpH);                                       // minutes: APD shortening (hyperacute T)
-      const inj = Math.min(1, s * (kind === 'subendo' ? P.ischSubendoGain : 1)) * sm((h - 0.05) / P.ischInjuryH) * (1 - P.ischStResolve * sm((h - 3) / 5));   // injury current develops, eases late
+      // minutes: K-ATP APD shortening (hyperacute T), gone once the cells have died or recovered (~1 day)
+      const katp = sm(h / P.ischKatpH) * (1 - sm((h - 6) / 18));
+      // injury current: develops over half an hour, eases after a few hours, gone by ~2 days (ST back to baseline)
+      const inj = Math.min(1, s * (kind === 'subendo' ? P.ischSubendoGain : 1)) * sm((h - 0.05) / P.ischInjuryH)
+        * (1 - P.ischStResolve * sm((h - 3) / 5)) * (1 - sm((h - 12) / 30));
       let apd = 1 - P.ischApdShort * s * katp;
-      apd *= 1 + P.ischApdLate * Math.min(1, s + 0.3) * sm((h - P.ischLateH) / 3);   // late: prolonged repolarisation in the surviving border (T inversion)
+      // prolonged repolarisation in the surviving border: T inversion from ~6 h, deepest at 1–3 days,
+      // fading over the following weeks (T waves upright again in an old infarct)
+      const late = sm((h - P.ischLateH) / 3) * (1 + 0.8 * sm((h - 12) / 30)) * (1 - sm((h - 200) / 400));
+      apd *= 1 + P.ischApdLate * Math.min(1, s + 0.3) * late;
       // necrosis advances from endocardium to epicardium (wavefront phenomenon)
       // (the innermost layer, fed from the cavity blood, survives with the Purkinje junctions)
       const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : 1.05);
@@ -1382,8 +1395,10 @@
       this.nDead = nDead;
       this._uncoupleDead();
       // nodal arteries: proximal RCA occlusion slows the sinus node and the AV node
-      const inj = this.insults.some((x) => x.nodal && x.nodal.san) ? Math.min(1, h / 0.5) : 0;
-      const avn = this.insults.some((x) => x.nodal && x.nodal.avn) ? Math.min(1, h / 0.5) : 0;
+      // (nodal ischaemia recovers over the first days)
+      const nodalT = Math.min(1, h / 0.5) * (1 - Math.min(1, Math.max(0, (h - 48) / 96)));
+      const inj = this.insults.some((x) => x.nodal && x.nodal.san) ? nodalT : 0;
+      const avn = this.insults.some((x) => x.nodal && x.nodal.avn) ? nodalT : 0;
       this._sanIschemia = inj; this._avnIschemia = avn;
       this.setRate(this.sinusBpm);
       this.invalidateBaseline(); this._rebuildPlateauSums(); this._hpReset = true;
@@ -1396,7 +1411,9 @@
     // each necrotic/living voxel pair is removed from the lead weights
     // (fraction ischUncouple; the remainder keeps some ST elevation).
     _uncoupleDead() {
-      const M = this.M, A = M.A, NE = M.NE, u = this.P.ischUncouple;
+      // coupling loss grows as the necrotic zone turns to scar (complete by ~2 days)
+      const h = this.ischemiaHours, sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+      const M = this.M, A = M.A, NE = M.NE, u = this.P.ischUncouple + (1 - this.P.ischUncouple) * sm((h - 12) / 36);
       if (!this.nDead) { this.W = M.W; return; }
       const W = this.W = M.W.slice(), cc = new Float64Array(NE);
       for (const c of this._ischCells) {

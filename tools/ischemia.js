@@ -5,7 +5,7 @@ const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy
 const M = new LH.Model(A, { ecgHighpass: 0 }); const C = M.coronary;
 const first = (b, k = 0) => C.nodes.map((n, i) => [n, i]).filter(([n]) => n.branch === b)[k][1];
 const OCC = {
-  'pLAD': () => first('LAD', 0), 'mLAD': () => first('LAD', 14), 'LCx': () => first('LCx', 0),
+  'LM': () => first('LM', 0), 'pLAD': () => first('LAD', 0), 'mLAD': () => first('LAD', 14), 'PDA': () => first('PDA', 0), 'LCx': () => first('LCx', 0),
   'pRCA': () => first('RCA', 0), 'dRCA': () => first('RCA', 22), 'subendo': null,
 };
 const hours = (process.argv[3] || '0,0.15,0.5,1,2,4,6,8').split(',').map(Number);

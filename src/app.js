@@ -50,8 +50,8 @@
     window.LiveHeartApp = {
       get sim() { return S; }, model: M,
       ischemia: {
-        occlude(node) { const id = S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
-        subendo(cell, r = 36) { const id = S.addSubendocardial(cell, r); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
+        occlude(node) { captureRef(); const id = S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
+        subendo(cell, r = 36) { captureRef(); const id = S.addSubendocardial(cell, r); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
         hours(h) { setIschTime(h); recolorIschemia(); },
         clear() { S.clearIschemia(); recolorIschemia(); renderIschList(); },
         segmentName: (id) => segmentName(id),
@@ -959,7 +959,7 @@
       }
       if (node < 0) { flash(x, y, 'Click a coronary artery'); return; }
       if (S.insults.some((v) => v.kind === 'occlusion' && v.node === node)) { flash(x, y, 'Already occluded here'); return; }
-      added = S.addOcclusion(node);
+      captureRef(); added = S.addOcclusion(node);
       flash(x, y, `Occluded: ${segmentName(node)}`);
     } else {
       for (const hit of ray.intersectObjects(g3.pickTissue.concat([g3.slab.im]), false)) {
@@ -968,7 +968,7 @@
         const c = nearestTissue(p.x, p.y, p.z, hit.object === g3.slab.im ? 1 : 3);
         if (c < 0) continue;
         if (A.label[c] !== 1 && A.label[c] !== 2) { flash(x, y, 'Click ventricular muscle'); return; }
-        added = S.addSubendocardial(c, 36);
+        captureRef(); added = S.addSubendocardial(c, 36);
         flash(x, y, 'Subendocardial ischemia');
         break;
       }
@@ -993,17 +993,21 @@
     });
     $('ischStage').textContent = ischStage(ui.ischH);
   }
-  function ischStage(h) {
-    if (!S.insults.length) return '';
-    if (h < 0.05) return 'Onset: no electrical change yet.';
-    if (h < 0.4) return 'Minutes: K-ATP channels shorten the action potential. Hyperacute T waves, little ST change yet.';
-    if (h < 2) return 'Acute injury: depolarised ischemic cells drive an injury current. ST elevation over the territory, reciprocal depression opposite.';
-    if (h < 5) return 'Necrosis spreads from endocardium toward epicardium. Dead, uncoupled muscle no longer contributes to the QRS: Q waves form.';
-    return 'Evolving infarct: Q waves established, ST elevation easing, T waves inverting over the border zone.';
-  }
-  function fmtHours(h) { return h < 1 ? `${Math.round(h * 60)} min` : `${+h.toFixed(2)} h`; }
+  // the time slider stops only where the ECG changes character
+  const ISCH_STOPS = [
+    [0, 'Onset', 'No electrical change yet.'],
+    [0.25, '15 min', 'Hyperacute: K-ATP channels shorten the action potential. Tall, broad T waves; little ST change yet.'],
+    [1, '1 h', 'Acute injury: depolarised ischemic cells drive an injury current. ST elevation over the territory, reciprocal depression opposite.'],
+    [4, '4 h', 'Necrosis spreads from endocardium toward epicardium. Dead, uncoupled muscle drops out of the QRS: Q waves forming, ST still elevated.'],
+    [12, '12 h', 'Evolving infarct: Q waves established, ST elevation easing, T waves starting to invert.'],
+    [48, '2 days', 'Recent infarct: ST back near baseline, deep symmetric T inversion over the infarct, Q waves persist. Nodal ischemia recovering.'],
+    [720, '1 month', 'Old infarct: Q waves remain as the scar\'s signature; T waves upright again.'],
+  ];
+  const stopOf = (h) => ISCH_STOPS.reduce((b, s, i) => (Math.abs(Math.log1p(s[0]) - Math.log1p(h)) < Math.abs(Math.log1p(ISCH_STOPS[b][0]) - Math.log1p(h)) ? i : b), 0);
+  function ischStage(h) { return S.insults.length ? ISCH_STOPS[stopOf(h)][2] : ''; }
+  function fmtHours(h) { return ISCH_STOPS[stopOf(h)][1]; }
   function setIschTime(h) {
-    ui.ischH = h; $('ischTime').value = h; $('ischVal').textContent = fmtHours(h);
+    ui.ischH = h; $('ischTime').value = stopOf(h); $('ischVal').textContent = fmtHours(h);
     S.setIschemiaTime(h); $('ischStage').textContent = ischStage(h);
   }
 
@@ -1225,6 +1229,12 @@
     }
     return out;
   }
+  // the healthy reference beat, taken just before the first ischemic insult
+  function captureRef() {
+    if (S.insults.length || Object.keys(S.blocks).length) return;
+    const V = S.log.vent.filter((b) => S.t > b.repEnd + 60 && b.on > (ui.ischChangedAt || 0) + 1500);
+    if (V.length) ui.ref = measureBeat(V[V.length - 1]);
+  }
   function ischFindings(vb) {
     if (!vb || !isFinite(vb.repEnd)) return [];
     if (vb.on < (ui.ischChangedAt || 0) + 1500) return S.insults.length ? [{ head: true, text: 'Updating…' }] : [];   // wait for a beat (and the baseline filter) to settle
@@ -1258,8 +1268,11 @@
     const ref = ui.ref, NORMQ = ['aVR', 'aVL', 'III', 'V1'], was = (n, f) => (ref ? f(ref[n]) : NORMQ.includes(n));
     const isQ = (v) => v.qDur >= 30 && v.qAmp <= -0.1;
     const Q = order(new Set(LH.LEADS.filter((n) => n !== 'aVR' && isQ(m[n]) && !was(n, isQ))));
-    const hyper = ref ? order(new Set(LH.LEADS.filter((n) => ref[n].t > 0.15 && m[n].t > ref[n].t * 1.35 && m[n].t > 0.3 && Math.abs(m[n].st) < 0.25))) : [];
+    // R waves lost over the infarct (the precordial Q-wave equivalent)
+    const rLoss = ref ? ['V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'I', 'aVL', 'II', 'III', 'aVF'].filter((n) => ref[n].rMax > 0.2 && m[n].rMax < 0.65 * ref[n].rMax && ref[n].rMax - m[n].rMax > 0.1 && !Q.includes(n)) : [];
+    const rLossC = order(contiguous((n) => rLoss.includes(n)));
     const twi = order(new Set(LH.LEADS.filter((n) => !['aVR', 'V1', 'III'].includes(n) && m[n].t < -0.1 && !was(n, (r) => r.t < -0.05))));
+    const hyper = ref && !Q.length && !twi.length ? order(new Set(LH.LEADS.filter((n) => ref[n].t > 0.15 && m[n].t > ref[n].t * 1.35 && m[n].t > 0.3 && Math.abs(m[n].st) < 0.25))) : [];
     const out = [];
     const sub = S.insults.every((x) => x.kind === 'subendo');
     if (sub) {
@@ -1283,6 +1296,13 @@
       if (post && !ant) out.push('ST depression in V1–V3 suggests posterior extension');
     } else if (post) {
       out.push({ head: true, text: `ST depression in ${span(['V1', 'V2', 'V3'].filter((n) => D.has(n)))}: consider posterior STEMI (record V7–V9)` });
+    } else if (Q.length || rLossC.length || twi.length >= 2) {
+      // ST resolved: an infarct read from its Q waves, lost R waves and T waves
+      const leads = new Set(Q.concat(twi, rLossC)), has = (g) => g.filter((n) => leads.has(n)).length >= 2;
+      const where = [has(['V1', 'V2', 'V3', 'V4']) && 'anterior', has(['II', 'III', 'aVF']) && 'inferior', has(['I', 'aVL', 'V5', 'V6']) && 'lateral'].filter(Boolean).join(' and ');
+      const age = twi.length >= 2 ? 'Recent' : 'Old';
+      out.push({ head: true, text: `${age}${where ? ' ' + where : ''} infarct: ${[Q.length && `Q waves in ${span(Q)}`, rLossC.length && `R waves lost in ${span(rLossC)}`, twi.length && `T inversion in ${span(twi)}`].filter(Boolean).join(', ')}, ST at baseline` });
+      return out.concat(nodalNote());
     } else if (hyper.length >= 2) {
       out.push({ head: true, text: `Hyperacute T waves in ${span(hyper)}: earliest sign of coronary occlusion` });
       if (D.size) out.push(`ST depression in ${span(order(D))}`);
@@ -1294,13 +1314,17 @@
     const hyperE = hyper.filter((n) => E.has(n));
     if (hyperE.length >= 2 && out.length && !out[0].text.startsWith('Hyperacute')) out.push(`Hyperacute T waves in ${span(hyperE)}`);
     if (Q.length) out.push(`Pathological Q waves in ${span(Q)}`);
+    if (rLossC.length) out.push(`R waves lost in ${span(rLossC)}`);
     if (twi.length) out.push(`T-wave inversion in ${span(twi)}`);
+    return out.concat(nodalNote());
+  }
+  function nodalNote() {
     const san = S.insults.some((x) => x.nodal && x.nodal.san), avn = S.insults.some((x) => x.nodal && x.nodal.avn);
-    if (ui.ischH > 0.1 && (san || avn)) out.push(san && avn
+    if (!(ui.ischH > 0.1 && ui.ischH < 100 && (san || avn))) return [];
+    return [san && avn
       ? 'The occlusion is proximal to the sinus-node and AV-node arteries: sinus slowing and a longer PR'
       : san ? 'The occlusion is proximal to the sinus-node artery: sinus slowing'
-        : 'The occlusion is proximal to the AV-node artery at the crux: slower AV conduction, longer PR');
-    return out;
+        : 'The occlusion is proximal to the AV-node artery at the crux: slower AV conduction, longer PR'];
   }
 
   // ---------------------------------------------------------------------------
@@ -1322,7 +1346,7 @@
     $('btnPause').addEventListener('click', () => { ui.paused = !ui.paused; $('btnPause').textContent = ui.paused ? 'Resume' : 'Pause'; });
     $('btnReset').addEventListener('click', () => { newSim(); renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); });
     $('ischTime').addEventListener('input', (e) => {
-      ui.ischH = +e.target.value; $('ischVal').textContent = fmtHours(ui.ischH); $('ischStage').textContent = ischStage(ui.ischH);
+      ui.ischH = ISCH_STOPS[+e.target.value][0]; $('ischVal').textContent = fmtHours(ui.ischH); $('ischStage').textContent = ischStage(ui.ischH);
       ui.ischPending = ui.ischH;                                  // applied once per frame
     });
     $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); recolorIschemia(); renderIschList(); interpret(true); });
