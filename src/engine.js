@@ -179,6 +179,18 @@
     repWVent: 180, repWAtrial: 220,   // width of phase-3 repolarisation window (ms)
     upW: 2.0,                        // width of phase-0 upstroke (ms)
 
+    // Ischaemia (see Sim._ischemicState)
+    ischBorderMm: 9,       // border-zone width over which severity rises to the core value
+    ischKatpH: 0.15,       // hours for K-ATP APD shortening to develop (hyperacute T)
+    ischInjuryH: 0.5,      // hours for the injury current (resting depolarisation) to develop
+    ischApdShort: 0.4, ischApdLate: 0.7, ischLateH: 3,
+    ischStResolve: 0.6,    // fraction of the injury current gone by 8 h (ST elevation partly resolves)
+    ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
+    ischAmpDrop: 0.35, ischCvSlow: 0.3,
+    ischNecrosisH: 5.6,    // hours for necrosis to advance from endocardium to epicardium
+    ischUncouple: 0.85,    // fraction of necrotic/living coupling lost (lead weights)
+    ischSanSlow: 0.25, ischAvnSlow: 1.2,
+
     // Automaticity (cycle lengths, ms)
     sinusRate: 72,
     junctionalRate: 48,
@@ -190,6 +202,7 @@
     precordialDipoleW: 0.7,     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
+    ecgHighpass: 0.05,          // Hz, diagnostic-ECG high-pass (baseline restoration)
     ecgLowpass: 40,             // Hz, ECG machine low-pass (0 = off; diagnostic carts use up to 150)
     dipoleGain: 1.65,           // heart-vector scale for the limb leads (mV per unit dipole)
   };
@@ -423,6 +436,7 @@
       this.P = Object.assign({}, DEFAULTS, params || {});
       this._buildCells();
       this._buildConductionSystem();
+      this._buildCoronaries();
       this._buildGraph();
       this._placeInTorso();
       this._buildLeadWeights();
@@ -635,6 +649,92 @@
       this.csSegments = {
         AVN: avn, HIS: his, LBB: lbb, LAF: this.laf, LPF: this.lpf, LSF: this.lsf, RBB: this.rbb,
       };
+    }
+
+    // ---- Coronary arteries (right-dominant) and perfusion territories ----
+    // Branches are routed over the ventricular epicardium between anatomical
+    // targets: the LAD and PDA in the interventricular grooves, the LCx round
+    // the mitral annulus (left AV groove), the RCA round the tricuspid annulus
+    // (right AV groove) to the crux. Every ventricular voxel is assigned the
+    // node that supplies it (septum: anterior 2/3 LAD, inferior 1/3 PDA; apex:
+    // LAD; RV: RCA/acute marginal; free wall: nearest surface branch).
+    _buildCoronaries() {
+      const A = this.A, lm = A.landmarks;
+      const epiV = (c) => A.epi[c] && (A.label[c] === LAB.LV || A.label[c] === LAB.RV);
+      const lvEpi = (phi, zz) => this._nearestWhere((c) => A.label[c] === LAB.LV && A.epi[c] && A.zuvc[c] >= 0, (c) => {
+        let dp = Math.abs(A.phi[c] - phi); if (dp > Math.PI) dp = 2 * Math.PI - dp;
+        return dp * 25 + Math.abs(A.zuvc[c] - zz) * 80;
+      });
+      const nodes = [], branches = {};
+      const addBranch = (name, parentNode, targets) => {
+        const ids = []; let prevVox = parentNode >= 0 ? A.nearest([nodes[parentNode].x, nodes[parentNode].y, nodes[parentNode].z], epiV) : targets[0];
+        let parent = parentNode, acc = 99;
+        for (let k = parentNode >= 0 ? 0 : 1; k < targets.length; k++) {
+          const path = A.path(prevVox, targets[k], epiV) || [prevVox, targets[k]];
+          for (const c of path) {
+            const p = A.p(c);
+            if (parent >= 0) { const q = nodes[parent]; acc = Math.hypot(p[0] - q.x, p[1] - q.y, p[2] - q.z); }
+            if (acc < 3 && c !== targets[k]) continue;                 // ~3 mm node spacing
+            nodes.push({ x: p[0], y: p[1], z: p[2], parent, branch: name, vox: c });
+            parent = nodes.length - 1; ids.push(parent);
+          }
+          prevVox = targets[k];
+        }
+        branches[name] = ids; return ids;
+      };
+      const along = (ids, f) => ids[Math.min(ids.length - 1, Math.floor(f * (ids.length - 1)))];
+      const ao = lm.AoV.c;
+      // left main: from the left-posterior aortic sinus to the LAD/LCx split
+      const lmStart = A.nearest(add(ao, [12, -4, -6]), epiV), split = lvEpi(1.55, 0.95);
+      const LM = addBranch('LM', -1, [lmStart, split]);
+      const LAD = addBranch('LAD', LM[LM.length - 1], [lvEpi(1.6, 0.75), lvEpi(1.65, 0.5), lvEpi(1.6, 0.25), lvEpi(1.0, 0.06), lvEpi(-0.4, 0.1)]);
+      addBranch('D1', along(LAD, 0.18), [lvEpi(2.1, 0.62), lvEpi(2.4, 0.4)]);
+      addBranch('D2', along(LAD, 0.42), [lvEpi(2.0, 0.35), lvEpi(2.2, 0.15)]);
+      const LCX = addBranch('LCx', LM[LM.length - 1], [lvEpi(2.2, 0.93), lvEpi(2.8, 0.9), lvEpi(-2.9, 0.88), lvEpi(-2.3, 0.88)]);
+      addBranch('OM1', along(LCX, 0.45), [lvEpi(2.9, 0.55), lvEpi(3.0, 0.25)]);
+      addBranch('OM2', along(LCX, 0.85), [lvEpi(-2.6, 0.5), lvEpi(-2.5, 0.25)]);
+      // RCA round the tricuspid annulus: right-anterior sinus -> acute margin -> crux
+      const tv = lm.TV; let tn = norm(tv.n); if (dot(tn, sub(lm.SVC.c, tv.c)) < 0) tn = mul(tn, -1);
+      const toAo = sub(ao, tv.c), u0 = norm(sub(toAo, mul(tn, dot(toAo, tn))));
+      const w0 = norm([tn[1] * u0[2] - tn[2] * u0[1], tn[2] * u0[0] - tn[0] * u0[2], tn[0] * u0[1] - tn[1] * u0[0]]);
+      const Rr = 2 * tv.r / 1.41 + 9;
+      const ring = (ang, sgn) => add(tv.c, add(mul(u0, Math.cos(ang) * Rr), mul(w0, sgn * Math.sin(ang) * Rr)));
+      const sgn = ring(Math.PI / 2, 1)[0] < ring(Math.PI / 2, -1)[0] ? 1 : -1;   // sweep through the rightmost (acute) margin first
+      const rcaStart = A.nearest(add(ao, [-10, -4, 8]), epiV);
+      const ringPts = [0.35, 0.9, 1.5, 2.1, 2.6].map((a) => A.nearest(ring(a * 1.0, sgn), (c) => epiV(c)));
+      const crux = lvEpi(-0.45, 0.92);
+      const RCA = addBranch('RCA', -1, [rcaStart].concat(ringPts, [crux]));
+      const acuteIdx = RCA.reduce((b, id) => (nodes[id].x < nodes[b].x ? id : b), RCA[0]);
+      addBranch('AM', acuteIdx, [A.nearest(add([nodes[acuteIdx].x, nodes[acuteIdx].y, nodes[acuteIdx].z], [8, -45, 10]), (c) => A.label[c] === LAB.RV && A.epi[c])]);
+      const PDA = addBranch('PDA', RCA[RCA.length - 1], [lvEpi(-0.7, 0.7), lvEpi(-0.75, 0.45), lvEpi(-0.7, 0.2)]);
+      addBranch('PLV', RCA[RCA.length - 1], [lvEpi(-1.5, 0.8), lvEpi(-1.9, 0.65)]);
+      // node UVC (for LV territory assignment)
+      for (const n of nodes) { const c = n.vox; n.phi = A.phi[c]; n.zz = A.zuvc[c]; n.lv = A.label[c] === LAB.LV; }
+      // ---- territories
+      const lvSurface = ['LAD', 'D1', 'D2', 'LCx', 'OM1', 'OM2', 'PDA', 'PLV'].flatMap((b) => branches[b]);
+      const rvNodes = branches.RCA.concat(branches.AM);
+      const uvcDist = (c, id) => { let dp = Math.abs(A.phi[c] - nodes[id].phi); if (dp > Math.PI) dp = 2 * Math.PI - dp; return dp * 25 + Math.abs(A.zuvc[c] - nodes[id].zz) * 80; };
+      const nearestOf = (list, c, metric) => { let b = -1, bd = Infinity; for (const id of list) { const d = metric(c, id); if (d < bd) { bd = d; b = id; } } return b; };
+      const zOnly = (c, id) => Math.abs(A.zuvc[c] - nodes[id].zz);
+      const euc = (c, id) => { const n = nodes[id]; return (A.pos[3 * c] - n.x) ** 2 + (A.pos[3 * c + 1] - n.y) ** 2 + (A.pos[3 * c + 2] - n.z) ** 2; };
+      const voxNode = new Int32Array(A.n).fill(-1);
+      for (let c = 0; c < A.n; c++) {
+        const L = A.label[c]; if (L !== LAB.LV && L !== LAB.RV) continue;
+        const ph = A.phi[c], zz = A.zuvc[c];
+        if (L === LAB.RV) voxNode[c] = nearestOf(rvNodes, c, euc);
+        else if (zz >= 0 && zz < 0.2) voxNode[c] = nearestOf(branches.LAD, c, euc);                 // apex: wrap-around LAD
+        else if (ph > -0.7 && ph < 1.7) voxNode[c] = nearestOf(ph > 0.1 ? branches.LAD : branches.PDA, c, zOnly);   // septum
+        else voxNode[c] = nearestOf(lvSurface, c, uvcDist);
+      }
+      // nodal arteries (right-dominant): SA-node artery from the proximal RCA, AV-node artery from the crux
+      this.coronary = { nodes, branches, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
+    }
+
+    // is node `id` at or downstream of node `occl`?
+    isDownstream(id, occl) {
+      const N = this.coronary.nodes;
+      for (let k = id; k >= 0; k = N[k].parent) if (k === occl) return true;
+      return false;
     }
 
     _markTract(path, seg, speedMul, radiusVox) {
@@ -911,44 +1011,55 @@
         const f = [fb[3 * c], fb[3 * c + 1], fb[3 * c + 2]], fl = Math.hypot(f[0], f[1], f[2]) || 1;
         for (let d = 0; d < 3; d++) fwd[3 * c + d] = (R[3 * d] * f[0] + R[3 * d + 1] * f[1] + R[3 * d + 2] * f[2]) / fl;   // torso frame
       }
+      this._lw = { TF, tfSample, tfScale, E, axes, B, rhat, aniso, anorm, fwd, NE };
+      const cc = new Float64Array(NE);
       for (let c = 0; c < n; c++) {
         const kc = this.kind[c]; if (!kc) continue;
         const i = A.ii[c], j = A.jj[c], k = A.kk[c];
-        const sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : 1;
         for (let a = 0; a < 3; a++) {
           const w = A.at(i + (a === 0), j + (a === 1), k + (a === 2));
           if (w < 0 || this.kind[w] !== kc) continue;
-          const m = this.toTorso(lerp(A.p(c), A.p(w), 0.5));   // pair midpoint, torso frame
-          const ex = axes[a];                                     // pair direction, torso frame
-          // midpoint radial direction and its component along the pair
-          const rr = [0.5 * (rhat[3 * c] + rhat[3 * w]), 0.5 * (rhat[3 * c + 1] + rhat[3 * w + 1]), 0.5 * (rhat[3 * c + 2] + rhat[3 * w + 2])];
-          const re = B * (rr[0] * ex[0] + rr[1] * ex[1] + rr[2] * ex[2]);
-          // pair-midpoint fibre (sign-aligned average), and its component along the pair
-          let ff = [0, 0, 0], fe = 0;
-          if (aniso && kc === KIND.VENT) {
-            const sgn = fwd[3 * c] * fwd[3 * w] + fwd[3 * c + 1] * fwd[3 * w + 1] + fwd[3 * c + 2] * fwd[3 * w + 2] < 0 ? -1 : 1;
-            ff = [fwd[3 * c] + sgn * fwd[3 * w], fwd[3 * c + 1] + sgn * fwd[3 * w + 1], fwd[3 * c + 2] + sgn * fwd[3 * w + 2]];
-            const fl = Math.hypot(ff[0], ff[1], ff[2]) || 1; ff = ff.map((v) => v / fl);
-            fe = aniso * (ff[0] * ex[0] + ff[1] * ex[1] + ff[2] * ex[2]);
-          }
-          for (let d = 0; d < 3; d++) {                           // VCG: uniform lead fields
-            const cc = 1e-4 * h * h * sc * (ex[d] + re * rr[d] + fe * ff[d]);
-            W[w * NE + 9 + d] += cc; W[c * NE + 9 + d] -= cc;
-          }
-          if (TF) for (let q = 0; q < 2; q++) {                    // bounded-torso limb leads I, II
-            const Lv = tfSample(q ? TF._II : TF._I, m);
-            const cc = tfScale * h * h * sc * ((Lv[0] * ex[0] + Lv[1] * ex[1] + Lv[2] * ex[2]) + re * (Lv[0] * rr[0] + Lv[1] * rr[1] + Lv[2] * rr[2]) + fe * (Lv[0] * ff[0] + Lv[1] * ff[1] + Lv[2] * ff[2]));
-            W[w * NE + 12 + q] += cc; W[c * NE + 12 + q] -= cc;
-          }
-          for (let e = 0; e < 9; e++) {
-            const rx = E[e][0] - m[0], ry = E[e][1] - m[1], rz = E[e][2] - m[2];
-            const r = Math.sqrt(rx * rx + ry * ry + rz * rz);
-            const cc = h * h * sc * ((rx * ex[0] + ry * ex[1] + rz * ex[2]) + re * (rx * rr[0] + ry * rr[1] + rz * rr[2]) + fe * (rx * ff[0] + ry * ff[1] + rz * ff[2])) / (r * r * r);
-            W[w * NE + e] += cc; W[c * NE + e] -= cc;
-          }
+          this.pairCoef(c, w, a, cc);
+          for (let e = 0; e < NE; e++) { W[w * NE + e] += cc[e]; W[c * NE + e] -= cc[e]; }
         }
       }
       this.W = W; this.NE = NE;
+    }
+
+    // Lead-field coefficient of the voxel pair (c, w = c + axis a): the pair
+    // adds out[e]·(Vm_w − Vm_c) to lead e (summation by parts of −σi∇Vm·∇L).
+    pairCoef(c, w, a, out) {
+      const A = this.A, h = A.h, kc = this.kind[c];
+      const { TF, tfSample, tfScale, E, axes, B, rhat, aniso, anorm, fwd } = this._lw;
+      const sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : 1;
+      const m = this.toTorso(lerp(A.p(c), A.p(w), 0.5));   // pair midpoint, torso frame
+      const ex = axes[a];                                     // pair direction, torso frame
+      // midpoint radial direction and its component along the pair
+      const rr = [0.5 * (rhat[3 * c] + rhat[3 * w]), 0.5 * (rhat[3 * c + 1] + rhat[3 * w + 1]), 0.5 * (rhat[3 * c + 2] + rhat[3 * w + 2])];
+      const re = B * (rr[0] * ex[0] + rr[1] * ex[1] + rr[2] * ex[2]);
+      // pair-midpoint fibre (sign-aligned average), and its component along the pair
+      let ff = [0, 0, 0], fe = 0;
+      if (aniso && kc === KIND.VENT) {
+        const sgn = fwd[3 * c] * fwd[3 * w] + fwd[3 * c + 1] * fwd[3 * w + 1] + fwd[3 * c + 2] * fwd[3 * w + 2] < 0 ? -1 : 1;
+        ff = [fwd[3 * c] + sgn * fwd[3 * w], fwd[3 * c + 1] + sgn * fwd[3 * w + 1], fwd[3 * c + 2] + sgn * fwd[3 * w + 2]];
+        const fl = Math.hypot(ff[0], ff[1], ff[2]) || 1; ff = ff.map((v) => v / fl);
+        fe = aniso * (ff[0] * ex[0] + ff[1] * ex[1] + ff[2] * ex[2]);
+      }
+      for (let d = 0; d < 3; d++) {                           // VCG: uniform lead fields
+        const cc = 1e-4 * h * h * sc * (ex[d] + re * rr[d] + fe * ff[d]);
+        out[9 + d] = cc;
+      }
+      if (TF) for (let q = 0; q < 2; q++) {                    // bounded-torso limb leads I, II
+        const Lv = tfSample(q ? TF._II : TF._I, m);
+        const cc = tfScale * h * h * sc * ((Lv[0] * ex[0] + Lv[1] * ex[1] + Lv[2] * ex[2]) + re * (Lv[0] * rr[0] + Lv[1] * rr[1] + Lv[2] * rr[2]) + fe * (Lv[0] * ff[0] + Lv[1] * ff[1] + Lv[2] * ff[2]));
+        out[12 + q] = cc;
+      }
+      for (let e = 0; e < 9; e++) {
+        const rx = E[e][0] - m[0], ry = E[e][1] - m[1], rz = E[e][2] - m[2];
+        const r = Math.sqrt(rx * rx + ry * ry + rz * rz);
+        const cc = h * h * sc * ((rx * ex[0] + ry * ex[1] + rz * ex[2]) + re * (rx * rr[0] + ry * rr[1] + rz * rr[2]) + fe * (rx * ff[0] + ry * ff[1] + rz * ff[2])) / (r * r * r);
+        out[e] = cc;
+      }
     }
   }
 
@@ -986,6 +1097,8 @@
       this.buckets = Array.from({ length: RING }, () => []);
       this._assignParams();
       if (!opts.noMemory && this.P.electrotonicK > 0) this._electrotonicMemory();
+      this.apdMax0 = this.apdMax.slice();               // healthy values, restored when ischemia changes
+      this.insults = []; this.ischemiaHours = 0; this._ischCells = new Set(); this._nextInsult = 1;
       // ECG bookkeeping. Cells in upstroke or repolarisation are summed
       // explicitly ("dynamic" list); cells on the plateau have Vm linear in t
       // and are folded into two running sums per electrode (see _ecg).
@@ -993,6 +1106,7 @@
       this.onPlateau = new Uint8Array(N);
       this.gen = new Uint32Array(N);                  // activation counter (stale-event guard)
       this.tbuckets = Array.from({ length: RING }, () => []);
+      this.W = model.W;                                  // lead weights (copied when necrosis uncouples tissue)
       this.S0 = new Float64Array(model.NE); this.S1 = new Float64Array(model.NE);
       this.leadsLatest = new Float32Array(12);
       this.listeners = [];
@@ -1091,7 +1205,7 @@
       this.sinusBpm = bpm;
       this._avnTone = Math.pow(72 / bpm, this.P.avnToneExp);
       this._applyAvn();
-      const cl = 60000 / bpm;
+      const cl = 60000 / bpm * (1 + this.P.ischSanSlow * (this._sanIschemia || 0));   // SA-node ischaemia slows the sinus rate
       const pm = this.pacemakers.find((p) => p.name === 'sinus');
       if (pm) pm.cl = cl; else this.pacemakers.unshift({ cell: this.M.sanCell, cl, name: 'sinus' });
     }
@@ -1137,7 +1251,7 @@
     _applyAvn() {
       const tone = this._avnTone || 1;
       for (const c of this.M.avn) {
-        this.cvMul[c] = tone * (this.avnBlockMul || 1);
+        this.cvMul[c] = tone * (this.avnBlockMul || 1) * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
         // nodal refractoriness also follows autonomic tone (vagal lengthens, sympathetic shortens)
         if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone;
       }
@@ -1160,6 +1274,141 @@
       g.last = g.mode === 'conduct-1-of' ? g.count % g.n === 1 % g.n    // conducts 1 of every n
         : g.count % g.n !== 0;                                            // drops 1 of every n
       return g.last;
+    }
+
+    // ---- Myocardial ischemia ------------------------------------------------
+    // Insults: a coronary occlusion (everything downstream of a tree node,
+    // transmural) or a subendocardial region around a clicked cell. Each
+    // affected cell gets a severity s (1 in the core, tapering to the border
+    // zone). setIschemiaTime(h) then sets each cell's electrophysiology for
+    // h hours after onset (see _ischemicState); the ECG follows on its own.
+    addOcclusion(node) {
+      const M = this.M, A = M.A, vn = M.coronary.voxNode, aff = new Uint8Array(A.n);
+      for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
+      const ins = this._makeInsult('occlusion', aff, this.P.ischBorderMm);
+      ins.node = node; ins.branch = M.coronary.nodes[node].branch;
+      ins.nodal = { san: M.isDownstream(M.coronary.sanNode, node), avn: M.isDownstream(M.coronary.avnNode, node) };
+      return this._addInsult(ins);
+    }
+    addSubendocardial(cell, radiusMm = 28) {
+      const A = this.M.A, aff = new Uint8Array(A.n), p = A.p(cell);
+      for (let c = 0; c < A.n; c++) {
+        if (A.label[c] !== LAB.LV && A.label[c] !== LAB.RV) continue;
+        if ((A.pos[3 * c] - p[0]) ** 2 + (A.pos[3 * c + 1] - p[1]) ** 2 + (A.pos[3 * c + 2] - p[2]) ** 2 < radiusMm * radiusMm) aff[c] = 1;
+      }
+      const ins = this._makeInsult('subendo', aff, radiusMm * 0.45);
+      ins.cell = cell;
+      return this._addInsult(ins);
+    }
+    removeInsult(id) { this.insults = this.insults.filter((x) => x.id !== id); this._applyIschemia(); }
+    clearIschemia() { this.insults = []; this._applyIschemia(); }
+    setIschemiaTime(h) { this.ischemiaHours = h; this._applyIschemia(); }
+
+    // severity: distance (mm) into the affected region from its edge, smoothed
+    _makeInsult(kind, aff, borderMm) {
+      const A = this.M.A, n = A.n, dist = new Float32Array(n).fill(Infinity), q = [];
+      for (let c = 0; c < n; c++) {
+        if (!aff[c]) continue;
+        const i = A.ii[c], j = A.jj[c], k = A.kk[c];
+        for (const [a, b, e] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+          const w = A.at(i + a, j + b, k + e);
+          if (w >= 0 && !aff[w] && (A.label[w] === LAB.LV || A.label[w] === LAB.RV)) { dist[c] = A.h; q.push(c); break; }
+        }
+      }
+      for (let qi = 0; qi < q.length; qi++) {               // BFS inward from the edge
+        const c = q[qi], i = A.ii[c], j = A.jj[c], k = A.kk[c];
+        for (const [a, b, e] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+          const w = A.at(i + a, j + b, k + e);
+          if (w >= 0 && aff[w] && dist[w] > dist[c] + A.h) { dist[w] = dist[c] + A.h; q.push(w); }
+        }
+      }
+      const cells = [], sev = [];
+      for (let c = 0; c < n; c++) if (aff[c]) {
+        const d = isFinite(dist[c]) ? dist[c] : borderMm * 2, x = Math.min(1, d / borderMm);
+        cells.push(c); sev.push(0.35 + 0.65 * x * x * (3 - 2 * x));
+      }
+      return { kind, cells: Int32Array.from(cells), sev: Float32Array.from(sev) };
+    }
+    _addInsult(ins) { ins.id = this._nextInsult++; this.insults.push(ins); this._applyIschemia(); return ins.id; }
+
+    // Cell state h hours after onset for severity s and transmural depth tm.
+    // Returns {apd, vRest, amp, cv, dead} multipliers/values.
+    _ischemicState(s, tm, h, kind) {
+      const P = this.P, sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+      if (kind === 'subendo') s *= 1 - sm((tm - 0.25) / 0.35);              // confined to the inner wall
+      if (s <= 0.01) return null;
+      const katp = sm(h / P.ischKatpH);                                       // minutes: APD shortening (hyperacute T)
+      const inj = s * sm((h - 0.05) / P.ischInjuryH) * (1 - P.ischStResolve * sm((h - 3) / 5));   // injury current develops, eases late
+      let apd = 1 - P.ischApdShort * s * katp;
+      apd *= 1 + P.ischApdLate * Math.min(1, s + 0.3) * sm((h - P.ischLateH) / 3);   // late: prolonged repolarisation in the surviving border (T inversion)
+      // necrosis advances from endocardium to epicardium (wavefront phenomenon)
+      // (the innermost layer, fed from the cavity blood, survives with the Purkinje junctions)
+      const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : 1.05);
+      const dead = s > 0.6 && tm > 0.06 && tm < front;
+      return {
+        apd, dead,
+        vRest: dead ? P.vRest : P.vRest + P.ischDvRest * inj,
+        amp: dead ? 0 : 1 - P.ischAmpDrop * inj,
+        cv: 1 + P.ischCvSlow * inj,
+      };
+    }
+
+    _applyIschemia() {
+      const M = this.M, A = M.A, P = this.P, h = this.ischemiaHours;
+      for (const c of this._ischCells) {                                     // restore healthy values
+        this.apdMax[c] = this.apdMax0[c]; this.vRest[c] = P.vRest; this.vAmp[c] = P.vAmp; this.cvMul[c] = 1; this.blocked[c] = 0;
+      }
+      this._ischCells = new Set();
+      const best = new Map();                                                // strongest insult per cell
+      for (const ins of this.insults) for (let q = 0; q < ins.cells.length; q++) {
+        const c = ins.cells[q], st = this._ischemicState(ins.sev[q], A.tm[c] < 0 ? 0.5 : A.tm[c], h, ins.kind);
+        if (!st) continue;
+        const prev = best.get(c);
+        if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);
+      }
+      let nDead = 0;
+      for (const [c, st] of best) {
+        this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = P.vAmp * st.amp;
+        this.cvMul[c] = st.cv; this.blocked[c] = st.dead ? 1 : 0; this._ischCells.add(c);
+        if (st.dead) nDead++;
+      }
+      this.nDead = nDead;
+      this._uncoupleDead();
+      // nodal arteries: proximal RCA occlusion slows the sinus node and the AV node
+      const inj = this.insults.some((x) => x.nodal && x.nodal.san) ? Math.min(1, h / 0.5) : 0;
+      const avn = this.insults.some((x) => x.nodal && x.nodal.avn) ? Math.min(1, h / 0.5) : 0;
+      this._sanIschemia = inj; this._avnIschemia = avn;
+      this.setRate(this.sinusBpm);
+      this.invalidateBaseline(); this._rebuildPlateauSums(); this._hpReset = true;
+    }
+
+    // Necrotic cells lose their gap junctions. A cell that cannot fire but is
+    // still coupled would act as a current sink next to every depolarised
+    // neighbour (a permanent injury source); uncoupled, it is electrically
+    // silent and its absence from the QRS leaves a Q wave. The coupling of
+    // each necrotic/living voxel pair is removed from the lead weights
+    // (fraction ischUncouple; the remainder keeps some ST elevation).
+    _uncoupleDead() {
+      const M = this.M, A = M.A, NE = M.NE, u = this.P.ischUncouple;
+      if (!this.nDead) { this.W = M.W; return; }
+      const W = this.W = M.W.slice(), cc = new Float64Array(NE);
+      for (const c of this._ischCells) {
+        if (!this.blocked[c]) continue;
+        const i = A.ii[c], j = A.jj[c], k = A.kk[c];
+        for (let a = 0; a < 3; a++) for (const sg of [1, -1]) {
+          const w = A.at(i + sg * (a === 0), j + sg * (a === 1), k + sg * (a === 2));
+          if (w < 0 || M.kind[w] !== KIND.VENT || this.blocked[w]) continue;
+          const lo = sg > 0 ? c : w, hi = sg > 0 ? w : c;           // pairs are stored low → high along the axis
+          M.pairCoef(lo, hi, a, cc);
+          for (let e = 0; e < NE; e++) { W[hi * NE + e] -= u * cc[e]; W[lo * NE + e] += u * cc[e]; }
+        }
+      }
+    }
+
+    // plateau running sums use per-cell amplitude: rebuild after parameters change
+    _rebuildPlateauSums() {
+      this.S0.fill(0); this.S1.fill(0);
+      for (let c = 0; c < this.M.nVox; c++) if (this.onPlateau[c]) { this.onPlateau[c] = 0; this._plateau(c, +1); }
     }
 
     // ---- External stimulation (clicks now; pacing leads later) ---------------
@@ -1258,7 +1507,8 @@
     _plateau(c, sign) {
       const M = this.M, NE = M.NE, o = c * NE, A = this.vAmp[c], p = this.P.plateauDecline, apd = this.apd[c];
       const k0 = sign * A * (1 + p * this.tAct[c] / apd), k1 = sign * A * p / apd;
-      for (let e = 0; e < NE; e++) { this.S0[e] += M.W[o + e] * k0; this.S1[e] += M.W[o + e] * k1; }
+      const W = this.W;
+      for (let e = 0; e < NE; e++) { this.S0[e] += W[o + e] * k0; this.S1[e] += W[o + e] * k1; }
       this.onPlateau[c] = sign > 0 ? 1 : 0;
     }
     _ecgEnter(c, ta, apd) {
@@ -1315,7 +1565,7 @@
 
     // 4. ECG: φ_e = −K [Σ_dyn W_ei (Vm_i − Vrest_i) + (S0_e − t·S1_e) + baseline_e]
     _ecg(t) {
-      const M = this.M, W = M.W, NE = M.NE, phi = this._phi || (this._phi = new Float64Array(NE));
+      const M = this.M, W = this.W, NE = M.NE, phi = this._phi || (this._phi = new Float64Array(NE));
       for (let e = 0; e < NE; e++) phi[e] = this.S0[e] - t * this.S1[e];
       for (let q = 0; q < this.nDyn; q++) {
         const c = this.dyn[q];
@@ -1363,6 +1613,14 @@
           L[k] = y;
         }
       }
+      // 0.05 Hz high-pass (diagnostic ECG): removes the DC offset of injury
+      // currents so ST deviation reads against the TP segment, as on a cart
+      if (this.P.ecgHighpass > 0) {
+        const a = this._hpA || (this._hpA = 1 / (1 + 2 * Math.PI * this.P.ecgHighpass / 1000));
+        const hx = this._hpX || (this._hpX = Float64Array.from(L)), hy = this._hpY || (this._hpY = new Float64Array(12));
+        if (this._hpReset) { hx.set(L); this._hpReset = false; }   // absorb the step when ischaemia changes
+        for (let k = 0; k < 12; k++) { const y = a * (hy[k] + L[k] - hx[k]); hx[k] = L[k]; hy[k] = y; L[k] = y; }
+      }
       for (const f of this.listeners) f(t, L);
     }
 
@@ -1373,7 +1631,7 @@
     }
     // Contribution of heterogeneous resting potentials (zero unless ischaemic)
     _computeBaseline() {
-      const M = this.M, W = M.W, NE = M.NE, b = new Float64Array(NE);
+      const M = this.M, W = this.W, NE = M.NE, b = new Float64Array(NE);
       for (let c = 0; c < M.nVox; c++) {
         if (!M.kind[c]) continue;
         const dv = this.vRest[c] - this.P.vRest; if (!dv) continue;
