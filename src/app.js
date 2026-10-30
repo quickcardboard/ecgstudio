@@ -224,8 +224,11 @@
     g3.renderer.setSize(w, h, false);
     g3.camera.aspect = w / h;
     // keep the heart clear of the floating control panel
+    // keep the heart clear of the tab row above and the view bar below: the view
+    // is shifted down by the difference of the two insets
     const panel = $('controls'), shift = panel.classList.contains('collapsed') || w < 560 ? 0 : Math.min(130, panel.offsetWidth / 2);
-    if (shift) g3.camera.setViewOffset(w, h, -shift, 0, w, h); else g3.camera.clearViewOffset();
+    const vb = parseFloat(getComputedStyle(el).getPropertyValue('--vb')) || 44, down = Math.round(0.06 * h + (vb - 44) / 2);
+    g3.camera.setViewOffset(w, h, -shift, -down, w, h);
     g3.camera.updateProjectionMatrix();
   }
 
@@ -526,9 +529,9 @@
     g3.lvCenter = new THREE.Vector3(lvc[0] / nl, lvc[1] / nl, lvc[2] / nl);
     g3.lax = lax.clone().normalize();
     g3.cutPresets = {
-      anterior: { n: nrm, p: p0, up: [0, 1, 0], dist: 360 },
-      lateral: { world: [1, 0.05, 0.1], p: g3.lvCenter, up: [0, 1, 0], dist: 340 },   // from the patient's left
-      short: { n: saN, p: saP, up: [0, 0, 1], dist: 300 },
+      anterior: { n: nrm, p: p0, up: [0, 1, 0], dist: 395 },
+      lateral: { world: [1, 0.05, 0.1], p: g3.lvCenter, up: [0, 1, 0], dist: 375 },   // from the patient's left
+      short: { n: saN, p: saP, up: [0, 0, 1], dist: 330 },
     };
     // Cut face by stencil capping. Every surface (which together bound the
     // heart wall as one closed solid) is drawn into the stencil buffer only:
@@ -891,17 +894,9 @@
     if (v !== ui.view) setView(v);
     g3.planeDirty = true;
   }
-  // camera presets: directions in the torso frame (X patient left, Y superior, Z anterior)
-  const CAM = { front: [[0.1, 0.08, 1], [0, 1, 0]], inferior: [[0.05, -1, 0.25], [0, 0, 1]], back: [[-0.1, 0.08, -1], [0, 1, 0]] };
+  // camera presets (Anterior = the four-chamber direction, Lateral, Apex = short axis)
   function cameraPreset(name) {
-    if (name === 'short') { cutPreset('short'); return; }
-    if (name === 'left') { cutPreset('lateral'); return; }
-    if (name === 'front') { cutPreset('anterior'); return; }   // anterior = the four-chamber direction, cut or not
-    const [d, up] = CAM[name], cam = g3.camera, ctl = g3.controls;
-    ctl.target.set(0, 0, 0);
-    cam.position.set(...d).normalize().multiplyScalar(ui.leads ? 660 : 380);
-    cam.up.set(...up); cam.lookAt(0, 0, 0); ctl.update();
-    g3.planeDirty = true;
+    cutPreset(name === 'short' ? 'short' : name === 'left' ? 'lateral' : 'anterior');
   }
 
   // colour of a cell from its action-potential phase

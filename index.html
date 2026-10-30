@@ -1,6 +1,11 @@
-<title>LiveHeart ECG Simulator</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <meta charset="utf-8">
+<title>LiveHeart · Interactive ECG Simulator</title>
+<meta name="description" content="LiveHeart: a 3D beating heart that computes the 12-lead ECG from its own electrical activity. Explore rhythms, conduction blocks, ischemia and infarction, hypertrophy, WPW, pericarditis and Brugada in real time.">
+<meta property="og:title" content="LiveHeart · Interactive ECG Simulator">
+<meta property="og:description" content="A 3D heart that computes its own 12-lead ECG. Rhythms, blocks, ischemia, infarction and more, in real time.">
+<meta name="theme-color" content="#121b26">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28S3 20 3 11a6.5 6.5 0 0 1 13-1 6.5 6.5 0 0 1 13 1c0 9-13 17-13 17z' fill='%23c2304f'/%3E%3Cpath d='M5 15h6l2-4 3 9 2-5h9' stroke='%23fff' stroke-width='2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
+<meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
@@ -300,7 +305,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 <div class="rotate" id="rotate" role="alert"><div><i aria-hidden="true">⟳</i><b>Turn your phone sideways</b>LiveHeart on a phone works in landscape, which gives the ECG a usable width.</div></div>
 <div id="app">
   <header class="top">
-    <div class="brand"><h1>Live<b>Heart</b></h1><span>Forward ECG simulator · milestone 4</span></div>
+    <div class="brand"><h1>Live<b>Heart</b></h1><span>Interactive 3D heart and 12-lead ECG simulator</span></div>
     <div class="viewsw" id="viewsw" role="tablist" aria-label="Show">
       <button type="button" role="tab" data-pane="heart" aria-selected="true">Heart</button><button type="button" role="tab" data-pane="ecg" aria-selected="false">ECG</button>
     </div>
@@ -3084,8 +3089,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     g3.renderer.setSize(w, h, false);
     g3.camera.aspect = w / h;
     // keep the heart clear of the floating control panel
+    // keep the heart clear of the tab row above and the view bar below: the view
+    // is shifted down by the difference of the two insets
     const panel = $('controls'), shift = panel.classList.contains('collapsed') || w < 560 ? 0 : Math.min(130, panel.offsetWidth / 2);
-    if (shift) g3.camera.setViewOffset(w, h, -shift, 0, w, h); else g3.camera.clearViewOffset();
+    const vb = parseFloat(getComputedStyle(el).getPropertyValue('--vb')) || 44, down = Math.round(0.06 * h + (vb - 44) / 2);
+    g3.camera.setViewOffset(w, h, -shift, -down, w, h);
     g3.camera.updateProjectionMatrix();
   }
 
@@ -3386,9 +3394,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     g3.lvCenter = new THREE.Vector3(lvc[0] / nl, lvc[1] / nl, lvc[2] / nl);
     g3.lax = lax.clone().normalize();
     g3.cutPresets = {
-      anterior: { n: nrm, p: p0, up: [0, 1, 0], dist: 360 },
-      lateral: { world: [1, 0.05, 0.1], p: g3.lvCenter, up: [0, 1, 0], dist: 340 },   // from the patient's left
-      short: { n: saN, p: saP, up: [0, 0, 1], dist: 300 },
+      anterior: { n: nrm, p: p0, up: [0, 1, 0], dist: 395 },
+      lateral: { world: [1, 0.05, 0.1], p: g3.lvCenter, up: [0, 1, 0], dist: 375 },   // from the patient's left
+      short: { n: saN, p: saP, up: [0, 0, 1], dist: 330 },
     };
     // Cut face by stencil capping. Every surface (which together bound the
     // heart wall as one closed solid) is drawn into the stencil buffer only:
@@ -3751,17 +3759,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     if (v !== ui.view) setView(v);
     g3.planeDirty = true;
   }
-  // camera presets: directions in the torso frame (X patient left, Y superior, Z anterior)
-  const CAM = { front: [[0.1, 0.08, 1], [0, 1, 0]], inferior: [[0.05, -1, 0.25], [0, 0, 1]], back: [[-0.1, 0.08, -1], [0, 1, 0]] };
+  // camera presets (Anterior = the four-chamber direction, Lateral, Apex = short axis)
   function cameraPreset(name) {
-    if (name === 'short') { cutPreset('short'); return; }
-    if (name === 'left') { cutPreset('lateral'); return; }
-    if (name === 'front') { cutPreset('anterior'); return; }   // anterior = the four-chamber direction, cut or not
-    const [d, up] = CAM[name], cam = g3.camera, ctl = g3.controls;
-    ctl.target.set(0, 0, 0);
-    cam.position.set(...d).normalize().multiplyScalar(ui.leads ? 660 : 380);
-    cam.up.set(...up); cam.lookAt(0, 0, 0); ctl.update();
-    g3.planeDirty = true;
+    cutPreset(name === 'short' ? 'short' : name === 'left' ? 'lateral' : 'anterior');
   }
 
   // colour of a cell from its action-potential phase
