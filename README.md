@@ -11,7 +11,7 @@ no data leaves the device.
 
 ## What you can do
 
-- **Rhythms:** sinus rhythm at any rate, sinus arrhythmia, PACs and PVCs (click anywhere on the
+- **Rhythms:** sinus rhythm at any rate, PACs and PVCs (click anywhere on the
   heart to pace an ectopic beat), atrial fibrillation and flutter, ectopic atrial rhythm, MAT,
   junctional and ventricular escape, AVNRT, AVRT and WPW pre-excitation, ventricular
   tachycardia and fibrillation.
