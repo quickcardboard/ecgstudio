@@ -1018,7 +1018,7 @@
   }
 
   function updateActionNote() {
-    const note = { stimulate: 'Click on the heart to stimulate an ectopic beat', block: 'Click on the conduction system to block', ischemia: 'Click on a coronary artery or the endocardium to start ischemia' }[ui.action];
+    const note = { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click on a coronary artery or the endocardium to start ischemia' }[ui.action];
     $('actionNote').hidden = !note || ui.tab === 'learn';
     $('actionNote').textContent = note || '';
   }

@@ -741,7 +741,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
-    pericardDepth: 0.7, pericardDv: 8, pericardAmpDrop: 0.1, pericardSag: 0.5, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
+    pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.4, pericardSag: -0.55, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
     ischBlockInj: 0.7,     // injury level above which living ischaemic muscle (after 2 h) no longer conducts
     ischHaloMm: 10, ischHaloLate: 0.45,   // zone of ischaemia around the infarct: width (mm) and late APD prolongation (T inversion)
@@ -2116,8 +2116,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           }
           // notch with a delayed dome: the plateau starts low and climbs back to
           // near-normal height (negative slope), so the ST gap closes into a coved shape
-          // (pericarditis: the inflamed epicardial plateau sags, so ST elevation grows through
-          // the ST segment: concave upward, rising into the T wave)
+          // (pericarditis: the inflamed epicardial plateau starts low and partly recovers
+          // (negative slope), so ST elevation is highest at the J point, sags mid-ST and
+          // rises again into the T wave: the concave-upward "saddle")
           this.pDecl[c] = amp < 1 && this.brugada && A.label[c] === LAB.RV ? 1 - (1 - P.plateauDecline) / amp
             : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline;
           this.vAmp0[c] = this._vAmpBase[c] * amp; this.apdMax0[c] = this._apdBase[c] * apd;
@@ -3877,7 +3878,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   }
 
   function updateActionNote() {
-    const note = { stimulate: 'Click on the heart to stimulate an ectopic beat', block: 'Click on the conduction system to block', ischemia: 'Click on a coronary artery or the endocardium to start ischemia' }[ui.action];
+    const note = { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click on a coronary artery or the endocardium to start ischemia' }[ui.action];
     $('actionNote').hidden = !note || ui.tab === 'learn';
     $('actionNote').textContent = note || '';
   }

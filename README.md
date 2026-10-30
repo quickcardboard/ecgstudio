@@ -267,9 +267,9 @@ re-entry.
 
 ### Round 12
 
-- **Pericarditis ST shape:** the inflamed epicardial plateau now sags (`pericardSag`) instead of sitting uniformly
-  lower, so ST elevation is small at the J point (~0.1 mV in II, 0.2 in V4) and rises concave-upward into the T wave.
-  PR depression unchanged.
+- **Pericarditis ST shape:** the inflamed epicardial plateau starts 40% low and partly recovers (`pericardSag` −0.55,
+  a negative plateau slope), so ST elevation is highest at the J point (II 0.31 mV), sags mid-ST (0.14 mV) and rises
+  again into the T wave: the concave-upward "saddle", not the early-repolarisation look. PR depression unchanged.
 - **Dip before the T wave:** an artefact of the RV action potential being 30 ms longer than the LV's
   (`apdRVoffset`). Set to 0 (RV and LV APDs similar): the ST segment now rises smoothly into the T wave; T heights
   I 0.40, II 0.45, aVF 0.28, aVR −0.42, V3 0.41, V4 0.55 mV.
