@@ -303,3 +303,20 @@ gives the rS in I of LPFB.
 
 Precordial leads are unchanged. The ischemia audit keeps every territory. Inferior Q in II now
 appears later (pRCA, PDA), and reciprocal aVR depression in RCA occlusion is smaller.
+
+### Round 15: ischemia time-slider descriptors checked against the ECG
+
+Every occlusion site (LM, p/m/d LAD, p/d LCx, p/m/d RCA, PDA) and four subendocardial
+patches (anterior, lateral, inferior, RV) were measured at every slider stop (ST at J+40,
+T peak, Q by the app's rules). Transmural course: tall T and modest ST at 15 min; ST peak
+at 1 h; about two thirds of peak at 4 h with Q waves already forming; about half at 12 h with
+T inversion beginning; a quarter at 2 days with deep T inversion; baseline ST, persisting Q
+and T inversion at 1 month. The stop texts now say this, and the circumflex gets a note
+(ST depression V1–V3, slight V5–V6 elevation, no Q waves for distal occlusions).
+
+Model fixes for subendocardial ischemia:
+- The innermost layer (Purkinje junctions) no longer dies under a subendocardial infarct
+  (it is fed by cavity blood); its loss had produced Q waves in aVL and V1–V3 from 12 h.
+- No late APD prolongation in subendocardial ischemia: prolonging the inner wall only
+  steepened the normal transmural gradient, giving T waves 2–4× too tall at 2 days.
+- Remaining: the inferior patch deepens the inferior q to ~30 ms, 0.2–0.3 mV with R kept.

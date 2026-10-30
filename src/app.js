@@ -1116,27 +1116,31 @@
   // the time slider stops only where the ECG changes character
   const ISCH_STOPS = [
     [0, 'Onset', 'No electrical change yet.'],
-    [0.25, '15 min', 'Hyperacute: K-ATP channels shorten the action potential. Tall, broad T waves over the territory with early, modest ST elevation; the injury current is only starting.'],
-    [1, '1 h', 'Acute injury: depolarised ischemic cells drive an injury current. ST elevation over the territory, reciprocal depression opposite.'],
-    [4, '4 h', 'Necrosis spreads from endocardium toward epicardium. ST elevation still near its peak; Q waves starting to form.'],
-    [12, '12 h', 'Evolving infarct: Q waves established, ST elevation still clear but past its peak.'],
-    [48, '2 days', 'Recent infarct: ST elevation partly resolved, T waves inverting over the infarct, Q waves persist. Nodal ischemia recovering.'],
+    [0.25, '15 min', 'Hyperacute: K-ATP channels shorten the action potential. Tall, broad T waves over the territory (mirror-image T inversion in the opposite leads) with early, modest ST elevation; the injury current is only starting.'],
+    [1, '1 h', 'Acute injury: depolarised ischemic cells drive an injury current. ST elevation at its peak over the territory, reciprocal depression opposite; T waves still tall.'],
+    [4, '4 h', 'Necrosis spreads from endocardium toward epicardium. ST elevation past its peak (about two thirds) but still marked; Q waves forming as the R waves over the infarct shrink.'],
+    [12, '12 h', 'Evolving infarct: Q waves established, ST elevation about half its peak, T waves starting to invert while the ST is still raised.'],
+    [48, '2 days', 'Recent infarct: ST elevation mostly resolved, deep T inversion over the infarct, Q waves persist. Nodal ischemia recovering.'],
     [720, '1 month', 'Old infarct: ST back to baseline (persisting elevation would suggest aneurysm). Q waves remain; T inversion often persists for months.'],
   ];
   const stopOf = (h) => ISCH_STOPS.reduce((b, s, i) => (Math.abs(Math.log1p(s[0]) - Math.log1p(h)) < Math.abs(Math.log1p(ISCH_STOPS[b][0]) - Math.log1p(h)) ? i : b), 0);
   // subendocardial ischemia alone follows a different course (ST depression, no Q waves)
   const SUBENDO_STAGE = [
     'No electrical change yet.',
-    'Minutes: the inner wall is starved first. ST depression starts in the leads facing it, with ST elevation in aVR.',
-    'Subendocardial injury: horizontal or down-sloping ST depression over the region, ST elevation in aVR. No STEMI pattern.',
-    'The inner layer starts to die (non-Q-wave infarct). ST depression persists; no Q waves, because the outer wall still conducts.',
-    'ST depression easing; T waves flatten.',
-    'ST depression easing toward baseline over the next days. No Q waves: a non-Q-wave (NSTEMI) infarct.',
+    'Minutes: the inner wall is starved first. T waves may flatten or invert; the ST segment is still near baseline.',
+    'Subendocardial injury: horizontal or down-sloping ST depression with ST elevation in aVR, often with T inversion. The leads with ST depression do not show which wall is ischemic. No STEMI pattern.',
+    'The inner layer starts to die (non-Q-wave infarct). ST depression and aVR elevation persist; no Q waves, because the outer wall and the Purkinje network still conduct.',
+    'ST depression easing and T waves recovering.',
+    'ST back to baseline. No Q waves: a non-Q-wave (NSTEMI) infarct.',
     'Old subendocardial infarct: the ECG can look almost normal.',
   ];
+  // the circumflex territory is poorly seen by the standard 12 leads
+  const LCX_NOTE = ' Circumflex: look for ST depression in V1–V3 (posterior injury seen from the front) and only slight ST elevation in V5–V6; distal circumflex infarcts often never form Q waves.';
   function ischStage(h) {
     if (!S.insults.length) return '';
-    return S.insults.every((x) => x.kind === 'subendo') ? SUBENDO_STAGE[stopOf(h)] : ISCH_STOPS[stopOf(h)][2];
+    if (S.insults.every((x) => x.kind === 'subendo')) return SUBENDO_STAGE[stopOf(h)];
+    const lcx = h > 0 && S.insults.every((x) => x.kind === 'occlusion' && ['LCx', 'OM1', 'OM2'].includes(x.branch));
+    return ISCH_STOPS[stopOf(h)][2] + (lcx ? LCX_NOTE : '');
   }
   function fmtHours(h) { return ISCH_STOPS[stopOf(h)][1]; }
   function setIschTime(h) {

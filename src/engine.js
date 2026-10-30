@@ -1691,11 +1691,11 @@
       // prolonged repolarisation in the surviving border: T inversion from ~6 h, deepest at 1–3 days,
       // fading over the following weeks (T waves upright again in an old infarct)
       const late = sm((h - P.ischLateH) / 3) * (1 + 0.8 * sm((h - 12) / 30)) * (1 - P.ischTRecover * sm((h - 200) / 400));
-      apd *= 1 + P.ischApdLate * Math.min(1, s + 0.3) * late;
+      if (kind !== 'subendo') apd *= 1 + P.ischApdLate * Math.min(1, s + 0.3) * late;   // (inner-wall prolongation would only steepen the normal gradient: tall T)
       // necrosis advances from endocardium to epicardium (wavefront phenomenon)
       // (the innermost layer, fed from the cavity blood, survives with the Purkinje junctions)
       const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : P.ischFrontMax);
-      const dead = s > P.ischDeadS && (tm > 0.06 || h > 8) && tm < front;   // (the inner layer is lost too once the infarct is complete)
+      const dead = s > P.ischDeadS && (tm > 0.06 || (h > 8 && kind !== 'subendo')) && tm < front;   // (the inner layer is lost too once a transmural infarct is complete; under a subendocardial one it survives on cavity blood)
       // the surviving epicardial rim over a completed infarct is drawn as part of
       // the infarct (it stays electrically alive)
       const rim = !dead && kind !== 'subendo' && s > P.ischDeadS && tm >= front && sm((h - 0.4) / P.ischNecrosisH) > 0.98;
