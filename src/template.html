@@ -80,11 +80,21 @@ button.primary { background: var(--accent); color: var(--accent-fg); border-colo
 
 /* control panel over the 3D viewport */
 #controls {
-  position: absolute; z-index: 3; left: 10px; top: 46px; width: 236px; max-height: calc(100% - 100px); overflow: auto;
+  position: absolute; z-index: 3; left: 10px; top: 46px; width: 262px; max-height: calc(100% - 100px); overflow: auto;
   background: var(--panel); border: 1px solid var(--panel-line); border-radius: 10px; color: var(--viewport-fg);
   backdrop-filter: blur(6px); display: flex; flex-direction: column;
 }
-#controls.collapsed .body { display: none; }
+#controls.collapsed .body, #controls.collapsed .foot { display: none; }
+.tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 0 8px 8px; }
+#controls .tabs button { padding: 6px 2px; font-size: 11.5px; border-radius: 5px; background: transparent; border-color: transparent; color: var(--panel-muted); }
+#controls .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+#controls .tabs button:hover { color: var(--viewport-fg); }
+.tabpanel { display: flex; flex-direction: column; gap: 14px; }
+.clicknote { border-left: 2px solid var(--accent); padding-left: 8px; }
+.foot { border-top: 1px solid var(--panel-line); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.ctl.tsrow { flex-direction: row; align-items: center; gap: 8px; }
+.tsrow input { flex: 1; }
+.presets5 { grid-template-columns: repeat(5, 1fr); }
 #controls .head { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; cursor: pointer; }
 #controls .head h2 { margin: 0; font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); }
 #controls .head span { color: var(--panel-muted); font-size: 12px; }
@@ -162,6 +172,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .legend { position: absolute; z-index: 2; left: 10px; bottom: 10px; max-width: calc(100% - 200px); box-sizing: border-box; display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--viewport-fg); background: var(--panel); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--panel-line); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
 .clock { position: absolute; z-index: 2; right: 10px; bottom: 10px; font: 500 12px/1 var(--font-data); color: var(--panel-muted); background: var(--panel); padding: 7px 10px; border-radius: 8px; border: 1px solid var(--panel-line); font-variant-numeric: tabular-nums; }
+.rebuild { position: absolute; z-index: 4; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--panel-line); color: var(--viewport-fg); padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+.strips { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.strips button { padding: 3px 6px; font: 500 11.5px/1 var(--font-data); }
+.strips button[aria-pressed="true"] { background: var(--fg); color: var(--surface); border-color: var(--fg); }
 .hint { position: absolute; z-index: 2; right: 10px; top: 46px; font-size: 12px; color: var(--panel-muted); }
 
 /* ECG side */
@@ -200,7 +214,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   #pane3d { flex: 0 0 46%; }
   #divider { flex: 0 0 10px; cursor: row-resize; }
   #divider::after { width: 44px; height: 4px; }
-  #controls { width: 200px; top: 42px; max-height: calc(100% - 92px); }
+  /* phones: the panel becomes a sheet along the bottom of the heart view; collapsed it keeps its tab bar */
+  #controls { left: 6px; right: 6px; top: auto; bottom: 6px; width: auto; max-height: 64%; }
+  #controls .body { padding-bottom: 8px; }
+  .legend { display: none; }
   .brand span { display: none; }
   .hint { display: none; }
   .legend { font-size: 11px; gap: 8px; bottom: 44px; right: 10px; }
@@ -227,94 +244,102 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
       <div id="controls">
         <div class="head" id="ctlHead" role="button" tabindex="0" aria-expanded="true"><h2>Controls</h2><span id="ctlChevron">Hide</span></div>
+        <div class="tabs" role="tablist" aria-label="Control groups">
+          <button type="button" role="tab" data-tab="rhythm" aria-selected="true">Rhythm</button>
+          <button type="button" role="tab" data-tab="blocks">Blocks</button>
+          <button type="button" role="tab" data-tab="ischemia">Ischemia</button>
+          <button type="button" role="tab" data-tab="structure">Structure</button>
+          <button type="button" role="tab" data-tab="view">View</button>
+        </div>
         <div class="body">
-          <div class="ctl">
-            <div class="row"><span class="lab">Sinus rate</span><span class="val" id="rateVal">72 bpm</span></div>
-            <input id="rate" type="range" min="30" max="180" step="1" value="72" aria-label="Sinus rate">
-          </div>
-          <div class="ctl">
-            <div class="row"><span class="lab">Time scale</span><span class="val" id="tsVal">1×</span></div>
+          <div class="note clicknote" id="actionNote">Click the atria for a PAC or the ventricles for a PVC.</div>
+
+          <section class="tabpanel" data-panel="rhythm">
+            <div class="ctl">
+              <div class="row"><span class="lab" id="rateLab">Sinus rate</span><span class="val" id="rateVal">72 bpm</span></div>
+              <input id="rate" type="range" min="30" max="180" step="1" value="72" aria-label="Sinus rate">
+            </div>
+            <div class="ctl">
+              <span class="lab">Start an arrhythmia</span>
+              <div class="presets" id="arrButtons" role="group" aria-label="Start an arrhythmia">
+                <button type="button" data-arr="af">AF</button><button type="button" data-arr="flutter">Flutter</button><button type="button" data-arr="mat">MAT</button><button type="button" data-arr="avnrt">AVNRT</button>
+                <button type="button" data-arr="avrt">AVRT</button><button type="button" data-arr="vt">VT</button><button type="button" data-arr="vf">VF</button>
+              </div>
+              <div class="btnrow">
+                <button type="button" id="btnAdeno" title="IV adenosine: transient AV-nodal block">Adenosine</button>
+                <button type="button" id="btnShock" title="Cardioversion / defibrillation">Shock</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="tabpanel" data-panel="blocks" hidden>
+            <div class="ctl" id="blockListWrap">
+              <span class="lab">Active blocks</span>
+              <div class="blocklist" id="blockList"></div>
+              <div class="note" id="noBlocks">None.</div>
+            </div>
+          </section>
+
+          <section class="tabpanel" data-panel="ischemia" hidden>
+            <div class="ctl" id="ischWrap" hidden>
+              <div class="row"><span class="lab">Time since onset</span><span class="val" id="ischVal">Onset</span></div>
+              <input id="ischTime" type="range" min="0" max="6" step="1" value="0" aria-label="Time since onset of ischemia">
+              <div class="note" id="ischStage"></div>
+              <div class="blocklist" id="ischList"></div>
+              <button type="button" id="btnClearIsch">Clear ischemia</button>
+            </div>
+          </section>
+
+          <section class="tabpanel" data-panel="structure" hidden>
+            <div class="ctl">
+              <div class="toggles">
+                <label class="tog" for="stRAE" title="Right atrial enlargement"><input type="checkbox" id="stRAE"><span>RAE</span></label>
+                <label class="tog" for="stLAE" title="Left atrial enlargement"><input type="checkbox" id="stLAE"><span>LAE</span></label>
+                <label class="tog" for="stLVH" title="Left ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stLVH"><span>LVH</span></label>
+                <label class="tog" for="stRVH" title="Right ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stRVH"><span>RVH</span></label>
+                <label class="tog" for="stDual" title="Dual AV-node pathways (substrate for AVNRT)"><input type="checkbox" id="stDual" checked><span>Dual AVN</span></label>
+              </div>
+            </div>
+            <div class="ctl">
+              <label class="lab" for="stAP">Accessory pathway (WPW)</label>
+              <select id="stAP">
+                <option value="">None</option>
+                <option value="left-lateral">Left lateral (~55%)</option>
+                <option value="posteroseptal">Posteroseptal (~25%)</option>
+              </select>
+            </div>
+          </section>
+
+          <section class="tabpanel" data-panel="view" hidden>
+            <div class="ctl">
+              <div class="row"><span class="lab">Cut away</span><span class="val" id="cutDepthVal">none</span></div>
+              <input id="cutDepth" type="range" min="0" max="100" step="1" value="0" aria-label="How much of the heart to cut away, up to halfway">
+            </div>
+            <div class="ctl">
+              <span class="lab">Look from</span>
+              <div class="presets presets5" id="presets" role="group" aria-label="View presets">
+                <button type="button" data-cam="front">Front</button><button type="button" data-cam="left">Left</button><button type="button" data-cam="inferior">Below</button><button type="button" data-cam="back">Back</button><button type="button" data-cam="short">Apex</button>
+              </div>
+            </div>
+            <div class="ctl">
+              <span class="lab">Overlays</span>
+              <div class="toggles">
+                <label class="tog" for="ovLabels"><input type="checkbox" id="ovLabels"><span>Labels</span></label>
+                <label class="tog" for="ovLeads"><input type="checkbox" id="ovLeads"><span>Lead vectors</span></label>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="foot">
+          <div class="ctl tsrow">
+            <span class="lab">Speed</span>
             <input id="timescale" type="range" min="0" max="6" step="1" value="6" aria-label="Time scale">
-          </div>
-          <div class="ctl">
-            <span class="lab">View</span>
-            <div class="seg">
-              <input type="radio" name="view" id="viewExt" value="external" checked><label for="viewExt">External</label>
-              <input type="radio" name="view" id="viewCut" value="cutaway"><label for="viewCut">Cutaway</label>
-            </div>
-            <div class="presets" id="presetsExt" role="group" aria-label="External view presets">
-              <button type="button" data-cam="front">Front</button><button type="button" data-cam="left">Left</button><button type="button" data-cam="inferior">Inferior</button><button type="button" data-cam="back">Back</button>
-            </div>
-            <div class="presets presets3" id="presetsCut" role="group" aria-label="Cutaway presets" hidden>
-              <button type="button" data-cut="anterior">Anterior</button><button type="button" data-cut="lateral">Lateral</button><button type="button" data-cut="short">Short axis</button>
-            </div>
-          </div>
-          <div class="ctl" id="cutDepthWrap" hidden>
-            <div class="row"><span class="lab">Cut depth (toward you +)</span><span class="val" id="cutDepthVal">0 mm</span></div>
-            <input id="cutDepth" type="range" min="-70" max="70" step="1" value="0" aria-label="Cut depth">
-          </div>
-          <div class="ctl">
-            <span class="lab">Click on the heart to</span>
-            <div class="seg seg3">
-              <input type="radio" name="action" id="actStim" value="stimulate" checked><label for="actStim">Stimulate</label>
-              <input type="radio" name="action" id="actBlock" value="block"><label for="actBlock">Block</label>
-              <input type="radio" name="action" id="actIsch" value="ischemia"><label for="actIsch">Ischemia</label>
-            </div>
-            <div class="note" id="actionNote">Click the atria for a PAC or the ventricles for a PVC.</div>
-          </div>
-          <div class="ctl" id="blockListWrap" hidden>
-            <span class="lab">Active blocks</span>
-            <div class="blocklist" id="blockList"></div>
-          </div>
-          <div class="ctl" id="ischWrap" hidden>
-            <div class="row"><span class="lab">Time since onset</span><span class="val" id="ischVal">Onset</span></div>
-            <input id="ischTime" type="range" min="0" max="6" step="1" value="0" aria-label="Time since onset of ischemia">
-            <div class="note" id="ischStage"></div>
-            <div class="blocklist" id="ischList"></div>
-            <button type="button" id="btnClearIsch">Clear ischemia</button>
-          </div>
-          <div class="ctl">
-            <span class="lab">Structure</span>
-            <div class="toggles">
-              <label class="tog" for="stRAE" title="Right atrial enlargement"><input type="checkbox" id="stRAE"><span>RAE</span></label>
-              <label class="tog" for="stLAE" title="Left atrial enlargement"><input type="checkbox" id="stLAE"><span>LAE</span></label>
-              <label class="tog" for="stLVH" title="Left ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stLVH"><span>LVH</span></label>
-              <label class="tog" for="stRVH" title="Right ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stRVH"><span>RVH</span></label>
-              <label class="tog" for="stDual" title="Dual AV-node pathways (substrate for AVNRT)"><input type="checkbox" id="stDual"><span>Dual AVN</span></label>
-            </div>
-            <label class="lab" for="stAP">Accessory pathway (WPW)</label>
-            <select id="stAP">
-              <option value="">None</option>
-              <option value="left-lateral">Left lateral</option>
-              <option value="left-posterior">Left posterior</option>
-              <option value="posteroseptal">Posteroseptal</option>
-              <option value="right-free-wall">Right free wall</option>
-              <option value="right-anteroseptal">Right anteroseptal</option>
-            </select>
-          </div>
-          <div class="ctl">
-            <span class="lab">Arrhythmias</span>
-            <div class="presets" id="arrButtons" role="group" aria-label="Start an arrhythmia">
-              <button type="button" data-arr="af">AF</button><button type="button" data-arr="flutter">Flutter</button><button type="button" data-arr="mat">MAT</button><button type="button" data-arr="avnrt">AVNRT</button>
-              <button type="button" data-arr="avrt">AVRT</button><button type="button" data-arr="vt">VT</button><button type="button" data-arr="vf">VF</button>
-            </div>
-            <div class="btnrow">
-              <button type="button" id="btnAdeno" title="IV adenosine: transient AV-nodal block">Adenosine</button>
-              <button type="button" id="btnShock" title="Synchronised cardioversion / defibrillation">Shock</button>
-            </div>
-          </div>
-          <div class="ctl">
-            <span class="lab">Overlays</span>
-            <div class="toggles">
-              <label class="tog" for="ovLabels"><input type="checkbox" id="ovLabels"><span>Labels</span></label>
-              <label class="tog" for="ovLeads"><input type="checkbox" id="ovLeads"><span>Lead vectors</span></label>
-            </div>
+            <span class="val" id="tsVal">1×</span>
           </div>
           <div class="btnrow">
             <button id="btnPause" type="button">Pause</button>
             <button id="btnReset" type="button">Reset</button>
           </div>
-          <div class="next">Rapid clicks start arrhythmias too: four or more on the left atrium for AF, on the right atrium for flutter, on three separate atrial spots for MAT, four or more on a ventricle for VT. A PVC on the T wave of an ischemic heart starts VF.</div>
         </div>
       </div>
 
@@ -335,6 +360,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         <span id="legendLeads" hidden><i style="background:var(--limb)"></i>Limb leads <i style="background:var(--chest); margin-left:8px"></i>Chest leads <i style="background:#ffffff; margin-left:8px"></i>Heart vector</span>
       </div>
       <div class="clock" id="clock">t 0.000 s</div>
+      <div class="rebuild" id="rebuildNote" hidden>Building the heart…</div>
     </section>
 
     <div id="divider" role="separator" aria-orientation="vertical" tabindex="0" title="Drag to resize · double-click to reset"></div>
@@ -349,8 +375,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         <div id="rhythm">Acquiring…</div>
         <div class="chips" id="chips"></div>
         <ul class="findings" id="findings"></ul>
+        <div class="strips" id="strips" role="group" aria-label="Rhythm strip leads (up to three)"><span>Rhythm strips:</span></div>
       </div>
-      <div id="ecgWrap"><canvas id="cecg"></canvas><span class="calnote">II rhythm strip · 10 s</span></div>
+      <div id="ecgWrap"><canvas id="cecg"></canvas><span class="calnote" id="calnote">II rhythm strip · 10 s</span></div>
     </section>
   </main>
 </div>
@@ -370,25 +397,28 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     <ul>
       <li><b>Sinus rate</b> sets the sinus node rate (30–180 bpm). The rhythm stays sinus at every rate. Escape rhythms depend on where conduction is blocked, not on rate: a junctional escape (about 48 bpm) takes over when the sinus node or AV node is blocked, and a ventricular escape (40 bpm) when the block is below the AV node.</li>
       <li><b>Time scale</b> slows the whole simulation, down to 1/50 of real time, so you can follow the wavefront. The ECG slows with it.</li>
-      <li><b>View:</b> External lets you rotate the heart; Front, Left, Inferior and Back jump to standard views. In Cutaway the heart can also be rotated: the cut plane always faces you, and Cut depth slides it toward or away from you. The presets jump to standard cuts. Anterior is the four-chamber cut. Lateral cuts the left ventricle from the patient's left, so the septum and the left bundle's fascicles face you. Short axis crosses both ventricles at mid level, seen from the apex, and is the best view for watching the delayed region in fascicular blocks. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches and fascicles. The Purkinje network runs in the model but is not drawn.</li>
+      <li><b>The control panel</b> has five tabs. The open tab also decides what a click on the heart does. In Rhythm, Structure and View a click stimulates (PAC or PVC). In Blocks it opens the block menu for the conduction system. In Ischemia it occludes an artery, or on a cut face, makes a subendocardial patch. Speed, Pause and Reset stay at the bottom. On a phone the panel sits along the bottom of the heart view; Hide folds it down to its tab bar.</li>
+      <li><b>View:</b> <b>Cut away</b> slides a cut plane facing you from outside the heart (none) to its middle (halfway). The heart can be rotated at any depth, and the cut always faces you. Front, Left, Below, Back and Apex jump to standard directions; Front with a cut is the four-chamber view, and Apex gives the short axis. The conduction system (SA node, AV node, His bundle, bundle branches and fascicles) shows up once the heart is cut. The Purkinje network runs in the model but is not drawn.</li>
       <li><b>Overlays:</b> Labels names the chambers and vessels, and in the cutaway the conduction system too. Lead vectors draws the limb-lead hexaxial reference (amber, drawn from the torso's own lead vectors, so lead I is visibly shorter than II and III; dashed lines are each lead's negative half), the chest electrodes V1–V6 with their lead vectors (blue), and the live heart vector (white). When the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
-      <li><b>Click on the heart to Stimulate:</b> click atrial tissue for a premature atrial complex (PAC) or ventricular tissue for a premature ventricular complex (PVC), in either view. Tissue that is still refractory does not capture. Click twice quickly for a couplet.</li>
-      <li><b>Click on the heart to Block:</b> in the cutaway, click any part of the conduction system and choose a block. The SA node offers SA exit block, a sinus pause or sinus arrest. The AV node offers 1st-degree, Mobitz I (Wenckebach), 2:1 and complete block. The His bundle offers Mobitz II and complete block. The bundle branches and fascicles can each be blocked. Blocked segments turn red, or orange for partial blocks, and are listed under Active blocks, where you can remove them. Escape rhythms appear only when conduction above them is lost.</li>
-      <li><b>Click on the heart for Ischemia:</b> in the external view the main epicardial coronary arteries are drawn in red: the left main trunk dividing into the LAD and the circumflex, and the right coronary artery giving the posterior descending artery (a right-dominant heart). Each artery's territory includes the muscle fed by its smaller side branches. Click an artery to occlude it at that point. A yellow marker shows the occlusion, the vessel beyond it turns grey, and everything it supplies becomes transmurally ischemic (tinted purple, necrotic muscle grey). In the cutaway, click ventricular muscle on the cut face for subendocardial ischemia in a patch of that wall. Occlusions and patches are listed in the panel, where each can be removed.</li>
+      <li><b>Rhythm tab, clicks:</b> click atrial tissue for a premature atrial complex (PAC) or ventricular tissue for a premature ventricular complex (PVC), in either view. Tissue that is still refractory does not capture. Click twice quickly for a couplet.</li>
+      <li><b>Blocks tab:</b> cut the heart open (View, Cut away), then click any part of the conduction system and choose a block. The SA node offers SA exit block, a sinus pause or sinus arrest. The AV node offers 1st-degree, Mobitz I (Wenckebach), 2:1 and complete block. The His bundle offers Mobitz II and complete block. The bundle branches and fascicles can each be blocked. Blocked segments turn red, or orange for partial blocks, and are listed under Active blocks, where you can remove them. Escape rhythms appear only when conduction above them is lost.</li>
+      <li><b>Ischemia tab:</b> the main epicardial coronary arteries are drawn in red: the left main trunk dividing into the LAD and the circumflex, and the right coronary artery giving the posterior descending artery (a right-dominant heart). Each artery's territory includes the muscle fed by its smaller side branches. Click an artery to occlude it at that point. A yellow marker shows the occlusion, the vessel beyond it turns grey, and everything it supplies becomes transmurally ischemic (tinted purple, necrotic muscle grey). With the heart cut open, click ventricular muscle on the cut face for subendocardial ischemia in a patch of that wall. Occlusions and patches are listed in the panel, where each can be removed.</li>
       <li><b>Time since onset</b> moves every ischemic region along the same time course. It stops only where the ECG changes character: onset, 15 min, 1 h, 4 h, 12 h, 2 days and 1 month. In the first minutes, K-ATP channels shorten the action potential: hyperacute T waves. Over the first half hour, depolarized ischemic cells drive an injury current: ST elevation over the territory with reciprocal depression opposite. Necrosis then advances from endocardium to epicardium over about six hours. Dead muscle loses its gap junctions and drops out of the QRS, so Q waves form. From about 12 hours the ST elevation eases and the T wave starts to invert. By 2 days the ST segment is back near baseline with deep symmetric T inversion. At 1 month the Q waves remain and the T waves are upright again. A proximal right coronary occlusion also starves the sinus-node and AV-node arteries, slowing the sinus rate and lengthening the PR; an occlusion beyond the crux slows only the AV node. A thin subendocardial patch gives ST depression rather than elevation.</li>
       <li><b>Structure:</b> RAE and LAE enlarge an atrium. The enlarged atrium carries more muscle, so its sources are stronger; LAE also delays conduction from the right atrium into the left, across Bachmann's bundle and the inferior connections, so the left atrium fires as a separate, later wave. RAE gives a tall, peaked P wave in II (P pulmonale). LAE gives a broad P wave of about 150 ms with two humps, right then left atrium, about 80 ms apart (P mitrale). LVH and RVH rebuild the heart with a thicker free wall: about 6 mm extra on the LV, 10 mm on the RV. Hypertrophied muscle carries more current, and the transmural repolarization gradient reverses ("strain"). LVH gives Sokolow–Lyon voltage with T inversion in I, aVL and V6; RVH a dominant R in V1, right axis deviation and T inversion in V1–V2. Building a configuration the first time takes a few seconds; after that it is kept, so switching back is immediate. Switching clears blocks and ischemia.</li>
-      <li><b>Accessory pathway (WPW):</b> adds a fast, non-decremental muscle bridge across the AV ring at the chosen site (shown in blue). The ventricle near it is excited early, giving a short PR and a delta wave. The rest of the ventricle fuses with normally conducted activation, so the QRS is wide. The pathway also conducts backwards. <b>Triggering AVRT by hand:</b> with a left lateral or left posterior pathway, click the left atrium for a PAC about 240–320 ms after the start of a P wave, which is during the QRS or early ST segment. The pathway is still refractory, so the PAC conducts down the AV node alone, with a narrow QRS. It then returns to the atria up the pathway and circles: orthodromic AVRT at about 190 bpm, with a retrograde P wave just after each QRS. Slowing time with the time scale makes the click easier. Reset ends it.</li>
+      <li><b>Accessory pathway (WPW):</b> adds a fast, non-decremental muscle bridge across the AV ring at the chosen site (shown in blue). The ventricle near it is excited early, giving a short PR and a delta wave. The rest of the ventricle fuses with normally conducted activation, so the QRS is wide. The pathway also conducts backwards. <b>Triggering AVRT by hand:</b> with the left lateral pathway, click the left atrium for a PAC about 240–320 ms after the start of a P wave, which is during the QRS or early ST segment. The pathway is still refractory, so the PAC conducts down the AV node alone, with a narrow QRS. It then returns to the atria up the pathway and circles: orthodromic AVRT at about 190 bpm, with a retrograde P wave just after each QRS. Slowing time with the time scale makes the click easier. Reset ends it.</li>
       <li><b>Arrhythmias:</b> each button starts a rhythm. The rates, the AV relationship and the ECG all come from the simulated tissue.
         <ul>
           <li><b>AF:</b> eleven atrial foci fire at random short cycle lengths. The colliding wavelets bombard the AV node, which lets through an irregularly irregular ventricular response. With an accessory pathway, AF can conduct over it (pre-excited AF).</li>
           <li><b>Flutter:</b> macro-re-entry around the tricuspid annulus with slow conduction in the cavotricuspid isthmus. The typical counterclockwise circuit goes up the septum and down the free wall, at about 330–360/min with 2:1 or variable AV conduction.</li>
           <li><b>MAT:</b> four atrial foci take turns irregularly, so each P wave differs.</li>
           <li><b>AVNRT:</b> switches on dual AV-node pathways (removing any accessory pathway) and delivers a timed PAC. The PAC blocks in the fast pathway, conducts down the slow one, then returns up the fast one. The retrograde P falls at the end of the QRS.</li>
-          <li><b>AVRT:</b> adds a left lateral accessory pathway if none is set (switching off dual AV-node pathways) and delivers a timed PAC. Conduction goes down the AV node and back up the pathway (orthodromic).</li>
+          <li><b>AVRT:</b> selects the left lateral accessory pathway and delivers a timed PAC. Conduction goes down the AV node and back up the pathway (orthodromic).</li>
           <li><b>VT:</b> a single ventricular site fires at 180/min. The QRS is wide and monomorphic, with AV dissociation.</li>
           <li><b>VF:</b> many ventricular foci fire chaotically.</li>
         </ul>
         <b>Adenosine</b> blocks the AV node for about 6 s after a 1 s delay. It ends AVNRT and AVRT, and exposes the flutter waves or fibrillation in flutter and AF. <b>Shock</b> depolarizes every excitable cell at once, ending any re-entry; the sinus node then resumes. Clicking also works: four or more quick clicks on the left atrium start AF, on the right atrium flutter, and on three or more separate atrial sites MAT. Four or more quick clicks on a ventricle start VT from that site, and seven or more start VF. In an acutely ischemic heart (15 min to 2 days after onset), a PVC landing on the T wave triggers VF; a healthy heart tolerates it.</li>
+      <li><b>Rhythm strips:</b> under the interpretation, pick up to three leads for the 10 s rhythm strips at the bottom of the paper.</li>
+      <li><b>Ventricular rate in AF and flutter:</b> while AF or flutter runs, the rate slider becomes the ventricular rate. In AF it sets the mean of an irregular response, from slow AF (about 40/min) to rapid AF (about 150/min). In flutter it sets the conduction ratio (2:1, 3:1, 4:1…).</li>
       <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest and clears all blocks and ischemia.</li>
     </ul>
     <h3>Banner</h3>

@@ -182,7 +182,8 @@
     upW: 2.0,                        // width of phase-0 upstroke (ms)
 
     // Arrhythmia drivers (see Sim.startArrhythmia)
-    afFociLA: 8, afFociRA: 3, afClMin: 110, afClMax: 230, afConcealed: 300,
+    afFociLA: 8, afFociRA: 3, afClMin: 110, afClMax: 230,
+    afDefaultRate: 110, afIrregularity: 0.45, afAvnToV: 110,   // AF ventricular response: mean rate, ±fraction of RR
     flutterRingSlow: 1.1, flutterIsthmusSlow: 2.8, flutterGateTol: 0.03, flutterRadius: 25, flutterBachmannSlow: 40,
     matClMin: 380, matClMax: 640,
     vtCl: 330,
@@ -194,7 +195,7 @@
 
     // Atrial enlargement (see Sim.setAtrialEnlargement)
     raeGain: 2.4, raeSlow: 0.85,
-    laeGain: 1.8, laeSlow: 0.85, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 40,
+    laeGain: 1.8, laeSlow: 0.85, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 28,
 
     // Ischaemia (see Sim._ischemicState)
     ischBorderMm: 9,       // border-zone width over which severity rises to the core value
@@ -1536,7 +1537,7 @@
       // necrosis advances from endocardium to epicardium (wavefront phenomenon)
       // (the innermost layer, fed from the cavity blood, survives with the Purkinje junctions)
       const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : 1.05);
-      const dead = s > 0.6 && tm > 0.06 && tm < front;
+      const dead = s > 0.6 && (tm > 0.06 || h > 8) && tm < front;   // (the inner layer is lost too once the infarct is complete)
       return {
         apd, dead, level: Math.max(inj, 0.5 * s * katp),
         vRest: dead ? P.vRest : P.vRest + P.ischDvRest * inj,
@@ -1684,17 +1685,39 @@
     // to ~2 days after onset)
     vulnerable() { return this.insults.length > 0 && this.ischemiaHours >= 0.1 && this.ischemiaHours <= 48; }
 
+    // ventricular response in AF and flutter (bpm; null = natural for flutter, default for AF)
+    setVentricularResponse(bpm) {
+      this.vResponse = bpm || null;
+      if (this.arrhythmia && this.arrhythmia.type === 'flutter') this._setFlutterRatio();
+    }
+    // flutter: the AV node conducts one in N flutter waves (N from the set ventricular rate)
+    _setFlutterRatio() {
+      const d = this.drivers.find((x) => x.kind === 'watch');
+      const cl = d && d.cls.length ? d.cls.reduce((a, b) => a + b, 0) / d.cls.length : 175;
+      const n = this.vResponse ? Math.max(2, Math.round(60000 / this.vResponse / cl)) : 0;
+      this._flutterRatio = n ? { cell: this.M.avn[this.M.avn.length - 2], n, count: 0, lastT: -1e9, last: true } : null;
+    }
+    _flutterPass(ta) {
+      const g = this._flutterRatio;
+      if (ta - g.lastT < 60) return g.last;                    // converging wavelets share one decision
+      g.lastT = ta; g.last = (++g.count % g.n) === 0; return g.last;
+    }
+
     stopArrhythmia() {
       for (const d of this.drivers) if (d.slowed) for (const [c, v] of d.slowed) this.cvMul[c] = v;
       if (this.drivers.length) this.rhythmChangedAt = this.t;
-      this.drivers = []; this.arrhythmia = null; this._flutterGate = null;
+      this.drivers = []; this.arrhythmia = null; this._flutterGate = null; this._flutterRatio = null;
     }
 
     _runDrivers(t) {
       for (const d of this.drivers) {
         if (d.kind === 'watch') {                                // flutter: measure the circuit's cycle length
           const a = this.tAct[d.cell];
-          if (a !== d.lastAct) { if (a - d.lastAct < 400) { d.cls.push(a - d.lastAct); if (d.cls.length > 12) d.cls.shift(); } d.lastAct = a; }
+          if (a !== d.lastAct) {
+            if (a - d.lastAct < 400) { d.cls.push(a - d.lastAct); if (d.cls.length > 12) d.cls.shift(); }
+            d.lastAct = a;
+            if (this.vResponse && d.cls.length === 4) this._setFlutterRatio();
+          }
           continue;
         }
         if (t >= d.next) {
@@ -1777,10 +1800,14 @@
         if (tArr < this.arrive[j] || this.arrive[j] <= this.tAct[j]) this.schedule(j, tArr);
       }
       // AF: concealed conduction. Fibrillatory impulses that penetrate the AV
-      // node partway leave it refractory for a random extra time, so the
-      // ventricular response becomes irregularly irregular and slower than the
-      // node's maximum rate.
-      if (c === this.M.avn[0] && this.arrhythmia && this.arrhythmia.type === 'af') this.refEnd[c] += this.rand() * P.afConcealed;
+      // node leave its lower part (where fast and slow pathways join)
+      // refractory for a random time around the target RR, so the response
+      // is irregularly irregular at the ventricular rate set by the user.
+      const avnJoin = this.M.avn[this.M.avn.length - 2];
+      if (c === avnJoin && this.arrhythmia && this.arrhythmia.type === 'af') {
+        const rr = 60000 / (this.vResponse || P.afDefaultRate);
+        this.refEnd[c] = Math.max(this.refEnd[c], ta + rr * (1 - P.afIrregularity + 2 * P.afIrregularity * this.rand()) - P.afAvnToV);
+      }
       // retrograde fast-pathway conduction (AVNRT bookkeeping): the top of the
       // AV node fired from below
       if (c === this.M.avn[0] && this.tAct[this.M.avn[1]] < ta && this.tAct[this.M.avn[1]] > ta - 60) {
@@ -1904,6 +1931,7 @@
         const c = bucket[q], ta = bucket[q + 1];
         if (ta !== this.arrive[c]) continue;          // superseded
         if (this.blocked[c] || ta < this.refEnd[c] || (adeno && this.M.kind[c] === KIND.AVN)) { this.arrive[c] = Infinity; continue; }
+        if (this._flutterRatio && c === this._flutterRatio.cell && !this._flutterPass(ta)) { this.arrive[c] = Infinity; continue; }
         const gate = this.gates.get(c);
         if (gate && !this._gatePass(gate, ta)) { this.arrive[c] = Infinity; this.blockLog.push({ t: ta, at: gate.site }); if (this.blockLog.length > 40) this.blockLog.shift(); continue; }
         this._activate(c, ta);
