@@ -184,6 +184,7 @@
     ischKatpH: 0.15,       // hours for K-ATP APD shortening to develop (hyperacute T)
     ischInjuryH: 0.5,      // hours for the injury current (resting depolarisation) to develop
     ischApdShort: 0.4, ischApdLate: 0.7, ischLateH: 3,
+    ischSubendoGain: 1.6,  // demand ischaemia: the inner wall is the most severely injured
     ischStResolve: 0.6,    // fraction of the injury current gone by 8 h (ST elevation partly resolves)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.35, ischCvSlow: 0.3,
@@ -1290,11 +1291,15 @@
       ins.nodal = { san: M.isDownstream(M.coronary.sanNode, node), avn: M.isDownstream(M.coronary.avnNode, node) };
       return this._addInsult(ins);
     }
+    // a patch of the clicked wall (same chamber, nearby in the ventricular
+    // coordinates, so the opposite wall across the cavity is not included)
     addSubendocardial(cell, radiusMm = 28) {
-      const A = this.M.A, aff = new Uint8Array(A.n), p = A.p(cell);
+      const A = this.M.A, aff = new Uint8Array(A.n), p = A.p(cell), L = A.label[cell], ph0 = A.phi[cell], z0 = A.zuvc[cell];
       for (let c = 0; c < A.n; c++) {
-        if (A.label[c] !== LAB.LV && A.label[c] !== LAB.RV) continue;
-        if ((A.pos[3 * c] - p[0]) ** 2 + (A.pos[3 * c + 1] - p[1]) ** 2 + (A.pos[3 * c + 2] - p[2]) ** 2 < radiusMm * radiusMm) aff[c] = 1;
+        if (A.label[c] !== L) continue;
+        if ((A.pos[3 * c] - p[0]) ** 2 + (A.pos[3 * c + 1] - p[1]) ** 2 + (A.pos[3 * c + 2] - p[2]) ** 2 > radiusMm * radiusMm) continue;
+        let dp = Math.abs(A.phi[c] - ph0); if (dp > Math.PI) dp = 2 * Math.PI - dp;
+        if (dp < 1.0 && Math.abs(A.zuvc[c] - z0) < 0.35) aff[c] = 1;
       }
       const ins = this._makeInsult('subendo', aff, radiusMm * 0.45);
       ins.cell = cell;
@@ -1335,10 +1340,10 @@
     // Returns {apd, vRest, amp, cv, dead} multipliers/values.
     _ischemicState(s, tm, h, kind) {
       const P = this.P, sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
-      if (kind === 'subendo') s *= 1 - sm((tm - 0.25) / 0.35);              // confined to the inner wall
+      if (kind === 'subendo') s *= 1 - sm((tm - 0.12) / 0.2);                // confined to the inner wall
       if (s <= 0.01) return null;
       const katp = sm(h / P.ischKatpH);                                       // minutes: APD shortening (hyperacute T)
-      const inj = s * sm((h - 0.05) / P.ischInjuryH) * (1 - P.ischStResolve * sm((h - 3) / 5));   // injury current develops, eases late
+      const inj = Math.min(1, s * (kind === 'subendo' ? P.ischSubendoGain : 1)) * sm((h - 0.05) / P.ischInjuryH) * (1 - P.ischStResolve * sm((h - 3) / 5));   // injury current develops, eases late
       let apd = 1 - P.ischApdShort * s * katp;
       apd *= 1 + P.ischApdLate * Math.min(1, s + 0.3) * sm((h - P.ischLateH) / 3);   // late: prolonged repolarisation in the surviving border (T inversion)
       // necrosis advances from endocardium to epicardium (wavefront phenomenon)
@@ -1346,7 +1351,7 @@
       const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : 1.05);
       const dead = s > 0.6 && tm > 0.06 && tm < front;
       return {
-        apd, dead,
+        apd, dead, level: Math.max(inj, 0.5 * s * katp),
         vRest: dead ? P.vRest : P.vRest + P.ischDvRest * inj,
         amp: dead ? 0 : 1 - P.ischAmpDrop * inj,
         cv: 1 + P.ischCvSlow * inj,
@@ -1355,8 +1360,9 @@
 
     _applyIschemia() {
       const M = this.M, A = M.A, P = this.P, h = this.ischemiaHours;
+      const lvl = this.ischLevel || (this.ischLevel = new Float32Array(A.n));   // display: 0 healthy, (0,1] ischaemic, 2 necrotic
       for (const c of this._ischCells) {                                     // restore healthy values
-        this.apdMax[c] = this.apdMax0[c]; this.vRest[c] = P.vRest; this.vAmp[c] = P.vAmp; this.cvMul[c] = 1; this.blocked[c] = 0;
+        lvl[c] = 0; this.apdMax[c] = this.apdMax0[c]; this.vRest[c] = P.vRest; this.vAmp[c] = P.vAmp; this.cvMul[c] = 1; this.blocked[c] = 0;
       }
       this._ischCells = new Set();
       const best = new Map();                                                // strongest insult per cell
@@ -1370,6 +1376,7 @@
       for (const [c, st] of best) {
         this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = P.vAmp * st.amp;
         this.cvMul[c] = st.cv; this.blocked[c] = st.dead ? 1 : 0; this._ischCells.add(c);
+        lvl[c] = st.dead ? 2 : st.level;
         if (st.dead) nDead++;
       }
       this.nDead = nDead;

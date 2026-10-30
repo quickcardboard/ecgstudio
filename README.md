@@ -8,7 +8,7 @@ electrical field.
 Open `index.html` in a browser. It is a single self-contained file (≈4.7 MB) that loads
 Three.js r128 and OrbitControls from CDNs.
 
-## Status: milestone 2 (blocks and ectopy) on top of milestone 1
+## Status: milestone 3 (ischemia) on top of milestones 1–2
 
 | Area | Done |
 |---|---|
@@ -71,6 +71,32 @@ node (non-conducted PAC); later ones conduct with decremental PR prolongation (2
 The cutaway can be rotated freely: the cut plane always faces the viewer and a depth slider moves it along the
 view axis; presets give the anterior (four-chamber), lateral and short-axis cuts (the short axis shows the delayed
 wall in LAFB vs LPFB). External view presets: front, left, inferior, back. The interpretation banner states rhythm, AV and intraventricular conduction and ectopy.
+
+### Milestone 3: coronary occlusion and ischemia
+
+Click a coronary artery in the external view (Ischemia mode) to occlude it there, or click ventricular muscle on
+the cutaway face for a subendocardial patch; the *Time since onset* slider (0–8 h) moves all regions through the
+time course. Engine API: `sim.addOcclusion(node)`, `sim.addSubendocardial(cell, radiusMm)`, `sim.setIschemiaTime(h)`,
+`sim.removeInsult(id)`, `sim.clearIschemia()`; the tree is `model.coronary`.
+
+| Piece | Model |
+|---|---|
+| Coronary tree | LM → LAD (D1, D2) and LCx (OM1, OM2); RCA → acute marginal, PDA, posterolateral (right dominant). Geodesic paths on the epicardium, ~3 mm nodes; each ventricular voxel is assigned to its supplying node (LAD wraps the apex, septum split LAD/PDA) |
+| Severity | 1 in the core, tapering over a 9 mm border zone |
+| Minutes | K-ATP APD shortening → hyperacute T |
+| 0.5 h | injury current: resting depolarisation (+22 mV) and a lower plateau (−35%), conduction slowing → ST elevation over the territory, reciprocal depression |
+| 0.4–6 h | necrosis advances endocardium → epicardium (inner layer fed by cavity blood survives); necrotic cells stop firing and lose 85% of their coupling in the lead weights → Q waves |
+| 3–8 h | ST elevation partly resolves; APD prolongation in the surviving border → terminal T inversion |
+| Nodal arteries | occlusion proximal to the SA-node artery slows the sinus rate; proximal to the crux (AV-node artery) lengthens the PR |
+| Subendocardial | inner ~25% of a wall patch, stronger injury → ST depression in the leads facing it |
+| ECG | 0.05 Hz diagnostic high-pass |
+
+Headless check (`node tools/ischemia.js`, plots in `docs/m3/`): proximal LAD → ST elevation in I, aVL, V2–V5 with
+inferior reciprocal depression; mid LAD → V2–V5 only; LCx → ST depression V1–V3 (posterior) with slight V5–V6
+elevation; proximal RCA → ST elevation III > II, aVL depression, V1 elevation (RV), sinus slowing and PR lengthening;
+distal RCA → inferior elevation with V1–V4 depression. By 6–8 h: Q waves (QS in III for RCA, loss of R in V3–V4 for
+LAD) and terminal T inversion. The interpretation reads ST at J + 40 ms, new Q waves and T changes against the
+heart's own healthy beat, and names the territory with STEMI thresholds.
 
 ## Layout
 

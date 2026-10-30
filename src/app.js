@@ -18,11 +18,13 @@
     rest: [0.95, 0.62, 0.71], front: [0.10, 0.30, 1.00], dep: [0.30, 0.47, 0.90],
     rep: [0.14, 0.72, 0.38], cs: [0.93, 0.71, 0.16],
     blocked: [0.88, 0.19, 0.25], partial: [1.0, 0.54, 0.12],
+    ischemic: [0.56, 0.36, 0.80], necrotic: [0.40, 0.33, 0.37],
+    artery: [0.84, 0.17, 0.20], occluded: [0.30, 0.24, 0.32],
   };
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { cutDepth: 0, action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const ecg = { buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
 
@@ -47,6 +49,14 @@
     // handle for automation (tests, future quiz mode): simulator, model and a projector
     window.LiveHeartApp = {
       get sim() { return S; }, model: M,
+      ischemia: {
+        occlude(node) { const id = S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
+        subendo(cell, r = 36) { const id = S.addSubendocardial(cell, r); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
+        hours(h) { setIschTime(h); recolorIschemia(); },
+        clear() { S.clearIschemia(); recolorIschemia(); renderIschList(); },
+        segmentName: (id) => segmentName(id),
+      },
+      interpret: () => interpret(),
       screenOf(id) {
         const p = new THREE.Vector3(M.x[id], M.y[id], M.z[id]).applyMatrix4(g3.inner.matrixWorld).project(g3.camera);
         const r = $('c3d').getBoundingClientRect();
@@ -62,8 +72,9 @@
     S.setRate(ui.rate);
     for (const b of ecg.buf) b.fill(NaN);
     S.onSample((t, L) => { const i = t % PAGE; for (let k = 0; k < 12; k++) ecg.buf[k][i] = L[k]; });
-    ui.acc = 0;
-    $('rhythm').textContent = 'Acquiring…'; $('chips').innerHTML = '';
+    ui.acc = 0; ui.ischPending = null;
+    $('rhythm').textContent = 'Acquiring…'; $('chips').innerHTML = ''; $('findings').innerHTML = '';
+    if (g3.cor) { recolorIschemia(); renderIschList(); }
   }
 
   // ---------------------------------------------------------------------------
@@ -72,6 +83,7 @@
   let interpTimer = 0;
   function loop(now) {
     const dt = Math.min(100, now - ui.last); ui.last = now;
+    if (ui.ischPending !== null) { S.setIschemiaTime(ui.ischPending); ui.ischPending = null; recolorIschemia(); interpret(true); }
     if (!ui.paused) {
       ui.acc += dt * SCALES[ui.scaleIdx];
       let n = Math.floor(ui.acc); ui.acc -= n;
@@ -111,6 +123,7 @@
 
     buildSurfaces();
     buildConduction();
+    buildCoronaries();
     buildCutPlane();
     buildOverlays();
 
@@ -306,6 +319,84 @@
     g3.inner.add(san);
     const sanPick = g3.sanPick = new THREE.Mesh(new THREE.SphereGeometry(6, 10, 8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     sanPick.position.copy(san.position); g3.inner.add(sanPick);
+  }
+
+  // Epicardial coronary arteries: one tube per branch through the tree nodes,
+  // lifted just off the surface, coloured red (perfused) or dusky
+  // (downstream of an occlusion). Clicking one occludes it there.
+  function outwardOf(c) {
+    const d = [0, 0, 0], [nx, ny, nz] = A.dims, i = A.ii[c], j = A.jj[c], k = A.kk[c];
+    for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) for (let e = -2; e <= 2; e++) {
+      const ii = i + a, jj = j + b, kk = k + e;
+      if (ii < 0 || jj < 0 || kk < 0 || ii >= nx || jj >= ny || kk >= nz) { d[0] += a; d[1] += b; d[2] += e; continue; }
+      if (A.at(ii, jj, kk) < 0 && A.cavityComp[(ii * ny + jj) * nz + kk] <= 0) { d[0] += a; d[1] += b; d[2] += e; }
+    }
+    const l = Math.hypot(d[0], d[1], d[2]);
+    return l ? [d[0] / l, d[1] / l, d[2] / l] : [0, 0, 0];
+  }
+  const MAJOR = { LM: 1.7, LAD: 1.45, LCx: 1.45, RCA: 1.5 };
+  function buildCoronaries() {
+    const cor = M.coronary, grp = g3.cor = new THREE.Group(); g3.inner.add(grp);
+    g3.corTubes = []; g3.corPick = [];
+    const posOf = cor.nodes.map((n) => { const o = outwardOf(n.vox); return new THREE.Vector3(n.x + o[0] * 2.4, n.y + o[1] * 2.4, n.z + o[2] * 2.4); });
+    for (const [name, ids0] of Object.entries(cor.branches)) {
+      const par = cor.nodes[ids0[0]].parent, ids = par >= 0 ? [par].concat(ids0) : ids0;
+      if (ids.length < 2) continue;
+      const curve = new THREE.CatmullRomCurve3(ids.map((id) => posOf[id]));
+      const tub = Math.max(6, (ids.length - 1) * 4), rad = 6, r = MAJOR[name] || 1.0;
+      const geo = new THREE.TubeGeometry(curve, tub, r, rad, false);
+      const nv = geo.attributes.position.count, col = new Float32Array(nv * 3), map = new Int32Array(nv);
+      // the joint with the parent belongs to this branch, so occluding a branch's origin greys it
+      for (let v = 0; v < nv; v++) { const ring = Math.floor(v / (rad + 1)); map[v] = ids[Math.max(par >= 0 ? 1 : 0, Math.round(ring / tub * (ids.length - 1)))]; }
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x553333 }));
+      grp.add(mesh); g3.corTubes.push({ geo, col, map });
+      const pick = new THREE.Mesh(new THREE.TubeGeometry(curve, tub, 3.6, rad, false), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      pick.userData.map = map; grp.add(pick); g3.corPick.push(pick);
+    }
+    g3.corPos = posOf;
+    g3.clots = new THREE.Group(); grp.add(g3.clots);
+    g3.restCol = new Float32Array(M.nVox * 3);
+    recolorIschemia();
+  }
+
+  // artery segment name for a tree node, e.g. "proximal LAD"
+  const BRANCH_NAME = { LM: 'left main', LAD: 'LAD', D1: 'first diagonal', D2: 'second diagonal', LCx: 'circumflex', OM1: 'first obtuse marginal', OM2: 'second obtuse marginal', RCA: 'RCA', AM: 'acute marginal', PDA: 'posterior descending', PLV: 'posterolateral branch' };
+  function segmentName(id) {
+    const cor = M.coronary, b = cor.nodes[id].branch, list = cor.branches[b], k = list.indexOf(id), f = k / Math.max(1, list.length - 1);
+    if (b === 'LM') return 'left main';
+    if (!['LAD', 'LCx', 'RCA'].includes(b)) return BRANCH_NAME[b];
+    // proximal = up to the first side branch (D1, OM1, acute marginal)
+    let firstK = Infinity;
+    for (const n of cor.nodes) if (n.parent >= 0 && n.branch !== b && cor.nodes[n.parent].branch === b) firstK = Math.min(firstK, list.indexOf(n.parent));
+    const pos = k <= firstK || f < 0.25 ? 'proximal' : f < 0.65 ? 'mid' : 'distal';
+    return `${pos} ${BRANCH_NAME[b]}`;
+  }
+
+  // territory tint (resting colour per voxel) and artery colours after any change
+  function recolorIschemia() {
+    ui.ischChangedAt = S.t;                                       // beats before this no longer reflect the tissue
+    const rc = g3.restCol, lv = S.ischLevel, occl = S.insults.filter((x) => x.kind === 'occlusion');
+    for (let c = 0; c < M.nVox; c++) {
+      const l = lv ? lv[c] : 0, o = 3 * c;
+      if (l >= 2) { rc[o] = C.necrotic[0]; rc[o + 1] = C.necrotic[1]; rc[o + 2] = C.necrotic[2]; continue; }
+      const k = Math.min(1, l * 1.4);
+      for (let d = 0; d < 3; d++) rc[o + d] = C.rest[d] + (C.ischemic[d] - C.rest[d]) * k;
+    }
+    for (const tb of g3.corTubes) {
+      for (let v = 0; v < tb.map.length; v++) {
+        const dn = occl.some((x) => M.isDownstream(tb.map[v], x.node)), cc = dn ? C.occluded : C.artery;
+        tb.col[3 * v] = cc[0]; tb.col[3 * v + 1] = cc[1]; tb.col[3 * v + 2] = cc[2];
+      }
+      tb.geo.attributes.color.needsUpdate = true;
+    }
+    g3.clots.clear();
+    for (const x of occl) {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(2.8, 14, 10), new THREE.MeshPhongMaterial({ color: 0xffd84a, emissive: 0x6a5200 }));
+      m.position.copy(g3.corPos[x.node]); g3.clots.add(m);
+    }
+    const any = S.insults.length > 0;
+    $('legendIsch').hidden = !any;
   }
 
   // Four-chamber cut: plane through the LV apex and both AV-valve centres;
@@ -668,7 +759,7 @@
     g3.slab.im.visible = cut;
     // clip tissue only: the conduction system stays whole so it can be seen (and clicked)
     for (const m of g3.clipMats) { m.clippingPlanes = cut ? [g3.plane] : null; m.needsUpdate = true; }
-    g3.cs.visible = cut; g3.stencil.visible = cut;
+    g3.cs.visible = cut; g3.stencil.visible = cut; g3.cor.visible = !cut;
     $('legendCs').hidden = !cut;
     $('presetsExt').hidden = cut; $('presetsCut').hidden = !cut; $('cutDepthWrap').hidden = !cut;
     $('legendBlock').hidden = !cut || !Object.keys(S.blocks).length;
@@ -685,8 +776,9 @@
   }
 
   // colour of a cell from its action-potential phase
-  function stateColor(c, t, out, o, restCol) {
+  function stateColor(c, t, out, o, restArr, ro = 0) {
     const s = t - S.tAct[c], apd = S.apd[c], w = S.repW[c] || 100;
+    const restCol = ro || restArr.length > 3 ? [restArr[ro], restArr[ro + 1], restArr[ro + 2]] : restArr;
     let r, g, b;
     if (s < 0 || s >= apd + 0.35 * w) { [r, g, b] = restCol; }
     else if (s < apd - 0.35 * w) {
@@ -701,7 +793,10 @@
 
   function update3D() {
     const t = S.t, vc = g3.voxCol;
-    for (let c = 0; c < M.nVox; c++) if (M.kind[c]) stateColor(c, t, vc, 3 * c, C.rest);
+    const ischemic = S.insults.length > 0, rc = g3.restCol;
+    for (let c = 0; c < M.nVox; c++) if (M.kind[c]) {
+      if (ischemic) stateColor(c, t, vc, 3 * c, rc, 3 * c); else stateColor(c, t, vc, 3 * c, C.rest);
+    }
     for (const m of g3.tissueMeshes) {
       const { vmap, col } = m;
       for (let v = 0; v < vmap.length; v++) {
@@ -798,6 +893,9 @@
     const cut = ui.view !== 'external';
     $('actionNote').textContent = ui.action === 'stimulate'
       ? 'Click the atria for a PAC or the ventricles for a PVC.'
+      : ui.action === 'ischemia'
+        ? (cut ? 'Click ventricular muscle on the cut face for subendocardial ischemia around that point.'
+          : 'Click a coronary artery to occlude it there (transmural ischemia downstream). Use Cutaway for subendocardial ischemia.')
       : cut ? 'Click the SA node, AV node, His bundle, a bundle branch or a fascicle to choose a block.'
         : 'Switch to Cutaway to reach the conduction system. The SA node (white dot) can be clicked here.';
   }
@@ -813,7 +911,7 @@
       const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
       hideBlockMenu();
-      if (ui.action === 'block') pickBlock(ray, x, y); else pickStimulus(ray, x, y);
+      if (ui.action === 'block') pickBlock(ray, x, y); else if (ui.action === 'ischemia') pickIschemia(ray, x, y); else pickStimulus(ray, x, y);
     });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideBlockMenu(); });
     $('blockMenuCancel').addEventListener('click', hideBlockMenu);
@@ -844,6 +942,69 @@
       flash(x, y, refractory ? 'No capture (refractory)' : rec.kind === 'atrial' ? 'PAC' : 'PVC');
       return;
     }
+  }
+
+  function pickIschemia(ray, x, y) {
+    const cut = ui.view !== 'external';
+    let added = null;
+    if (!cut) {
+      let hit = ray.intersectObjects(g3.corPick, false)[0], node = -1;
+      if (hit) node = hit.object.userData.map[hit.face.a];
+      else {                                                    // a click on the surface near an artery counts
+        const th = ray.intersectObjects(g3.pickTissue, false)[0];
+        if (th) {
+          const p = g3.inner.worldToLocal(th.point.clone()); let bd = 100;
+          g3.corPos.forEach((q, i) => { const d = q.distanceToSquared(p); if (d < bd) { bd = d; node = i; } });
+        }
+      }
+      if (node < 0) { flash(x, y, 'Click a coronary artery'); return; }
+      if (S.insults.some((v) => v.kind === 'occlusion' && v.node === node)) { flash(x, y, 'Already occluded here'); return; }
+      added = S.addOcclusion(node);
+      flash(x, y, `Occluded: ${segmentName(node)}`);
+    } else {
+      for (const hit of ray.intersectObjects(g3.pickTissue.concat([g3.slab.im]), false)) {
+        if (hit.object !== g3.slab.im && g3.plane.distanceToPoint(hit.point) < -0.3) continue;
+        const p = g3.inner.worldToLocal(hit.point.clone());
+        const c = nearestTissue(p.x, p.y, p.z, hit.object === g3.slab.im ? 1 : 3);
+        if (c < 0) continue;
+        if (A.label[c] !== 1 && A.label[c] !== 2) { flash(x, y, 'Click ventricular muscle'); return; }
+        added = S.addSubendocardial(c, 36);
+        flash(x, y, 'Subendocardial ischemia');
+        break;
+      }
+      if (!added) { flash(x, y, 'Click ventricular muscle'); return; }
+    }
+    if (ui.ischH === 0) setIschTime(1);                         // start an hour in, so the change is visible
+    else S.setIschemiaTime(ui.ischH);
+    recolorIschemia(); renderIschList(); interpret(true);
+  }
+
+  function insultLabel(v) {
+    if (v.kind === 'occlusion') return `Occlusion: ${segmentName(v.node)}`;
+    const c = v.cell, wall = A.label[c] === 2 ? 'RV' : Math.abs(A.phi[c]) < 0.4 ? 'septal' : A.phi[c] > 0.7 && A.phi[c] < 2.2 ? 'anterior' : A.phi[c] < -0.7 && A.phi[c] > -2.2 ? 'inferior' : 'lateral';
+    return `Subendocardial: ${wall} wall`;
+  }
+  function renderIschList() {
+    const list = S.insults;
+    $('ischWrap').hidden = !list.length;
+    $('ischList').innerHTML = list.map((v) => `<div class="bchip isch"><span>${insultLabel(v)}</span><button type="button" data-id="${v.id}" aria-label="Remove">×</button></div>`).join('');
+    for (const b of $('ischList').querySelectorAll('button')) b.addEventListener('click', () => {
+      S.removeInsult(+b.dataset.id); recolorIschemia(); renderIschList(); interpret(true);
+    });
+    $('ischStage').textContent = ischStage(ui.ischH);
+  }
+  function ischStage(h) {
+    if (!S.insults.length) return '';
+    if (h < 0.05) return 'Onset: no electrical change yet.';
+    if (h < 0.4) return 'Minutes: K-ATP channels shorten the action potential. Hyperacute T waves, little ST change yet.';
+    if (h < 2) return 'Acute injury: depolarised ischemic cells drive an injury current. ST elevation over the territory, reciprocal depression opposite.';
+    if (h < 5) return 'Necrosis spreads from endocardium toward epicardium. Dead, uncoupled muscle no longer contributes to the QRS: Q waves form.';
+    return 'Evolving infarct: Q waves established, ST elevation easing, T waves inverting over the border zone.';
+  }
+  function fmtHours(h) { return h < 1 ? `${Math.round(h * 60)} min` : `${+h.toFixed(2)} h`; }
+  function setIschTime(h) {
+    ui.ischH = h; $('ischTime').value = h; $('ischVal').textContent = fmtHours(h);
+    S.setIschemiaTime(h); $('ischStage').textContent = ischStage(h);
   }
 
   // ---------------------------------------------------------------------------
@@ -1006,7 +1167,7 @@
     else if (fired('junctional')) rhythm = 'Junctional escape rhythm';
     else if (fired('ventricular') || fired('idioventricular')) rhythm = 'Ventricular escape rhythm';
     else rhythm = sinusLabel(aRate || rate);
-    if (B.AVN && B.AVN.type === 'first') rhythm += ' with 1st-degree AV block';
+    if ((B.AVN && B.AVN.type === 'first') || (!B.AVN && !avComplete && PR !== null && PR > 200 && !prVar)) rhythm += ' with 1st-degree AV block';
     // ventricular conduction
     const iv = [];
     if (!avComplete) {
@@ -1040,6 +1201,106 @@
       chip('QT/QTc', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 460),
       chip(axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
+    const f = ischFindings(vb);
+    $('findings').innerHTML = f.map((x, i) => `<li${i === 0 && x.head ? ' class="head"' : ''}>${x.text || x}</li>`).join('');
+  }
+
+  // ST, Q and T measurements on the last complete beat, read off the ECG
+  // like a reader would: ST at J + 40 ms against the PR segment, pathological
+  // Q (≥ 30 ms and ≥ 0.1 mV), T polarity and size against this heart's own
+  // healthy T waves.
+  const L_IDX = Object.fromEntries(LH.LEADS.map((n, k) => [n, k]));
+  const CONTIG = [['II', 'III', 'aVF'], ['I', 'aVL'], ['V1', 'V2'], ['V2', 'V3'], ['V3', 'V4'], ['V4', 'V5'], ['V5', 'V6'], ['I', 'V6'], ['aVL', 'I']];
+  function measureBeat(vb) {
+    const at = (k, t) => ecg.buf[k][((Math.round(t) % PAGE) + PAGE) % PAGE];
+    const out = {};
+    for (const [n, k] of Object.entries(L_IDX)) {
+      const base = at(k, vb.on - 15), J = vb.last + 6;
+      const st = at(k, J + 40) - base;
+      let qDur = 0, qAmp = 0, rMax = 0;
+      for (let t = vb.on; t < vb.on + 60; t++) { const v = at(k, t) - base; if (v > 0.05) break; if (v < -0.04) qDur = t - vb.on + 1; qAmp = Math.min(qAmp, v); }
+      for (let t = vb.on; t <= J; t++) rMax = Math.max(rMax, at(k, t) - base);
+      let tv = 0; for (let t = J + 60; t < vb.repEnd + 40; t++) { const v = at(k, t) - base; if (Math.abs(v) > Math.abs(tv)) tv = v; }
+      out[n] = { st, qDur, qAmp, rMax, t: tv };
+    }
+    return out;
+  }
+  function ischFindings(vb) {
+    if (!vb || !isFinite(vb.repEnd)) return [];
+    if (vb.on < (ui.ischChangedAt || 0) + 1500) return S.insults.length ? [{ head: true, text: 'Updating…' }] : [];   // wait for a beat (and the baseline filter) to settle
+    const m = measureBeat(vb);
+    if (!S.insults.length) {                                      // remember this heart's healthy beat
+      if (!Object.keys(S.blocks).length) ui.ref = m;
+      return [];
+    }
+    const ste = (n) => m[n].st >= (n === 'V2' || n === 'V3' ? 0.15 : 0.1);
+    const std = (n) => m[n].st <= -0.08;
+    const contiguous = (pred) => { const hit = new Set(); for (const g of CONTIG) if (g.filter(pred).length >= 2) g.filter(pred).forEach((n) => hit.add(n)); return hit; };
+    const order = (set) => LH.LEADS.filter((n) => set.has(n));
+    const span = (list) => {                                      // "V2–V4", "II, III, aVF"
+      const v = list.filter((n) => n[0] === 'V').map((n) => +n.slice(1)), limb = list.filter((n) => n[0] !== 'V');
+      const parts = limb.slice();
+      if (v.length) {
+        let a = v[0], b = v[0];
+        const flush = () => parts.push(a === b ? `V${a}` : b === a + 1 ? `V${a}, V${b}` : `V${a}–V${b}`);
+        for (const x of v.slice(1)) { if (x === b + 1) b = x; else { flush(); a = b = x; } }
+        flush();
+      }
+      return parts.join(', ');
+    };
+    const E = contiguous(ste), D = new Set(LH.LEADS.filter(std));
+    const inf = ['II', 'III', 'aVF'].filter((n) => E.has(n)).length >= 2;
+    const ant = ['V1', 'V2', 'V3', 'V4'].filter((n) => E.has(n)).length >= 2;
+    const lat = ['I', 'aVL', 'V5', 'V6'].filter((n) => E.has(n)).length >= 2;
+    const post = ['V1', 'V2', 'V3'].filter((n) => D.has(n) && !E.has(n)).length >= 2;
+    // new findings only: compared with this heart's own healthy beat
+    // (without a healthy reference yet, leads with normal Q/negative T are skipped)
+    const ref = ui.ref, NORMQ = ['aVR', 'aVL', 'III', 'V1'], was = (n, f) => (ref ? f(ref[n]) : NORMQ.includes(n));
+    const isQ = (v) => v.qDur >= 30 && v.qAmp <= -0.1;
+    const Q = order(new Set(LH.LEADS.filter((n) => n !== 'aVR' && isQ(m[n]) && !was(n, isQ))));
+    const hyper = ref ? order(new Set(LH.LEADS.filter((n) => ref[n].t > 0.15 && m[n].t > ref[n].t * 1.35 && m[n].t > 0.3 && Math.abs(m[n].st) < 0.25))) : [];
+    const twi = order(new Set(LH.LEADS.filter((n) => !['aVR', 'V1', 'III'].includes(n) && m[n].t < -0.1 && !was(n, (r) => r.t < -0.05))));
+    const out = [];
+    const sub = S.insults.every((x) => x.kind === 'subendo');
+    if (sub) {
+      // subendocardial injury points into the cavity: ST depression over the
+      // region (elevation in the opposite leads is its mirror image, not a STEMI)
+      const Ds = order(new Set(LH.LEADS.filter((n) => m[n].st <= -0.05))), Es = order(new Set(LH.LEADS.filter((n) => m[n].st >= 0.08)));
+      if (Ds.length >= 2) {
+        out.push({ head: true, text: `ST depression in ${span(Ds)}: subendocardial ischemia (NSTEMI pattern)` });
+        if (Es.length) out.push(`ST elevation in ${span(Es)} mirrors the depression (no transmural injury)`);
+      } else if (ui.ischH > 0.04) out.push({ head: true, text: 'Subendocardial ischemia here produces no diagnostic ST change' });
+      if (twi.length) out.push(`T-wave inversion in ${span(twi)}`);
+      return out;
+    }
+    if (inf || ant || lat) {
+      const where = [ant && (lat ? 'anterolateral' : 'anterior'), inf && (lat && !ant ? 'inferolateral' : 'inferior'), lat && !ant && !inf && 'lateral'].filter(Boolean).join(' and ');
+      const stage = Q.length ? (twi.length ? 'evolving' : 'acute') : 'acute';
+      out.push({ head: true, text: `${stage[0].toUpperCase() + stage.slice(1)} ${where} STEMI: ST elevation in ${span(order(E))}` });
+      const recip = order(new Set([...D].filter((n) => n !== 'aVR' || !inf)));
+      if (recip.length) out.push(`Reciprocal ST depression in ${span(recip)}`);
+      if (inf && E.has('V1')) out.push('ST elevation in V1 with an inferior STEMI suggests right ventricular involvement (record right-sided leads)');
+      if (post && !ant) out.push('ST depression in V1–V3 suggests posterior extension');
+    } else if (post) {
+      out.push({ head: true, text: `ST depression in ${span(['V1', 'V2', 'V3'].filter((n) => D.has(n)))}: consider posterior STEMI (record V7–V9)` });
+    } else if (hyper.length >= 2) {
+      out.push({ head: true, text: `Hyperacute T waves in ${span(hyper)}: earliest sign of coronary occlusion` });
+      if (D.size) out.push(`ST depression in ${span(order(D))}`);
+    } else if (D.size >= 2) {
+      out.push({ head: true, text: `ST depression in ${span(order(D))}${m.aVR.st >= 0.08 ? ', ST elevation in aVR' : ''}: ischemia` });
+    } else if (ui.ischH > 0.04) {
+      out.push({ head: true, text: 'No diagnostic ST change in the 12 leads' });
+    }
+    const hyperE = hyper.filter((n) => E.has(n));
+    if (hyperE.length >= 2 && out.length && !out[0].text.startsWith('Hyperacute')) out.push(`Hyperacute T waves in ${span(hyperE)}`);
+    if (Q.length) out.push(`Pathological Q waves in ${span(Q)}`);
+    if (twi.length) out.push(`T-wave inversion in ${span(twi)}`);
+    const san = S.insults.some((x) => x.nodal && x.nodal.san), avn = S.insults.some((x) => x.nodal && x.nodal.avn);
+    if (ui.ischH > 0.1 && (san || avn)) out.push(san && avn
+      ? 'The occlusion is proximal to the sinus-node and AV-node arteries: sinus slowing and a longer PR'
+      : san ? 'The occlusion is proximal to the sinus-node artery: sinus slowing'
+        : 'The occlusion is proximal to the AV-node artery at the crux: slower AV conduction, longer PR');
+    return out;
   }
 
   // ---------------------------------------------------------------------------
@@ -1059,8 +1320,13 @@
       if (ui.leads && g3.camera.position.length() < 600) { g3.camera.position.setLength(660); g3.controls.update(); }
     });
     $('btnPause').addEventListener('click', () => { ui.paused = !ui.paused; $('btnPause').textContent = ui.paused ? 'Resume' : 'Pause'; });
-    $('btnReset').addEventListener('click', () => { newSim(); renderBlockList(); hideBlockMenu(); });
-    for (const id of ['actStim', 'actBlock']) $(id).addEventListener('change', (e) => { ui.action = e.target.value; updateActionNote(); hideBlockMenu(); });
+    $('btnReset').addEventListener('click', () => { newSim(); renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); });
+    $('ischTime').addEventListener('input', (e) => {
+      ui.ischH = +e.target.value; $('ischVal').textContent = fmtHours(ui.ischH); $('ischStage').textContent = ischStage(ui.ischH);
+      ui.ischPending = ui.ischH;                                  // applied once per frame
+    });
+    $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); recolorIschemia(); renderIschList(); interpret(true); });
+    for (const id of ['actStim', 'actBlock', 'actIsch']) $(id).addEventListener('change', (e) => { ui.action = e.target.value; updateActionNote(); hideBlockMenu(); });
     initPicking(); updateActionNote();
     for (const b of $('presetsExt').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     for (const b of $('presetsCut').querySelectorAll('button')) b.addEventListener('click', () => cutPreset(b.dataset.cut));
