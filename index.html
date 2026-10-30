@@ -696,6 +696,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
+    septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
     ischBlockInj: 0.7,     // injury level above which living ischaemic muscle (after 2 h) no longer conducts
@@ -1206,7 +1207,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     // node that supplies it (septum: anterior 2/3 LAD, inferior 1/3 PDA; apex:
     // LAD; RV: RCA/acute marginal; free wall: nearest surface branch).
     _buildCoronaries() {
-      const A = this.A, lm = A.landmarks;
+      const A = this.A, P = this.P, lm = A.landmarks;
       const epiV = (c) => A.epi[c] && (A.label[c] === LAB.LV || A.label[c] === LAB.RV);
       const lvEpi = (phi, zz) => this._nearestWhere((c) => A.label[c] === LAB.LV && A.epi[c] && A.zuvc[c] >= 0, (c) => {
         let dp = Math.abs(A.phi[c] - phi); if (dp > Math.PI) dp = 2 * Math.PI - dp;
@@ -1264,20 +1265,18 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const nearestOf = (list, c, metric) => { let b = -1, bd = Infinity; for (const id of list) { const d = metric(c, id); if (d < bd) { bd = d; b = id; } } return b; };
       const zOnly = (c, id) => Math.abs(A.zuvc[c] - nodes[id].zz);
       const euc = (c, id) => { const n = nodes[id]; return (A.pos[3 * c] - n.x) ** 2 + (A.pos[3 * c + 1] - n.y) ** 2 + (A.pos[3 * c + 2] - n.z) ** 2; };
-      // Septal perforators arise from the proximal and mid LAD (the apical third
-      // gives few): the septum at apicobasal level z is supplied from this
-      // fraction of the LAD's length, so a mid-LAD occlusion (beyond D1) takes
-      // nearly all the anterior septum (anteroseptal QS V1–V3) and a distal one
-      // almost none; proximal occlusions add the high lateral (D1) wall.
-      const SEPT = [[0, 0.72], [0.3, 0.62], [0.55, 0.55], [0.8, 0.48], [1, 0.4]];
-      const septalF = (z) => { z = Math.max(0, Math.min(1, z)); for (let i = 1; i < SEPT.length; i++) if (z <= SEPT[i][0]) { const [z0, f0] = SEPT[i - 1], [z1, f1] = SEPT[i]; return f0 + (f1 - f0) * (z - z0) / (z1 - z0); } return 0.05; };
+      // Septal perforators run from the LAD into the septum and fan out a
+      // little: the septum at apicobasal level z is supplied from the LAD at
+      // level z − septalSpread (a perforator reaches ~1.3 cm above its origin
+      // and everything below it). The drawn LAD and the septum stay consistent:
+      // the further up the LAD an occlusion, the more septum (and septal Q waves).
       const voxNode = new Int32Array(A.n).fill(-1);
       for (let c = 0; c < A.n; c++) {
         const L = A.label[c]; if (L !== LAB.LV && L !== LAB.RV) continue;
         const ph = A.phi[c], zz = A.zuvc[c];
         if (L === LAB.RV) voxNode[c] = nearestOf(rvNodes, c, euc);
         else if (zz >= 0 && zz < 0.2) voxNode[c] = nearestOf(branches.LAD, c, euc);                 // apex: wrap-around LAD
-        else if (ph > 0.1 && ph < 1.7) voxNode[c] = branches.LAD[Math.round(septalF(zz) * (branches.LAD.length - 1))];   // septum (LAD perforators)
+        else if (ph > 0.1 && ph < 1.7) voxNode[c] = nearestOf(branches.LAD, c, (x, id) => Math.abs(nodes[id].zz - (zz - P.septalSpread)));   // septum (LAD perforators)
         else if (ph > -0.7 && ph <= 0.1) voxNode[c] = nearestOf(branches.PDA, c, zOnly);                                   // inferior septum (PDA)
         else voxNode[c] = nearestOf(lvSurface, c, uvcDist);
       }

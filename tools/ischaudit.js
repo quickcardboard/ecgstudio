@@ -3,7 +3,7 @@
 const fs = require('fs'); const LH = require('../src/engine.js');
 const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json')));
 const M = new LH.Model(A, JSON.parse(process.env.MP || '{}')); const C = M.coronary, br = C.branches;
-const SITES = { LM: br.LM[0], pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * 0.4)], dLAD: br.LAD[Math.round(br.LAD.length * 0.7)],
+const SITES = { LM: br.LM[0], pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * 0.3)], dLAD: br.LAD[Math.round(br.LAD.length * 0.7)],
   pLCx: br.LCx[0], dLCx: br.LCx[Math.round(br.LCx.length * 0.6)], pRCA: br.RCA[0], mRCA: br.RCA[Math.round(br.RCA.length * 0.45)], dRCA: br.RCA[Math.round(br.RCA.length * 0.8)], PDA: br.PDA[0] };
 const L = LH.LEADS;
 function beat(S) {

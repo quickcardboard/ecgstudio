@@ -222,10 +222,12 @@ re-entry.
 
 ### Round 9
 
-- **Mid-LAD Q waves:** septal perforators (S2, S3…) from the mid LAD supply nearly the whole anterior septum, so a
-  mid-LAD occlusion gives anteroseptal QS (V1–V2 from 4 h, V1–V3 by 2 days) while a proximal one adds the high lateral
-  wall (Q in I, aVL). Early coupling of necrotic muscle 30% (was 50%), which keeps ST elevation clear at 12 h without
-  masking the QS.
+- **Mid-LAD Q waves:** septal perforators run from the LAD into the septum and fan out a little: the septum at level z
+  is supplied from the LAD at z − 0.15 (`septalSpread`), so the drawn LAD and the septal territory stay consistent
+  (an occlusion never infarcts septum well above it). The more proximal the occlusion, the more septal Q: just past
+  D1 or at 30% of the LAD, QS V1–V3 (V1 from 4 h, V1–V3 by 2 days); at 60%, anterior/apical changes only; proximal
+  adds the high lateral wall (Q in I, aVL). Early coupling of necrotic muscle 30% (was 50%), which keeps ST elevation
+  clear at 12 h without masking the QS. `tools/ischaudit.js` samples mid LAD at 30%.
 - **Smoother QRS at full speed:** phase-transition events are chained (each schedules the next) instead of ten being
   queued per cell during the QRS, the propagation loop skips the recovery term for fully recovered tissue, and the app
   caps simulation work at ~9 ms per frame, carrying the rest into the following frames. Worst 40-step chunk 59 → 33 ms.
