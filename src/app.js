@@ -1212,10 +1212,11 @@
     const B = S.blocks;
     const escapeOnly = B.RBB && (B.LBB || (B.LAF && B.LPF)) || (B.HIS && B.HIS.type === 'complete') || (B.AVN && B.AVN.type === 'complete');
     const axisWin = B.RBB && !B.LBB && !escapeOnly && QRS >= 110 ? 60 : QRS;
-    let aI = 0, aF = 0; const base = Math.floor(vb.on - 15) % PAGE;
-    for (let t = Math.floor(vb.on); t <= Math.ceil(vb.on + axisWin); t++) {
-      const i = t % PAGE; aI += ecg.buf[0][i] - ecg.buf[0][base]; aF += ecg.buf[5][i] - ecg.buf[5][base];
-    }
+    // (QRS areas against the level at QRS onset, so a P or atrial T wave running into the QRS does not tilt them)
+    // baseline: straight line from QRS onset to J point (removes the slow atrial T wave underneath)
+    let aI = 0, aF = 0; const t0 = Math.floor(vb.on), tJ = Math.ceil(vb.last + 6), b = (k, t) => ecg.buf[k][t % PAGE];
+    const lin = (k, t) => b(k, t0) + (b(k, tJ) - b(k, t0)) * (t - t0) / (tJ - t0);
+    for (let t = t0; t <= Math.ceil(vb.on + axisWin); t++) { aI += b(0, t) - lin(0, t); aF += b(5, t) - lin(5, t); }
     const axis = Math.round(Math.atan2(aF, aI) * 180 / Math.PI);
 
     // ---- rhythm (ground truth)
@@ -1294,11 +1295,17 @@
   // healthy T waves.
   const L_IDX = Object.fromEntries(LH.LEADS.map((n, k) => [n, k]));
   const CONTIG = [['II', 'III', 'aVF'], ['I', 'aVL'], ['V1', 'V2'], ['V2', 'V3'], ['V3', 'V4'], ['V4', 'V5'], ['V5', 'V6'], ['I', 'V6'], ['aVL', 'I']];
+  // baseline for QRS/ST measurements: the PR segment, or just before the P
+  // wave when a long P (LA enlargement) runs into the QRS
+  function qrsBaseT(vb) {
+    const ab = S.log.atrial.filter((x) => x.on < vb.on - 30 && x.on > vb.on - 450).pop();
+    return ab && ab.last + 20 > vb.on - 15 ? ab.on - 8 : vb.on - 15;
+  }
   function measureBeat(vb) {
     const at = (k, t) => ecg.buf[k][((Math.round(t) % PAGE) + PAGE) % PAGE];
     const out = {};
     for (const [n, k] of Object.entries(L_IDX)) {
-      const base = at(k, vb.on - 15), J = vb.last + 6;
+      const base = at(k, qrsBaseT(vb)), J = vb.last + 6;
       const st = at(k, J + 40) - base;
       let qDur = 0, qAmp = 0, rMax = 0;
       for (let t = vb.on; t < vb.on + 60; t++) { const v = at(k, t) - base; if (v > 0.05) break; if (v < -0.04) qDur = t - vb.on + 1; qAmp = Math.min(qAmp, v); }
@@ -1318,12 +1325,22 @@
     const ab = S.log.atrial.filter((x) => x.on < vb.on - 30 && x.on > vb.on - 400).pop();
     if (ab && S.t > ab.on + 400) {
       const base = at(1, ab.on - 8); let pII = 0;
-      for (let t = ab.on; t < Math.min(ab.last + 25, vb.on - 2); t++) pII = Math.max(pII, at(1, t) - base);
+      const pw = [];
+      for (let t = ab.on; t < Math.min(ab.last + 25, vb.on - 2); t++) { const v = at(1, t) - base; pw.push(v); pII = Math.max(pII, v); }
+      // notch: two humps at least 40 ms apart with a dip between them
+      const pk = []; for (let i = 3; i < pw.length - 3; i++) if (pw[i] > 0.05 && pw[i] >= pw[i - 3] && pw[i] >= pw[i + 3] && pw[i] >= pw[i - 1] && pw[i] >= pw[i + 1]) pk.push(i);
+      let notch = 0;
+      for (let a = 0; a < pk.length; a++) for (let b = a + 1; b < pk.length; b++) {
+        if (pk[b] - pk[a] < 40) continue;
+        const dip = Math.min(...pw.slice(pk[a], pk[b])), lo = Math.min(pw[pk[a]], pw[pk[b]]);
+        if (lo - dip > 0.015) notch = Math.max(notch, pk[b] - pk[a]);
+      }
       const pDur = ab.last - ab.on + 12;                          // atrial activation plus the last front's own width
       const tall = pII >= 0.25, broad = pDur >= 120;
-      if (tall && broad) out.push(`Biatrial enlargement: P ${pII.toFixed(2)} mV in II and ${Math.round(pDur)} ms wide`);
+      const notchTxt = notch ? `, notched in II (humps ${Math.round(notch)} ms apart)` : '';
+      if (tall && broad) out.push(`Biatrial enlargement: P ${pII.toFixed(2)} mV in II and ${Math.round(pDur)} ms wide${notchTxt}`);
       else if (tall) out.push(`Right atrial enlargement (P pulmonale): P ${pII.toFixed(2)} mV in II`);
-      else if (broad) out.push(`Left atrial enlargement (P mitrale): P ${Math.round(pDur)} ms wide`);
+      else if (broad) out.push(`Left atrial enlargement (P mitrale): P ${Math.round(pDur)} ms wide${notchTxt}`);
     }
     const PR = ab ? vb.on - ab.on : null, QRS = vb.last - vb.on + 4;
     if (S.ap && PR !== null && PR < 120) out.push(`Ventricular pre-excitation (WPW pattern): short PR (${Math.round(PR)} ms), delta wave, QRS ${Math.round(QRS)} ms. Repolarization changes are secondary.`);

@@ -364,7 +364,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Click on the heart to Block:</b> in the cutaway, click any part of the conduction system and choose a block. The SA node offers SA exit block, a sinus pause or sinus arrest. The AV node offers 1st-degree, Mobitz I (Wenckebach), 2:1 and complete block. The His bundle offers Mobitz II and complete block. The bundle branches and fascicles can each be blocked. Blocked segments turn red, or orange for partial blocks, and are listed under Active blocks, where you can remove them. Escape rhythms appear only when conduction above them is lost.</li>
       <li><b>Click on the heart for Ischemia:</b> in the external view the main epicardial coronary arteries are drawn in red: the left main trunk dividing into the LAD and the circumflex, and the right coronary artery giving the posterior descending artery (a right-dominant heart). Each artery's territory includes the muscle fed by its smaller side branches. Click an artery to occlude it at that point. A yellow marker shows the occlusion, the vessel beyond it turns grey, and everything it supplies becomes transmurally ischemic (tinted purple, necrotic muscle grey). In the cutaway, click ventricular muscle on the cut face for subendocardial ischemia in a patch of that wall. Occlusions and patches are listed in the panel, where each can be removed.</li>
       <li><b>Time since onset</b> moves every ischemic region along the same time course. It stops only where the ECG changes character: onset, 15 min, 1 h, 4 h, 12 h, 2 days and 1 month. In the first minutes, K-ATP channels shorten the action potential: hyperacute T waves. Over the first half hour, depolarized ischemic cells drive an injury current: ST elevation over the territory with reciprocal depression opposite. Necrosis then advances from endocardium to epicardium over about six hours. Dead muscle loses its gap junctions and drops out of the QRS, so Q waves form. From about 12 hours the ST elevation eases and the T wave starts to invert. By 2 days the ST segment is back near baseline with deep symmetric T inversion. At 1 month the Q waves remain and the T waves are upright again. A proximal right coronary occlusion also starves the sinus-node and AV-node arteries, slowing the sinus rate and lengthening the PR; an occlusion beyond the crux slows only the AV node. A thin subendocardial patch gives ST depression rather than elevation.</li>
-      <li><b>Structure:</b> RAE and LAE enlarge an atrium. The enlarged atrium carries more muscle, so its sources are stronger; LAE also slows conduction through Bachmann's bundle and the left atrium. RAE gives a tall, peaked P wave in II (P pulmonale); LAE a broad P wave over 120 ms (P mitrale). LVH and RVH rebuild the heart with a thicker free wall: about 6 mm extra on the LV, 10 mm on the RV. Hypertrophied muscle carries more current, and the transmural repolarization gradient reverses ("strain"). LVH gives Sokolow–Lyon voltage with T inversion in I, aVL and V6; RVH a dominant R in V1, right axis deviation and T inversion in V1–V2. Building a configuration the first time takes a few seconds; after that it is kept, so switching back is immediate. Switching clears blocks and ischemia.</li>
+      <li><b>Structure:</b> RAE and LAE enlarge an atrium. The enlarged atrium carries more muscle, so its sources are stronger; LAE also delays conduction from the right atrium into the left, across Bachmann's bundle and the inferior connections, so the left atrium fires as a separate, later wave. RAE gives a tall, peaked P wave in II (P pulmonale). LAE gives a broad P wave of about 150 ms with two humps, right then left atrium, about 80 ms apart (P mitrale). LVH and RVH rebuild the heart with a thicker free wall: about 6 mm extra on the LV, 10 mm on the RV. Hypertrophied muscle carries more current, and the transmural repolarization gradient reverses ("strain"). LVH gives Sokolow–Lyon voltage with T inversion in I, aVL and V6; RVH a dominant R in V1, right axis deviation and T inversion in V1–V2. Building a configuration the first time takes a few seconds; after that it is kept, so switching back is immediate. Switching clears blocks and ischemia.</li>
       <li><b>Accessory pathway (WPW):</b> adds a fast, non-decremental muscle bridge across the AV ring at the chosen site (shown in blue). The ventricle near it is excited early, giving a short PR and a delta wave. The rest of the ventricle fuses with normally conducted activation, so the QRS is wide. The pathway also conducts backwards. <b>Triggering AVRT:</b> with a left lateral or left posterior pathway, click the left atrium for a PAC about 240–320 ms after the start of a P wave, which is during the QRS or early ST segment. The pathway is still refractory, so the PAC conducts down the AV node alone, with a narrow QRS. It then returns to the atria up the pathway and circles: orthodromic AVRT at about 190 bpm, with a retrograde P wave just after each QRS. Slowing time with the time scale makes the click easier. Reset ends it.</li>
       <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest and clears all blocks and ischemia.</li>
     </ul>
@@ -572,7 +572,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
     // Atrial enlargement (see Sim.setAtrialEnlargement)
     raeGain: 2.4, raeSlow: 0.85,
-    laeGain: 1.2, laeSlow: 1.3, laeBachmannSlow: 4.0,
+    laeGain: 1.8, laeSlow: 0.85, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 40,
 
     // Ischaemia (see Sim._ischemicState)
     ischBorderMm: 9,       // border-zone width over which severity rises to the core value
@@ -1743,15 +1743,38 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     setAtrialEnlargement({ ra = false, la = false } = {}) {
       const M = this.M, A = M.A, P = this.P;
       this.atria = { ra, la };
+      // LA enlargement: slow conduction from the right atrium into the left
+      // across every connection (Bachmann's bundle and the inferior ones), so
+      // the LA fires later as a separate wave: the second hump of a notched P
+      // wave. (Only RA→LA: the way back meets refractory RA, so no re-entry.)
+      if (!this._atrialSide) { this._atrialSide = new Int8Array(M.nVox); for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.ATRIAL) this._atrialSide[c] = A.label[c] === LAB.RA ? 1 : -1; }
+      this._iaSlow = la ? P.laeInteratrialEdgeSlow : 0;
       for (let c = 0; c < M.nVox; c++) {
         if (M.kind[c] !== KIND.ATRIAL) continue;
         const isRA = A.label[c] === LAB.RA, on = isRA ? ra : la;
         this.vAmp[c] = P.vAmp * (on ? (isRA ? P.raeGain : P.laeGain) : 1);
         let cv = on ? (isRA ? P.raeSlow : P.laeSlow) : 1;
-        if (la && M.seg[c] === SEG.BACHMANN) cv *= P.laeBachmannSlow;
+        // interatrial conduction delay: Bachmann's bundle and any fast tract tissue on the LA side
+        if (la && (M.seg[c] === SEG.BACHMANN || (!isRA && M.seg[c] === SEG.CRISTA))) cv *= P.laeBachmannSlow;
+        if (la && this._interatrial()[c]) cv *= P.laeInteratrialSlow;
         this.cvMul[c] = cv;
       }
       this._rebuildPlateauSums();
+    }
+
+    // atrial cells near the inferior interatrial connections (CS ostium / fossa)
+    _interatrial() {
+      const M = this.M, A = M.A;
+      if (M._interatrialNear) return M._interatrialNear;
+      const near = new Uint8Array(M.nVox), r2 = this.P.laeInteratrialMm ** 2;
+      for (const site of M.interatrialSites) for (const c of site) {
+        const p = A.p(c);
+        for (let q = 0; q < M.nVox; q++) {
+          if (A.label[q] !== LAB.LA || M.seg[q] === SEG.BACHMANN) continue;   // LA side only (the AV-node approaches stay normal)
+          if ((A.pos[3 * q] - p[0]) ** 2 + (A.pos[3 * q + 1] - p[1]) ** 2 + (A.pos[3 * q + 2] - p[2]) ** 2 < r2) near[q] = 1;
+        }
+      }
+      return (M._interatrialNear = near);
     }
 
     // ---- Myocardial ischemia ------------------------------------------------
@@ -1945,6 +1968,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         const j = nb[e];
         if (this.blocked[j]) continue;
         let tau = w0[e] * this.cvMul[j];
+        if (this._iaSlow && j < this.M.nVox && c < this.M.nVox && this._atrialSide[c] > 0 && this._atrialSide[j] < 0) tau *= this._iaSlow;   // RA→LA delay (LAE)
         const tEst = ta + tau;
         if (tEst < this.refEnd[j]) continue;          // will meet refractory tissue
         const dij = tEst - this.repEnd[j];
@@ -3400,10 +3424,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const B = S.blocks;
     const escapeOnly = B.RBB && (B.LBB || (B.LAF && B.LPF)) || (B.HIS && B.HIS.type === 'complete') || (B.AVN && B.AVN.type === 'complete');
     const axisWin = B.RBB && !B.LBB && !escapeOnly && QRS >= 110 ? 60 : QRS;
-    let aI = 0, aF = 0; const base = Math.floor(vb.on - 15) % PAGE;
-    for (let t = Math.floor(vb.on); t <= Math.ceil(vb.on + axisWin); t++) {
-      const i = t % PAGE; aI += ecg.buf[0][i] - ecg.buf[0][base]; aF += ecg.buf[5][i] - ecg.buf[5][base];
-    }
+    // (QRS areas against the level at QRS onset, so a P or atrial T wave running into the QRS does not tilt them)
+    // baseline: straight line from QRS onset to J point (removes the slow atrial T wave underneath)
+    let aI = 0, aF = 0; const t0 = Math.floor(vb.on), tJ = Math.ceil(vb.last + 6), b = (k, t) => ecg.buf[k][t % PAGE];
+    const lin = (k, t) => b(k, t0) + (b(k, tJ) - b(k, t0)) * (t - t0) / (tJ - t0);
+    for (let t = t0; t <= Math.ceil(vb.on + axisWin); t++) { aI += b(0, t) - lin(0, t); aF += b(5, t) - lin(5, t); }
     const axis = Math.round(Math.atan2(aF, aI) * 180 / Math.PI);
 
     // ---- rhythm (ground truth)
@@ -3482,11 +3507,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   // healthy T waves.
   const L_IDX = Object.fromEntries(LH.LEADS.map((n, k) => [n, k]));
   const CONTIG = [['II', 'III', 'aVF'], ['I', 'aVL'], ['V1', 'V2'], ['V2', 'V3'], ['V3', 'V4'], ['V4', 'V5'], ['V5', 'V6'], ['I', 'V6'], ['aVL', 'I']];
+  // baseline for QRS/ST measurements: the PR segment, or just before the P
+  // wave when a long P (LA enlargement) runs into the QRS
+  function qrsBaseT(vb) {
+    const ab = S.log.atrial.filter((x) => x.on < vb.on - 30 && x.on > vb.on - 450).pop();
+    return ab && ab.last + 20 > vb.on - 15 ? ab.on - 8 : vb.on - 15;
+  }
   function measureBeat(vb) {
     const at = (k, t) => ecg.buf[k][((Math.round(t) % PAGE) + PAGE) % PAGE];
     const out = {};
     for (const [n, k] of Object.entries(L_IDX)) {
-      const base = at(k, vb.on - 15), J = vb.last + 6;
+      const base = at(k, qrsBaseT(vb)), J = vb.last + 6;
       const st = at(k, J + 40) - base;
       let qDur = 0, qAmp = 0, rMax = 0;
       for (let t = vb.on; t < vb.on + 60; t++) { const v = at(k, t) - base; if (v > 0.05) break; if (v < -0.04) qDur = t - vb.on + 1; qAmp = Math.min(qAmp, v); }
@@ -3506,12 +3537,22 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const ab = S.log.atrial.filter((x) => x.on < vb.on - 30 && x.on > vb.on - 400).pop();
     if (ab && S.t > ab.on + 400) {
       const base = at(1, ab.on - 8); let pII = 0;
-      for (let t = ab.on; t < Math.min(ab.last + 25, vb.on - 2); t++) pII = Math.max(pII, at(1, t) - base);
+      const pw = [];
+      for (let t = ab.on; t < Math.min(ab.last + 25, vb.on - 2); t++) { const v = at(1, t) - base; pw.push(v); pII = Math.max(pII, v); }
+      // notch: two humps at least 40 ms apart with a dip between them
+      const pk = []; for (let i = 3; i < pw.length - 3; i++) if (pw[i] > 0.05 && pw[i] >= pw[i - 3] && pw[i] >= pw[i + 3] && pw[i] >= pw[i - 1] && pw[i] >= pw[i + 1]) pk.push(i);
+      let notch = 0;
+      for (let a = 0; a < pk.length; a++) for (let b = a + 1; b < pk.length; b++) {
+        if (pk[b] - pk[a] < 40) continue;
+        const dip = Math.min(...pw.slice(pk[a], pk[b])), lo = Math.min(pw[pk[a]], pw[pk[b]]);
+        if (lo - dip > 0.015) notch = Math.max(notch, pk[b] - pk[a]);
+      }
       const pDur = ab.last - ab.on + 12;                          // atrial activation plus the last front's own width
       const tall = pII >= 0.25, broad = pDur >= 120;
-      if (tall && broad) out.push(`Biatrial enlargement: P ${pII.toFixed(2)} mV in II and ${Math.round(pDur)} ms wide`);
+      const notchTxt = notch ? `, notched in II (humps ${Math.round(notch)} ms apart)` : '';
+      if (tall && broad) out.push(`Biatrial enlargement: P ${pII.toFixed(2)} mV in II and ${Math.round(pDur)} ms wide${notchTxt}`);
       else if (tall) out.push(`Right atrial enlargement (P pulmonale): P ${pII.toFixed(2)} mV in II`);
-      else if (broad) out.push(`Left atrial enlargement (P mitrale): P ${Math.round(pDur)} ms wide`);
+      else if (broad) out.push(`Left atrial enlargement (P mitrale): P ${Math.round(pDur)} ms wide${notchTxt}`);
     }
     const PR = ab ? vb.on - ab.on : null, QRS = vb.last - vb.on + 4;
     if (S.ap && PR !== null && PR < 120) out.push(`Ventricular pre-excitation (WPW pattern): short PR (${Math.round(PR)} ms), delta wave, QRS ${Math.round(QRS)} ms. Repolarization changes are secondary.`);

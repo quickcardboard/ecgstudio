@@ -7,8 +7,8 @@ function pwave(setup) {
   const P0 = Object.assign({}, M.P); Object.assign(M.P, setup.P || {});
   const S = new LH.Sim(M, { seed: 1 }); S.setRate(72);
   if (setup.atria) S.setAtrialEnlargement(setup.atria);
-  const rec = []; S.onSample((t, L) => rec.push(Array.from(L))); S.run(3000);
-  const ab = S.log.atrial[S.log.atrial.length - 2], vb = S.log.vent.find((v) => v.on > ab.on);
+  const rec = []; S.onSample((t, L) => rec.push(Array.from(L))); S.run(3800);
+  const ab = S.log.atrial[S.log.atrial.length - 3], vb = S.log.vent.find((v) => v.on > ab.on);
   const t0 = Math.floor(ab.on), base = rec[t0 - 5], k = (n) => LH.LEADS.indexOf(n);
   // P ends when all leads are back within 0.01 mV of baseline after the last atrial activation + repolarisation of the front
   let t1 = Math.ceil(ab.last); while (t1 < vb.on && LH.LEADS.some((n) => Math.abs(rec[t1][k(n)] - base[k(n)]) > 0.015)) t1++;

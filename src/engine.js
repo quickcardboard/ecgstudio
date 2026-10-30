@@ -185,7 +185,7 @@
 
     // Atrial enlargement (see Sim.setAtrialEnlargement)
     raeGain: 2.4, raeSlow: 0.85,
-    laeGain: 1.2, laeSlow: 1.3, laeBachmannSlow: 4.0,
+    laeGain: 1.8, laeSlow: 0.85, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 40,
 
     // Ischaemia (see Sim._ischemicState)
     ischBorderMm: 9,       // border-zone width over which severity rises to the core value
@@ -1356,15 +1356,38 @@
     setAtrialEnlargement({ ra = false, la = false } = {}) {
       const M = this.M, A = M.A, P = this.P;
       this.atria = { ra, la };
+      // LA enlargement: slow conduction from the right atrium into the left
+      // across every connection (Bachmann's bundle and the inferior ones), so
+      // the LA fires later as a separate wave: the second hump of a notched P
+      // wave. (Only RA→LA: the way back meets refractory RA, so no re-entry.)
+      if (!this._atrialSide) { this._atrialSide = new Int8Array(M.nVox); for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.ATRIAL) this._atrialSide[c] = A.label[c] === LAB.RA ? 1 : -1; }
+      this._iaSlow = la ? P.laeInteratrialEdgeSlow : 0;
       for (let c = 0; c < M.nVox; c++) {
         if (M.kind[c] !== KIND.ATRIAL) continue;
         const isRA = A.label[c] === LAB.RA, on = isRA ? ra : la;
         this.vAmp[c] = P.vAmp * (on ? (isRA ? P.raeGain : P.laeGain) : 1);
         let cv = on ? (isRA ? P.raeSlow : P.laeSlow) : 1;
-        if (la && M.seg[c] === SEG.BACHMANN) cv *= P.laeBachmannSlow;
+        // interatrial conduction delay: Bachmann's bundle and any fast tract tissue on the LA side
+        if (la && (M.seg[c] === SEG.BACHMANN || (!isRA && M.seg[c] === SEG.CRISTA))) cv *= P.laeBachmannSlow;
+        if (la && this._interatrial()[c]) cv *= P.laeInteratrialSlow;
         this.cvMul[c] = cv;
       }
       this._rebuildPlateauSums();
+    }
+
+    // atrial cells near the inferior interatrial connections (CS ostium / fossa)
+    _interatrial() {
+      const M = this.M, A = M.A;
+      if (M._interatrialNear) return M._interatrialNear;
+      const near = new Uint8Array(M.nVox), r2 = this.P.laeInteratrialMm ** 2;
+      for (const site of M.interatrialSites) for (const c of site) {
+        const p = A.p(c);
+        for (let q = 0; q < M.nVox; q++) {
+          if (A.label[q] !== LAB.LA || M.seg[q] === SEG.BACHMANN) continue;   // LA side only (the AV-node approaches stay normal)
+          if ((A.pos[3 * q] - p[0]) ** 2 + (A.pos[3 * q + 1] - p[1]) ** 2 + (A.pos[3 * q + 2] - p[2]) ** 2 < r2) near[q] = 1;
+        }
+      }
+      return (M._interatrialNear = near);
     }
 
     // ---- Myocardial ischemia ------------------------------------------------
@@ -1558,6 +1581,7 @@
         const j = nb[e];
         if (this.blocked[j]) continue;
         let tau = w0[e] * this.cvMul[j];
+        if (this._iaSlow && j < this.M.nVox && c < this.M.nVox && this._atrialSide[c] > 0 && this._atrialSide[j] < 0) tau *= this._iaSlow;   // RA→LA delay (LAE)
         const tEst = ta + tau;
         if (tEst < this.refEnd[j]) continue;          // will meet refractory tissue
         const dij = tEst - this.repEnd[j];
