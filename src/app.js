@@ -136,7 +136,12 @@
       let n = Math.floor(ui.acc); ui.acc -= n;
       if (n > MAX_STEPS_PER_FRAME) { n = MAX_STEPS_PER_FRAME; ui.acc = 0; }
       const t0 = performance.now();
-      for (let i = 0; i < n; i++) S.step();
+      // frame budget: the QRS costs several times a diastolic step, so stop at
+      // ~9 ms and carry the rest into the next frames (caught up in diastole)
+      for (let i = 0; i < n; i++) {
+        S.step();
+        if ((i & 3) === 3 && performance.now() - t0 > 9) { ui.acc = Math.min(ui.acc + n - i - 1, 120); break; }
+      }
       perf.tSim += performance.now() - t0; perf.steps += n;
       checkAvnrt();
     }

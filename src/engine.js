@@ -217,7 +217,7 @@
     ischBlockInj: 0.7,     // injury level above which living ischaemic muscle (after 2 h) no longer conducts
     ischHaloMm: 10, ischHaloLate: 0.45,   // zone of ischaemia around the infarct: width (mm) and late APD prolongation (T inversion)
     ischNecrosisH: 5.6,    // hours for necrosis to advance from endocardium to epicardium
-    ischUncouple: 0.5,     // fraction of necrotic/living coupling lost early on (all of it once the scar forms)
+    ischUncouple: 0.7,     // fraction of necrotic/living coupling lost early on (all of it once the scar forms)
     ischSanSlow: 0.25, ischAvnSlow: 1.2,
 
     // Automaticity (cycle lengths, ms)
@@ -782,9 +782,10 @@
       const euc = (c, id) => { const n = nodes[id]; return (A.pos[3 * c] - n.x) ** 2 + (A.pos[3 * c + 1] - n.y) ** 2 + (A.pos[3 * c + 2] - n.z) ** 2; };
       // Septal perforators arise from the proximal and mid LAD (the apical third
       // gives few): the septum at apicobasal level z is supplied from this
-      // fraction of the LAD's length, so a mid-LAD occlusion takes the mid and
-      // lower septum and a distal one almost none.
-      const SEPT = [[0, 0.72], [0.3, 0.6], [0.55, 0.5], [0.8, 0.38], [0.9, 0.2], [1, 0.05]];
+      // fraction of the LAD's length, so a mid-LAD occlusion (beyond D1) takes
+      // nearly all the anterior septum (anteroseptal QS V1–V3) and a distal one
+      // almost none; proximal occlusions add the high lateral (D1) wall.
+      const SEPT = [[0, 0.72], [0.3, 0.62], [0.55, 0.55], [0.8, 0.48], [1, 0.4]];
       const septalF = (z) => { z = Math.max(0, Math.min(1, z)); for (let i = 1; i < SEPT.length; i++) if (z <= SEPT[i][0]) { const [z0, f0] = SEPT[i - 1], [z1, f1] = SEPT[i]; return f0 + (f1 - f0) * (z - z0) / (z1 - z0); } return 0.05; };
       const voxNode = new Int32Array(A.n).fill(-1);
       for (let c = 0; c < A.n; c++) {
@@ -1894,25 +1895,26 @@
       if (c < this.M.nVox && this.M.kind[c]) this._ecgEnter(c, ta, apd);
       this._logActivation(c, ta);
       // propagate
-      const M = this.M, st = M.start, nb = M.nbr, w0 = M.w0;
+      const M = this.M, st = M.start, nb = M.nbr, w0 = M.w0, nVox = M.nVox;
+      const blocked = this.blocked, cvMul = this.cvMul, refEnd = this.refEnd, repEnd = this.repEnd, cvK = this.cvK, cvTau = this.cvTau, arrive = this.arrive, tAct = this.tAct;
+      const fg = this._flutterGate, iaSlow = this._iaSlow;
       for (let e = st[c]; e < st[c + 1]; e++) {
         const j = nb[e];
-        if (this.blocked[j]) continue;
-        let tau = w0[e] * this.cvMul[j];
-        const fg = this._flutterGate;
-        if (fg && j < this.M.nVox && c < this.M.nVox) {          // one-way conduction around the annulus (flutter circuit)
+        if (blocked[j]) continue;
+        let tau = w0[e] * cvMul[j];
+        if (fg && j < nVox && c < nVox) {          // one-way conduction around the annulus (flutter circuit)
           const a = fg.ang[c], b = fg.ang[j];
           if (a === a && b === b) { let d = b - a; if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI; if (d * fg.dir < -fg.tol) continue; }
           else if (fg.side[c] < 0 && fg.side[j] > 0) continue;   // LA back into RA: no short cut around the circuit
           else if (fg.side[c] > 0 && fg.side[j] < 0 && fg.upperLA[j]) tau *= P.flutterBachmannSlow;   // LA driven from below (CS), not over Bachmann's bundle
         }
-        if (this._iaSlow && j < this.M.nVox && c < this.M.nVox && this._atrialSide[c] > 0 && this._atrialSide[j] < 0) tau *= this._iaSlow;   // RA→LA delay (LAE)
+        if (iaSlow && j < nVox && c < nVox && this._atrialSide[c] > 0 && this._atrialSide[j] < 0) tau *= iaSlow;   // RA→LA delay (LAE)
         const tEst = ta + tau;
-        if (tEst < this.refEnd[j]) continue;          // will meet refractory tissue
-        const dij = tEst - this.repEnd[j];
-        tau *= 1 + this.cvK[j] * Math.exp(-Math.max(dij, 0) / this.cvTau[j]);
+        if (tEst < refEnd[j]) continue;               // will meet refractory tissue
+        const dij = tEst - repEnd[j], ct = cvTau[j];
+        if (dij < 12 * ct) tau *= 1 + cvK[j] * Math.exp(-Math.max(dij, 0) / ct);   // (fully recovered tissue: no slowing)
         const tArr = ta + tau;
-        if (tArr < this.arrive[j] || this.arrive[j] <= this.tAct[j]) this.schedule(j, tArr);
+        if (tArr < arrive[j] || arrive[j] <= tAct[j]) this.schedule(j, tArr);
       }
       // AF: concealed conduction. Fibrillatory impulses that penetrate the AV
       // node leave its lower part (where fast and slow pathways join)
@@ -2023,26 +2025,27 @@
         const A = this.vAmp[c], p = this.P.plateauDecline, apd = this.apd[c];
         k0 = A * (1 + p * this.tAct[c] / apd); k1 = A * p / apd;
       } else if (piece >= 2) {                               // repolarisation segment piece − 2
-        const [ta, tb] = this._segTimes(c, piece - 2), va = this.vm(c, ta) - this.vRest[c], vb = this.vm(c, tb) - this.vRest[c];
+        const ta = this._segT(c, piece - 2), tb = this._segT(c, piece - 1), va = this.vm(c, ta) - this.vRest[c], vb = this.vm(c, tb) - this.vRest[c];
         const b = (vb - va) / Math.max(1, tb - ta); k0 = va - b * ta; k1 = -b;
       }
       const d0 = k0 - this.pk0[c], d1 = k1 - this.pk1[c];
       if (d0 || d1) for (let e = 0; e < NE; e++) { this.S0[e] += W[o + e] * d0; this.S1[e] += W[o + e] * d1; }
       this.pk0[c] = k0; this.pk1[c] = k1; this.piece[c] = piece;
     }
-    _segTimes(c, j) {
-      const r0 = Math.floor(this.tAct[c] + this.apd[c] - 0.5 * this.repW[c]), r1 = Math.ceil(this.tAct[c] + this.apd[c] + 0.5 * this.repW[c]);
-      return [r0 + Math.round((r1 - r0) * j / REP_SEG), r0 + Math.round((r1 - r0) * (j + 1) / REP_SEG)];
+    // start of repolarisation segment j (j = REP_SEG: end of repolarisation)
+    _segT(c, j) {
+      const x = this.tAct[c] + this.apd[c], h = 0.5 * this.repW[c], r0 = Math.floor(x - h), r1 = Math.ceil(x + h);
+      return r0 + Math.round((r1 - r0) * j / REP_SEG);
     }
+    // Each phase-transition event schedules the next one (plateau → segment 0 →
+    // … → rest), so the work is spread over the T wave rather than all queued
+    // during the QRS.
     _ecgEnter(c, ta, apd) {
       if (this.piece[c]) this._setPiece(c, 0);
       this._dynAdd(c);
       const g = ++this.gen[c];
       const tPl = Math.ceil(ta + this.P.upW), tRep = Math.floor(ta + apd - 0.5 * this.repW[c]);
-      if (tRep > tPl) {
-        this.tbuckets[tPl % RING].push(c, g, 1);
-        for (let j = 0; j <= REP_SEG; j++) { const tj = j < REP_SEG ? this._segTimes(c, j)[0] : this._segTimes(c, REP_SEG - 1)[1]; this.tbuckets[tj % RING].push(c, g, 2 + j); }
-      }
+      if (tRep > tPl) this.tbuckets[tPl % RING].push(c, g, 1);
     }    // Advance one millisecond
     step() {
       const t = this.t;
@@ -2089,6 +2092,7 @@
         const kind = tb[q + 2];
         if (kind === 1) this._dynRemove(c);
         this._setPiece(c, kind < 2 + REP_SEG ? kind : 0);    // last event: back at rest
+        if (kind < 2 + REP_SEG) { const tn = this._segT(c, kind - 1); this.tbuckets[Math.max(tn, this.t) % RING].push(c, tb[q + 1], kind + 1); }
       }
       tb.length = 0;
       this._ecg(this.t);

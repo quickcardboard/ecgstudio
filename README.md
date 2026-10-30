@@ -220,6 +220,16 @@ re-entry.
   baseline, Q waves and T inversion persist; QT 420–450 ms. With T inversion and Q waves the interpretation calls the
   infarct's age undetermined.
 
+### Round 9
+
+- **Mid-LAD Q waves:** septal perforators (S2, S3…) from the mid LAD supply nearly the whole anterior septum, so a
+  mid-LAD occlusion gives anteroseptal QS (V1–V2 from 4 h, V1–V3 by 2 days) while a proximal one adds the high lateral
+  wall (Q in I, aVL). Early coupling of necrotic muscle 30% (was 50%), which keeps ST elevation clear at 12 h without
+  masking the QS.
+- **Smoother QRS at full speed:** phase-transition events are chained (each schedules the next) instead of ten being
+  queued per cell during the QRS, the propagation loop skips the recovery term for fully recovered tissue, and the app
+  caps simulation work at ~9 ms per frame, carrying the rest into the following frames. Worst 40-step chunk 59 → 33 ms.
+
 ## Layout
 
 ```
