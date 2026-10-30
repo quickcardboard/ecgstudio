@@ -16,7 +16,8 @@ function beat(S) {
     for (let t = q0; t < q0 + 60; t++) { const v = at(t); if (v > 0.05) break; if (v < -0.04) qDur = t - q0 + 1; qAmp = Math.min(qAmp, v); }
     for (let t = q0; t <= J; t++) { rMax = Math.max(rMax, at(t)); sMin = Math.min(sMin, at(t)); if (t < q0 + 40) r40 = Math.max(r40, at(t)); }
     for (let t = J + 60; t < vb.repEnd + 40; t++) { const v = at(t); if (Math.abs(v) > Math.abs(tv)) tv = v; }
-    m[n] = { st: at(J + 40), qDur, qAmp, rMax, r40, s: -sMin, t: tv };
+    const s20 = at(J + 20), s40 = at(J + 40);
+    m[n] = { st: s20 * s40 > 0 ? Math.sign(s40) * Math.min(Math.abs(s20), Math.abs(s40)) : 0, qDur, qAmp, rMax, r40, s: -sMin, t: tv };
   });
   return m;
 }
@@ -26,7 +27,7 @@ for (const site of sites) for (const h of hours) {
   const S = new LH.Sim(M, { seed: 1 }); S.addOcclusion(SITES[site]); S.setIschemiaTime(h);
   const m = beat(S);
   const ste = L.filter((n) => m[n].st >= (n === 'V2' || n === 'V3' ? 0.15 : 0.1)), std = L.filter((n) => m[n].st <= -0.08);
-  const isQ = (v) => v.qDur >= 30 && v.qAmp <= -0.1;
+  const isQ = (v) => (v.qDur >= 30 && v.qAmp <= -0.1) || (v.qDur >= 40 && v.qAmp <= -0.05);
   const isQS = (n) => ref[n].r40 >= 0.2 && m[n].r40 < 0.1 && m[n].s >= 0.3 && m[n].s > 2 * m[n].rMax;
   const Q = L.filter((n) => n !== 'aVR' && m[n].st > -0.08 && ((isQ(m[n]) && (!isQ(ref[n]) || m[n].qAmp < ref[n].qAmp - 0.2)) || isQS(n)));
   const rl = L.filter((n) => ref[n].rMax > 0.2 && m[n].rMax < 0.65 * ref[n].rMax && ref[n].rMax - m[n].rMax > 0.1);

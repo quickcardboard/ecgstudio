@@ -172,7 +172,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 #pane3d { --vb: 44px; }
 .viewbar { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: var(--vb); box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 10px;
   background: var(--panel); border-top: 1px solid var(--panel-line); color: var(--viewport-fg); backdrop-filter: blur(6px); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
-.viewbar .vcut { display: flex; align-items: center; gap: 8px; flex: 1 1 200px; min-width: 150px; max-width: 300px; }
+.viewbar .vcut { display: flex; align-items: center; gap: 6px; flex: 1 1 240px; min-width: 190px; max-width: 340px; }
+.viewbar .cutend { padding: 4px 6px; background: transparent; border-color: transparent; color: var(--panel-muted); }
+.viewbar .cutend[aria-pressed="true"] { color: var(--viewport-fg); border-color: var(--panel-line); background: rgba(255,255,255,0.06); }
 .viewbar .lab { font-size: 12px; color: var(--panel-muted); }
 .viewbar .val { font: 500 12px/1 var(--font-data); font-variant-numeric: tabular-nums; min-width: 4.5em; }
 .vgroup { display: flex; gap: 4px; flex: none; }
@@ -387,9 +389,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       </div>
       <div class="clock" id="clock">t 0.000 s</div>
       <div class="viewbar" role="group" aria-label="View">
-        <label class="vcut" for="cutDepth"><span class="lab">Cut</span>
+        <div class="vcut" role="group" aria-label="Cut away">
+          <button type="button" class="cutend" id="cutExt" title="Whole heart">External</button>
           <input id="cutDepth" type="range" min="0" max="100" step="1" value="0" aria-label="How much of the heart to cut away, up to halfway">
-          <span class="val" id="cutDepthVal">none</span></label>
+          <button type="button" class="cutend" id="cutFull" title="Cut halfway through">Cut</button>
+        </div>
         <div class="vgroup" id="presets" role="group" aria-label="Look from">
           <button type="button" data-cam="front">Anterior</button><button type="button" data-cam="left">Lateral</button><button type="button" data-cam="short">Apex</button>
         </div>
@@ -437,7 +441,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Sinus rate</b> sets the sinus node rate (30–180 bpm). The rhythm stays sinus at every rate. Escape rhythms depend on where conduction is blocked, not on rate: a junctional escape (about 48 bpm) takes over when the sinus node or AV node is blocked, and a ventricular escape (40 bpm) when the block is below the AV node.</li>
       <li><b>Time scale</b> slows the whole simulation, down to 1/50 of real time, so you can follow the wavefront. The ECG slows with it.</li>
       <li><b>The control panel</b> has four tabs. The open tab also decides what a click on the heart does. In Rhythm a click stimulates (PAC or PVC); in Structure clicks do nothing, so the heart can be turned freely. In Blocks it opens the block menu for the conduction system. In Ischemia it occludes an artery, or on a cut face, makes a subendocardial patch. Speed, Pause and Reset stay at the bottom. Hide folds the panel down to its tab bar. <b>On a phone</b> (landscape only) the Heart | ECG switch at the top shows one pane at a time; tablets from iPad mini size up show both, stacked when held upright.</li>
-      <li><b>Cut</b> (view bar) slides a cut plane facing you from outside the heart (none) to its middle (halfway). The heart can be rotated at any depth, and the cut always faces you. Anterior, Lateral and Apex jump to standard directions; Anterior with a cut is the four-chamber view, and Apex gives the short axis. The conduction system (SA node, AV node, His bundle, bundle branches and fascicles) shows up once the heart is cut. The Purkinje network runs in the model but is not drawn.</li>
+      <li><b>External ↔ Cut</b> (view bar): click either word to jump, or drag the slider between them. It slides a cut plane facing you from outside the heart (none) to its middle (halfway). The heart can be rotated at any depth, and the cut always faces you. Anterior, Lateral and Apex jump to standard directions; Anterior with a cut is the four-chamber view, and Apex gives the short axis. The conduction system (SA node, AV node, His bundle, bundle branches and fascicles) shows up once the heart is cut. The Purkinje network runs in the model but is not drawn.</li>
       <li><b>View bar</b> (along the bottom of the heart view, always shown): the Cut slider cuts the heart away up to halfway; Anterior, Lateral and Apex turn the camera; Legend shows the colour key for the cell states. Labels names the chambers and vessels, and in the cutaway the conduction system too. Leads draws the limb-lead hexaxial reference (amber, drawn from the torso's own lead vectors, so lead I is visibly shorter than II and III; dashed lines are each lead's negative half), the chest electrodes V1–V6 with their lead vectors (blue), and the live heart vector (white). When the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
       <li><b>Rhythm tab, clicks:</b> click atrial tissue for a premature atrial complex (PAC) or ventricular tissue for a premature ventricular complex (PVC), in either view. Tissue that is still refractory does not capture. Click twice quickly for a couplet.</li>
       <li><b>Blocks tab:</b> cut the heart open (Cut slider in the view bar), then click any part of the conduction system and choose a block. The SA node offers SA exit block, a sinus pause or sinus arrest. The AV node offers 1st-degree, Mobitz I (Wenckebach), 2:1 and complete block. The His bundle offers Mobitz II and complete block. The bundle branches and fascicles can each be blocked. Blocked segments turn red, or orange for partial blocks, and are listed under Active blocks, where you can remove them. Escape rhythms appear only when conduction above them is lost.</li>
@@ -451,12 +455,12 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           <li><b>Flutter:</b> macro-re-entry around the tricuspid annulus with slow conduction in the cavotricuspid isthmus. The typical counterclockwise circuit goes up the septum and down the free wall, at about 330–360/min with 2:1 or variable AV conduction.</li>
           <li><b>Ectopic atrial rhythm:</b> one focus low in the right atrium, near the coronary-sinus ostium, takes over from the sinus node at the set rate. The atria are activated from below, so P is inverted in II, III and aVF and the PR is short.</li>
           <li><b>MAT:</b> four atrial foci take turns irregularly, so each P wave differs.</li>
-          <li><b>AVNRT:</b> every heart has dual AV-node pathways here; the button removes any accessory pathway and delivers a timed PAC. The PAC blocks in the fast pathway, conducts down the slow one, then returns up the fast one. The retrograde P falls at the end of the QRS.</li>
+          <li><b>AVNRT:</b> every heart has dual AV-node pathways here; the button removes any accessory pathway and, as in an EP study, delivers PACs after sinus beats, each one 20 ms more premature (280 down to 160 ms), until one starts the tachycardia. The inducing PAC blocks in the fast pathway, conducts down the slow one, then returns up the fast one. The retrograde P falls at the end of the QRS.</li>
           <li><b>AVRT:</b> selects the left lateral accessory pathway and delivers a timed PAC. Conduction goes down the AV node and back up the pathway (orthodromic).</li>
           <li><b>VT:</b> a single ventricular site fires at 180/min. The QRS is wide and monomorphic, with AV dissociation.</li>
           <li><b>VF:</b> many ventricular foci fire chaotically.</li>
         </ul>
-        <b>Adenosine</b> blocks the AV node for about 3 s after a 1 s delay. It ends AVNRT and AVRT, and exposes the flutter waves or fibrillation in flutter and AF. <b>Shock</b> depolarizes every excitable cell at once, ending any re-entry; the sinus node then resumes. Clicking also works: four or more quick clicks on the left atrium start AF, on the right atrium flutter, and on three or more separate atrial sites MAT. Four or more quick clicks on a ventricle start VT from that site, and seven or more start VF. In an acutely ischemic heart (15 min to 2 days after onset), a PVC landing on the T wave triggers VF; a healthy heart tolerates it.</li>
+        <b>Adenosine</b> blocks the AV node for about 3 s after a 1 s delay. It ends AVNRT and AVRT, and exposes the flutter waves or fibrillation in flutter and AF. <b>Shock</b> depolarizes every excitable cell at once, ending any re-entry; the sinus node then resumes. Sustained arrhythmias start only from these buttons or from the right trigger: a well-timed PAC can start AVNRT (dual AV-nodal pathways) or AVRT (with an accessory pathway), and in an acutely ischemic heart (15 min to 2 days after onset), a PVC landing on the T wave triggers VF; a healthy heart tolerates it.</li>
       <li><b>Rhythm strips:</b> under the interpretation, pick up to three leads for the 10 s rhythm strips at the bottom of the paper.</li>
       <li><b>Ventricular rate in AF and flutter:</b> while AF or flutter runs, the rate slider becomes the ventricular rate. In AF it sets the mean of an irregular response, from slow AF (about 40/min) to rapid AF (about 150/min). In flutter it sets the conduction ratio (2:1, 3:1, 4:1…).</li>
       <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest and clears all blocks and ischemia.</li>
@@ -603,7 +607,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     cvPurkinje: 1.82,
     avnSegDelay: 17,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
     avnSegments: 5,
-    slowPathSegments: 4, slowPathSegDelay: 42, slowPathErpExtra: 20, slowPathCvK: 1,   // dual AV-node pathways (AVNRT)
+    slowPathSegments: 4, slowPathSegDelay: 50, slowPathErpExtra: 20, slowPathCvK: 1,   // dual AV-node pathways (AVNRT)
     avnFirstDegreeMul: 2.6, // AV-nodal delay factor for 1st-degree block
     // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
     wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
@@ -625,8 +629,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     precordialGain: 0.95,        // overall chest-lead gain
     sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
-    heartPitch: -23.1,          // degrees about the left–right axis (+ tips the anterior wall upward)
-    heartRotation: 12,    // degrees about the AP axis (+ = more vertical heart)
+    heartPitch: -15,          // degrees about the left–right axis (+ tips the anterior wall upward)
+    heartYaw: 15,          // degrees about the vertical axis (+ = apex swung from anterior toward the left)
+    heartRotation: 14,    // degrees about the AP axis (+ = more vertical heart)
     apexX: 72, apexY: -34.83,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
@@ -684,12 +689,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     ischKatpH: 0.15,       // hours for K-ATP APD shortening to develop (hyperacute T)
     ischInjuryOnset: 0.15, // hours before the injury current starts (the first minutes show hyperacute T only)
     ischInjuryH: 0.6,      // hours for the injury current (resting depolarisation) to develop
-    ischApdShort: 0.45, ischApdLate: 0.7, ischLateH: 3,
+    ischApdShort: 0.45, ischApdLate: 0.9, ischLateH: 3,
     ischSubendoGain: 1.6, subendoSpanPhi: 1.6, subendoSpanZ: 0.5,  // demand ischaemia: the inner wall is the most severely injured
     ischStResolve: 0.6,    // fraction of the injury current gone by 8 h (ST elevation partly resolves)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.3,
-    ischDeadS: 0.6,        // severity above which a cell dies once the necrosis front reaches it
+    ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
+    ischFrontMax: 0.7,     // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
     ischNecrosisH: 5.6,    // hours for necrosis to advance from endocardium to epicardium
     ischUncouple: 0.85,    // fraction of necrotic/living coupling lost (lead weights)
     ischSanSlow: 0.25, ischAvnSlow: 1.2,
@@ -1253,13 +1259,20 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const nearestOf = (list, c, metric) => { let b = -1, bd = Infinity; for (const id of list) { const d = metric(c, id); if (d < bd) { bd = d; b = id; } } return b; };
       const zOnly = (c, id) => Math.abs(A.zuvc[c] - nodes[id].zz);
       const euc = (c, id) => { const n = nodes[id]; return (A.pos[3 * c] - n.x) ** 2 + (A.pos[3 * c + 1] - n.y) ** 2 + (A.pos[3 * c + 2] - n.z) ** 2; };
+      // Septal perforators arise from the proximal and mid LAD (the apical third
+      // gives few): the septum at apicobasal level z is supplied from this
+      // fraction of the LAD's length, so a mid-LAD occlusion takes the mid and
+      // lower septum and a distal one almost none.
+      const SEPT = [[0, 0.72], [0.3, 0.6], [0.55, 0.5], [0.8, 0.38], [0.9, 0.2], [1, 0.05]];
+      const septalF = (z) => { z = Math.max(0, Math.min(1, z)); for (let i = 1; i < SEPT.length; i++) if (z <= SEPT[i][0]) { const [z0, f0] = SEPT[i - 1], [z1, f1] = SEPT[i]; return f0 + (f1 - f0) * (z - z0) / (z1 - z0); } return 0.05; };
       const voxNode = new Int32Array(A.n).fill(-1);
       for (let c = 0; c < A.n; c++) {
         const L = A.label[c]; if (L !== LAB.LV && L !== LAB.RV) continue;
         const ph = A.phi[c], zz = A.zuvc[c];
         if (L === LAB.RV) voxNode[c] = nearestOf(rvNodes, c, euc);
         else if (zz >= 0 && zz < 0.2) voxNode[c] = nearestOf(branches.LAD, c, euc);                 // apex: wrap-around LAD
-        else if (ph > -0.7 && ph < 1.7) voxNode[c] = nearestOf(ph > 0.1 ? branches.LAD : branches.PDA, c, zOnly);   // septum
+        else if (ph > 0.1 && ph < 1.7) voxNode[c] = branches.LAD[Math.round(septalF(zz) * (branches.LAD.length - 1))];   // septum (LAD perforators)
+        else if (ph > -0.7 && ph <= 0.1) voxNode[c] = nearestOf(branches.PDA, c, zOnly);                                   // inferior septum (PDA)
         else voxNode[c] = nearestOf(lvSurface, c, uvcDist);
       }
       // nodal arteries (right-dominant): SA-node artery from the proximal RCA, AV-node artery from the crux
@@ -1499,8 +1512,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       // anterior wall upward (+) or downward (−).
       const pa = (P.heartPitch || 0) * Math.PI / 180, cp = Math.cos(pa), sp = Math.sin(pa);
       const Rx = [1, 0, 0, 0, cp, -sp, 0, sp, cp], Rz = [ct, -st, 0, st, ct, 0, 0, 0, 1];
+      const R0 = new Array(9).fill(0);
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) R0[3 * i + j] += Rz[3 * i + k] * Rx[3 * k + j];
+      // then yaw about the torso's vertical axis (+ swings the apex from anterior toward the left)
+      const ya = (P.heartYaw || 0) * Math.PI / 180, cy = Math.cos(ya), sy = Math.sin(ya);
+      const Ry = [cy, 0, sy, 0, 1, 0, -sy, 0, cy];
       const Rm = new Array(9).fill(0);
-      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) Rm[3 * i + j] += Rz[3 * i + k] * Rx[3 * k + j];
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) Rm[3 * i + j] += Ry[3 * i + k] * R0[3 * k + j];
       this.rot = Rm;   // row-major
       this.center = C;
       const rotP = (p) => { const x = p[0] - C[0], y = p[1] - C[1], z = p[2] - C[2];
@@ -2027,7 +2045,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       apd *= 1 + P.ischApdLate * Math.min(1, s + 0.3) * late;
       // necrosis advances from endocardium to epicardium (wavefront phenomenon)
       // (the innermost layer, fed from the cavity blood, survives with the Purkinje junctions)
-      const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : 1.05);
+      const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : P.ischFrontMax);
       const dead = s > P.ischDeadS && (tm > 0.06 || h > 8) && tm < front;   // (the inner layer is lost too once the infarct is complete)
       return {
         apd, dead, level: Math.max(inj, 0.5 * s * katp),
@@ -2046,10 +2064,26 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       this._ischCells = new Set();
       const best = new Map();                                                // strongest insult per cell
       for (const ins of this.insults) for (let q = 0; q < ins.cells.length; q++) {
-        const c = ins.cells[q], st = this._ischemicState(ins.sev[q], A.tm[c] < 0 ? 0.5 : A.tm[c], h, ins.kind);
+        const c = ins.cells[q], st = this._ischemicState(ins.sev[q], A.tm[c] < 0 || A.label[c] === LAB.RV ? 0.5 : A.tm[c], h, ins.kind);   // (the thin RV wall dies through its thickness)
         if (!st) continue;
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);
+      }
+      // Living ischaemic muscle cut off from healthy tissue by necrosis cannot
+      // be activated and does not survive: it joins the infarct (otherwise it
+      // would sit at rest beside depolarised tissue as a permanent injury current).
+      if (h > 0.4) {
+        const reach = new Uint8Array(M.nCells), q = [];
+        for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.VENT && !best.has(c)) { reach[c] = 1; q.push(c); }
+        for (let qi = 0; qi < q.length; qi++) {
+          const c = q[qi];
+          for (let e = M.start[c]; e < M.start[c + 1]; e++) {
+            const w = M.nbr[e]; if (reach[w] || w >= M.nVox) continue;
+            const st = best.get(w); if (!st || st.dead) continue;
+            reach[w] = 1; q.push(w);
+          }
+        }
+        for (const [c, st] of best) if (!st.dead && !reach[c] && M.kind[c] === KIND.VENT) { st.dead = true; st.vRest = P.vRest; st.amp = 0; }
       }
       let nDead = 0;
       for (const [c, st] of best) {
@@ -2131,7 +2165,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     //   ectopic — one low right-atrial focus (near the coronary-sinus ostium)
     //             replacing the sinus node at the sinus rate: inverted P in the
     //             inferior leads, short PR
-    //   mat     — three or four atrial foci taking turns irregularly
+    //   mat     — four atrial foci taking turns irregularly at the set atrial rate (±25%)
     //   vt      — one ventricular focus at a fixed fast rate (monomorphic VT)
     //   vf      — many ventricular foci at random short cycle lengths
     startArrhythmia(type, opts = {}) {
@@ -2177,7 +2211,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         this.drivers.push({ kind: 'focus', cell: c, next: this.t + 100, cl: () => (sinus ? sinus.cl : 800) });
       } else if (type === 'mat') {
         const foci = opts.cells && opts.cells.length >= 3 ? opts.cells : pick((c) => M.kind[c] === KIND.ATRIAL && !M.seg[c], 4);
-        this.drivers.push({ kind: 'rotate', cells: foci, next: this.t + 200, cl: rand(P.matClMin, P.matClMax) });
+        // cycle lengths vary ±25% around the atrial rate (the sinus rate setting)
+        const sinus = this.pacemakers.find((pm) => pm.name === 'sinus');
+        this.drivers.push({ kind: 'rotate', cells: foci, next: this.t + 200, cl: () => (sinus ? sinus.cl : 500) * (0.75 + 0.5 * r()) });
       } else if (type === 'vt') {
         const c = opts.cell !== undefined ? opts.cell : pick(vent, 1)[0];
         this.drivers.push({ kind: 'focus', cell: c, next: this.t, cl: () => opts.cl || P.vtCl });
@@ -2427,7 +2463,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       //    since it was last activated (being activated resets it: overdrive suppression)
       for (const pm of this.pacemakers) {
         if (pm.cl <= 0 || this.blocked[pm.cell] || (pm.armed && !pm.armed())) continue;
-        if (pm.name === 'sinus' && (this.sinusArrest || t < this.sinusPauseUntil || (this.arrhythmia && this.arrhythmia.type === 'ectopic'))) continue;
+        if (pm.name === 'sinus' && (this.sinusArrest || t < this.sinusPauseUntil || (this.arrhythmia && (this.arrhythmia.type === 'ectopic' || this.arrhythmia.type === 'mat')))) continue;
         if (t - this.tAct[pm.cell] >= pm.cl && t >= this.refEnd[pm.cell]) {
           // SA exit block: the node keeps its rhythm, but every nth impulse fails to exit
           if (pm.name === 'sinus' && this.saExit && ++this.saExit.count % this.saExit.n === 0) {
@@ -2608,7 +2644,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', clicks: [], struct: { rae: false, lae: false, lvh: false, rvh: false, ap: '', dual: true }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', struct: { rae: false, lae: false, lvh: false, rvh: false, ap: '', dual: true }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const bufIdx = (t) => (((Math.round(t) + ecg.t0) % PAGE) + PAGE) % PAGE;   // sim time → paper sample
   const ecg = { t0: 0, buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
@@ -2721,6 +2757,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const t0 = performance.now();
       for (let i = 0; i < n; i++) S.step();
       perf.tSim += performance.now() - t0; perf.steps += n;
+      checkAvnrt();
     }
     const t1 = performance.now();
     update3D();
@@ -3438,7 +3475,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   const CUT_R = 85;   // mm from the centre at which the cut plane clears the heart
   function setCut(f) {
     ui.cutFrac = f; ui.cutDepth = (1 - f / 100) * CUT_R;
-    $('cutDepth').value = f; $('cutDepthVal').textContent = f === 0 ? 'none' : f === 100 ? 'halfway' : `${f}%`;
+    $('cutDepth').value = f; $('cutExt').setAttribute('aria-pressed', String(f === 0)); $('cutFull').setAttribute('aria-pressed', String(f === 100));
     const v = f > 0 ? 'cutaway' : 'external';
     if (v !== ui.view) setView(v);
     g3.planeDirty = true;
@@ -3448,7 +3485,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   function cameraPreset(name) {
     if (name === 'short') { cutPreset('short'); return; }
     if (name === 'left') { cutPreset('lateral'); return; }
-    if (name === 'front' && ui.view === 'cutaway') { cutPreset('anterior'); return; }
+    if (name === 'front') { cutPreset('anterior'); return; }   // anterior = the four-chamber direction, cut or not
     const [d, up] = CAM[name], cam = g3.camera, ctl = g3.controls;
     ctl.target.set(0, 0, 0);
     cam.position.set(...d).normalize().multiplyScalar(ui.leads ? 660 : 380);
@@ -3576,7 +3613,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         : 'Cut the heart open (Cut slider below) to reach the conduction system. The SA node (white dot) can be clicked now.')
       : ui.action === 'ischemia'
         ? 'Click a coronary artery to occlude it there.' + (cut ? ' Click muscle on the cut face for subendocardial ischemia.' : ' Cut the heart open (Cut slider below) to click muscle for subendocardial ischemia.')
-        : ui.action === 'stimulate' ? 'Click the atria for a PAC or the ventricles for a PVC. Rapid repeated clicks start arrhythmias (see the guide).'
+        : ui.action === 'stimulate' ? 'Click the atria for a PAC or the ventricles for a PVC. A well-timed PAC can start AVNRT (or AVRT with an accessory pathway); a PVC on the T wave of an acutely ischemic heart starts VF.'
           : 'Drag to turn the heart. Clicks on the heart do nothing in this tab.';
   }
 
@@ -3620,8 +3657,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const rec = S.stimulate(c);
       const refractory = S.t < S.refEnd[c];
       flash(x, y, refractory ? 'No capture (refractory)' : rec.ronT ? 'R-on-T!' : rec.kind === 'atrial' ? 'PAC' : 'PVC');
-      const g = clickGesture(c, rec.kind);
-      if (g) flash(x, y, g);
       return;
     }
   }
@@ -3708,31 +3743,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     S.setIschemiaTime(h); $('ischStage').textContent = ischStage(h);
   }
 
-  // Rapid repeated clicks (real time, so they work at any time scale):
-  //   ≥4 on the atria within 2.5 s — AF (mostly left atrium), flutter (right
-  //   atrium) or MAT (three or more separate sites); ≥4 on the ventricles —
-  //   VT from the last site, ≥7 — VF.
-  function clickGesture(c, kind) {
-    const now = performance.now();
-    ui.clicks = ui.clicks.filter((k) => now - k.t < 2500 && k.kind === kind);
-    ui.clicks.push({ t: now, c, kind });
-    const cl = ui.clicks;
-    const dist = (a, b) => Math.hypot(A.pos[3 * a] - A.pos[3 * b], A.pos[3 * a + 1] - A.pos[3 * b + 1], A.pos[3 * a + 2] - A.pos[3 * b + 2]);
-    if (kind === 'atrial' && cl.length >= 4) {
-      const sites = []; for (const k of cl) if (sites.every((q) => dist(q, k.c) > 25)) sites.push(k.c);
-      ui.clicks = [];
-      if (sites.length >= 3) { S.startArrhythmia('mat', { cells: sites }); return 'Multifocal atrial tachycardia'; }
-      const la = cl.filter((k) => A.label[k.c] === 3).length;
-      if (la * 2 >= cl.length) { S.startArrhythmia('af'); return 'Atrial fibrillation'; }
-      S.startArrhythmia('flutter'); return 'Atrial flutter';
-    }
-    if (kind === 'ventricular') {
-      if (cl.length >= 7) { ui.clicks = []; S.startArrhythmia('vf'); return 'Ventricular fibrillation'; }
-      if (cl.length >= 4 && !(S.arrhythmia && S.arrhythmia.type === 'vt')) { S.startArrhythmia('vt', { cell: c }); return 'Ventricular tachycardia'; }
-    }
-    return null;
-  }
-
   function toggleControls() {
     const c = $('controls').classList.toggle('collapsed');
     $('ctlChevron').textContent = c ? 'Show' : 'Hide'; $('ctlHead').setAttribute('aria-expanded', String(!c));
@@ -3751,15 +3761,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   // ventricular response (AF: mean of an irregular response; flutter: N:1).
   function syncRate() {
     const arr = S.arrhythmia && S.arrhythmia.type, vent = arr === 'af' || arr === 'flutter', r = $('rate');
-    const mode = vent ? 'ventricular' : arr === 'ectopic' ? 'ectopic' : 'sinus';
+    const atr = arr === 'ectopic' || arr === 'mat', mode = vent ? 'ventricular' : atr ? 'atrial' : 'sinus';
     if (mode === ui.rateMode && !(vent && S.vResponse == null && ui.vRate)) return;
+    if (ui.rateMode === 'atrial' && ui.preAtrRate) { ui.rate = ui.preAtrRate; S.setRate(ui.rate); }   // back to the sinus rate set before MAT
+    ui.preAtrRate = mode === 'atrial' ? ui.preAtrRate : null;
     ui.rateMode = mode;
     if (vent) {
       if (ui.vRate) S.setVentricularResponse(ui.vRate);
       const v = S.vResponse || (arr === 'af' ? LH.DEFAULTS.afDefaultRate : 170);
       $('rateLab').textContent = 'Ventricular rate'; r.min = 30; r.max = 180; r.value = v; $('rateVal').textContent = `${Math.round(v)} bpm`;
     } else {
-      $('rateLab').textContent = arr === 'ectopic' ? 'Atrial rate' : 'Sinus rate'; r.min = 30; r.max = 180; r.value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`;
+      $('rateLab').textContent = atr ? 'Atrial rate' : 'Sinus rate'; r.min = 30; r.max = 180; r.value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`;
     }
   }
 
@@ -3781,12 +3793,27 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     }
   }
 
+  // AVNRT induction as in the EP lab: a PAC after a sinus beat, each one more
+  // premature than the last, until one blocks in the fast pathway, conducts
+  // down the slow one and re-enters (the window moves with the sinus rate)
+  function avnrtTrial(c) {
+    const t0 = S.nextSinus();
+    S.stimulateAt(A.nearest(A.landmarks.SVC.c, (x) => A.label[x] === 4), t0 + c);
+    ui.avnrt = { c, checkAt: t0 + c + 1600 };
+  }
+  function checkAvnrt() {
+    if (!ui.avnrt || S.t < ui.avnrt.checkAt) return;
+    const V = S.log.vent.filter((v) => v.on > ui.avnrt.checkAt - 1200), rr = V.slice(1).map((v, i) => v.on - V[i].on);
+    const tachy = rr.length >= 2 && rr.every((x) => x < 450);
+    if (tachy || ui.avnrt.c <= 160 || S.arrhythmia) ui.avnrt = null; else avnrtTrial(ui.avnrt.c - 20);
+  }
   // the Arrhythmias buttons
   function startRhythm(type) {
+    ui.avnrt = null;
     if (type === 'avnrt') {
       if (S.ap) { ui.struct.ap = ''; $('stAP').value = ''; S.setAccessoryPathway(null); placeAPMarker(); }
       S.stopArrhythmia();
-      S.stimulateAt(A.nearest(A.landmarks.SVC.c, (c) => A.label[c] === 4), S.nextSinus() + 240);
+      avnrtTrial(280);
       return;
     }
     if (type === 'avrt') {
@@ -3796,7 +3823,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       return;
     }
     if (type === 'vt') { let best = -1; for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.epi[c] && A.zuvc[c] > 0.35 && A.zuvc[c] < 0.45 && A.phi[c] < -2.2) { best = c; break; } S.startArrhythmia('vt', { cell: best }); return; }
+    if (type === 'mat' && ui.rate < 110) { ui.preAtrRate = ui.preAtrRate || ui.rate; ui.rate = 120; S.setRate(120); ui.rateMode = ''; }   // MAT starts tachycardic; the slider then sets it
     S.startArrhythmia(type);
+    syncRate();
   }
 
   // ---------------------------------------------------------------------------
@@ -3977,7 +4006,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const ar = flutterCl ? 60000 / flutterCl : 0, ratio = ar ? ar / rate : 0, fixed = rrSd < 25 && Math.abs(ratio - Math.round(ratio)) < 0.2;
       rhythm = `Atrial flutter (${S.arrhythmia.clockwise ? 'atypical, clockwise' : 'typical, counterclockwise'}), atrial ${Math.round(ar)}/min with ${fixed ? Math.round(ratio) + ':1' : 'variable'} AV conduction`;
     } else if (arr === 'ectopic') rhythm = `Ectopic atrial ${vr > 100 ? 'tachycardia' : 'rhythm'}: low right-atrial focus, ${vr} bpm, inverted P in II, III and aVF`;
-    else if (arr === 'mat') rhythm = `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes`;
+    else if (arr === 'mat') rhythm = vr > 100 ? `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes` : `Multifocal atrial rhythm (wandering atrial pacemaker): ${vr} bpm, irregular, three or more P-wave shapes`;
     else if (arr === 'vt') rhythm = `Monomorphic ventricular tachycardia, ${vr} bpm, with AV dissociation`;
     else if (avnrt) rhythm = `AVNRT (typical slow–fast): ${vr} bpm, narrow QRS, retrograde P hidden at the end of the QRS`;
     else if (avrt) {
@@ -4054,7 +4083,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const out = {};
     for (const [n, k] of Object.entries(L_IDX)) {
       const base = at(k, qrsBaseT(vb)), J = vb.last + 6;
-      const st = at(k, J + 40) - base;
+      // ST deviation must hold from early ST (J+20) to J+40, so the upstroke of an early tall T is not read as ST shift
+      const s20 = at(k, J + 20) - base, s40 = at(k, J + 40) - base;
+      const st = s20 * s40 > 0 ? Math.sign(s40) * Math.min(Math.abs(s20), Math.abs(s40)) : 0;
       let qDur = 0, qAmp = 0, rMax = 0;
       for (let t = vb.on; t < vb.on + 60; t++) { const v = at(k, t) - base; if (v > 0.05) break; if (v < -0.04) qDur = t - vb.on + 1; qAmp = Math.min(qAmp, v); }
       for (let t = vb.on; t <= J; t++) rMax = Math.max(rMax, at(k, t) - base);
@@ -4140,7 +4171,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     // new findings only: compared with this heart's own healthy beat
     // (without a healthy reference yet, leads with normal Q/negative T are skipped)
     const ref = ui.ref, NORMQ = ['aVR', 'aVL', 'III', 'V1'], was = (n, f) => (ref ? f(ref[n]) : NORMQ.includes(n));
-    const isQ = (v) => v.qDur >= 30 && v.qAmp <= -0.1;
+    // pathological Q: ≥30 ms and ≥1 mm deep, or ≥40 ms wide whatever its depth (≥0.5 mm)
+    const isQ = (v) => (v.qDur >= 30 && v.qAmp <= -0.1) || (v.qDur >= 40 && v.qAmp <= -0.05);
     // QS: the initial R has shrunk to ≤1 mm (from ≥2 mm) and the complex is mainly negative
     const isQS = (n) => ref && ref[n].r40 >= 0.2 && m[n].r40 < 0.1 && m[n].s >= 0.3 && m[n].s > 2 * m[n].rMax;
     // new: absent from the healthy beat, or at least 0.2 mV deeper than its physiological q
@@ -4232,7 +4264,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       if (ui.leads && g3.camera.position.length() < 600) { g3.camera.position.setLength(660); g3.controls.update(); }
     });
     $('btnPause').addEventListener('click', () => { ui.paused = !ui.paused; $('btnPause').textContent = ui.paused ? 'Resume' : 'Pause'; });
-    $('btnReset').addEventListener('click', () => { newSim(); renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); syncRate(); });
+    $('btnReset').addEventListener('click', () => { ui.avnrt = null; newSim(); renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); syncRate(); });
     $('ischTime').addEventListener('input', (e) => {
       ui.ischH = ISCH_STOPS[+e.target.value][0]; $('ischVal').textContent = fmtHours(ui.ischH); $('ischStage').textContent = ischStage(ui.ischH);
       ui.ischPending = ui.ischH;                                  // applied once per frame
@@ -4249,13 +4281,15 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     });
     for (const b of $('arrButtons').querySelectorAll('button')) b.addEventListener('click', () => { startRhythm(b.dataset.arr); syncRate(); interpret(); });
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); });
-    $('btnShock').addEventListener('click', () => { S.shock(); syncRate(); interpret(); });
+    $('btnShock').addEventListener('click', () => { ui.avnrt = null; S.shock(); syncRate(); interpret(); });
     $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
     $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); recolorIschemia(); renderIschList(); interpret(true); });
     for (const b of document.querySelectorAll('#controls .tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab));
     initPicking(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     $('cutDepth').addEventListener('input', (e) => setCut(+e.target.value));
+    $('cutExt').addEventListener('click', () => setCut(0));
+    $('cutFull').addEventListener('click', () => setCut(100));
     initStrips();
     g3.controls.addEventListener('change', () => { if (ui.view === 'cutaway') g3.planeDirty = true; });
     const toggle = toggleControls;

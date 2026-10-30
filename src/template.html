@@ -172,7 +172,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 #pane3d { --vb: 44px; }
 .viewbar { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: var(--vb); box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 10px;
   background: var(--panel); border-top: 1px solid var(--panel-line); color: var(--viewport-fg); backdrop-filter: blur(6px); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
-.viewbar .vcut { display: flex; align-items: center; gap: 8px; flex: 1 1 200px; min-width: 150px; max-width: 300px; }
+.viewbar .vcut { display: flex; align-items: center; gap: 6px; flex: 1 1 240px; min-width: 190px; max-width: 340px; }
+.viewbar .cutend { padding: 4px 6px; background: transparent; border-color: transparent; color: var(--panel-muted); }
+.viewbar .cutend[aria-pressed="true"] { color: var(--viewport-fg); border-color: var(--panel-line); background: rgba(255,255,255,0.06); }
 .viewbar .lab { font-size: 12px; color: var(--panel-muted); }
 .viewbar .val { font: 500 12px/1 var(--font-data); font-variant-numeric: tabular-nums; min-width: 4.5em; }
 .vgroup { display: flex; gap: 4px; flex: none; }
@@ -387,9 +389,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       </div>
       <div class="clock" id="clock">t 0.000 s</div>
       <div class="viewbar" role="group" aria-label="View">
-        <label class="vcut" for="cutDepth"><span class="lab">Cut</span>
+        <div class="vcut" role="group" aria-label="Cut away">
+          <button type="button" class="cutend" id="cutExt" title="Whole heart">External</button>
           <input id="cutDepth" type="range" min="0" max="100" step="1" value="0" aria-label="How much of the heart to cut away, up to halfway">
-          <span class="val" id="cutDepthVal">none</span></label>
+          <button type="button" class="cutend" id="cutFull" title="Cut halfway through">Cut</button>
+        </div>
         <div class="vgroup" id="presets" role="group" aria-label="Look from">
           <button type="button" data-cam="front">Anterior</button><button type="button" data-cam="left">Lateral</button><button type="button" data-cam="short">Apex</button>
         </div>
@@ -437,7 +441,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Sinus rate</b> sets the sinus node rate (30–180 bpm). The rhythm stays sinus at every rate. Escape rhythms depend on where conduction is blocked, not on rate: a junctional escape (about 48 bpm) takes over when the sinus node or AV node is blocked, and a ventricular escape (40 bpm) when the block is below the AV node.</li>
       <li><b>Time scale</b> slows the whole simulation, down to 1/50 of real time, so you can follow the wavefront. The ECG slows with it.</li>
       <li><b>The control panel</b> has four tabs. The open tab also decides what a click on the heart does. In Rhythm a click stimulates (PAC or PVC); in Structure clicks do nothing, so the heart can be turned freely. In Blocks it opens the block menu for the conduction system. In Ischemia it occludes an artery, or on a cut face, makes a subendocardial patch. Speed, Pause and Reset stay at the bottom. Hide folds the panel down to its tab bar. <b>On a phone</b> (landscape only) the Heart | ECG switch at the top shows one pane at a time; tablets from iPad mini size up show both, stacked when held upright.</li>
-      <li><b>Cut</b> (view bar) slides a cut plane facing you from outside the heart (none) to its middle (halfway). The heart can be rotated at any depth, and the cut always faces you. Anterior, Lateral and Apex jump to standard directions; Anterior with a cut is the four-chamber view, and Apex gives the short axis. The conduction system (SA node, AV node, His bundle, bundle branches and fascicles) shows up once the heart is cut. The Purkinje network runs in the model but is not drawn.</li>
+      <li><b>External ↔ Cut</b> (view bar): click either word to jump, or drag the slider between them. It slides a cut plane facing you from outside the heart (none) to its middle (halfway). The heart can be rotated at any depth, and the cut always faces you. Anterior, Lateral and Apex jump to standard directions; Anterior with a cut is the four-chamber view, and Apex gives the short axis. The conduction system (SA node, AV node, His bundle, bundle branches and fascicles) shows up once the heart is cut. The Purkinje network runs in the model but is not drawn.</li>
       <li><b>View bar</b> (along the bottom of the heart view, always shown): the Cut slider cuts the heart away up to halfway; Anterior, Lateral and Apex turn the camera; Legend shows the colour key for the cell states. Labels names the chambers and vessels, and in the cutaway the conduction system too. Leads draws the limb-lead hexaxial reference (amber, drawn from the torso's own lead vectors, so lead I is visibly shorter than II and III; dashed lines are each lead's negative half), the chest electrodes V1–V6 with their lead vectors (blue), and the live heart vector (white). When the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
       <li><b>Rhythm tab, clicks:</b> click atrial tissue for a premature atrial complex (PAC) or ventricular tissue for a premature ventricular complex (PVC), in either view. Tissue that is still refractory does not capture. Click twice quickly for a couplet.</li>
       <li><b>Blocks tab:</b> cut the heart open (Cut slider in the view bar), then click any part of the conduction system and choose a block. The SA node offers SA exit block, a sinus pause or sinus arrest. The AV node offers 1st-degree, Mobitz I (Wenckebach), 2:1 and complete block. The His bundle offers Mobitz II and complete block. The bundle branches and fascicles can each be blocked. Blocked segments turn red, or orange for partial blocks, and are listed under Active blocks, where you can remove them. Escape rhythms appear only when conduction above them is lost.</li>
@@ -451,12 +455,12 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           <li><b>Flutter:</b> macro-re-entry around the tricuspid annulus with slow conduction in the cavotricuspid isthmus. The typical counterclockwise circuit goes up the septum and down the free wall, at about 330–360/min with 2:1 or variable AV conduction.</li>
           <li><b>Ectopic atrial rhythm:</b> one focus low in the right atrium, near the coronary-sinus ostium, takes over from the sinus node at the set rate. The atria are activated from below, so P is inverted in II, III and aVF and the PR is short.</li>
           <li><b>MAT:</b> four atrial foci take turns irregularly, so each P wave differs.</li>
-          <li><b>AVNRT:</b> every heart has dual AV-node pathways here; the button removes any accessory pathway and delivers a timed PAC. The PAC blocks in the fast pathway, conducts down the slow one, then returns up the fast one. The retrograde P falls at the end of the QRS.</li>
+          <li><b>AVNRT:</b> every heart has dual AV-node pathways here; the button removes any accessory pathway and, as in an EP study, delivers PACs after sinus beats, each one 20 ms more premature (280 down to 160 ms), until one starts the tachycardia. The inducing PAC blocks in the fast pathway, conducts down the slow one, then returns up the fast one. The retrograde P falls at the end of the QRS.</li>
           <li><b>AVRT:</b> selects the left lateral accessory pathway and delivers a timed PAC. Conduction goes down the AV node and back up the pathway (orthodromic).</li>
           <li><b>VT:</b> a single ventricular site fires at 180/min. The QRS is wide and monomorphic, with AV dissociation.</li>
           <li><b>VF:</b> many ventricular foci fire chaotically.</li>
         </ul>
-        <b>Adenosine</b> blocks the AV node for about 3 s after a 1 s delay. It ends AVNRT and AVRT, and exposes the flutter waves or fibrillation in flutter and AF. <b>Shock</b> depolarizes every excitable cell at once, ending any re-entry; the sinus node then resumes. Clicking also works: four or more quick clicks on the left atrium start AF, on the right atrium flutter, and on three or more separate atrial sites MAT. Four or more quick clicks on a ventricle start VT from that site, and seven or more start VF. In an acutely ischemic heart (15 min to 2 days after onset), a PVC landing on the T wave triggers VF; a healthy heart tolerates it.</li>
+        <b>Adenosine</b> blocks the AV node for about 3 s after a 1 s delay. It ends AVNRT and AVRT, and exposes the flutter waves or fibrillation in flutter and AF. <b>Shock</b> depolarizes every excitable cell at once, ending any re-entry; the sinus node then resumes. Sustained arrhythmias start only from these buttons or from the right trigger: a well-timed PAC can start AVNRT (dual AV-nodal pathways) or AVRT (with an accessory pathway), and in an acutely ischemic heart (15 min to 2 days after onset), a PVC landing on the T wave triggers VF; a healthy heart tolerates it.</li>
       <li><b>Rhythm strips:</b> under the interpretation, pick up to three leads for the 10 s rhythm strips at the bottom of the paper.</li>
       <li><b>Ventricular rate in AF and flutter:</b> while AF or flutter runs, the rate slider becomes the ventricular rate. In AF it sets the mean of an irregular response, from slow AF (about 40/min) to rapid AF (about 150/min). In flutter it sets the conduction ratio (2:1, 3:1, 4:1…).</li>
       <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest and clears all blocks and ischemia.</li>

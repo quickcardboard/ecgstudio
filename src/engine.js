@@ -123,7 +123,7 @@
     cvPurkinje: 1.82,
     avnSegDelay: 17,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
     avnSegments: 5,
-    slowPathSegments: 4, slowPathSegDelay: 42, slowPathErpExtra: 20, slowPathCvK: 1,   // dual AV-node pathways (AVNRT)
+    slowPathSegments: 4, slowPathSegDelay: 50, slowPathErpExtra: 20, slowPathCvK: 1,   // dual AV-node pathways (AVNRT)
     avnFirstDegreeMul: 2.6, // AV-nodal delay factor for 1st-degree block
     // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
     wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
@@ -145,8 +145,9 @@
     precordialGain: 0.95,        // overall chest-lead gain
     sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
-    heartPitch: -23.1,          // degrees about the left–right axis (+ tips the anterior wall upward)
-    heartRotation: 12,    // degrees about the AP axis (+ = more vertical heart)
+    heartPitch: -15,          // degrees about the left–right axis (+ tips the anterior wall upward)
+    heartYaw: 15,          // degrees about the vertical axis (+ = apex swung from anterior toward the left)
+    heartRotation: 14,    // degrees about the AP axis (+ = more vertical heart)
     apexX: 72, apexY: -34.83,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
@@ -204,12 +205,13 @@
     ischKatpH: 0.15,       // hours for K-ATP APD shortening to develop (hyperacute T)
     ischInjuryOnset: 0.15, // hours before the injury current starts (the first minutes show hyperacute T only)
     ischInjuryH: 0.6,      // hours for the injury current (resting depolarisation) to develop
-    ischApdShort: 0.45, ischApdLate: 0.7, ischLateH: 3,
+    ischApdShort: 0.45, ischApdLate: 0.9, ischLateH: 3,
     ischSubendoGain: 1.6, subendoSpanPhi: 1.6, subendoSpanZ: 0.5,  // demand ischaemia: the inner wall is the most severely injured
     ischStResolve: 0.6,    // fraction of the injury current gone by 8 h (ST elevation partly resolves)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.3,
-    ischDeadS: 0.6,        // severity above which a cell dies once the necrosis front reaches it
+    ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
+    ischFrontMax: 0.7,     // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
     ischNecrosisH: 5.6,    // hours for necrosis to advance from endocardium to epicardium
     ischUncouple: 0.85,    // fraction of necrotic/living coupling lost (lead weights)
     ischSanSlow: 0.25, ischAvnSlow: 1.2,
@@ -773,13 +775,20 @@
       const nearestOf = (list, c, metric) => { let b = -1, bd = Infinity; for (const id of list) { const d = metric(c, id); if (d < bd) { bd = d; b = id; } } return b; };
       const zOnly = (c, id) => Math.abs(A.zuvc[c] - nodes[id].zz);
       const euc = (c, id) => { const n = nodes[id]; return (A.pos[3 * c] - n.x) ** 2 + (A.pos[3 * c + 1] - n.y) ** 2 + (A.pos[3 * c + 2] - n.z) ** 2; };
+      // Septal perforators arise from the proximal and mid LAD (the apical third
+      // gives few): the septum at apicobasal level z is supplied from this
+      // fraction of the LAD's length, so a mid-LAD occlusion takes the mid and
+      // lower septum and a distal one almost none.
+      const SEPT = [[0, 0.72], [0.3, 0.6], [0.55, 0.5], [0.8, 0.38], [0.9, 0.2], [1, 0.05]];
+      const septalF = (z) => { z = Math.max(0, Math.min(1, z)); for (let i = 1; i < SEPT.length; i++) if (z <= SEPT[i][0]) { const [z0, f0] = SEPT[i - 1], [z1, f1] = SEPT[i]; return f0 + (f1 - f0) * (z - z0) / (z1 - z0); } return 0.05; };
       const voxNode = new Int32Array(A.n).fill(-1);
       for (let c = 0; c < A.n; c++) {
         const L = A.label[c]; if (L !== LAB.LV && L !== LAB.RV) continue;
         const ph = A.phi[c], zz = A.zuvc[c];
         if (L === LAB.RV) voxNode[c] = nearestOf(rvNodes, c, euc);
         else if (zz >= 0 && zz < 0.2) voxNode[c] = nearestOf(branches.LAD, c, euc);                 // apex: wrap-around LAD
-        else if (ph > -0.7 && ph < 1.7) voxNode[c] = nearestOf(ph > 0.1 ? branches.LAD : branches.PDA, c, zOnly);   // septum
+        else if (ph > 0.1 && ph < 1.7) voxNode[c] = branches.LAD[Math.round(septalF(zz) * (branches.LAD.length - 1))];   // septum (LAD perforators)
+        else if (ph > -0.7 && ph <= 0.1) voxNode[c] = nearestOf(branches.PDA, c, zOnly);                                   // inferior septum (PDA)
         else voxNode[c] = nearestOf(lvSurface, c, uvcDist);
       }
       // nodal arteries (right-dominant): SA-node artery from the proximal RCA, AV-node artery from the crux
@@ -1019,8 +1028,13 @@
       // anterior wall upward (+) or downward (−).
       const pa = (P.heartPitch || 0) * Math.PI / 180, cp = Math.cos(pa), sp = Math.sin(pa);
       const Rx = [1, 0, 0, 0, cp, -sp, 0, sp, cp], Rz = [ct, -st, 0, st, ct, 0, 0, 0, 1];
+      const R0 = new Array(9).fill(0);
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) R0[3 * i + j] += Rz[3 * i + k] * Rx[3 * k + j];
+      // then yaw about the torso's vertical axis (+ swings the apex from anterior toward the left)
+      const ya = (P.heartYaw || 0) * Math.PI / 180, cy = Math.cos(ya), sy = Math.sin(ya);
+      const Ry = [cy, 0, sy, 0, 1, 0, -sy, 0, cy];
       const Rm = new Array(9).fill(0);
-      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) Rm[3 * i + j] += Rz[3 * i + k] * Rx[3 * k + j];
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) Rm[3 * i + j] += Ry[3 * i + k] * R0[3 * k + j];
       this.rot = Rm;   // row-major
       this.center = C;
       const rotP = (p) => { const x = p[0] - C[0], y = p[1] - C[1], z = p[2] - C[2];
@@ -1547,7 +1561,7 @@
       apd *= 1 + P.ischApdLate * Math.min(1, s + 0.3) * late;
       // necrosis advances from endocardium to epicardium (wavefront phenomenon)
       // (the innermost layer, fed from the cavity blood, survives with the Purkinje junctions)
-      const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : 1.05);
+      const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : P.ischFrontMax);
       const dead = s > P.ischDeadS && (tm > 0.06 || h > 8) && tm < front;   // (the inner layer is lost too once the infarct is complete)
       return {
         apd, dead, level: Math.max(inj, 0.5 * s * katp),
@@ -1566,10 +1580,26 @@
       this._ischCells = new Set();
       const best = new Map();                                                // strongest insult per cell
       for (const ins of this.insults) for (let q = 0; q < ins.cells.length; q++) {
-        const c = ins.cells[q], st = this._ischemicState(ins.sev[q], A.tm[c] < 0 ? 0.5 : A.tm[c], h, ins.kind);
+        const c = ins.cells[q], st = this._ischemicState(ins.sev[q], A.tm[c] < 0 || A.label[c] === LAB.RV ? 0.5 : A.tm[c], h, ins.kind);   // (the thin RV wall dies through its thickness)
         if (!st) continue;
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);
+      }
+      // Living ischaemic muscle cut off from healthy tissue by necrosis cannot
+      // be activated and does not survive: it joins the infarct (otherwise it
+      // would sit at rest beside depolarised tissue as a permanent injury current).
+      if (h > 0.4) {
+        const reach = new Uint8Array(M.nCells), q = [];
+        for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.VENT && !best.has(c)) { reach[c] = 1; q.push(c); }
+        for (let qi = 0; qi < q.length; qi++) {
+          const c = q[qi];
+          for (let e = M.start[c]; e < M.start[c + 1]; e++) {
+            const w = M.nbr[e]; if (reach[w] || w >= M.nVox) continue;
+            const st = best.get(w); if (!st || st.dead) continue;
+            reach[w] = 1; q.push(w);
+          }
+        }
+        for (const [c, st] of best) if (!st.dead && !reach[c] && M.kind[c] === KIND.VENT) { st.dead = true; st.vRest = P.vRest; st.amp = 0; }
       }
       let nDead = 0;
       for (const [c, st] of best) {
@@ -1651,7 +1681,7 @@
     //   ectopic — one low right-atrial focus (near the coronary-sinus ostium)
     //             replacing the sinus node at the sinus rate: inverted P in the
     //             inferior leads, short PR
-    //   mat     — three or four atrial foci taking turns irregularly
+    //   mat     — four atrial foci taking turns irregularly at the set atrial rate (±25%)
     //   vt      — one ventricular focus at a fixed fast rate (monomorphic VT)
     //   vf      — many ventricular foci at random short cycle lengths
     startArrhythmia(type, opts = {}) {
@@ -1697,7 +1727,9 @@
         this.drivers.push({ kind: 'focus', cell: c, next: this.t + 100, cl: () => (sinus ? sinus.cl : 800) });
       } else if (type === 'mat') {
         const foci = opts.cells && opts.cells.length >= 3 ? opts.cells : pick((c) => M.kind[c] === KIND.ATRIAL && !M.seg[c], 4);
-        this.drivers.push({ kind: 'rotate', cells: foci, next: this.t + 200, cl: rand(P.matClMin, P.matClMax) });
+        // cycle lengths vary ±25% around the atrial rate (the sinus rate setting)
+        const sinus = this.pacemakers.find((pm) => pm.name === 'sinus');
+        this.drivers.push({ kind: 'rotate', cells: foci, next: this.t + 200, cl: () => (sinus ? sinus.cl : 500) * (0.75 + 0.5 * r()) });
       } else if (type === 'vt') {
         const c = opts.cell !== undefined ? opts.cell : pick(vent, 1)[0];
         this.drivers.push({ kind: 'focus', cell: c, next: this.t, cl: () => opts.cl || P.vtCl });
@@ -1947,7 +1979,7 @@
       //    since it was last activated (being activated resets it: overdrive suppression)
       for (const pm of this.pacemakers) {
         if (pm.cl <= 0 || this.blocked[pm.cell] || (pm.armed && !pm.armed())) continue;
-        if (pm.name === 'sinus' && (this.sinusArrest || t < this.sinusPauseUntil || (this.arrhythmia && this.arrhythmia.type === 'ectopic'))) continue;
+        if (pm.name === 'sinus' && (this.sinusArrest || t < this.sinusPauseUntil || (this.arrhythmia && (this.arrhythmia.type === 'ectopic' || this.arrhythmia.type === 'mat')))) continue;
         if (t - this.tAct[pm.cell] >= pm.cl && t >= this.refEnd[pm.cell]) {
           // SA exit block: the node keeps its rhythm, but every nth impulse fails to exit
           if (pm.name === 'sinus' && this.saExit && ++this.saExit.count % this.saExit.n === 0) {

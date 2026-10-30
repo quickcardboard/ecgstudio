@@ -25,7 +25,7 @@
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', clicks: [], struct: { rae: false, lae: false, lvh: false, rvh: false, ap: '', dual: true }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', struct: { rae: false, lae: false, lvh: false, rvh: false, ap: '', dual: true }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const bufIdx = (t) => (((Math.round(t) + ecg.t0) % PAGE) + PAGE) % PAGE;   // sim time → paper sample
   const ecg = { t0: 0, buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
@@ -138,6 +138,7 @@
       const t0 = performance.now();
       for (let i = 0; i < n; i++) S.step();
       perf.tSim += performance.now() - t0; perf.steps += n;
+      checkAvnrt();
     }
     const t1 = performance.now();
     update3D();
@@ -855,7 +856,7 @@
   const CUT_R = 85;   // mm from the centre at which the cut plane clears the heart
   function setCut(f) {
     ui.cutFrac = f; ui.cutDepth = (1 - f / 100) * CUT_R;
-    $('cutDepth').value = f; $('cutDepthVal').textContent = f === 0 ? 'none' : f === 100 ? 'halfway' : `${f}%`;
+    $('cutDepth').value = f; $('cutExt').setAttribute('aria-pressed', String(f === 0)); $('cutFull').setAttribute('aria-pressed', String(f === 100));
     const v = f > 0 ? 'cutaway' : 'external';
     if (v !== ui.view) setView(v);
     g3.planeDirty = true;
@@ -865,7 +866,7 @@
   function cameraPreset(name) {
     if (name === 'short') { cutPreset('short'); return; }
     if (name === 'left') { cutPreset('lateral'); return; }
-    if (name === 'front' && ui.view === 'cutaway') { cutPreset('anterior'); return; }
+    if (name === 'front') { cutPreset('anterior'); return; }   // anterior = the four-chamber direction, cut or not
     const [d, up] = CAM[name], cam = g3.camera, ctl = g3.controls;
     ctl.target.set(0, 0, 0);
     cam.position.set(...d).normalize().multiplyScalar(ui.leads ? 660 : 380);
@@ -993,7 +994,7 @@
         : 'Cut the heart open (Cut slider below) to reach the conduction system. The SA node (white dot) can be clicked now.')
       : ui.action === 'ischemia'
         ? 'Click a coronary artery to occlude it there.' + (cut ? ' Click muscle on the cut face for subendocardial ischemia.' : ' Cut the heart open (Cut slider below) to click muscle for subendocardial ischemia.')
-        : ui.action === 'stimulate' ? 'Click the atria for a PAC or the ventricles for a PVC. Rapid repeated clicks start arrhythmias (see the guide).'
+        : ui.action === 'stimulate' ? 'Click the atria for a PAC or the ventricles for a PVC. A well-timed PAC can start AVNRT (or AVRT with an accessory pathway); a PVC on the T wave of an acutely ischemic heart starts VF.'
           : 'Drag to turn the heart. Clicks on the heart do nothing in this tab.';
   }
 
@@ -1037,8 +1038,6 @@
       const rec = S.stimulate(c);
       const refractory = S.t < S.refEnd[c];
       flash(x, y, refractory ? 'No capture (refractory)' : rec.ronT ? 'R-on-T!' : rec.kind === 'atrial' ? 'PAC' : 'PVC');
-      const g = clickGesture(c, rec.kind);
-      if (g) flash(x, y, g);
       return;
     }
   }
@@ -1125,31 +1124,6 @@
     S.setIschemiaTime(h); $('ischStage').textContent = ischStage(h);
   }
 
-  // Rapid repeated clicks (real time, so they work at any time scale):
-  //   ≥4 on the atria within 2.5 s — AF (mostly left atrium), flutter (right
-  //   atrium) or MAT (three or more separate sites); ≥4 on the ventricles —
-  //   VT from the last site, ≥7 — VF.
-  function clickGesture(c, kind) {
-    const now = performance.now();
-    ui.clicks = ui.clicks.filter((k) => now - k.t < 2500 && k.kind === kind);
-    ui.clicks.push({ t: now, c, kind });
-    const cl = ui.clicks;
-    const dist = (a, b) => Math.hypot(A.pos[3 * a] - A.pos[3 * b], A.pos[3 * a + 1] - A.pos[3 * b + 1], A.pos[3 * a + 2] - A.pos[3 * b + 2]);
-    if (kind === 'atrial' && cl.length >= 4) {
-      const sites = []; for (const k of cl) if (sites.every((q) => dist(q, k.c) > 25)) sites.push(k.c);
-      ui.clicks = [];
-      if (sites.length >= 3) { S.startArrhythmia('mat', { cells: sites }); return 'Multifocal atrial tachycardia'; }
-      const la = cl.filter((k) => A.label[k.c] === 3).length;
-      if (la * 2 >= cl.length) { S.startArrhythmia('af'); return 'Atrial fibrillation'; }
-      S.startArrhythmia('flutter'); return 'Atrial flutter';
-    }
-    if (kind === 'ventricular') {
-      if (cl.length >= 7) { ui.clicks = []; S.startArrhythmia('vf'); return 'Ventricular fibrillation'; }
-      if (cl.length >= 4 && !(S.arrhythmia && S.arrhythmia.type === 'vt')) { S.startArrhythmia('vt', { cell: c }); return 'Ventricular tachycardia'; }
-    }
-    return null;
-  }
-
   function toggleControls() {
     const c = $('controls').classList.toggle('collapsed');
     $('ctlChevron').textContent = c ? 'Show' : 'Hide'; $('ctlHead').setAttribute('aria-expanded', String(!c));
@@ -1168,15 +1142,17 @@
   // ventricular response (AF: mean of an irregular response; flutter: N:1).
   function syncRate() {
     const arr = S.arrhythmia && S.arrhythmia.type, vent = arr === 'af' || arr === 'flutter', r = $('rate');
-    const mode = vent ? 'ventricular' : arr === 'ectopic' ? 'ectopic' : 'sinus';
+    const atr = arr === 'ectopic' || arr === 'mat', mode = vent ? 'ventricular' : atr ? 'atrial' : 'sinus';
     if (mode === ui.rateMode && !(vent && S.vResponse == null && ui.vRate)) return;
+    if (ui.rateMode === 'atrial' && ui.preAtrRate) { ui.rate = ui.preAtrRate; S.setRate(ui.rate); }   // back to the sinus rate set before MAT
+    ui.preAtrRate = mode === 'atrial' ? ui.preAtrRate : null;
     ui.rateMode = mode;
     if (vent) {
       if (ui.vRate) S.setVentricularResponse(ui.vRate);
       const v = S.vResponse || (arr === 'af' ? LH.DEFAULTS.afDefaultRate : 170);
       $('rateLab').textContent = 'Ventricular rate'; r.min = 30; r.max = 180; r.value = v; $('rateVal').textContent = `${Math.round(v)} bpm`;
     } else {
-      $('rateLab').textContent = arr === 'ectopic' ? 'Atrial rate' : 'Sinus rate'; r.min = 30; r.max = 180; r.value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`;
+      $('rateLab').textContent = atr ? 'Atrial rate' : 'Sinus rate'; r.min = 30; r.max = 180; r.value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`;
     }
   }
 
@@ -1198,12 +1174,27 @@
     }
   }
 
+  // AVNRT induction as in the EP lab: a PAC after a sinus beat, each one more
+  // premature than the last, until one blocks in the fast pathway, conducts
+  // down the slow one and re-enters (the window moves with the sinus rate)
+  function avnrtTrial(c) {
+    const t0 = S.nextSinus();
+    S.stimulateAt(A.nearest(A.landmarks.SVC.c, (x) => A.label[x] === 4), t0 + c);
+    ui.avnrt = { c, checkAt: t0 + c + 1600 };
+  }
+  function checkAvnrt() {
+    if (!ui.avnrt || S.t < ui.avnrt.checkAt) return;
+    const V = S.log.vent.filter((v) => v.on > ui.avnrt.checkAt - 1200), rr = V.slice(1).map((v, i) => v.on - V[i].on);
+    const tachy = rr.length >= 2 && rr.every((x) => x < 450);
+    if (tachy || ui.avnrt.c <= 160 || S.arrhythmia) ui.avnrt = null; else avnrtTrial(ui.avnrt.c - 20);
+  }
   // the Arrhythmias buttons
   function startRhythm(type) {
+    ui.avnrt = null;
     if (type === 'avnrt') {
       if (S.ap) { ui.struct.ap = ''; $('stAP').value = ''; S.setAccessoryPathway(null); placeAPMarker(); }
       S.stopArrhythmia();
-      S.stimulateAt(A.nearest(A.landmarks.SVC.c, (c) => A.label[c] === 4), S.nextSinus() + 240);
+      avnrtTrial(280);
       return;
     }
     if (type === 'avrt') {
@@ -1213,7 +1204,9 @@
       return;
     }
     if (type === 'vt') { let best = -1; for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.epi[c] && A.zuvc[c] > 0.35 && A.zuvc[c] < 0.45 && A.phi[c] < -2.2) { best = c; break; } S.startArrhythmia('vt', { cell: best }); return; }
+    if (type === 'mat' && ui.rate < 110) { ui.preAtrRate = ui.preAtrRate || ui.rate; ui.rate = 120; S.setRate(120); ui.rateMode = ''; }   // MAT starts tachycardic; the slider then sets it
     S.startArrhythmia(type);
+    syncRate();
   }
 
   // ---------------------------------------------------------------------------
@@ -1394,7 +1387,7 @@
       const ar = flutterCl ? 60000 / flutterCl : 0, ratio = ar ? ar / rate : 0, fixed = rrSd < 25 && Math.abs(ratio - Math.round(ratio)) < 0.2;
       rhythm = `Atrial flutter (${S.arrhythmia.clockwise ? 'atypical, clockwise' : 'typical, counterclockwise'}), atrial ${Math.round(ar)}/min with ${fixed ? Math.round(ratio) + ':1' : 'variable'} AV conduction`;
     } else if (arr === 'ectopic') rhythm = `Ectopic atrial ${vr > 100 ? 'tachycardia' : 'rhythm'}: low right-atrial focus, ${vr} bpm, inverted P in II, III and aVF`;
-    else if (arr === 'mat') rhythm = `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes`;
+    else if (arr === 'mat') rhythm = vr > 100 ? `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes` : `Multifocal atrial rhythm (wandering atrial pacemaker): ${vr} bpm, irregular, three or more P-wave shapes`;
     else if (arr === 'vt') rhythm = `Monomorphic ventricular tachycardia, ${vr} bpm, with AV dissociation`;
     else if (avnrt) rhythm = `AVNRT (typical slow–fast): ${vr} bpm, narrow QRS, retrograde P hidden at the end of the QRS`;
     else if (avrt) {
@@ -1471,7 +1464,9 @@
     const out = {};
     for (const [n, k] of Object.entries(L_IDX)) {
       const base = at(k, qrsBaseT(vb)), J = vb.last + 6;
-      const st = at(k, J + 40) - base;
+      // ST deviation must hold from early ST (J+20) to J+40, so the upstroke of an early tall T is not read as ST shift
+      const s20 = at(k, J + 20) - base, s40 = at(k, J + 40) - base;
+      const st = s20 * s40 > 0 ? Math.sign(s40) * Math.min(Math.abs(s20), Math.abs(s40)) : 0;
       let qDur = 0, qAmp = 0, rMax = 0;
       for (let t = vb.on; t < vb.on + 60; t++) { const v = at(k, t) - base; if (v > 0.05) break; if (v < -0.04) qDur = t - vb.on + 1; qAmp = Math.min(qAmp, v); }
       for (let t = vb.on; t <= J; t++) rMax = Math.max(rMax, at(k, t) - base);
@@ -1557,7 +1552,8 @@
     // new findings only: compared with this heart's own healthy beat
     // (without a healthy reference yet, leads with normal Q/negative T are skipped)
     const ref = ui.ref, NORMQ = ['aVR', 'aVL', 'III', 'V1'], was = (n, f) => (ref ? f(ref[n]) : NORMQ.includes(n));
-    const isQ = (v) => v.qDur >= 30 && v.qAmp <= -0.1;
+    // pathological Q: ≥30 ms and ≥1 mm deep, or ≥40 ms wide whatever its depth (≥0.5 mm)
+    const isQ = (v) => (v.qDur >= 30 && v.qAmp <= -0.1) || (v.qDur >= 40 && v.qAmp <= -0.05);
     // QS: the initial R has shrunk to ≤1 mm (from ≥2 mm) and the complex is mainly negative
     const isQS = (n) => ref && ref[n].r40 >= 0.2 && m[n].r40 < 0.1 && m[n].s >= 0.3 && m[n].s > 2 * m[n].rMax;
     // new: absent from the healthy beat, or at least 0.2 mV deeper than its physiological q
@@ -1649,7 +1645,7 @@
       if (ui.leads && g3.camera.position.length() < 600) { g3.camera.position.setLength(660); g3.controls.update(); }
     });
     $('btnPause').addEventListener('click', () => { ui.paused = !ui.paused; $('btnPause').textContent = ui.paused ? 'Resume' : 'Pause'; });
-    $('btnReset').addEventListener('click', () => { newSim(); renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); syncRate(); });
+    $('btnReset').addEventListener('click', () => { ui.avnrt = null; newSim(); renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); syncRate(); });
     $('ischTime').addEventListener('input', (e) => {
       ui.ischH = ISCH_STOPS[+e.target.value][0]; $('ischVal').textContent = fmtHours(ui.ischH); $('ischStage').textContent = ischStage(ui.ischH);
       ui.ischPending = ui.ischH;                                  // applied once per frame
@@ -1666,13 +1662,15 @@
     });
     for (const b of $('arrButtons').querySelectorAll('button')) b.addEventListener('click', () => { startRhythm(b.dataset.arr); syncRate(); interpret(); });
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); });
-    $('btnShock').addEventListener('click', () => { S.shock(); syncRate(); interpret(); });
+    $('btnShock').addEventListener('click', () => { ui.avnrt = null; S.shock(); syncRate(); interpret(); });
     $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
     $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); recolorIschemia(); renderIschList(); interpret(true); });
     for (const b of document.querySelectorAll('#controls .tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab));
     initPicking(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     $('cutDepth').addEventListener('input', (e) => setCut(+e.target.value));
+    $('cutExt').addEventListener('click', () => setCut(0));
+    $('cutFull').addEventListener('click', () => setCut(100));
     initStrips();
     g3.controls.addEventListener('change', () => { if (ui.view === 'cutaway') g3.planeDirty = true; });
     const toggle = toggleControls;

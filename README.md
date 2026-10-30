@@ -174,6 +174,28 @@ re-entry.
   Phones: landscape only, with a Heart | ECG switch showing one pane at a time; from iPad mini width both panes
   show (stacked when the tablet is upright).
 
+### Round 7 revisions
+
+- **Heart position:** a yaw about the body's vertical axis (+15°) swings the apex from anterior toward the left, with
+  pitch −15° and rotation +14°. The long axis now points 43° below horizontal, 36° anterior (was 51°) and 45° from the
+  left in the horizontal plane. Axes: normal +61°, LAFB −67°, LPFB +96°; LBBB reads ~+95° (a known limitation).
+  The Anterior preset always looks along the four-chamber direction.
+- **Septal blood supply:** septal perforators come from the proximal and mid LAD (the apical third gives few), so the
+  septum at apicobasal level z is supplied from a fixed fraction of the LAD's length (not from the LAD node at the same
+  level). Mid-LAD occlusions now take the mid and lower septum; distal LAD spares it, reading inferior + V3–V5.
+- **Infarct size and Q waves:** cells die above severity 0.38 (was 0.6), necrosis reaches 70% through the LV wall
+  (a surviving epicardial rim carries the late T inversion; the thin RV wall dies through), and late APD
+  prolongation is 0.9. ST is read at J+20 and J+40 and counted only when both agree. A Q of ≥40 ms (≥0.05 mV) is
+  pathological as well as ≥30 ms and ≥0.1 mV. Results (`node tools/ischaudit.js`, 2 days): LM Q I, aVL, V1–V3, V5–V6;
+  proximal LAD Q I, aVL, V1–V3, V5; mid LAD QS V1–V3 with T inversion V2–V3; distal LAD Q aVF; LCx Q aVF and V6;
+  RCA/PDA Q II, III, aVF. Limitation: LCx infarcts do not produce Q waves in I and aVL.
+- **Rhythms:** the rate slider sets the atrial rate for ectopic atrial rhythm and MAT (MAT foci fire at that cycle
+  length ±25%; starting MAT raises the rate to 120 and the previous sinus rate returns when it ends). AVNRT is induced
+  as in an EP study: PACs after sinus beats at 280, 260 … 160 ms until one starts the tachycardia; slow-pathway delay
+  50 ms per segment. Rapid-click gestures are gone; sustained arrhythmias start from the buttons, a timed PAC
+  (AVNRT/AVRT) or a PVC on the T wave of an acutely ischemic heart (VF).
+- **View bar:** External and Cut at either end of the cut slider jump straight to either state.
+
 ## Layout
 
 ```
