@@ -1563,8 +1563,11 @@
       // (the innermost layer, fed from the cavity blood, survives with the Purkinje junctions)
       const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : P.ischFrontMax);
       const dead = s > P.ischDeadS && (tm > 0.06 || h > 8) && tm < front;   // (the inner layer is lost too once the infarct is complete)
+      // the surviving epicardial rim over a completed infarct is drawn as part of
+      // the infarct (it stays electrically alive)
+      const rim = !dead && kind !== 'subendo' && s > P.ischDeadS && tm >= front && sm((h - 0.4) / P.ischNecrosisH) > 0.98;
       return {
-        apd, dead, level: Math.max(inj, 0.5 * s * katp),
+        apd, dead, rim, level: Math.max(inj, 0.5 * s * katp),
         vRest: dead ? P.vRest : P.vRest + P.ischDvRest * inj,
         amp: dead ? 0 : 1 - P.ischAmpDrop * inj,
         cv: 1 + P.ischCvSlow * inj,
@@ -1605,7 +1608,7 @@
       for (const [c, st] of best) {
         this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = this.vAmp0[c] * st.amp;
         this.cvMul[c] = st.cv; this.blocked[c] = st.dead ? 1 : 0; this._ischCells.add(c);
-        lvl[c] = st.dead ? 2 : st.level;
+        lvl[c] = st.dead || st.rim ? 2 : st.level;   // (display only: 2 = necrotic)
         if (st.dead) nDead++;
       }
       this.nDead = nDead;
