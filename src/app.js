@@ -5,12 +5,13 @@
   'use strict';
   const LH = window.LiveHeart;
   const $ = (id) => document.getElementById(id);
+  const PHONE = '(max-width: 743px), (max-height: 500px)';   // one pane at a time below an iPad mini
 
   const PAGE = 10000;        // ms of ECG on one sheet (10 s)
   const ERASE = 140;         // ms blank gap ahead of the sweep cursor
   const SCALES = [0.02, 0.05, 0.1, 0.2, 1 / 3, 0.5, 1];
   const SCALE_LABEL = ['1/50×', '1/20×', '1/10×', '1/5×', '1/3×', '1/2×', '1×'];
-  const MAX_STEPS_PER_FRAME = 90;
+  const MAX_STEPS_PER_FRAME = 40;   // a slow frame drops simulated time instead of catching up (no stutter spiral)
 
   // Tissue state colours (linear RGB 0..1): spec — pink resting, blue
   // depolarizing, green repolarizing; the conduction system rests in gold.
@@ -45,10 +46,10 @@
     $('loading').hidden = true;
     // handle for automation (tests, future quiz mode): simulator, model and a projector
     window.LiveHeartApp = {
-      get sim() { return S; }, model: M,
+      get sim() { return S; }, model: M, perf,
       ischemia: {
         occlude(node) { captureRef(); const id = S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
-        subendo(cell, r = 36) { captureRef(); const id = S.addSubendocardial(cell, r); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
+        subendo(cell, r = 55) { captureRef(); const id = S.addSubendocardial(cell, r); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
         hours(h) { setIschTime(h); recolorIschemia(); },
         clear() { S.clearIschemia(); recolorIschemia(); renderIschList(); },
         segmentName: (id) => segmentName(id),
@@ -126,6 +127,7 @@
   // Main loop: advance simulated time by wall time × time scale (1 ms steps)
   // ---------------------------------------------------------------------------
   let interpTimer = 0;
+  const perf = { frames: 0, steps: 0, tSim: 0, t3d: 0, tEcg: 0 };
   function loop(now) {
     const dt = Math.min(100, now - ui.last); ui.last = now;
     if (ui.ischPending !== null) { S.setIschemiaTime(ui.ischPending); ui.ischPending = null; recolorIschemia(); interpret(true); }
@@ -133,10 +135,15 @@
       ui.acc += dt * SCALES[ui.scaleIdx];
       let n = Math.floor(ui.acc); ui.acc -= n;
       if (n > MAX_STEPS_PER_FRAME) { n = MAX_STEPS_PER_FRAME; ui.acc = 0; }
+      const t0 = performance.now();
       for (let i = 0; i < n; i++) S.step();
+      perf.tSim += performance.now() - t0; perf.steps += n;
     }
+    const t1 = performance.now();
     update3D();
+    const t2 = performance.now();
     drawECG();
+    perf.t3d += t2 - t1; perf.tEcg += performance.now() - t2; perf.frames++;
     if ((interpTimer += dt) > 300) { interpTimer = 0; syncRate(); interpret(); }
     $('clock').textContent = `t ${(S.t / 1000).toFixed(3)} s · ${SCALE_LABEL[ui.scaleIdx]}${ui.paused ? ' · paused' : ''}`;
     requestAnimationFrame(loop);
@@ -276,7 +283,7 @@
       }
       return vertexIndex(list);
     };
-    const otherVerts = othersOf(1), otherRV = A.rvWallLayers ? othersOf(2) : null;
+    const otherVerts = othersOf(1), otherRV = A.rvWallLayers ? othersOf(2) : null, otherRA = A.raWallLayers ? othersOf(4) : null;
     g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = []; g3.pickTissue = [];
     for (const s of A.json.surfaces) {
       const q = decodeB64(s.pos, Uint16Array), idx = decodeB64(s.idx, Uint32Array);
@@ -288,6 +295,7 @@
       geo.computeVertexNormals();
       if (s.label === 1 && A.lvWallLayers) thickenLV(geo, A.lvWallLayers * A.h, otherVerts);
       if (s.label === 2 && A.rvWallLayers) thickenLV(geo, A.rvWallLayers * A.h, otherRV, 2, LH.rvThickenWeight);
+      if (s.label === 4 && A.raWallLayers) thickenLV(geo, A.raWallLayers * A.h, otherRA, 4, () => 1);
       let mat;
       if (s.label <= 4) {
         const nv = pos.length / 3, col = new Float32Array(pos.length), vmap = new Int32Array(nv);
@@ -866,19 +874,18 @@
   }
 
   // colour of a cell from its action-potential phase
+  // (no allocation: called for every cell every frame)
   function stateColor(c, t, out, o, restArr, ro = 0) {
     const s = t - S.tAct[c], apd = S.apd[c], w = S.repW[c] || 100;
-    const restCol = ro || restArr.length > 3 ? [restArr[ro], restArr[ro + 1], restArr[ro + 2]] : restArr;
-    let r, g, b;
-    if (s < 0 || s >= apd + 0.35 * w) { [r, g, b] = restCol; }
-    else if (s < apd - 0.35 * w) {
-      const k = Math.min(1, s / 35);
-      r = C.front[0] + (C.dep[0] - C.front[0]) * k; g = C.front[1] + (C.dep[1] - C.front[1]) * k; b = C.front[2] + (C.dep[2] - C.front[2]) * k;
-    } else {
-      const k = Math.max(0, (s - (apd - 0.35 * w)) / (0.7 * w)), kk = k * k;
-      r = C.rep[0] + (restCol[0] - C.rep[0]) * kk; g = C.rep[1] + (restCol[1] - C.rep[1]) * kk; b = C.rep[2] + (restCol[2] - C.rep[2]) * kk;
+    const r0 = restArr[ro], g0 = restArr[ro + 1], b0 = restArr[ro + 2];
+    if (s < 0 || s >= apd + 0.35 * w) { out[o] = r0; out[o + 1] = g0; out[o + 2] = b0; return; }
+    if (s < apd - 0.35 * w) {
+      const k = Math.min(1, s / 35), F = C.front, D = C.dep;
+      out[o] = F[0] + (D[0] - F[0]) * k; out[o + 1] = F[1] + (D[1] - F[1]) * k; out[o + 2] = F[2] + (D[2] - F[2]) * k;
+      return;
     }
-    out[o] = r; out[o + 1] = g; out[o + 2] = b;
+    const k = Math.max(0, (s - (apd - 0.35 * w)) / (0.7 * w)), kk = k * k, P = C.rep;
+    out[o] = P[0] + (r0 - P[0]) * kk; out[o + 1] = P[1] + (g0 - P[1]) * kk; out[o + 2] = P[2] + (b0 - P[2]) * kk;
   }
 
   function update3D() {
@@ -983,10 +990,11 @@
     const cut = ui.view !== 'external';
     $('actionNote').textContent = ui.action === 'block'
       ? (cut ? 'Click the SA node, AV node, His bundle, a bundle branch or a fascicle to choose a block.'
-        : 'Cut the heart open (View tab) to reach the conduction system. The SA node (white dot) can be clicked now.')
+        : 'Cut the heart open (Cut slider below) to reach the conduction system. The SA node (white dot) can be clicked now.')
       : ui.action === 'ischemia'
-        ? 'Click a coronary artery to occlude it there.' + (cut ? ' Click muscle on the cut face for subendocardial ischemia.' : ' Cut the heart open (View tab) to click muscle for subendocardial ischemia.')
-        : 'Click the atria for a PAC or the ventricles for a PVC. Rapid repeated clicks start arrhythmias (see the guide).';
+        ? 'Click a coronary artery to occlude it there.' + (cut ? ' Click muscle on the cut face for subendocardial ischemia.' : ' Cut the heart open (Cut slider below) to click muscle for subendocardial ischemia.')
+        : ui.action === 'stimulate' ? 'Click the atria for a PAC or the ventricles for a PVC. Rapid repeated clicks start arrhythmias (see the guide).'
+          : 'Drag to turn the heart. Clicks on the heart do nothing in this tab.';
   }
 
   // pointer handling on the 3D canvas: a click (not a drag) acts
@@ -1000,7 +1008,7 @@
       const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
       hideBlockMenu();
-      if (ui.action === 'block') pickBlock(ray, x, y); else if (ui.action === 'ischemia') pickIschemia(ray, x, y); else pickStimulus(ray, x, y);
+      if (ui.action === 'block') pickBlock(ray, x, y); else if (ui.action === 'ischemia') pickIschemia(ray, x, y); else if (ui.action === 'stimulate') pickStimulus(ray, x, y);
     });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideBlockMenu(); });
     $('blockMenuCancel').addEventListener('click', hideBlockMenu);
@@ -1061,7 +1069,7 @@
         const c = nearestTissue(p.x, p.y, p.z, hit.object === g3.slab.im ? 1 : 3);
         if (c < 0) continue;
         if (A.label[c] !== 1 && A.label[c] !== 2) { flash(x, y, 'Click ventricular muscle'); return; }
-        captureRef(); added = S.addSubendocardial(c, 36);
+        captureRef(); added = S.addSubendocardial(c, 55);
         flash(x, y, 'Subendocardial ischemia');
         break;
       }
@@ -1089,7 +1097,7 @@
   // the time slider stops only where the ECG changes character
   const ISCH_STOPS = [
     [0, 'Onset', 'No electrical change yet.'],
-    [0.25, '15 min', 'Hyperacute: K-ATP channels shorten the action potential. Tall, broad T waves; little ST change yet.'],
+    [0.25, '15 min', 'Hyperacute: K-ATP channels shorten the action potential. Tall, broad T waves over the territory with early, modest ST elevation; the injury current is only starting.'],
     [1, '1 h', 'Acute injury: depolarised ischemic cells drive an injury current. ST elevation over the territory, reciprocal depression opposite.'],
     [4, '4 h', 'Necrosis spreads from endocardium toward epicardium. Dead, uncoupled muscle drops out of the QRS: Q waves forming, ST still elevated.'],
     [12, '12 h', 'Evolving infarct: Q waves established, ST elevation easing, T waves starting to invert.'],
@@ -1097,7 +1105,20 @@
     [720, '1 month', 'Old infarct: Q waves remain as the scar\'s signature; T waves upright again.'],
   ];
   const stopOf = (h) => ISCH_STOPS.reduce((b, s, i) => (Math.abs(Math.log1p(s[0]) - Math.log1p(h)) < Math.abs(Math.log1p(ISCH_STOPS[b][0]) - Math.log1p(h)) ? i : b), 0);
-  function ischStage(h) { return S.insults.length ? ISCH_STOPS[stopOf(h)][2] : ''; }
+  // subendocardial ischemia alone follows a different course (ST depression, no Q waves)
+  const SUBENDO_STAGE = [
+    'No electrical change yet.',
+    'Minutes: the inner wall is starved first. ST depression starts in the leads facing it, with ST elevation in aVR.',
+    'Subendocardial injury: horizontal or down-sloping ST depression over the region, ST elevation in aVR. No STEMI pattern.',
+    'The inner layer starts to die (non-Q-wave infarct). ST depression persists; no Q waves, because the outer wall still conducts.',
+    'ST depression easing; T waves flatten.',
+    'ST back near baseline. No Q waves: a non-Q-wave (NSTEMI) infarct.',
+    'Old subendocardial infarct: the ECG can look almost normal.',
+  ];
+  function ischStage(h) {
+    if (!S.insults.length) return '';
+    return S.insults.every((x) => x.kind === 'subendo') ? SUBENDO_STAGE[stopOf(h)] : ISCH_STOPS[stopOf(h)][2];
+  }
   function fmtHours(h) { return ISCH_STOPS[stopOf(h)][1]; }
   function setIschTime(h) {
     ui.ischH = h; $('ischTime').value = stopOf(h); $('ischVal').textContent = fmtHours(h);
@@ -1136,7 +1157,7 @@
   }
   // tabs: the open tab also sets what a click on the heart does
   function setTab(t) {
-    ui.tab = t; ui.action = t === 'blocks' ? 'block' : t === 'ischemia' ? 'ischemia' : 'stimulate';
+    ui.tab = t; ui.action = t === 'blocks' ? 'block' : t === 'ischemia' ? 'ischemia' : t === 'rhythm' ? 'stimulate' : 'none';
     for (const b of document.querySelectorAll('#controls .tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === t));
     for (const p of document.querySelectorAll('#controls .tabpanel')) p.hidden = p.dataset.panel !== t;
     if ($('controls').classList.contains('collapsed')) toggleControls();
@@ -1147,7 +1168,7 @@
   // ventricular response (AF: mean of an irregular response; flutter: N:1).
   function syncRate() {
     const arr = S.arrhythmia && S.arrhythmia.type, vent = arr === 'af' || arr === 'flutter', r = $('rate');
-    const mode = vent ? 'ventricular' : 'sinus';
+    const mode = vent ? 'ventricular' : arr === 'ectopic' ? 'ectopic' : 'sinus';
     if (mode === ui.rateMode && !(vent && S.vResponse == null && ui.vRate)) return;
     ui.rateMode = mode;
     if (vent) {
@@ -1155,7 +1176,7 @@
       const v = S.vResponse || (arr === 'af' ? LH.DEFAULTS.afDefaultRate : 170);
       $('rateLab').textContent = 'Ventricular rate'; r.min = 30; r.max = 180; r.value = v; $('rateVal').textContent = `${Math.round(v)} bpm`;
     } else {
-      $('rateLab').textContent = 'Sinus rate'; r.min = 30; r.max = 180; r.value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`;
+      $('rateLab').textContent = arr === 'ectopic' ? 'Atrial rate' : 'Sinus rate'; r.min = 30; r.max = 180; r.value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`;
     }
   }
 
@@ -1180,7 +1201,6 @@
   // the Arrhythmias buttons
   function startRhythm(type) {
     if (type === 'avnrt') {
-      ui.struct.dual = true; $('stDual').checked = true; S.setDualAVN(true);
       if (S.ap) { ui.struct.ap = ''; $('stAP').value = ''; S.setAccessoryPathway(null); placeAPMarker(); }
       S.stopArrhythmia();
       S.stimulateAt(A.nearest(A.landmarks.SVC.c, (c) => A.label[c] === 4), S.nextSinus() + 240);
@@ -1373,7 +1393,8 @@
     } else if (arr === 'flutter') {
       const ar = flutterCl ? 60000 / flutterCl : 0, ratio = ar ? ar / rate : 0, fixed = rrSd < 25 && Math.abs(ratio - Math.round(ratio)) < 0.2;
       rhythm = `Atrial flutter (${S.arrhythmia.clockwise ? 'atypical, clockwise' : 'typical, counterclockwise'}), atrial ${Math.round(ar)}/min with ${fixed ? Math.round(ratio) + ':1' : 'variable'} AV conduction`;
-    } else if (arr === 'mat') rhythm = `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes`;
+    } else if (arr === 'ectopic') rhythm = `Ectopic atrial ${vr > 100 ? 'tachycardia' : 'rhythm'}: low right-atrial focus, ${vr} bpm, inverted P in II, III and aVF`;
+    else if (arr === 'mat') rhythm = `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes`;
     else if (arr === 'vt') rhythm = `Monomorphic ventricular tachycardia, ${vr} bpm, with AV dissociation`;
     else if (avnrt) rhythm = `AVNRT (typical slow–fast): ${vr} bpm, narrow QRS, retrograde P hidden at the end of the QRS`;
     else if (avrt) {
@@ -1491,8 +1512,9 @@
     if (!S.ap && !Object.keys(S.blocks).length) {
       const sok = m.V1.s + Math.max(m.V5.rMax, m.V6.rMax), corn = m.aVL.rMax + m.V3.s;
       const strainLat = ['I', 'aVL', 'V5', 'V6'].filter((n) => m[n].t < -0.08).length >= 2;
-      if (sok >= 3.5 || corn >= 2.8) out.push(`Left ventricular hypertrophy by voltage (Sokolow–Lyon ${sok.toFixed(1)} mV, Cornell ${corn.toFixed(1)} mV)${strainLat ? ' with repolarization abnormality (strain)' : ''}`);
       const domR = m.V1.rMax > m.V1.s && m.V1.rMax >= 0.5;
+      // (Cornell's deep S in V3 is not left-sided when the right ventricle dominates)
+      if (sok >= 3.5 || (corn >= 2.8 && !domR)) out.push(`Left ventricular hypertrophy by voltage (Sokolow–Lyon ${sok.toFixed(1)} mV, Cornell ${corn.toFixed(1)} mV)${strainLat ? ' with repolarization abnormality (strain)' : ''}`);
       if (domR) out.push(`Right ventricular hypertrophy: dominant R in V1 (R ${m.V1.rMax.toFixed(2)} mV)${['V1', 'V2'].every((n) => m[n].t < -0.1) ? ' with T inversion in V1–V2 (RV strain)' : ''}`);
     }
     return out;
@@ -1540,7 +1562,8 @@
     const isQS = (n) => ref && ref[n].r40 >= 0.2 && m[n].r40 < 0.1 && m[n].s >= 0.3 && m[n].s > 2 * m[n].rMax;
     // new: absent from the healthy beat, or at least 0.2 mV deeper than its physiological q
     const newQ = (n) => isQ(m[n]) && (!was(n, isQ) || (ref && m[n].qAmp < ref[n].qAmp - 0.2));
-    const Q = order(new Set(LH.LEADS.filter((n) => n !== 'aVR' && (newQ(n) || isQS(n)))));
+    // (not in leads with reciprocal ST depression: the depressed ST pulls the whole complex down)
+    const Q = order(new Set(LH.LEADS.filter((n) => n !== 'aVR' && !std(n) && (newQ(n) || isQS(n)))));
     // R waves lost over the infarct (the precordial Q-wave equivalent)
     const rLoss = ref ? ['V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'I', 'aVL', 'II', 'III', 'aVF'].filter((n) => ref[n].rMax > 0.2 && m[n].rMax < 0.65 * ref[n].rMax && ref[n].rMax - m[n].rMax > 0.1 && !Q.includes(n)) : [];
     const rLossC = order(contiguous((n) => rLoss.includes(n)));
@@ -1612,6 +1635,13 @@
     const ts = $('timescale');
     ts.addEventListener('input', () => { ui.scaleIdx = +ts.value; $('tsVal').textContent = SCALE_LABEL[ui.scaleIdx]; });
     $('ovLabels').addEventListener('change', (e) => { ui.labels = e.target.checked; });
+    // phones: one pane at a time
+    for (const b of $('viewsw').querySelectorAll('button')) b.addEventListener('click', () => {
+      document.body.classList.toggle('show-ecg', b.dataset.pane === 'ecg');
+      for (const x of $('viewsw').querySelectorAll('button')) x.setAttribute('aria-selected', String(x === b));
+    });
+    $('ovLegend').checked = !matchMedia(PHONE).matches; $('legend').hidden = !$('ovLegend').checked;
+    $('ovLegend').addEventListener('change', (e) => { $('legend').hidden = !e.target.checked; });
     $('ovLeads').addEventListener('change', (e) => {
       ui.leads = e.target.checked;
       $('legendLeads').hidden = !ui.leads;
@@ -1634,7 +1664,6 @@
       await rebuildHeart(prev);
       for (const x of ['stLVH', 'stRVH']) $(x).disabled = false;
     });
-    $('stDual').addEventListener('change', (e) => { ui.struct.dual = e.target.checked; S.setDualAVN(ui.struct.dual); interpret(); });
     for (const b of $('arrButtons').querySelectorAll('button')) b.addEventListener('click', () => { startRhythm(b.dataset.arr); syncRate(); interpret(); });
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); });
     $('btnShock').addEventListener('click', () => { S.shock(); syncRate(); interpret(); });
@@ -1648,7 +1677,7 @@
     g3.controls.addEventListener('change', () => { if (ui.view === 'cutaway') g3.planeDirty = true; });
     const toggle = toggleControls;
     $('ctlHead').addEventListener('click', toggle);
-    if (window.matchMedia('(max-width: 760px)').matches) toggle();   // start collapsed on phones
+    if (window.matchMedia(PHONE).matches) toggle();   // start collapsed on phones
     $('ctlHead').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
     $('btnGuide').addEventListener('click', () => { $('guide').hidden = false; });
     $('guideClose').addEventListener('click', () => { $('guide').hidden = true; });

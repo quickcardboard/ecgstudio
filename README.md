@@ -15,7 +15,7 @@ Three.js r128 and OrbitControls from CDNs.
 | Anatomy | Average adult four-chamber heart (Rodero et al. 2021), voxelized at 2 mm (≈37k cells), with decimated surfaces for rendering |
 | Conduction system | SA node, crista terminalis, Bachmann's bundle, AV node (5 decremental segments), His, LBB → LAF/LPF (two-fascicle model; an optional septal fascicle is off by default), RBB → moderator band, LV/RV Purkinje networks, escape pacemakers |
 | Engine | Event-driven automaton with sub-ms arrival times, fibre anisotropy, APD/CV restitution, AV-node decrement and autonomic coupling, per-cell parametric action potential, electrotonic APD modulation |
-| ECG | Limb leads from the Einthoven projection of the heart vector (Goldberger augmented leads); precordial leads blend the heart vector projected on distance-weighted lead vectors (70%) with near-field chest-electrode potentials (30%) |
+| ECG | Limb leads from the Einthoven projection of the heart vector (Goldberger augmented leads); precordial leads blend the heart vector projected on distance-weighted lead vectors (70%) with near-field chest-electrode potentials (30%), chest-lead gain 0.95 |
 | UI | 3D external and four-chamber cutaway views (stencil-capped cut face), label and lead-vector overlays with a live heart vector, 12-lead + rhythm strip on standard paper, interpretation banner, rate and time-scale controls, resizable split |
 
 ### Validation (headless engine: `node tools/evalecg.js`, `node tools/fascsearch.js '[{}]'`)
@@ -145,10 +145,34 @@ Engine API: `sim.startArrhythmia(type, opts)`, `stopArrhythmia()`, `shock()`, `g
 | VF | 12 ventricular foci at random 140–240 ms | chaotic |
 | Shock | depolarises all excitable tissue and prolongs refractoriness of the rest | terminates every rhythm above; sinus resumes |
 
+| Ectopic atrial rhythm | one low right-atrial focus (≈25 mm from the AV node, near the CS ostium) replaces the sinus node at the set rate | inverted P in II, III, aVF, PR ~125 ms |
+
 Atrial refractoriness now has a floor (APD ≥135 ms at the shortest intervals), and the AV-node post-repolarisation
 refractoriness is 180 ms. Limitations: AF fibrillatory waves are fine (low amplitude); clockwise flutter is not offered
 (the model's clockwise circuit runs too fast); AF, MAT, VT and VF are driven by foci rather than self-sustaining
 re-entry.
+
+### Round 6 revisions
+
+- **Speed:** repolarisation enters the ECG sums as piecewise-linear pieces (8 segments per cell) instead of
+  per-step updates, about 3× faster (0.21 ms/step in sinus rhythm, 0.36 ms in AF, headless), ECG within 0.03 mV.
+  At most 40 simulation steps per frame, and allocation-free cell colouring.
+- **Orientation and sources:** σ ratio 10 and rotation +12° give normal +63°, LAFB −58°, LPFB +95° (reads right axis
+  deviation; the LPFB axis does not move past ~+96° with any orientation or fascicle setting tried).
+  The chest-lead gain was raised (0.625 → 0.95) toward normal precordial voltages (V4 R 0.7 mV, V5 0.9 mV);
+  LVH source gain is 1.5 (Sokolow 4.5 mV). Cornell is not applied when R dominates V1 (RVH).
+- **Atria:** the right atrial wall is one voxel layer thicker (also drawn), with atrial source gain 0.4, so in LAE the
+  first (right-atrial) hump of P mitrale is as tall as the second; normal P stays 0.21 mV.
+- **Ischemia:** stronger injury (action-potential amplitude −55%, APD −45%) gives tombstone ST elevation; the injury
+  current starts after ~10 minutes, so the 15-minute stop shows hyperacute T with modest ST elevation. Subendocardial
+  patches are larger (radius 55 mm, wider inner-wall spread). Q waves are not called in leads with reciprocal ST
+  depression. `node tools/ischaudit.js <sites> <hours>` reads every occlusion site at every slider stop. Limitations:
+  mid/distal LAD and LCx infarcts show lost R waves rather than true Q waves; proximal RCA rarely forms inferior Q.
+- **Adenosine** blocks the AV node for ~3 s after a 1 s delay. Dual AV-nodal pathways are always present.
+- **UI:** four control tabs (Rhythm, Blocks, Ischemia, Structure; clicks stimulate only in Rhythm). Cut slider, view
+  presets (Anterior, Lateral, Apex), labels, lead vectors and a legend toggle sit in a bar under the heart.
+  Phones: landscape only, with a Heart | ECG switch showing one pane at a time; from iPad mini width both panes
+  show (stacked when the tablet is upright).
 
 ## Layout
 

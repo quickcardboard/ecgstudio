@@ -142,11 +142,11 @@
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
     purkCrossSlow: 6.8,     // conduction-time factor on Purkinje links between fascicle territories
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
-    precordialGain: 0.625,        // overall chest-lead gain
-    sigmaRatio: 6,          // intracellular conductivity along:across fibres (1 = isotropic sources)
+    precordialGain: 0.95,        // overall chest-lead gain
+    sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
     heartPitch: -23.1,          // degrees about the left–right axis (+ tips the anterior wall upward)
-    heartRotation: 5.9,    // degrees about the AP axis (+ = more vertical heart)
+    heartRotation: 12,    // degrees about the AP axis (+ = more vertical heart)
     apexX: 72, apexY: -34.83,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
@@ -157,7 +157,7 @@
 
     // Action potential durations (ms) at long diastolic interval
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
-    atrialSourceGain: 0.6,  // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
+    atrialSourceGain: 0.4,  // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
     apdVentApexExtra: -20, // apex shorter than base (apex repolarises first)
@@ -187,9 +187,10 @@
     afDefaultRate: 110, afIrregularity: 0.45, afAvnToV: 110,   // AF ventricular response: mean rate, ±fraction of RR
     flutterRingSlow: 1.1, flutterIsthmusSlow: 2.8, flutterGateTol: 0.03, flutterRadius: 25, flutterBachmannSlow: 40,
     matClMin: 380, matClMax: 640,
+    ectopicDist: 25,        // ectopic atrial focus: distance (mm) from the AV node, low in the right atrium
     vtCl: 330,
     vfFoci: 12, vfClMin: 140, vfClMax: 240,
-    adenosineDelay: 1200, adenosineBlock: 6000, shockRefractory: 160,
+    adenosineDelay: 1000, adenosineBlock: 3000, shockRefractory: 160,
 
     // Accessory pathway (see Sim.setAccessoryPathway)
     apDelay: 6, apErp: 280,
@@ -201,12 +202,14 @@
     // Ischaemia (see Sim._ischemicState)
     ischBorderMm: 9,       // border-zone width over which severity rises to the core value
     ischKatpH: 0.15,       // hours for K-ATP APD shortening to develop (hyperacute T)
-    ischInjuryH: 0.5,      // hours for the injury current (resting depolarisation) to develop
-    ischApdShort: 0.4, ischApdLate: 0.7, ischLateH: 3,
-    ischSubendoGain: 1.6,  // demand ischaemia: the inner wall is the most severely injured
+    ischInjuryOnset: 0.15, // hours before the injury current starts (the first minutes show hyperacute T only)
+    ischInjuryH: 0.6,      // hours for the injury current (resting depolarisation) to develop
+    ischApdShort: 0.45, ischApdLate: 0.7, ischLateH: 3,
+    ischSubendoGain: 1.6, subendoSpanPhi: 1.6, subendoSpanZ: 0.5,  // demand ischaemia: the inner wall is the most severely injured
     ischStResolve: 0.6,    // fraction of the injury current gone by 8 h (ST elevation partly resolves)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
-    ischAmpDrop: 0.35, ischCvSlow: 0.3,
+    ischAmpDrop: 0.55, ischCvSlow: 0.3,
+    ischDeadS: 0.6,        // severity above which a cell dies once the necrosis front reaches it
     ischNecrosisH: 5.6,    // hours for necrosis to advance from endocardium to epicardium
     ischUncouple: 0.85,    // fraction of necrotic/living coupling lost (lead weights)
     ischSanSlow: 0.25, ischAvnSlow: 1.2,
@@ -271,6 +274,11 @@
       // ventricular hypertrophy (opts.rvWallLayers: RV free wall, outward)
       this.rvWallLayers = opts.rvWallLayers || 0;
       if (this.rvWallLayers) this._editLVWall(V, this.rvWallLayers, LAB.RV, rvThickenWeight);
+      // atrial wall thickening (opts.raWallLayers / laWallLayers, outward)
+      this.raWallLayers = opts.raWallLayers !== undefined ? opts.raWallLayers : 1;   // one extra layer by default (RA force ≈ LA force, see LAE)
+      this.laWallLayers = opts.laWallLayers || 0;
+      if (this.raWallLayers) this._editLVWall(V, this.raWallLayers, LAB.RA, () => 1);
+      if (this.laWallLayers) this._editLVWall(V, this.laWallLayers, LAB.LA, () => 1);
       this._materialize(V);
       this.landmarks = json.landmarks;
       this._classifySurfaces();
@@ -1200,7 +1208,8 @@
   // activation sequence matches an eikonal solution on the tissue graph and is
   // independent of the integration step.
   const PHASE = { REST: 0, DEP: 1, REP: 2 };
-  const RING = 8192;  // ms horizon of the arrival queue
+  const RING = 8192;
+  const REP_SEG = 8;  // straight segments per repolarisation (ECG running sums)  // ms horizon of the arrival queue
 
   class Sim {
     constructor(model, opts = {}) {
@@ -1225,7 +1234,8 @@
       // explicitly ("dynamic" list); cells on the plateau have Vm linear in t
       // and are folded into two running sums per electrode (see _ecg).
       this.dyn = new Int32Array(N); this.nDyn = 0; this.dynPos = new Int32Array(N).fill(-1);
-      this.onPlateau = new Uint8Array(N);
+      this.piece = new Uint8Array(N);                 // current linear piece: 0 none, 1 plateau, 2+j repolarisation segment j
+      this.pk0 = new Float64Array(N); this.pk1 = new Float64Array(N);
       this.gen = new Uint32Array(N);                  // activation counter (stale-event guard)
       this.tbuckets = Array.from({ length: RING }, () => []);
       this.W = model.W;                                  // lead weights (copied when necrosis uncouples tissue)
@@ -1482,7 +1492,7 @@
         if (A.label[c] !== L) continue;
         if ((A.pos[3 * c] - p[0]) ** 2 + (A.pos[3 * c + 1] - p[1]) ** 2 + (A.pos[3 * c + 2] - p[2]) ** 2 > radiusMm * radiusMm) continue;
         let dp = Math.abs(A.phi[c] - ph0); if (dp > Math.PI) dp = 2 * Math.PI - dp;
-        if (dp < 1.0 && Math.abs(A.zuvc[c] - z0) < 0.35) aff[c] = 1;
+        if (dp < this.P.subendoSpanPhi && Math.abs(A.zuvc[c] - z0) < this.P.subendoSpanZ) aff[c] = 1;
       }
       const ins = this._makeInsult('subendo', aff, radiusMm * 0.45);
       ins.cell = cell;
@@ -1528,7 +1538,7 @@
       // minutes: K-ATP APD shortening (hyperacute T), gone once the cells have died or recovered (~1 day)
       const katp = sm(h / P.ischKatpH) * (1 - sm((h - 6) / 18));
       // injury current: develops over half an hour, eases after a few hours, gone by ~2 days (ST back to baseline)
-      const inj = Math.min(1, s * (kind === 'subendo' ? P.ischSubendoGain : 1)) * sm((h - 0.05) / P.ischInjuryH)
+      const inj = Math.min(1, s * (kind === 'subendo' ? P.ischSubendoGain : 1)) * sm((h - P.ischInjuryOnset) / P.ischInjuryH)
         * (1 - P.ischStResolve * sm((h - 3) / 5)) * (1 - sm((h - 12) / 30));
       let apd = 1 - P.ischApdShort * s * katp;
       // prolonged repolarisation in the surviving border: T inversion from ~6 h, deepest at 1–3 days,
@@ -1538,7 +1548,7 @@
       // necrosis advances from endocardium to epicardium (wavefront phenomenon)
       // (the innermost layer, fed from the cavity blood, survives with the Purkinje junctions)
       const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : 1.05);
-      const dead = s > 0.6 && (tm > 0.06 || h > 8) && tm < front;   // (the inner layer is lost too once the infarct is complete)
+      const dead = s > P.ischDeadS && (tm > 0.06 || h > 8) && tm < front;   // (the inner layer is lost too once the infarct is complete)
       return {
         apd, dead, level: Math.max(inj, 0.5 * s * katp),
         vRest: dead ? P.vRest : P.vRest + P.ischDvRest * inj,
@@ -1608,7 +1618,8 @@
     // plateau running sums use per-cell amplitude: rebuild after parameters change
     _rebuildPlateauSums() {
       this.S0.fill(0); this.S1.fill(0);
-      for (let c = 0; c < this.M.nVox; c++) if (this.onPlateau[c]) { this.onPlateau[c] = 0; this._plateau(c, +1); }
+      this.pk0.fill(0); this.pk1.fill(0);
+      for (let c = 0; c < this.M.nVox; c++) if (this.piece[c]) this._setPiece(c, this.piece[c]);
     }
 
     // ---- External stimulation (clicks now; pacing leads later) ---------------
@@ -1637,6 +1648,9 @@
     //             lengths: multiple wavelets, irregular AV-nodal penetration
     //   flutter — a stimulus circulating around the tricuspid ring (typical,
     //             counterclockwise: up the septum, down the free wall)
+    //   ectopic — one low right-atrial focus (near the coronary-sinus ostium)
+    //             replacing the sinus node at the sinus rate: inverted P in the
+    //             inferior leads, short PR
     //   mat     — three or four atrial foci taking turns irregularly
     //   vt      — one ventricular focus at a fixed fast rate (monomorphic VT)
     //   vf      — many ventricular foci at random short cycle lengths
@@ -1670,6 +1684,17 @@
         }
         this.drivers.push({ kind: 'watch', slowed, cell: fl.start[0], lastAct: this.tAct[fl.start[0]], cls: [] });
         for (const c of fl.start) this.schedule(c, this.t);
+      } else if (type === 'ectopic') {
+        // nearest right-atrial cell to the AV node at least ectopicDist mm away from it
+        const a0 = M.avn[0]; let c = -1, best = Infinity;
+        for (let q = 0; q < M.nVox; q++) {
+          if (!atrial(LAB.RA)(q)) continue;
+          const d = Math.hypot(M.x[q] - M.x[a0], M.y[q] - M.y[a0], M.z[q] - M.z[a0]);
+          if (d >= P.ectopicDist && d < best) { best = d; c = q; }
+        }
+        if (opts.cell !== undefined) c = opts.cell;
+        const sinus = this.pacemakers.find((pm) => pm.name === 'sinus');
+        this.drivers.push({ kind: 'focus', cell: c, next: this.t + 100, cl: () => (sinus ? sinus.cl : 800) });
       } else if (type === 'mat') {
         const foci = opts.cells && opts.cells.length >= 3 ? opts.cells : pick((c) => M.kind[c] === KIND.ATRIAL && !M.seg[c], 4);
         this.drivers.push({ kind: 'rotate', cells: foci, next: this.t + 200, cl: rand(P.matClMin, P.matClMax) });
@@ -1884,21 +1909,36 @@
       const last = this.dyn[--this.nDyn]; this.dyn[q] = last; this.dynPos[last] = q; this.dynPos[c] = -1;
     }
     // Plateau: Vm − Vrest = A(1 − p·(t − ta)/apd) = A(1 + p·ta/apd) − t·A·p/apd
-    _plateau(c, sign) {
-      const M = this.M, NE = M.NE, o = c * NE, A = this.vAmp[c], p = this.P.plateauDecline, apd = this.apd[c];
-      const k0 = sign * A * (1 + p * this.tAct[c] / apd), k1 = sign * A * p / apd;
-      const W = this.W;
-      for (let e = 0; e < NE; e++) { this.S0[e] += W[o + e] * k0; this.S1[e] += W[o + e] * k1; }
-      this.onPlateau[c] = sign > 0 ? 1 : 0;
+    // Linear pieces: outside its upstroke a cell's Vm − Vrest is carried as a
+    // straight line k0 − t·k1 in the running sums S0/S1 (exact on the plateau;
+    // repolarisation is split into REP_SEG straight segments through the exact
+    // AP shape). Only cells in their upstroke are summed sample by sample.
+    _setPiece(c, piece) {
+      const M = this.M, NE = M.NE, o = c * NE, W = this.W;
+      let k0 = 0, k1 = 0;
+      if (piece === 1) {                                     // plateau
+        const A = this.vAmp[c], p = this.P.plateauDecline, apd = this.apd[c];
+        k0 = A * (1 + p * this.tAct[c] / apd); k1 = A * p / apd;
+      } else if (piece >= 2) {                               // repolarisation segment piece − 2
+        const [ta, tb] = this._segTimes(c, piece - 2), va = this.vm(c, ta) - this.vRest[c], vb = this.vm(c, tb) - this.vRest[c];
+        const b = (vb - va) / Math.max(1, tb - ta); k0 = va - b * ta; k1 = -b;
+      }
+      const d0 = k0 - this.pk0[c], d1 = k1 - this.pk1[c];
+      if (d0 || d1) for (let e = 0; e < NE; e++) { this.S0[e] += W[o + e] * d0; this.S1[e] += W[o + e] * d1; }
+      this.pk0[c] = k0; this.pk1[c] = k1; this.piece[c] = piece;
+    }
+    _segTimes(c, j) {
+      const r0 = Math.floor(this.tAct[c] + this.apd[c] - 0.5 * this.repW[c]), r1 = Math.ceil(this.tAct[c] + this.apd[c] + 0.5 * this.repW[c]);
+      return [r0 + Math.round((r1 - r0) * j / REP_SEG), r0 + Math.round((r1 - r0) * (j + 1) / REP_SEG)];
     }
     _ecgEnter(c, ta, apd) {
-      if (this.onPlateau[c]) this._plateau(c, -1);
+      if (this.piece[c]) this._setPiece(c, 0);
       this._dynAdd(c);
       const g = ++this.gen[c];
       const tPl = Math.ceil(ta + this.P.upW), tRep = Math.floor(ta + apd - 0.5 * this.repW[c]);
       if (tRep > tPl) {
         this.tbuckets[tPl % RING].push(c, g, 1);
-        this.tbuckets[tRep % RING].push(c, g, 2);
+        for (let j = 0; j <= REP_SEG; j++) { const tj = j < REP_SEG ? this._segTimes(c, j)[0] : this._segTimes(c, REP_SEG - 1)[1]; this.tbuckets[tj % RING].push(c, g, 2 + j); }
       }
     }    // Advance one millisecond
     step() {
@@ -1907,7 +1947,7 @@
       //    since it was last activated (being activated resets it: overdrive suppression)
       for (const pm of this.pacemakers) {
         if (pm.cl <= 0 || this.blocked[pm.cell] || (pm.armed && !pm.armed())) continue;
-        if (pm.name === 'sinus' && (this.sinusArrest || t < this.sinusPauseUntil)) continue;
+        if (pm.name === 'sinus' && (this.sinusArrest || t < this.sinusPauseUntil || (this.arrhythmia && this.arrhythmia.type === 'ectopic'))) continue;
         if (t - this.tAct[pm.cell] >= pm.cl && t >= this.refEnd[pm.cell]) {
           // SA exit block: the node keeps its rhythm, but every nth impulse fails to exit
           if (pm.name === 'sinus' && this.saExit && ++this.saExit.count % this.saExit.n === 0) {
@@ -1943,8 +1983,9 @@
       const tb = this.tbuckets[this.t % RING];
       for (let q = 0; q < tb.length; q += 3) {
         const c = tb[q]; if (tb[q + 1] !== this.gen[c]) continue;
-        if (tb[q + 2] === 1) { this._dynRemove(c); this._plateau(c, +1); }
-        else { this._plateau(c, -1); this._dynAdd(c); }
+        const kind = tb[q + 2];
+        if (kind === 1) this._dynRemove(c);
+        this._setPiece(c, kind < 2 + REP_SEG ? kind : 0);    // last event: back at rest
       }
       tb.length = 0;
       this._ecg(this.t);
@@ -2049,7 +2090,7 @@
   function hypertrophyOptions({ lvh = false, rvh = false } = {}) {
     return {
       anatomy: { lvWallLayers: lvh ? 6 : 3, rvWallLayers: rvh ? 5 : 0 },
-      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.6 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1 },
+      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1 },
     };
   }
 

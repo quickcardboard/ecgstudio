@@ -1,8 +1,8 @@
 // P-wave measurements: node tools/pwave.js '<sim setup JSON>'  e.g. '{"atria":{"ra":true}}'
 // Prints P duration, peak amplitudes and notching in II, V1 positive/negative parts (mV, ms).
 const fs = require('fs'); const LH = require('../src/engine.js');
-const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json')));
-const M = new LH.Model(A, { ecgHighpass: 0 });
+const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json')), JSON.parse(process.env.ANAT || '{}'));
+const M = new LH.Model(A, Object.assign({ ecgHighpass: 0 }, JSON.parse(process.env.MP || '{}')));
 function pwave(setup) {
   const P0 = Object.assign({}, M.P); Object.assign(M.P, setup.P || {});
   const S = new LH.Sim(M, { seed: 1 }); S.setRate(72);
