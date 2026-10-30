@@ -49,7 +49,7 @@ function evaluate(p) {
   const f = (r) => r.map((v) => v.toFixed(1)).join('/');
   return {
     score: +score.toFixed(2),
-    normal: `axis ${n.axis}/${n.ampAxis} QRS ${n.qrs} q(I) ${n.init('I').toFixed(2)} r(V1) ${n.init('V1').toFixed(2)} prog ${prog.map(f).join(' ')}`,
+    normal: `axis ${n.axis}/${n.ampAxis} I ${f(n.rs('I'))} II ${f(n.rs('II'))} QRS ${n.qrs} q(I) ${n.init('I').toFixed(2)} r(V1) ${n.init('V1').toFixed(2)} prog ${prog.map(f).join(' ')}`,
     LAFB: `axis ${lafb.axis}/${lafb.ampAxis} QRS ${lafb.qrs} II ${f(lafb.rs('II'))} aVF ${f(lafb.rs('aVF'))} aVL ${f(lafb.rs('aVL'))} init aVF ${lafb.init('aVF').toFixed(2)}`,
     LBBB: `axis ${lbbb.axis} QRS ${lbbb.qrs} I ${f(lbbb.rs('I'))} V1 ${f(lbbb.rs('V1'))} V6 ${f(lbbb.rs('V6'))}`,
     LPFB: `axis ${lpfb.axis}/${lpfb.ampAxis} QRS ${lpfb.qrs} I ${f(lpfb.rs('I'))} III ${f(lpfb.rs('III'))} init I ${lpfb.init('I').toFixed(2)}`,

@@ -236,7 +236,11 @@
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
     ecgHighpass: 0.05,          // Hz, diagnostic-ECG high-pass (baseline restoration)
     ecgLowpass: 40,             // Hz, ECG machine low-pass (0 = off; diagnostic carts use up to 150)
-    torsoBlend: 0.6,            // limb leads: share of the bounded-torso lead field (rest: Einthoven projection)
+    torsoUniform: 0,            // share of the heart-averaged torso lead vector in place of the per-cell field
+    limbRotation: 8,            // extra frontal rotation of the heart as seen by the limb leads (degrees, + = more vertical)
+    torsoIIGain: 0.6,           // lead II length of the torso (Burger) triangle relative to its computed value
+    atrialTorsoII: 0.92,        // torso lead II for atrial sources (keeps the P-wave calibration made at torsoBlend 0.6)
+    torsoBlend: 0.7,            // limb leads: share of the bounded-torso lead field (rest: Einthoven projection)
     dipoleGain: 3.0,            // heart-vector scale for the limb leads (mV per unit dipole)
   };
 
@@ -1094,7 +1098,7 @@
       // + optionally limb leads I and II from a bounded-torso lead field
       const TF = this.P.torsoField !== undefined ? this.P.torsoField : DEFAULT_TORSO;
       const NE = names.length + 3 + (TF ? 2 : 0);
-      let tfSample = null, tfScale = 1;
+      let tfSample = null, tfScale = 1, tfMean = null;
       if (TF) {
         if (!TF._I) { TF._I = decode(TF.I, Float32Array); TF._II = decode(TF.II, Float32Array); }
         const [nx, ny, nz] = TF.dims, o = TF.origin, th = TF.h;
@@ -1121,6 +1125,9 @@
         const mI = [0, 0, 0], mII = [0, 0, 0];
         for (let c = 0; c < n; c += 7) { if (this.kind[c] !== KIND.VENT) continue; const p = this.toTorso(A.p(c)); const a = tfSample(TF._I, p), b = tfSample(TF._II, p); for (let d = 0; d < 3; d++) { mI[d] += a[d]; mII[d] += b[d]; } }
         const lI = len(mI);
+        // heart-averaged (uniform) torso lead vectors, blended into the per-cell field by torsoUniform
+        let nv = 0; for (let c = 0; c < n; c += 7) if (this.kind[c] === KIND.VENT) nv++;
+        tfMean = [mul(mI, 1 / nv), mul(mII, 1 / nv)];
         this.limbLeadVectors = { I: mul(mI, 1 / lI), II: mul(mII, 1 / lI) };
       }
       const W = new Float32Array(n * NE);
@@ -1156,7 +1163,7 @@
         const f = [fb[3 * c], fb[3 * c + 1], fb[3 * c + 2]], fl = Math.hypot(f[0], f[1], f[2]) || 1;
         for (let d = 0; d < 3; d++) fwd[3 * c + d] = (R[3 * d] * f[0] + R[3 * d + 1] * f[1] + R[3 * d + 2] * f[2]) / fl;   // torso frame
       }
-      this._lw = { TF, tfSample, tfScale, E, axes, B, rhat, aniso, anorm, fwd, NE };
+      this._lw = { TF, tfSample, tfScale, tfMean, E, axes, B, rhat, aniso, anorm, fwd, NE };
       const cc = new Float64Array(NE);
       for (let c = 0; c < n; c++) {
         const kc = this.kind[c]; if (!kc) continue;
@@ -1175,7 +1182,7 @@
     // adds out[e]·(Vm_w − Vm_c) to lead e (summation by parts of −σi∇Vm·∇L).
     pairCoef(c, w, a, out) {
       const A = this.A, h = A.h, kc = this.kind[c];
-      const { TF, tfSample, tfScale, E, axes, B, rhat, aniso, anorm, fwd } = this._lw;
+      const { TF, tfSample, tfScale, tfMean, E, axes, B, rhat, aniso, anorm, fwd } = this._lw;
       let sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : this.P.atrialSourceGain;
       // hypertrophied myocytes carry more intracellular current (source
       // strength ∝ conductance); scaling the pair keeps uniform plateaus silent
@@ -1207,9 +1214,21 @@
         const cc = 1e-4 * h * h * sc * (ex[d] + re * rr[d] + fe * ff[d]);
         out[9 + d] = cc;
       }
+      // limb leads see the heart turned a further limbRotation degrees about the
+      // AP axis (+ = more vertical), applied to source directions only
+      let lex = ex, lff = ff, lrr = rr;
+      // (ventricles only: the atrial P-wave calibration already has its own atrialFrontalRot)
+      if (TF && this.P.limbRotation && kc === KIND.VENT) {
+        const th = -this.P.limbRotation * Math.PI / 180, c = Math.cos(th), s = Math.sin(th);
+        const rot = (v) => [c * v[0] - s * v[1], s * v[0] + c * v[1], v[2]];
+        lex = rot(ex); lff = rot(ff); lrr = rot(rr);
+      }
       if (TF) for (let q = 0; q < 2; q++) {                    // bounded-torso limb leads I, II
-        const Lv = tfSample(q ? TF._II : TF._I, m);
-        const cc = tfScale * h * h * sc * ((Lv[0] * ex[0] + Lv[1] * ex[1] + Lv[2] * ex[2]) + re * (Lv[0] * rr[0] + Lv[1] * rr[1] + Lv[2] * rr[2]) + fe * (Lv[0] * ff[0] + Lv[1] * ff[1] + Lv[2] * ff[2]));
+        let Lv = tfSample(q ? TF._II : TF._I, m);
+        const u = this.P.torsoUniform;
+        if (u) Lv = [0, 1, 2].map((d) => (1 - u) * Lv[d] + u * tfMean[q][d]);
+        if (q && kc !== KIND.VENT) Lv = Lv.map((x) => x * this.P.atrialTorsoII / this.P.torsoIIGain);   // torsoIIGain shortens lead II for ventricular sources only
+        const cc = tfScale * h * h * sc * ((Lv[0] * lex[0] + Lv[1] * lex[1] + Lv[2] * lex[2]) + re * (Lv[0] * lrr[0] + Lv[1] * lrr[1] + Lv[2] * lrr[2]) + fe * (Lv[0] * lff[0] + Lv[1] * lff[1] + Lv[2] * lff[2]));
         out[12 + q] = cc;
       }
       for (let e = 0; e < 9; e++) {
@@ -2244,9 +2263,10 @@
       if (this.M.torsoLimb) {
         // bounded-torso lead fields (a computed Burger triangle), optionally
         // blended with the Einthoven projection (torsoBlend = torso share)
-        const b = this.P.torsoBlend, g = this.P.dipoleGain;
-        L[0] = b * v(12) * g + (1 - b) * D[0];
-        L[1] = b * v(13) * g + (1 - b) * (c60 * D[0] - s60 * D[1]);
+        const b = this.P.torsoBlend, g = this.P.dipoleGain, lr = this._limbRot || (this._limbRot = [Math.cos(this.P.limbRotation * Math.PI / 180), Math.sin(this.P.limbRotation * Math.PI / 180)]);
+        const dx = lr[0] * D[0] + lr[1] * D[1], dy = -lr[1] * D[0] + lr[0] * D[1];   // heart vector turned by limbRotation
+        L[0] = b * v(12) * g + (1 - b) * dx;
+        L[1] = b * this.P.torsoIIGain * v(13) * g + (1 - b) * (c60 * dx - s60 * dy);
         L[2] = L[1] - L[0];
       } else {
         L[0] = D[0];

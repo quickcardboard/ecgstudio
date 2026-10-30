@@ -273,3 +273,33 @@ re-entry.
   repolarisation start) to a time histogram, convolved every step with the fixed smoothstep; plateaus stay linear
   pieces. Cells with an unusual plateau (Brugada, inflamed epicardium) keep exact segments. Cost per simulated ms:
   sinus 0.13 → 0.08, VT 0.65 → 0.39, VF 1.55 → 1.0 ms (headless browser ~0.9× real time in VT and VF).
+
+### Round 14: limb-lead recalibration (fascicular block voltage)
+
+LAFB and LPFB limb-lead voltages were about twice textbook values (aVL R 2.7, S aVF 3.0,
+R III in LPFB 3.9 mV), larger than the limb leads in hypertrophy. Diagnosis: the 3D heart
+vector grows only ~20% in fascicular block (2.6 → 3.1), and the plain Einthoven projection
+gives textbook voltages (aVL 1.8, R III 1.6 mV). The inflation came from the computed torso
+(Burger) triangle, whose lead II and III vectors were 2.6× and 3.1× the length of lead I,
+amplifying the coherent superior/inferior late forces of a blocked fascicle against a normal
+beat whose inferior forces largely cancel. The torso's tilt of lead I (−30°) is kept, since it
+gives the rS in I of LPFB.
+
+- `torsoIIGain` 0.6 shortens the torso lead II for ventricular sources (`atrialTorsoII` 0.92
+  keeps the P-wave calibration); `torsoBlend` 0.6 → 0.7.
+- `limbRotation` 8°: the limb leads see the ventricles turned 8° more vertical (source
+  directions only), leaving precordial leads and anatomy unchanged. Larger rotations (12°)
+  gave a normal axis near +45° but moved the inferior Q out of lead II.
+- `torsoUniform` (0, off) blends a heart-averaged torso lead vector into the per-cell field;
+  it showed the regional variation of the torso field is not the cause.
+
+| | before | after |
+|---|---|---|
+| Normal axis (area/net) | 22/13 | 33/26 |
+| LAFB axis, aVL R, S II, S aVF | −58, 2.7, 2.2, 3.0 | −48, 2.4, 1.3, 2.1 |
+| LPFB axis, R III | +92, 3.9 | +100, 3.2 |
+| LBBB axis | 70 | 77 |
+| P II, normal | 0.23 | 0.23 |
+
+Precordial leads are unchanged. The ischemia audit keeps every territory. Inferior Q in II now
+appears later (pRCA, PDA), and reciprocal aVR depression in RCA occlusion is smaller.
