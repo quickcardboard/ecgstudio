@@ -265,6 +265,21 @@ re-entry.
 - **UI:** short tab instructions; Speed, Pause, Reset in the page header; Reset also clears structural changes and
   returns to 72 bpm; Help (renamed) in separate pages; Learn keeps key features and pitfalls only.
 
+### Round 12
+
+- **Pericarditis ST shape:** the inflamed epicardial plateau now sags (`pericardSag`) instead of sitting uniformly
+  lower, so ST elevation is small at the J point (~0.1 mV in II, 0.2 in V4) and rises concave-upward into the T wave.
+  PR depression unchanged.
+- **Dip before the T wave:** an artefact of the RV action potential being 30 ms longer than the LV's
+  (`apdRVoffset`). Set to 0 (RV and LV APDs similar): the ST segment now rises smoothly into the T wave; T heights
+  I 0.40, II 0.45, aVF 0.28, aVR −0.42, V3 0.41, V4 0.55 mV.
+- **QT:** measured by the tangent method on the drawn ECG (steepest T downslope to baseline, later of II and V5), as
+  on paper; normal beat QT 393 ms. QTc uses Fridericia (Bazett over-corrects at fast rates); flagged above 450 ms.
+- **Fast rhythms:** repolarisation enters the ECG by convolution: each cell adds its lead weights once (at its
+  repolarisation start) to a time histogram, convolved every step with the fixed smoothstep; plateaus stay linear
+  pieces. Cells with an unusual plateau (Brugada, inflamed epicardium) keep exact segments. Cost per simulated ms:
+  sinus 0.13 → 0.08, VT 0.65 → 0.39, VF 1.55 → 1.0 ms (headless browser ~0.9× real time in VT and VF).
+
 ## Layout
 
 ```

@@ -1399,7 +1399,10 @@
     const prVar = PRs.length > 1 && Math.max(...PRs) - Math.min(...PRs) > 25;
     const E = S.beatEnds(vb), QRS = E.last - vb.on + 4;
     const lastRR = vb.on - V[V.length - 2].on;
-    const QT = E.repEnd + 40 - vb.on, QTc = QT / Math.sqrt(Math.max(lastRR, 300) / 1000);
+    // QT by the tangent method, as read off paper: the steepest downslope of the
+    // T wave extended to the baseline, in II and V5 (the later end counts);
+    // falls back to the end of repolarisation when the T wave is flat
+    const qtT = qtTangent(vb, E), QT = qtT || E.repEnd + 20 - vb.on, QTc = QT / Math.cbrt(Math.max(lastRR, 300) / 1000);   // Fridericia (Bazett over-corrects at fast rates)
     // QRS axis from net areas in I and aVF. With RBBB the delayed terminal RV
     // forces are excluded (clinical convention: first 60 ms of the QRS).
     const B = S.blocks;
@@ -1496,7 +1499,7 @@
       arr === 'af' ? chip('Atrial', 'fibrillatory', true) : arr === 'flutter' && flutterCl ? chip('Atrial', `${Math.round(60000 / flutterCl)}/min`, true) : '',
       arr === 'af' || arr === 'flutter' || arr === 'vt' ? '' : avrt ? chip('RP', (() => { const a = Aa.find((x) => x.on > vb.on); return a ? `${Math.round(a.on - vb.on)} ms (retrograde P)` : '—'; })()) : chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
       chip('QRS', `${Math.round(QRS)} ms`, QRS >= 120),
-      chip('QT/QTc', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 460),
+      chip('QT/QTcF', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 450),
       chip(rbbOnly && ui.normalAxis !== undefined ? 'Axis (LV forces)' : axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
     const f = tachy ? [] : structFindings(vb).concat(ischFindings(vb));
@@ -1661,6 +1664,26 @@
     const cov = ['V1', 'V2'].filter((n) => { const k = L_IDX[n], b0 = at(k, qrsBaseT(vb)), J = S.beatEnds(vb).last + 6; return at(k, J + 10) - b0 >= 0.2 && at(k, vb.on + 300) - b0 < -0.05; });
     if (cov.length) out.push(`Coved ST elevation ≥ 2 mm with T inversion in ${cov.join(', ')}: Brugada type 1 pattern`);
     return out;
+  }
+
+  function qtTangent(vb, E) {
+    const at = (k, t) => ecg.buf[k][bufIdx(t)];
+    const next = S.log.vent.find((v) => v.on > vb.on + 50);
+    const J = E.last + 6, tMax = Math.min(next ? next.on - 30 : Infinity, vb.on + 700, S.t - 2);
+    let best = 0;
+    for (const k of [1, 10]) {                                  // II, V5
+      const b0 = at(k, qrsBaseT(vb));
+      let pk = -1, pv = 0;
+      for (let t = Math.ceil(J + 40); t < tMax; t++) { const v = at(k, t) - b0; if (v !== v) return 0; if (Math.abs(v) > Math.abs(pv)) { pv = v; pk = t; } }
+      if (pk < 0 || Math.abs(pv) < 0.05) continue;              // flat T: no tangent
+      const sgn = Math.sign(pv);
+      let sl = 0, ts = pk;
+      for (let t = pk + 1; t < Math.min(tMax - 1, pk + 200); t++) { const d = sgn * (at(k, t + 1) - at(k, t - 1)) / 2; if (d < sl) { sl = d; ts = t; } }
+      if (sl >= 0) continue;
+      const end = ts + sgn * (at(k, ts) - b0) / -sl;
+      if (end > pk && end < tMax + 40) best = Math.max(best, end - vb.on);
+    }
+    return best;
   }
 
   // the healthy reference beat, taken just before the first ischemic insult

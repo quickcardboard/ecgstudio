@@ -689,7 +689,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
     apdVentApexExtra: 20,  // apicobasal APD gradient (+: apex longer; sized so limb-lead T stays within textbook height)
-    apdRVoffset: 30,
+    apdRVoffset: 0,        // RV and LV action potentials of similar length (a longer RV APD gave a dip before the T wave)
     apdAtrial: 190, apdMinAtrial: 135, flutterApdMin: 185,
     apdPurk: 340,
     apdBundle: 360,        // His bundle, LBB and fascicles
@@ -741,7 +741,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
-    pericardDepth: 0.7, pericardDv: 14, pericardAmpDrop: 0.25, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
+    pericardDepth: 0.7, pericardDv: 8, pericardAmpDrop: 0.1, pericardSag: 0.5, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
     ischBlockInj: 0.7,     // injury level above which living ischaemic muscle (after 2 h) no longer conducts
     ischHaloMm: 10, ischHaloLate: 0.45,   // zone of ischaemia around the infarct: width (mm) and late APD prolongation (T inversion)
@@ -1776,6 +1776,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   // independent of the integration step.
   const PHASE = { REST: 0, DEP: 1, REP: 2 };
   const RING = 8192;
+  const HRING = 2048;   // repolarisation histogram ring (ms): ≥ longest APD + window
+  const FLAT = 100;     // piece/event id: flat plateau after the APD (convolution path); FLAT + 1: end
   const REP_SEG = 8;  // straight segments per repolarisation (ECG running sums)  // ms horizon of the arrival queue
 
   class Sim {
@@ -1808,6 +1810,12 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       this.piece = new Uint8Array(N);                 // current linear piece: 0 none, 1 plateau, 2+j repolarisation segment j
       this.pk0 = new Float64Array(N); this.pk1 = new Float64Array(N);
       this.gen = new Uint32Array(N);                  // activation counter (stale-event guard)
+      // repolarisation by convolution: each cell adds W·a once at its repolarisation
+      // start τ (histogram per kernel); every step convolves with the fixed smoothstep
+      this.hTau = new Int32Array(N).fill(-1e9); this.hAmp = new Float32Array(N); this.hKer = new Uint8Array(N);
+      this.H = [new Float64Array(HRING * model.NE), new Float64Array(HRING * model.NE)];   // [ventricular, atrial]
+      const ker = (w) => Float64Array.from({ length: w }, (_, x) => { const u = x / w; return u * u * (3 - 2 * u); });
+      this.K = [ker(Math.round(this.P.repWVent)), ker(Math.round(this.P.repWAtrial))];
       this.tbuckets = Array.from({ length: RING }, () => []);
       this.W = model.W;                                  // lead weights (copied when necrosis uncouples tissue)
       this.S0 = new Float64Array(model.NE); this.S1 = new Float64Array(model.NE);
@@ -2099,7 +2107,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         let amp = 1, apd = 1, dv = 0;
         if (k === KIND.VENT) {
           const outer = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (A.tm[c] - P.pericardDepth) / (1 - P.pericardDepth)));
-          if (this.pericarditis && outer > 0) { dv += P.pericardDv * outer; amp *= 1 - P.pericardAmpDrop * outer; }
+          const peri = this.pericarditis && outer > 0;
+          if (peri) { dv += P.pericardDv * outer; amp *= 1 - P.pericardAmpDrop * outer; }
           if (this.brugada && A.label[c] === LAB.RV && A.epi[c]) {
             const d = Math.hypot(A.pos[3 * c] - puv[0], A.pos[3 * c + 1] - puv[1], A.pos[3 * c + 2] - puv[2]);
             const w = Math.max(0, Math.min(1, (P.brugadaMm - d) / 8));
@@ -2107,7 +2116,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           }
           // notch with a delayed dome: the plateau starts low and climbs back to
           // near-normal height (negative slope), so the ST gap closes into a coved shape
-          this.pDecl[c] = amp < 1 && this.brugada && A.label[c] === LAB.RV ? 1 - (1 - P.plateauDecline) / amp : P.plateauDecline;
+          // (pericarditis: the inflamed epicardial plateau sags, so ST elevation grows through
+          // the ST segment: concave upward, rising into the T wave)
+          this.pDecl[c] = amp < 1 && this.brugada && A.label[c] === LAB.RV ? 1 - (1 - P.plateauDecline) / amp
+            : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline;
           this.vAmp0[c] = this._vAmpBase[c] * amp; this.apdMax0[c] = this._apdBase[c] * apd;
           if (!this._ischCells.has(c)) { this.vAmp[c] = this.vAmp0[c]; this.apdMax[c] = this.apdMax0[c]; }
         } else if (k === KIND.ATRIAL) {
@@ -2296,6 +2308,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       this.S0.fill(0); this.S1.fill(0);
       this.pk0.fill(0); this.pk1.fill(0);
       for (let c = 0; c < this.M.nVox; c++) if (this.piece[c]) this._setPiece(c, this.piece[c]);
+      for (const H of this.H) H.fill(0);
+      for (let c = 0; c < this.M.nVox; c++) if (this.hTau[c] + this.K[this.hKer[c]].length > this.t) this._histAdd(c, 1);
     }
 
     // ---- External stimulation (clicks now; pacing leads later) ---------------
@@ -2612,7 +2626,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     _setPiece(c, piece) {
       const M = this.M, NE = M.NE, o = c * NE, W = this.W;
       let k0 = 0, k1 = 0;
-      if (piece === 1) {                                     // plateau
+      if (piece === FLAT) {                                  // plateau after the APD (pl = 1 − p), cancelled by the convolution
+        k0 = this.vAmp[c] * (1 - this.pDecl[c]);
+      } else if (piece === 1) {                              // plateau
         const A = this.vAmp[c], p = this.pDecl[c], apd = this.apd[c];
         k0 = A * (1 + p * this.tAct[c] / apd); k1 = A * p / apd;
       } else if (piece >= 2) {                               // repolarisation segment piece − 2
@@ -2631,12 +2647,38 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     // Each phase-transition event schedules the next one (plateau → segment 0 →
     // … → rest), so the work is spread over the T wave rather than all queued
     // during the QRS.
+    // The 2-ms upstroke is not summed sample by sample: the cell goes straight
+    // onto its plateau piece (the ECG's 40 Hz low-pass cannot tell a 2-ms rise
+    // from a step), which keeps fast rhythms (VT, VF) in real time.
     _ecgEnter(c, ta, apd) {
       if (this.piece[c]) this._setPiece(c, 0);
-      this._dynAdd(c);
       const g = ++this.gen[c];
       const tPl = Math.ceil(ta + this.P.upW), tRep = Math.floor(ta + apd - 0.5 * this.repW[c]);
-      if (tRep > tPl) this.tbuckets[tPl % RING].push(c, g, 1);
+      this._histRemove(c);
+      if (tRep <= tPl) { this._dynAdd(c); return; }             // (very short APD: summed explicitly)
+      this._dynRemove(c);
+      this._setPiece(c, 1);
+      const p = this.pDecl[c];
+      if (Math.abs(p) > 0.1) {                                  // unusual plateau (Brugada dome, inflamed atria): exact segments
+        this.tbuckets[Math.max(this._segT(c, 0), this.t + 1) % RING].push(c, g, 2);
+        return;
+      }
+      // Vm − Vrest = A·pl(s)·(1 − R) ≈ A·pl(s) − A(1 − p)·R (error < 1% of the T wave for |p| ≤ 0.1):
+      // a linear/flat plateau piece minus a(=A(1 − p))·R from the convolution
+      const k = this.M.kind[c] === KIND.ATRIAL ? 1 : 0, w = this.K[k].length;
+      const tau = Math.round(ta + apd - 0.5 * this.repW[c]), a = this.vAmp[c] * (1 - p);
+      this.hTau[c] = tau; this.hAmp[c] = a; this.hKer[c] = k;
+      this._histAdd(c, 1);
+      this.tbuckets[Math.max(Math.ceil(ta + apd), this.t + 1) % RING].push(c, g, FLAT);
+      this.tbuckets[Math.max(tau + w, this.t + 1) % RING].push(c, g, FLAT + 1);
+    }
+    _histAdd(c, sign) {
+      const NE = this.M.NE, H = this.H[this.hKer[c]], o = (((this.hTau[c] % HRING) + HRING) % HRING) * NE, W = this.W, ow = c * NE, a = sign * this.hAmp[c];
+      for (let e = 0; e < NE; e++) H[o + e] += W[ow + e] * a;
+    }
+    _histRemove(c) {
+      if (this.hTau[c] + this.K[this.hKer[c]].length > this.t) this._histAdd(c, -1);
+      this.hTau[c] = -1e9;
     }    // Advance one millisecond
     step() {
       const t = this.t;
@@ -2681,10 +2723,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       for (let q = 0; q < tb.length; q += 3) {
         const c = tb[q]; if (tb[q + 1] !== this.gen[c]) continue;
         const kind = tb[q + 2];
+        if (kind === FLAT) { this._setPiece(c, FLAT); continue; }
+        if (kind === FLAT + 1) { this._setPiece(c, 0); this.hTau[c] = -1e9; continue; }   // window over: plateau piece and R = 1 cancel
         if (kind === 1) this._dynRemove(c);
         this._setPiece(c, kind < 2 + REP_SEG ? kind : 0);    // last event: back at rest
         if (kind < 2 + REP_SEG) { const tn = this._segT(c, kind - 1); this.tbuckets[Math.max(tn, this.t) % RING].push(c, tb[q + 1], kind + 1); }
       }
+      // histogram slots that left every kernel window are cleared for reuse
+      { const NE = this.M.NE, o = ((((this.t - 400) % HRING) + HRING) % HRING) * NE; for (const H of this.H) for (let e = 0; e < NE; e++) H[o + e] = 0; }
       tb.length = 0;
       this._ecg(this.t);
     }
@@ -2695,6 +2741,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     _ecg(t) {
       const M = this.M, W = this.W, NE = M.NE, phi = this._phi || (this._phi = new Float64Array(NE));
       for (let e = 0; e < NE; e++) phi[e] = this.S0[e] - t * this.S1[e];
+      for (let k = 0; k < 2; k++) {                            // − Σ_x K(x)·H(t − x): cells repolarising now
+        const H = this.H[k], K = this.K[k];
+        for (let x = 0; x < K.length; x++) {
+          const kx = K[x], o = ((((t - x) % HRING) + HRING) % HRING) * NE;
+          if (kx === 0) continue;
+          for (let e = 0; e < NE; e++) phi[e] -= kx * H[o + e];
+        }
+      }
       for (let q = 0; q < this.nDyn; q++) {
         const c = this.dyn[q];
         const dv = this.vm(c, t) - this.vRest[c];
@@ -4204,7 +4258,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const prVar = PRs.length > 1 && Math.max(...PRs) - Math.min(...PRs) > 25;
     const E = S.beatEnds(vb), QRS = E.last - vb.on + 4;
     const lastRR = vb.on - V[V.length - 2].on;
-    const QT = E.repEnd + 40 - vb.on, QTc = QT / Math.sqrt(Math.max(lastRR, 300) / 1000);
+    // QT by the tangent method, as read off paper: the steepest downslope of the
+    // T wave extended to the baseline, in II and V5 (the later end counts);
+    // falls back to the end of repolarisation when the T wave is flat
+    const qtT = qtTangent(vb, E), QT = qtT || E.repEnd + 20 - vb.on, QTc = QT / Math.cbrt(Math.max(lastRR, 300) / 1000);   // Fridericia (Bazett over-corrects at fast rates)
     // QRS axis from net areas in I and aVF. With RBBB the delayed terminal RV
     // forces are excluded (clinical convention: first 60 ms of the QRS).
     const B = S.blocks;
@@ -4301,7 +4358,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       arr === 'af' ? chip('Atrial', 'fibrillatory', true) : arr === 'flutter' && flutterCl ? chip('Atrial', `${Math.round(60000 / flutterCl)}/min`, true) : '',
       arr === 'af' || arr === 'flutter' || arr === 'vt' ? '' : avrt ? chip('RP', (() => { const a = Aa.find((x) => x.on > vb.on); return a ? `${Math.round(a.on - vb.on)} ms (retrograde P)` : '—'; })()) : chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
       chip('QRS', `${Math.round(QRS)} ms`, QRS >= 120),
-      chip('QT/QTc', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 460),
+      chip('QT/QTcF', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 450),
       chip(rbbOnly && ui.normalAxis !== undefined ? 'Axis (LV forces)' : axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
     const f = tachy ? [] : structFindings(vb).concat(ischFindings(vb));
@@ -4466,6 +4523,26 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const cov = ['V1', 'V2'].filter((n) => { const k = L_IDX[n], b0 = at(k, qrsBaseT(vb)), J = S.beatEnds(vb).last + 6; return at(k, J + 10) - b0 >= 0.2 && at(k, vb.on + 300) - b0 < -0.05; });
     if (cov.length) out.push(`Coved ST elevation ≥ 2 mm with T inversion in ${cov.join(', ')}: Brugada type 1 pattern`);
     return out;
+  }
+
+  function qtTangent(vb, E) {
+    const at = (k, t) => ecg.buf[k][bufIdx(t)];
+    const next = S.log.vent.find((v) => v.on > vb.on + 50);
+    const J = E.last + 6, tMax = Math.min(next ? next.on - 30 : Infinity, vb.on + 700, S.t - 2);
+    let best = 0;
+    for (const k of [1, 10]) {                                  // II, V5
+      const b0 = at(k, qrsBaseT(vb));
+      let pk = -1, pv = 0;
+      for (let t = Math.ceil(J + 40); t < tMax; t++) { const v = at(k, t) - b0; if (v !== v) return 0; if (Math.abs(v) > Math.abs(pv)) { pv = v; pk = t; } }
+      if (pk < 0 || Math.abs(pv) < 0.05) continue;              // flat T: no tangent
+      const sgn = Math.sign(pv);
+      let sl = 0, ts = pk;
+      for (let t = pk + 1; t < Math.min(tMax - 1, pk + 200); t++) { const d = sgn * (at(k, t + 1) - at(k, t - 1)) / 2; if (d < sl) { sl = d; ts = t; } }
+      if (sl >= 0) continue;
+      const end = ts + sgn * (at(k, ts) - b0) / -sl;
+      if (end > pk && end < tMax + 40) best = Math.max(best, end - vb.on);
+    }
+    return best;
   }
 
   // the healthy reference beat, taken just before the first ischemic insult
