@@ -8,14 +8,14 @@ const SITES = { LM: br.LM[0], pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.le
 const L = LH.LEADS;
 function beat(S) {
   const rec = []; S.onSample((t, v) => rec.push(Array.from(v))); S.run(3600);
-  const vb = S.log.vent[S.log.vent.length - 2], q0 = Math.floor(vb.on), J = Math.ceil(vb.last) + 6, b0 = rec[q0 - 15];
+  const vb = S.log.vent[S.log.vent.length - 2], E = S.beatEnds(vb), q0 = Math.floor(vb.on), J = Math.ceil(E.last) + 6, b0 = rec[q0 - 15];
   const m = {};
   L.forEach((n, k) => {
     const at = (t) => rec[t][k] - b0[k];
     let qDur = 0, qAmp = 0, rMax = 0, tv = 0, r40 = 0, sMin = 0;
     for (let t = q0; t < q0 + 60; t++) { const v = at(t); if (v > 0.05) break; if (v < -0.04) qDur = t - q0 + 1; qAmp = Math.min(qAmp, v); }
     for (let t = q0; t <= J; t++) { rMax = Math.max(rMax, at(t)); sMin = Math.min(sMin, at(t)); if (t < q0 + 40) r40 = Math.max(r40, at(t)); }
-    for (let t = J + 60; t < vb.repEnd + 40; t++) { const v = at(t); if (Math.abs(v) > Math.abs(tv)) tv = v; }
+    for (let t = J + 60; t < E.repEnd + 40; t++) { const v = at(t); if (Math.abs(v) > Math.abs(tv)) tv = v; }
     const s20 = at(J + 20), s40 = at(J + 40);
     m[n] = { st: s20 * s40 > 0 ? Math.sign(s40) * Math.min(Math.abs(s20), Math.abs(s40)) : 0, qDur, qAmp, rMax, r40, s: -sMin, t: tv };
   });

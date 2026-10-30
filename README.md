@@ -196,6 +196,30 @@ re-entry.
   (AVNRT/AVRT) or a PVC on the T wave of an acutely ischemic heart (VF).
 - **View bar:** External and Cut at either end of the cut slider jump straight to either state.
 
+### Round 8 revisions (textbook calibration)
+
+- **Limb leads:** the computed bounded-torso lead field made lead II 2.7× and III 3.2× as sensitive as lead I
+  (real Burger triangles are within ~20–30%). That one distortion weakened lead I, pulled every axis toward +90°
+  (LBBB +95°, LPFB stuck near +90°) and inflated inferior reciprocal changes. Limb leads now blend 60% torso field with
+  40% Einthoven projection (`torsoBlend`), limb gain 3.0, chest gain 0.52.
+- **Orientation:** yaw +8°, pitch −10°, rotation +14° (long axis ~53° below horizontal, 39° anterior).
+- **Atria:** the apex swings about the base, so the atria turn less than the ventricles; atrial source directions are
+  turned back 30° in the frontal plane (`atrialFrontalRot`). Atrial gain 0.31, LAE gain 2.6.
+- **Normal ECG at 72 bpm:** PR 140, QRS 92, QT/QTc 380/416 ms; P +69°, 0.23 mV; QRS axis +18–24°; R in I 0.85, II 0.77 mV;
+  R V1→V6 0.14, 0.36, 0.43, 0.63, 0.61, 0.81 mV (transition V4–V5). Blocks: LAFB −57°, LPFB +92°, LBBB +70°, RBBB LV axis
+  unchanged. LVH Sokolow 4.0 / Cornell 3.9 mV with lateral strain; RVH R/S V1 1.06/0.18, R aVR 0.9, axis +154°.
+- **Infarct timeline (not reperfused):** ST elevation follows a literature residual (100% at 1 h, 95% at 4 h, 80% at
+  12 h, 45% at 2 days, 15% at 1 week, 0 by ~2 weeks). Necrotic muscle stays depolarised and half coupled early, turning
+  to fully uncoupled scar as ST resolves. Necrosis is transmural by ~6 h; ahead of the front, severely injured muscle
+  (after 2 h) is inexcitable but still drives injury current, so the QRS stays narrow. T inversion comes from the
+  textbook "zone of ischemia": living muscle within 10 mm of the territory with prolonged repolarisation (late APD
+  ×1.45 at the edge), 35% of which recovers by 1 month. QRS and QT ends with ischemia use the 99.5th activation
+  percentile + 10 ms and the 98th repolarisation percentile (a few late or long cells don't set the interval).
+  Sample (2 days): mid LAD ST elevation V3–V4 0.4 mV, T inversion V2–V5 to −1.1 mV, QS V1; mid RCA ST elevation III
+  0.67 mV, Q II/III/aVF, T inversion aVF −1.35 mV; LCx Q I, aVL (−0.37 mV / 56 ms), V6, T inversion V6. 1 month: ST at
+  baseline, Q waves and T inversion persist; QT 420–450 ms. With T inversion and Q waves the interpretation calls the
+  infarct's age undetermined.
+
 ## Layout
 
 ```

@@ -1098,10 +1098,10 @@
     [0, 'Onset', 'No electrical change yet.'],
     [0.25, '15 min', 'Hyperacute: K-ATP channels shorten the action potential. Tall, broad T waves over the territory with early, modest ST elevation; the injury current is only starting.'],
     [1, '1 h', 'Acute injury: depolarised ischemic cells drive an injury current. ST elevation over the territory, reciprocal depression opposite.'],
-    [4, '4 h', 'Necrosis spreads from endocardium toward epicardium. Dead, uncoupled muscle drops out of the QRS: Q waves forming, ST still elevated.'],
-    [12, '12 h', 'Evolving infarct: Q waves established, ST elevation easing, T waves starting to invert.'],
-    [48, '2 days', 'Recent infarct: ST back near baseline, deep symmetric T inversion over the infarct, Q waves persist. Nodal ischemia recovering.'],
-    [720, '1 month', 'Old infarct: Q waves remain as the scar\'s signature; T waves upright again.'],
+    [4, '4 h', 'Necrosis spreads from endocardium toward epicardium. ST elevation still near its peak; Q waves starting to form.'],
+    [12, '12 h', 'Evolving infarct: Q waves established, ST elevation still clear but past its peak.'],
+    [48, '2 days', 'Recent infarct: ST elevation partly resolved, T waves inverting over the infarct, Q waves persist. Nodal ischemia recovering.'],
+    [720, '1 month', 'Old infarct: ST back to baseline (persisting elevation would suggest aneurysm). Q waves remain; T inversion often persists for months.'],
   ];
   const stopOf = (h) => ISCH_STOPS.reduce((b, s, i) => (Math.abs(Math.log1p(s[0]) - Math.log1p(h)) < Math.abs(Math.log1p(ISCH_STOPS[b][0]) - Math.log1p(h)) ? i : b), 0);
   // subendocardial ischemia alone follows a different course (ST depression, no Q waves)
@@ -1111,7 +1111,7 @@
     'Subendocardial injury: horizontal or down-sloping ST depression over the region, ST elevation in aVR. No STEMI pattern.',
     'The inner layer starts to die (non-Q-wave infarct). ST depression persists; no Q waves, because the outer wall still conducts.',
     'ST depression easing; T waves flatten.',
-    'ST back near baseline. No Q waves: a non-Q-wave (NSTEMI) infarct.',
+    'ST depression easing toward baseline over the next days. No Q waves: a non-Q-wave (NSTEMI) infarct.',
     'Old subendocardial infarct: the ECG can look almost normal.',
   ];
   function ischStage(h) {
@@ -1341,9 +1341,9 @@
     const PRs = recent.map(prOf).filter((x) => x !== null);
     const PR = prOf(vb);
     const prVar = PRs.length > 1 && Math.max(...PRs) - Math.min(...PRs) > 25;
-    const QRS = vb.last - vb.on + 4;
+    const E = S.beatEnds(vb), QRS = E.last - vb.on + 4;
     const lastRR = vb.on - V[V.length - 2].on;
-    const QT = vb.repEnd + 40 - vb.on, QTc = QT / Math.sqrt(Math.max(lastRR, 300) / 1000);
+    const QT = E.repEnd + 40 - vb.on, QTc = QT / Math.sqrt(Math.max(lastRR, 300) / 1000);
     // QRS axis from net areas in I and aVF. With RBBB the delayed terminal RV
     // forces are excluded (clinical convention: first 60 ms of the QRS).
     const B = S.blocks;
@@ -1351,7 +1351,7 @@
     const axisWin = B.RBB && !B.LBB && !escapeOnly && QRS >= 110 ? 60 : QRS;
     // (QRS areas against the level at QRS onset, so a P or atrial T wave running into the QRS does not tilt them)
     // baseline: straight line from QRS onset to J point (removes the slow atrial T wave underneath)
-    let aI = 0, aF = 0; const t0 = Math.floor(vb.on), tJ = Math.ceil(vb.last + 6), b = (k, t) => ecg.buf[k][bufIdx(t)];
+    let aI = 0, aF = 0; const t0 = Math.floor(vb.on), tJ = Math.ceil(E.last + 6), b = (k, t) => ecg.buf[k][bufIdx(t)];
     const lin = (k, t) => b(k, t0) + (b(k, tJ) - b(k, t0)) * (t - t0) / (tJ - t0);
     for (let t = t0; t <= Math.ceil(vb.on + axisWin); t++) { aI += b(0, t) - lin(0, t); aF += b(5, t) - lin(5, t); }
     let axis = Math.round(Math.atan2(aF, aI) * 180 / Math.PI);
@@ -1463,14 +1463,14 @@
     const at = (k, t) => ecg.buf[k][bufIdx(t)];
     const out = {};
     for (const [n, k] of Object.entries(L_IDX)) {
-      const base = at(k, qrsBaseT(vb)), J = vb.last + 6;
+      const base = at(k, qrsBaseT(vb)), E = S.beatEnds(vb), J = E.last + 6;
       // ST deviation must hold from early ST (J+20) to J+40, so the upstroke of an early tall T is not read as ST shift
       const s20 = at(k, J + 20) - base, s40 = at(k, J + 40) - base;
       const st = s20 * s40 > 0 ? Math.sign(s40) * Math.min(Math.abs(s20), Math.abs(s40)) : 0;
       let qDur = 0, qAmp = 0, rMax = 0;
       for (let t = vb.on; t < vb.on + 60; t++) { const v = at(k, t) - base; if (v > 0.05) break; if (v < -0.04) qDur = t - vb.on + 1; qAmp = Math.min(qAmp, v); }
       for (let t = vb.on; t <= J; t++) rMax = Math.max(rMax, at(k, t) - base);
-      let tv = 0; for (let t = J + 60; t < vb.repEnd + 40; t++) { const v = at(k, t) - base; if (Math.abs(v) > Math.abs(tv)) tv = v; }
+      let tv = 0; for (let t = J + 60; t < E.repEnd + 40; t++) { const v = at(k, t) - base; if (Math.abs(v) > Math.abs(tv)) tv = v; }
       let sMin = 0, r40 = 0; for (let t = vb.on; t <= J; t++) { const v = at(k, t) - base; sMin = Math.min(sMin, v); if (t < vb.on + 40) r40 = Math.max(r40, v); }
       out[n] = { st, qDur, qAmp, rMax, r40, s: -sMin, t: tv };
     }
@@ -1502,7 +1502,7 @@
       else if (tall) out.push(`Right atrial enlargement (P pulmonale): P ${pII.toFixed(2)} mV in II`);
       else if (broad) out.push(`Left atrial enlargement (P mitrale): P ${Math.round(pDur)} ms wide${notchTxt}`);
     }
-    const PR = ab ? vb.on - ab.on : null, QRS = vb.last - vb.on + 4;
+    const PR = ab ? vb.on - ab.on : null, QRS = S.beatEnds(vb).last - vb.on + 4;
     if (S.ap && PR !== null && PR < 120) out.push(`Ventricular pre-excitation (WPW pattern): short PR (${Math.round(PR)} ms), delta wave, QRS ${Math.round(QRS)} ms. Repolarization changes are secondary.`);
     if (!S.ap && !Object.keys(S.blocks).length) {
       const sok = m.V1.s + Math.max(m.V5.rMax, m.V6.rMax), corn = m.aVL.rMax + m.V3.s;
@@ -1592,8 +1592,9 @@
       // ST resolved: an infarct read from its Q waves, lost R waves and T waves
       const leads = new Set(Q.concat(twi, rLossC)), has = (g) => g.filter((n) => leads.has(n)).length >= 2;
       const where = [has(['V1', 'V2', 'V3', 'V4']) && 'anterior', has(['II', 'III', 'aVF']) && 'inferior', has(['I', 'aVL', 'V5', 'V6']) && 'lateral'].filter(Boolean).join(' and ');
-      const age = twi.length >= 2 ? 'Recent' : 'Old';
-      out.push({ head: true, text: `${age}${where ? ' ' + where : ''} infarct: ${[Q.length && `Q/QS waves in ${span(Q)}`, rLossC.length && `R waves lost in ${span(rLossC)}`, twi.length && `T inversion in ${span(twi)}`].filter(Boolean).join(', ')}, ST at baseline` });
+      // (T inversion with Q waves is seen days to months after an infarct: the age cannot be read)
+      const age = twi.length >= 2 ? 'Q-wave' : 'Old';
+      out.push({ head: true, text: `${age}${where ? ' ' + where : ''} infarct${twi.length >= 2 ? ' (age undetermined: recent or old)' : ''}: ${[Q.length && `Q/QS waves in ${span(Q)}`, rLossC.length && `R waves lost in ${span(rLossC)}`, twi.length && `T inversion in ${span(twi)}`].filter(Boolean).join(', ')}, ST at baseline` });
       return out.concat(nodalNote());
     } else if (hyper.length >= 2) {
       out.push({ head: true, text: `Hyperacute T waves in ${span(hyper)}: earliest sign of coronary occlusion` });

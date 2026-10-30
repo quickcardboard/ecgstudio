@@ -142,11 +142,11 @@
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
     purkCrossSlow: 6.8,     // conduction-time factor on Purkinje links between fascicle territories
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
-    precordialGain: 0.95,        // overall chest-lead gain
+    precordialGain: 0.52,        // overall chest-lead gain
     sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
-    heartPitch: -15,          // degrees about the left–right axis (+ tips the anterior wall upward)
-    heartYaw: 15,          // degrees about the vertical axis (+ = apex swung from anterior toward the left)
+    heartPitch: -10,          // degrees about the left–right axis (+ tips the anterior wall upward)
+    heartYaw: 8,           // degrees about the vertical axis (+ = apex swung from anterior toward the left)
     heartRotation: 14,    // degrees about the AP axis (+ = more vertical heart)
     apexX: 72, apexY: -34.83,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)
@@ -158,7 +158,8 @@
 
     // Action potential durations (ms) at long diastolic interval
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
-    atrialSourceGain: 0.4,  // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
+    atrialFrontalRot: 30,   // degrees the atrial sources are turned back (frontal plane) against the ventricular rotation
+    atrialSourceGain: 0.31, // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
     apdVentApexExtra: -20, // apex shorter than base (apex repolarises first)
@@ -198,7 +199,7 @@
 
     // Atrial enlargement (see Sim.setAtrialEnlargement)
     raeGain: 2.4, raeSlow: 0.85,
-    laeGain: 1.8, laeSlow: 0.85, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 28,
+    laeGain: 2.6, laeSlow: 0.85, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 28,
 
     // Ischaemia (see Sim._ischemicState)
     ischBorderMm: 9,       // border-zone width over which severity rises to the core value
@@ -207,13 +208,16 @@
     ischInjuryH: 0.6,      // hours for the injury current (resting depolarisation) to develop
     ischApdShort: 0.45, ischApdLate: 0.9, ischLateH: 3,
     ischSubendoGain: 1.6, subendoSpanPhi: 1.6, subendoSpanZ: 0.5,  // demand ischaemia: the inner wall is the most severely injured
-    ischStResolve: 0.6,    // fraction of the injury current gone by 8 h (ST elevation partly resolves)
+    ischStResolve: 0.6,    // subendocardial: fraction of the injury current gone by 8 h
+    ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
-    ischAmpDrop: 0.55, ischCvSlow: 0.3,
+    ischAmpDrop: 0.55, ischCvSlow: 0.15,
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
-    ischFrontMax: 0.7,     // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
+    ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
+    ischBlockInj: 0.7,     // injury level above which living ischaemic muscle (after 2 h) no longer conducts
+    ischHaloMm: 10, ischHaloLate: 0.45,   // zone of ischaemia around the infarct: width (mm) and late APD prolongation (T inversion)
     ischNecrosisH: 5.6,    // hours for necrosis to advance from endocardium to epicardium
-    ischUncouple: 0.85,    // fraction of necrotic/living coupling lost (lead weights)
+    ischUncouple: 0.5,     // fraction of necrotic/living coupling lost early on (all of it once the scar forms)
     ischSanSlow: 0.25, ischAvnSlow: 1.2,
 
     // Automaticity (cycle lengths, ms)
@@ -229,7 +233,8 @@
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
     ecgHighpass: 0.05,          // Hz, diagnostic-ECG high-pass (baseline restoration)
     ecgLowpass: 40,             // Hz, ECG machine low-pass (0 = off; diagnostic carts use up to 150)
-    dipoleGain: 1.65,           // heart-vector scale for the limb leads (mV per unit dipole)
+    torsoBlend: 0.6,            // limb leads: share of the bounded-torso lead field (rest: Einthoven projection)
+    dipoleGain: 3.0,            // heart-vector scale for the limb leads (mV per unit dipole)
   };
 
   // Smooth LV free-wall thickening map (0..1) over rotational (phi) and
@@ -1177,7 +1182,14 @@
         sc *= Math.sqrt(g(c) * g(w));
       }
       const m = this.toTorso(lerp(A.p(c), A.p(w), 0.5));   // pair midpoint, torso frame
-      const ex = axes[a];                                     // pair direction, torso frame
+      let ex = axes[a];                                       // pair direction, torso frame
+      // The heart turns in the chest by its apex swinging about the base, so the
+      // atria (at the base) turn less than the ventricles: atrial source
+      // directions are turned back by atrialFrontalRot in the frontal plane.
+      if (kc !== KIND.VENT && this.P.atrialFrontalRot) {
+        const al = this.P.atrialFrontalRot * Math.PI / 180, ca = Math.cos(al), sa = Math.sin(al);
+        ex = [ca * ex[0] - sa * ex[1], sa * ex[0] + ca * ex[1], ex[2]];
+      }
       // midpoint radial direction and its component along the pair
       const rr = [0.5 * (rhat[3 * c] + rhat[3 * w]), 0.5 * (rhat[3 * c + 1] + rhat[3 * w + 1]), 0.5 * (rhat[3 * c + 2] + rhat[3 * w + 2])];
       const re = B * (rr[0] * ex[0] + rr[1] * ex[1] + rr[2] * ex[2]);
@@ -1205,6 +1217,19 @@
         out[e] = cc;
       }
     }
+  }
+
+  // ST elevation of a transmural (not reperfused) infarct: maximal over the
+  // first hours, still clear at 12 h, partly resolved at 2 days and back to
+  // baseline within about two weeks (log-time interpolation)
+  const ST_RESIDUAL = [[1, 1], [4, 0.95], [12, 0.8], [48, 0.45], [168, 0.15], [360, 0]];
+  function stResidual(h) {
+    if (h <= ST_RESIDUAL[0][0]) return 1;
+    for (let i = 1; i < ST_RESIDUAL.length; i++) if (h <= ST_RESIDUAL[i][0]) {
+      const [h0, v0] = ST_RESIDUAL[i - 1], [h1, v1] = ST_RESIDUAL[i];
+      return v0 + (v1 - v0) * Math.log(h / h0) / Math.log(h1 / h0);
+    }
+    return 0;
   }
 
   // ---------------------------------------------------------------------------
@@ -1539,7 +1564,24 @@
         const d = isFinite(dist[c]) ? dist[c] : borderMm * 2, x = Math.min(1, d / borderMm);
         cells.push(c); sev.push(0.35 + 0.65 * x * x * (3 - 2 * x));
       }
-      return { kind, cells: Int32Array.from(cells), sev: Float32Array.from(sev) };
+      // the zone of ischaemia around an infarct (living muscle within ischHaloMm
+      // of the territory): its prolonged repolarisation inverts the T waves
+      const halo = [], hw = [];
+      if (kind === 'occlusion' && this.P.ischHaloMm > 0) {
+        const hd = new Float32Array(n).fill(Infinity), hq = [];
+        for (let c = 0; c < n; c++) if (aff[c]) { hd[c] = 0; hq.push(c); }
+        for (let qi = 0; qi < hq.length; qi++) {
+          const c = hq[qi], i = A.ii[c], j = A.jj[c], k = A.kk[c];
+          for (const [a, b, e] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+            const w = A.at(i + a, j + b, k + e);
+            if (w < 0 || aff[w] || (A.label[w] !== LAB.LV && A.label[w] !== LAB.RV)) continue;
+            const d = hd[c] + A.h; if (d >= hd[w] || d > this.P.ischHaloMm) continue;
+            hd[w] = d; hq.push(w);
+          }
+        }
+        for (let c = 0; c < n; c++) if (!aff[c] && isFinite(hd[c])) { halo.push(c); hw.push(1 - hd[c] / this.P.ischHaloMm); }
+      }
+      return { kind, cells: Int32Array.from(cells), sev: Float32Array.from(sev), halo: Int32Array.from(halo), haloW: Float32Array.from(hw) };
     }
     _addInsult(ins) { ins.id = this._nextInsult++; this.insults.push(ins); this._applyIschemia(); return ins.id; }
 
@@ -1553,11 +1595,11 @@
       const katp = sm(h / P.ischKatpH) * (1 - sm((h - 6) / 18));
       // injury current: develops over half an hour, eases after a few hours, gone by ~2 days (ST back to baseline)
       const inj = Math.min(1, s * (kind === 'subendo' ? P.ischSubendoGain : 1)) * sm((h - P.ischInjuryOnset) / P.ischInjuryH)
-        * (1 - P.ischStResolve * sm((h - 3) / 5)) * (1 - sm((h - 12) / 30));
+        * (kind === 'subendo' ? (1 - P.ischStResolve * sm((h - 3) / 5)) * (1 - sm((h - 12) / 30)) : stResidual(h));
       let apd = 1 - P.ischApdShort * s * katp;
       // prolonged repolarisation in the surviving border: T inversion from ~6 h, deepest at 1–3 days,
       // fading over the following weeks (T waves upright again in an old infarct)
-      const late = sm((h - P.ischLateH) / 3) * (1 + 0.8 * sm((h - 12) / 30)) * (1 - sm((h - 200) / 400));
+      const late = sm((h - P.ischLateH) / 3) * (1 + 0.8 * sm((h - 12) / 30)) * (1 - P.ischTRecover * sm((h - 200) / 400));
       apd *= 1 + P.ischApdLate * Math.min(1, s + 0.3) * late;
       // necrosis advances from endocardium to epicardium (wavefront phenomenon)
       // (the innermost layer, fed from the cavity blood, survives with the Purkinje junctions)
@@ -1566,9 +1608,13 @@
       // the surviving epicardial rim over a completed infarct is drawn as part of
       // the infarct (it stays electrically alive)
       const rim = !dead && kind !== 'subendo' && s > P.ischDeadS && tm >= front && sm((h - 0.4) / P.ischNecrosisH) > 0.98;
+      // severely injured (depolarised) muscle ahead of the necrosis front stops
+      // conducting (sodium-channel inactivation) while it still drives injury current
+      const unexcitable = !dead && kind !== 'subendo' && h >= 2 && s > P.ischDeadS && inj > P.ischBlockInj;
       return {
-        apd, dead, rim, level: Math.max(inj, 0.5 * s * katp),
-        vRest: dead ? P.vRest : P.vRest + P.ischDvRest * inj,
+        apd, dead, rim, unexcitable, level: Math.max(inj, 0.5 * s * katp),
+        // necrotic muscle stays depolarised (and partly coupled, see _uncoupleDead) until it turns to scar
+        vRest: dead ? P.vRest + P.ischDvRest * (kind === 'subendo' ? 0 : stResidual(h)) : P.vRest + P.ischDvRest * inj,
         amp: dead ? 0 : 1 - P.ischAmpDrop * inj,
         cv: 1 + P.ischCvSlow * inj,
       };
@@ -1607,11 +1653,19 @@
       let nDead = 0;
       for (const [c, st] of best) {
         this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = this.vAmp0[c] * st.amp;
-        this.cvMul[c] = st.cv; this.blocked[c] = st.dead ? 1 : 0; this._ischCells.add(c);
+        this.cvMul[c] = st.cv; this.blocked[c] = st.dead || st.unexcitable ? 1 : 0; this._ischCells.add(c);
         lvl[c] = st.dead || st.rim ? 2 : st.level;   // (display only: 2 = necrotic)
         if (st.dead) nDead++;
       }
       this.nDead = nDead;
+      // zone of ischaemia around the infarct: late APD prolongation (T inversion), same time course
+      const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+      const lateF = sm((h - P.ischLateH) / 3) * (1 + 0.8 * sm((h - 12) / 30)) * (1 - P.ischTRecover * sm((h - 200) / 400));
+      if (lateF > 0) for (const ins of this.insults) if (ins.halo) for (let q = 0; q < ins.halo.length; q++) {
+        const c = ins.halo[q]; if (best.has(c)) continue;
+        const f = 1 + P.ischHaloLate * ins.haloW[q] * lateF;
+        if (this.apdMax0[c] * f > this.apdMax[c]) { this.apdMax[c] = this.apdMax0[c] * f; this._ischCells.add(c); }
+      }
       this._uncoupleDead();
       // nodal arteries: proximal RCA occlusion slows the sinus node and the AV node
       // (nodal ischaemia recovers over the first days)
@@ -1632,7 +1686,7 @@
     _uncoupleDead() {
       // coupling loss grows as the necrotic zone turns to scar (complete by ~2 days)
       const h = this.ischemiaHours, sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
-      const M = this.M, A = M.A, NE = M.NE, u = this.P.ischUncouple + (1 - this.P.ischUncouple) * sm((h - 12) / 36);
+      const M = this.M, A = M.A, NE = M.NE, u = 1 - (1 - this.P.ischUncouple) * stResidual(h);
       if (!this.nDead) { this.W = M.W; return; }
       const W = this.W = M.W.slice(), cc = new Float64Array(NE);
       for (const c of this._ischCells) {
@@ -1909,10 +1963,24 @@
         if (!this._curV || ta - this._curV.last > 60) {
           this._curV = { on: ta, last: ta, n: 0, repEnd: 0, origin: c };
           this.log.vent.push(this._curV); if (this.log.vent.length > 50) this.log.vent.shift();
+          const old = this.log.vent[this.log.vent.length - 6]; if (old) { delete old.ts; delete old.rs; }
         }
         this._curV.last = ta; this._curV.n++;
         this._curV.repEnd = Math.max(this._curV.repEnd, this.repEnd[c]);
+        if (this.insults.length) { (this._curV.ts || (this._curV.ts = [])).push(ta); (this._curV.rs || (this._curV.rs = [])).push(this.repEnd[c]); }
       }
+    }
+
+    // End of the QRS and of repolarisation for a logged beat. With ischaemia a
+    // few cells, reached late around necrosis or with greatly prolonged action
+    // potentials, set the absolute extremes without showing on the ECG: the
+    // ends are then the 99.5th activation percentile + 10 ms (the normal tail) and
+    // the 98th repolarisation percentile.
+    beatEnds(vb) {
+      if (!vb.ts || vb.ts.length < 200) return { last: vb.last, repEnd: vb.repEnd };
+      if (vb._ends && vb._ends.n === vb.ts.length) return vb._ends;
+      const pc = (a, q) => { const b = Float64Array.from(a).sort(); return b[Math.floor(q * (b.length - 1))]; };
+      return (vb._ends = { last: Math.min(vb.last, pc(vb.ts, 0.995) + 10), repEnd: pc(vb.rs, 0.98), n: vb.ts.length });
     }
 
     // Transmembrane potential of cell c at time t. Parametric action potential
@@ -2050,8 +2118,12 @@
       // Goldberger's augmented leads — the limb electrodes are far-field.
       const L = this.leadsLatest, c60 = 0.5, s60 = 0.8660254;
       if (this.M.torsoLimb) {
-        // bounded-torso lead fields (a computed Burger triangle)
-        L[0] = v(12) * this.P.dipoleGain; L[1] = v(13) * this.P.dipoleGain; L[2] = L[1] - L[0];
+        // bounded-torso lead fields (a computed Burger triangle), optionally
+        // blended with the Einthoven projection (torsoBlend = torso share)
+        const b = this.P.torsoBlend, g = this.P.dipoleGain;
+        L[0] = b * v(12) * g + (1 - b) * D[0];
+        L[1] = b * v(13) * g + (1 - b) * (c60 * D[0] - s60 * D[1]);
+        L[2] = L[1] - L[0];
       } else {
         L[0] = D[0];
         L[1] = c60 * D[0] - s60 * D[1];

@@ -27,12 +27,12 @@ function beat(M, blk) {
 const TORSO = process.env.TORSO ? JSON.parse(fs.readFileSync(process.env.TORSO)) : null;   // default torso is bundled; override with TORSO=path
 function evaluate(p) {
   const M = new LH.Model(A, TORSO ? Object.assign({ torsoField: TORSO }, p) : p);
-  const n = beat(M, []), lafb = beat(M, BLOCKALL ? M.csSegments.LAF : M.csSegments.LAF.slice(0, 3)), lpfb = beat(M, BLOCKALL ? M.csSegments.LPF : M.csSegments.LPF.slice(0, 3));
+  const n = beat(M, []), lbbb = beat(M, M.csSegments.LBB.slice(0, 3)), lafb = beat(M, BLOCKALL ? M.csSegments.LAF : M.csSegments.LAF.slice(0, 3)), lpfb = beat(M, BLOCKALL ? M.csSegments.LPF : M.csSegments.LPF.slice(0, 3));
   const prog = ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k) => n.rs(k));
   // score: distance from teaching targets
   const pen = (v, lo, hi) => (v < lo ? lo - v : v > hi ? v - hi : 0);
   let score = 0;
-  score += pen(n.axis, 20, 75) / 10 + pen(n.ampAxis, 20, 75) / 10;
+  score += pen(n.axis, 40, 75) / 10 + pen(n.ampAxis, 40, 75) / 10;
   score += pen(lafb.ampAxis, -90, -45) / 10 + pen(lafb.axis, -90, -30) / 20;
   score += pen(lpfb.ampAxis, 100, 150) / 10 + pen(lpfb.axis, 90, 150) / 20;
   // LAFB: rS in II/III/aVF and qR in aVL; LPFB: rS in I and qR in III
@@ -41,13 +41,17 @@ function evaluate(p) {
   score += pen(n.qrs, 75, 100) / 10 + pen(lafb.qrs, 80, 115) / 10 + pen(lpfb.qrs, 80, 115) / 10;
   score += pen(n.init('I'), -0.25, -0.04) * 10 + pen(n.init('V1'), 0.04, 0.3) * 10 + pen(n.init('V6'), -0.25, -0.03) * 10;
   // R progression: R should rise V1→V4, transition (R≥S) by V4
-  for (let i = 0; i < 3; i++) score += Math.max(0, prog[i][0] - prog[i + 1][0]) * 3;
+  for (let i = 0; i < 4; i++) score += Math.max(0, prog[i][0] - prog[i + 1][0]) * 3;
+  // LBBB axis normal-to-left; normal limb voltages (R in I ≥ 0.4, R in II ≥ 0.8 mV)
+  score += pen(lbbb.axis, -30, 60) / 10 + pen(lbbb.qrs, 120, 170) / 10;
+  score += pen(n.rs('I')[0], 0.4, 2) * 4 + pen(n.rs('II')[0], 0.8, 2.5) * 4;
   score += Math.max(0, prog[3][1] - prog[3][0] - 0.3) * 2 + Math.max(0, prog[0][0] - prog[0][1]) * 3;
   const f = (r) => r.map((v) => v.toFixed(1)).join('/');
   return {
     score: +score.toFixed(2),
     normal: `axis ${n.axis}/${n.ampAxis} QRS ${n.qrs} q(I) ${n.init('I').toFixed(2)} r(V1) ${n.init('V1').toFixed(2)} prog ${prog.map(f).join(' ')}`,
     LAFB: `axis ${lafb.axis}/${lafb.ampAxis} QRS ${lafb.qrs} II ${f(lafb.rs('II'))} aVF ${f(lafb.rs('aVF'))} aVL ${f(lafb.rs('aVL'))} init aVF ${lafb.init('aVF').toFixed(2)}`,
+    LBBB: `axis ${lbbb.axis} QRS ${lbbb.qrs} I ${f(lbbb.rs('I'))} V1 ${f(lbbb.rs('V1'))} V6 ${f(lbbb.rs('V6'))}`,
     LPFB: `axis ${lpfb.axis}/${lpfb.ampAxis} QRS ${lpfb.qrs} I ${f(lpfb.rs('I'))} III ${f(lpfb.rs('III'))} init I ${lpfb.init('I').toFixed(2)}`,
   };
 }
