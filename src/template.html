@@ -209,7 +209,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
 <div id="app">
   <header class="top">
-    <div class="brand"><h1>Live<b>Heart</b></h1><span>Forward ECG simulator · milestone 3</span></div>
+    <div class="brand"><h1>Live<b>Heart</b></h1><span>Forward ECG simulator · milestone 4</span></div>
     <div class="spacer"></div>
     <button id="btnGuide" type="button">User guide</button>
   </header>
@@ -280,6 +280,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
               <label class="tog" for="stLAE" title="Left atrial enlargement"><input type="checkbox" id="stLAE"><span>LAE</span></label>
               <label class="tog" for="stLVH" title="Left ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stLVH"><span>LVH</span></label>
               <label class="tog" for="stRVH" title="Right ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stRVH"><span>RVH</span></label>
+              <label class="tog" for="stDual" title="Dual AV-node pathways (substrate for AVNRT)"><input type="checkbox" id="stDual"><span>Dual AVN</span></label>
             </div>
             <label class="lab" for="stAP">Accessory pathway (WPW)</label>
             <select id="stAP">
@@ -292,6 +293,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
             </select>
           </div>
           <div class="ctl">
+            <span class="lab">Arrhythmias</span>
+            <div class="presets" id="arrButtons" role="group" aria-label="Start an arrhythmia">
+              <button type="button" data-arr="af">AF</button><button type="button" data-arr="flutter">Flutter</button><button type="button" data-arr="mat">MAT</button><button type="button" data-arr="avnrt">AVNRT</button>
+              <button type="button" data-arr="avrt">AVRT</button><button type="button" data-arr="vt">VT</button><button type="button" data-arr="vf">VF</button>
+            </div>
+            <div class="btnrow">
+              <button type="button" id="btnAdeno" title="IV adenosine: transient AV-nodal block">Adenosine</button>
+              <button type="button" id="btnShock" title="Synchronised cardioversion / defibrillation">Shock</button>
+            </div>
+          </div>
+          <div class="ctl">
             <span class="lab">Overlays</span>
             <div class="toggles">
               <label class="tog" for="ovLabels"><input type="checkbox" id="ovLabels"><span>Labels</span></label>
@@ -302,7 +314,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
             <button id="btnPause" type="button">Pause</button>
             <button id="btnReset" type="button">Reset</button>
           </div>
-          <div class="next">Coming next: <b>re-entry</b> (AF, flutter, AVNRT, VT, VF).</div>
+          <div class="next">Rapid clicks start arrhythmias too: four or more on the left atrium for AF, on the right atrium for flutter, on three separate atrial spots for MAT, four or more on a ventricle for VT. A PVC on the T wave of an ischemic heart starts VF.</div>
         </div>
       </div>
 
@@ -365,7 +377,18 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Click on the heart for Ischemia:</b> in the external view the main epicardial coronary arteries are drawn in red: the left main trunk dividing into the LAD and the circumflex, and the right coronary artery giving the posterior descending artery (a right-dominant heart). Each artery's territory includes the muscle fed by its smaller side branches. Click an artery to occlude it at that point. A yellow marker shows the occlusion, the vessel beyond it turns grey, and everything it supplies becomes transmurally ischemic (tinted purple, necrotic muscle grey). In the cutaway, click ventricular muscle on the cut face for subendocardial ischemia in a patch of that wall. Occlusions and patches are listed in the panel, where each can be removed.</li>
       <li><b>Time since onset</b> moves every ischemic region along the same time course. It stops only where the ECG changes character: onset, 15 min, 1 h, 4 h, 12 h, 2 days and 1 month. In the first minutes, K-ATP channels shorten the action potential: hyperacute T waves. Over the first half hour, depolarized ischemic cells drive an injury current: ST elevation over the territory with reciprocal depression opposite. Necrosis then advances from endocardium to epicardium over about six hours. Dead muscle loses its gap junctions and drops out of the QRS, so Q waves form. From about 12 hours the ST elevation eases and the T wave starts to invert. By 2 days the ST segment is back near baseline with deep symmetric T inversion. At 1 month the Q waves remain and the T waves are upright again. A proximal right coronary occlusion also starves the sinus-node and AV-node arteries, slowing the sinus rate and lengthening the PR; an occlusion beyond the crux slows only the AV node. A thin subendocardial patch gives ST depression rather than elevation.</li>
       <li><b>Structure:</b> RAE and LAE enlarge an atrium. The enlarged atrium carries more muscle, so its sources are stronger; LAE also delays conduction from the right atrium into the left, across Bachmann's bundle and the inferior connections, so the left atrium fires as a separate, later wave. RAE gives a tall, peaked P wave in II (P pulmonale). LAE gives a broad P wave of about 150 ms with two humps, right then left atrium, about 80 ms apart (P mitrale). LVH and RVH rebuild the heart with a thicker free wall: about 6 mm extra on the LV, 10 mm on the RV. Hypertrophied muscle carries more current, and the transmural repolarization gradient reverses ("strain"). LVH gives Sokolow–Lyon voltage with T inversion in I, aVL and V6; RVH a dominant R in V1, right axis deviation and T inversion in V1–V2. Building a configuration the first time takes a few seconds; after that it is kept, so switching back is immediate. Switching clears blocks and ischemia.</li>
-      <li><b>Accessory pathway (WPW):</b> adds a fast, non-decremental muscle bridge across the AV ring at the chosen site (shown in blue). The ventricle near it is excited early, giving a short PR and a delta wave. The rest of the ventricle fuses with normally conducted activation, so the QRS is wide. The pathway also conducts backwards. <b>Triggering AVRT:</b> with a left lateral or left posterior pathway, click the left atrium for a PAC about 240–320 ms after the start of a P wave, which is during the QRS or early ST segment. The pathway is still refractory, so the PAC conducts down the AV node alone, with a narrow QRS. It then returns to the atria up the pathway and circles: orthodromic AVRT at about 190 bpm, with a retrograde P wave just after each QRS. Slowing time with the time scale makes the click easier. Reset ends it.</li>
+      <li><b>Accessory pathway (WPW):</b> adds a fast, non-decremental muscle bridge across the AV ring at the chosen site (shown in blue). The ventricle near it is excited early, giving a short PR and a delta wave. The rest of the ventricle fuses with normally conducted activation, so the QRS is wide. The pathway also conducts backwards. <b>Triggering AVRT by hand:</b> with a left lateral or left posterior pathway, click the left atrium for a PAC about 240–320 ms after the start of a P wave, which is during the QRS or early ST segment. The pathway is still refractory, so the PAC conducts down the AV node alone, with a narrow QRS. It then returns to the atria up the pathway and circles: orthodromic AVRT at about 190 bpm, with a retrograde P wave just after each QRS. Slowing time with the time scale makes the click easier. Reset ends it.</li>
+      <li><b>Arrhythmias:</b> each button starts a rhythm. The rates, the AV relationship and the ECG all come from the simulated tissue.
+        <ul>
+          <li><b>AF:</b> eleven atrial foci fire at random short cycle lengths. The colliding wavelets bombard the AV node, which lets through an irregularly irregular ventricular response. With an accessory pathway, AF can conduct over it (pre-excited AF).</li>
+          <li><b>Flutter:</b> macro-re-entry around the tricuspid annulus with slow conduction in the cavotricuspid isthmus. The typical counterclockwise circuit goes up the septum and down the free wall, at about 330–360/min with 2:1 or variable AV conduction.</li>
+          <li><b>MAT:</b> four atrial foci take turns irregularly, so each P wave differs.</li>
+          <li><b>AVNRT:</b> switches on dual AV-node pathways (removing any accessory pathway) and delivers a timed PAC. The PAC blocks in the fast pathway, conducts down the slow one, then returns up the fast one. The retrograde P falls at the end of the QRS.</li>
+          <li><b>AVRT:</b> adds a left lateral accessory pathway if none is set (switching off dual AV-node pathways) and delivers a timed PAC. Conduction goes down the AV node and back up the pathway (orthodromic).</li>
+          <li><b>VT:</b> a single ventricular site fires at 180/min. The QRS is wide and monomorphic, with AV dissociation.</li>
+          <li><b>VF:</b> many ventricular foci fire chaotically.</li>
+        </ul>
+        <b>Adenosine</b> blocks the AV node for about 6 s after a 1 s delay. It ends AVNRT and AVRT, and exposes the flutter waves or fibrillation in flutter and AF. <b>Shock</b> depolarizes every excitable cell at once, ending any re-entry; the sinus node then resumes. Clicking also works: four or more quick clicks on the left atrium start AF, on the right atrium flutter, and on three or more separate atrial sites MAT. Four or more quick clicks on a ventricle start VT from that site, and seven or more start VF. In an acutely ischemic heart (15 min to 2 days after onset), a PVC landing on the T wave triggers VF; a healthy heart tolerates it.</li>
       <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest and clears all blocks and ischemia.</li>
     </ul>
     <h3>Banner</h3>

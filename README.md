@@ -8,7 +8,7 @@ electrical field.
 Open `index.html` in a browser. It is a single self-contained file (≈4.7 MB) that loads
 Three.js r128 and OrbitControls from CDNs.
 
-## Status: milestone 3 (ischemia, structural changes) on top of milestones 1–2
+## Status: milestone 4 (arrhythmias) on top of milestones 1–3
 
 | Area | Done |
 |---|---|
@@ -115,6 +115,29 @@ heart's own healthy beat, and names the territory with STEMI thresholds.
 
 Limitations: the LAE V1 terminal negativity is shallow (the model's left atrium projects little onto V1), and the
 delta-wave polarity does not follow localisation algorithms for every site (the model's heart sits fairly vertical).
+
+### Milestone 4: arrhythmias
+
+Buttons in the Arrhythmias panel, or click gestures (≥4 rapid clicks on the LA → AF, RA → flutter, ≥3 separate
+atrial sites → MAT, ≥4 on a ventricle → VT, ≥7 → VF; a PVC on the T wave of an acutely ischemic heart → VF).
+Engine API: `sim.startArrhythmia(type, opts)`, `stopArrhythmia()`, `shock()`, `giveAdenosine()`, `setDualAVN(on)`,
+`stimulateAt(cell, t)`. Checks: `node tools/arrhythmia.js`, `tools/avnrt.js`, `tools/avrt.js`.
+
+| Rhythm | Mechanism | Result |
+|---|---|---|
+| AF | 11 atrial foci at random 110–230 ms; random concealed conduction in the AV node | irregularly irregular, ~110–130 bpm; with WPW, pre-excited AF ~180 bpm |
+| Flutter | true re-entry around the tricuspid annulus: RA conducts one way (counterclockwise), slowed circuit and isthmus, LA entered from the CS side | ~330–360/min, 2:1 conduction; sawtooth in II, revealed by adenosine |
+| MAT | four atrial foci taking turns at 380–640 ms | ~120 bpm, varying P waves and PR |
+| AVNRT | antegrade slow AV-nodal pathway (CS side, short refractoriness) + retrograde fast pathway; induced by a PAC 220–280 ms after the P | 174 bpm, narrow QRS, retrograde P at the end of the QRS; ends with adenosine |
+| AVRT | orthodromic: down the AV node, up a left-sided pathway | ~190 bpm, narrow QRS, RP ~40 ms; ends with adenosine |
+| VT | single ventricular focus, 330 ms | 182 bpm, QRS ~160–200 ms, AV dissociation |
+| VF | 12 ventricular foci at random 140–240 ms | chaotic |
+| Shock | depolarises all excitable tissue and prolongs refractoriness of the rest | terminates every rhythm above; sinus resumes |
+
+Atrial refractoriness now has a floor (APD ≥135 ms at the shortest intervals), and the AV-node post-repolarisation
+refractoriness is 180 ms. Limitations: AF fibrillatory waves are fine (low amplitude); clockwise flutter is not offered
+(the model's clockwise circuit runs too fast); AF, MAT, VT and VF are driven by foci rather than self-sustaining
+re-entry.
 
 ## Layout
 

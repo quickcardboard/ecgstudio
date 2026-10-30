@@ -123,6 +123,7 @@
     cvPurkinje: 2.28,
     avnSegDelay: 17,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
     avnSegments: 5,
+    slowPathSegments: 4, slowPathSegDelay: 42, slowPathErpExtra: 20, slowPathCvK: 1,   // dual AV-node pathways (AVNRT)
     avnFirstDegreeMul: 2.6, // AV-nodal delay factor for 1st-degree block
     // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
     wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
@@ -160,7 +161,7 @@
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
     apdVentApexExtra: -20, // apex shorter than base (apex repolarises first)
     apdRVoffset: 30,
-    apdAtrial: 190,
+    apdAtrial: 190, apdMinAtrial: 135,
     apdPurk: 340,
     apdBundle: 360,        // His bundle, LBB and fascicles
     apdRBB: 400,           // right bundle branch: longest refractoriness
@@ -179,6 +180,14 @@
     plateauDecline: 0.05,  // fractional fall in plateau over the APD
     repWVent: 180, repWAtrial: 220,   // width of phase-3 repolarisation window (ms)
     upW: 2.0,                        // width of phase-0 upstroke (ms)
+
+    // Arrhythmia drivers (see Sim.startArrhythmia)
+    afFociLA: 8, afFociRA: 3, afClMin: 110, afClMax: 230, afConcealed: 300,
+    flutterRingSlow: 1.1, flutterIsthmusSlow: 2.8, flutterGateTol: 0.03, flutterRadius: 25, flutterBachmannSlow: 40,
+    matClMin: 380, matClMax: 640,
+    vtCl: 330,
+    vfFoci: 12, vfClMin: 140, vfClMax: 240,
+    adenosineDelay: 1200, adenosineBlock: 6000, shockRefractory: 160,
 
     // Accessory pathway (see Sim.setAccessoryPathway)
     apDelay: 6, apErp: 280,
@@ -571,6 +580,23 @@
       }
       this.avn = avn;
 
+      // Slow AV-nodal pathway (dual AV-node physiology): from the CS-ostium
+      // side of the triangle of Koch, slow but quickly recovering, joining
+      // the compact node. Present in every heart model but blocked unless
+      // Sim.setDualAVN(true): it is the substrate of typical AVNRT.
+      const csP = P2(this.csCell), joinP = this.pt(avn[nAvn - 2]);
+      const slow = [];
+      for (let s = 0; s < P.slowPathSegments; s++) {
+        const id = this.addNode(KIND.AVN, SEG.AVN, lerp(csP, joinP, (s + 0.5) / P.slowPathSegments));
+        if (s) this.edge(slow[s - 1], id, P.slowPathSegDelay, false);
+        slow.push(id);
+      }
+      // antegrade only (typical slow–fast AVNRT; retrograde slow conduction, the
+      // substrate of atypical fast–slow AVNRT, is not modelled)
+      this.edge(slow[slow.length - 1], avn[nAvn - 2], P.slowPathSegDelay, false);
+      for (let c = 0; c < A.n; c++) if (isRA(c) && len(sub(P2(c), csP)) < 6) this.edge(c, slow[0], 3, false);
+      this.avnSlow = slow;
+
       // His bundle (penetrating + branching portion), insulated
       const hisPts = [];
       const hisStart = this.pt(avn[nAvn - 1]);
@@ -755,6 +781,39 @@
       for (let c = 0; c < A.n; c++) if (voxNode[c] >= 0) voxNode[c] = mainOf(voxNode[c]);
       for (const b of Object.keys(branches)) if (!MAIN.includes(b)) delete branches[b];
       this.coronary = { nodes, branches, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
+    }
+
+    // Flutter circuit geometry: every right-atrial voxel's angle around the
+    // tricuspid annulus axis, measured from the cavotricuspid isthmus (the
+    // IVC side) and increasing toward the septum (counterclockwise seen from
+    // the apex); the isthmus cells; the start cells of the circuit.
+    flutterGeometry() {
+      if (this._flutter) return this._flutter;
+      const A = this.A, lm = A.landmarks, tv = lm.TV, c0 = tv.c, n = tv.n;
+      const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+      const inPlane = (v) => { const d = dot(v, n); const w = [v[0] - d * n[0], v[1] - d * n[1], v[2] - d * n[2]]; const l = Math.hypot(...w); return w.map((x) => x / l); };
+      const e1 = inPlane(sub(lm.IVC.c, c0));                     // θ = 0 at the isthmus
+      const sep = inPlane(sub(lm.MV.c, c0));
+      let e2 = cross(n, e1); if (dot(e2, sep) < 0) e2 = e2.map((x) => -x);   // θ grows toward the septum
+      const ang = new Float32Array(this.nVox).fill(NaN), radius = new Float32Array(this.nVox), isthmus = new Uint8Array(this.nVox), start = [];
+      for (let c = 0; c < this.nVox; c++) {
+        if (A.label[c] !== LAB.RA || this.kind[c] !== KIND.ATRIAL) continue;
+        const d = sub(A.p(c), c0);
+        let th = Math.atan2(dot(d, e2), dot(d, e1)); if (th < 0) th += 2 * Math.PI;
+        ang[c] = th;
+        const rr = Math.hypot(...sub(d, n.map((x) => x * dot(d, n)))); radius[c] = rr;
+        if ((th < 0.5 || th > 2 * Math.PI - 0.3) && rr < tv.r + 14) isthmus[c] = 1;
+        if (th > 0.05 && th < 0.2 && rr < tv.r + 10) start.push(c);
+      }
+      // LA cells away from the coronary-sinus ostium (entered over Bachmann's
+      // bundle and the roof rather than from below)
+      const upperLA = new Uint8Array(this.nVox), cs = A.p(this.csCell);
+      for (let c = 0; c < this.nVox; c++) {
+        if (A.label[c] !== LAB.LA || this.kind[c] !== KIND.ATRIAL) continue;
+        if ((A.pos[3 * c] - cs[0]) ** 2 + (A.pos[3 * c + 1] - cs[1]) ** 2 + (A.pos[3 * c + 2] - cs[2]) ** 2 > 22 * 22) upperLA[c] = 1;
+      }
+      return (this._flutter = { ang, radius, isthmus, start, upperLA });
     }
 
     // Accessory pathway endpoints: the ventricular voxel on the AV ring in the
@@ -1171,7 +1230,7 @@
       this.S0 = new Float64Array(model.NE); this.S1 = new Float64Array(model.NE);
       this.leadsLatest = new Float32Array(12);
       this.listeners = [];
-      this.pacemakers = [];
+      this.pacemakers = []; this.drivers = [];
       this.setRate(this.P.sinusRate);
       // Subsidiary pacemakers are source-dependent: each takes over only when
       // conduction from above it is interrupted, never because the sinus rate
@@ -1325,7 +1384,16 @@
         // nodal refractoriness also follows autonomic tone (vagal lengthens, sympathetic shortens)
         if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone;
       }
+      // slow pathway: same autonomic coupling, short refractoriness; open only
+      // with dual AV-node physiology and no AV-nodal block
+      for (const c of this.M.avnSlow || []) {
+        this.cvMul[c] = tone * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
+        if (this.erpExtra) this.erpExtra[c] = this.P.slowPathErpExtra * tone;
+        if (this.cvK) this.cvK[c] = this.P.slowPathCvK;
+        this.blocked[c] = this.dualAVN && !this.blocks.AVN ? 0 : 1;
+      }
     }
+    setDualAVN(on) { this.dualAVN = !!on; this._applyAvn(); }
     // One decision per beat: a site is reached by several converging
     // wavelets within a few ms; they all share the first one's fate.
     _gatePass(g, ta) {
@@ -1551,8 +1619,119 @@
       this.stimLog.push(rec); if (this.stimLog.length > 40) this.stimLog.shift();
       if (this.blocked[c] || t < this.refEnd[c]) return rec;      // refractory: no capture
       this.schedule(c, t); this._pendingStim = rec;
+      if (k === KIND.VENT && this.vulnerable()) {
+        const vb = this.log.vent[this.log.vent.length - 1];
+        if (vb && t > vb.on + 0.6 * (vb.repEnd - vb.on) && t < vb.repEnd + 20) { this._pendingRonT = c; rec.ronT = true; }
+      }
       return rec;
     }
+
+    // ---- Arrhythmias ---------------------------------------------------------
+    // Sustained arrhythmias are produced by drivers placed in the tissue: the
+    // activation they launch spreads, collides, meets refractory tissue and
+    // reaches the ventricles through the AV node like any other wave, so the
+    // ventricular response, the ECG and the AV relationship all emerge.
+    //   af      — many left- and right-atrial foci firing at random short cycle
+    //             lengths: multiple wavelets, irregular AV-nodal penetration
+    //   flutter — a stimulus circulating around the tricuspid ring (typical,
+    //             counterclockwise: up the septum, down the free wall)
+    //   mat     — three or four atrial foci taking turns irregularly
+    //   vt      — one ventricular focus at a fixed fast rate (monomorphic VT)
+    //   vf      — many ventricular foci at random short cycle lengths
+    startArrhythmia(type, opts = {}) {
+      const M = this.M, A = M.A, P = this.P, r = this.rand;
+      this.stopArrhythmia();
+      const pick = (f, n) => { const pool = []; for (let c = 0; c < M.nVox; c++) if (f(c)) pool.push(c); const out = []; for (let i = 0; i < n && pool.length; i++) out.push(pool.splice(Math.floor(r() * pool.length), 1)[0]); return out; };
+      const atrial = (lab) => (c) => M.kind[c] === KIND.ATRIAL && A.label[c] === lab && !M.seg[c];
+      const vent = (c) => M.kind[c] === KIND.VENT;
+      const rand = (a, b) => () => a + (b - a) * r();
+      if (type === 'af') {
+        const foci = pick(atrial(LAB.LA), P.afFociLA).concat(pick(atrial(LAB.RA), P.afFociRA));
+        for (const c of foci) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 150, cl: rand(P.afClMin, P.afClMax) });
+      } else if (type === 'flutter') {
+        // Typical flutter is macro-re-entry around the tricuspid annulus. The
+        // circuit is enforced by letting right-atrial tissue conduct only one
+        // way around the annulus (counterclockwise seen from the apex: up the
+        // septum, down the free wall; clockwise reverses it), with slower
+        // conduction in the circuit (most of all in the cavotricuspid
+        // isthmus). One stimulus at the isthmus then circulates by itself;
+        // the left atrium follows passively through the interatrial routes.
+        const fl = M.flutterGeometry();
+        const side = new Int8Array(M.nVox); for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.ATRIAL) side[c] = A.label[c] === LAB.RA ? 1 : -1;
+        this._flutterGate = { ang: fl.ang, side, upperLA: fl.upperLA, dir: opts.clockwise ? -1 : 1, tol: P.flutterGateTol };
+        const slowed = [];
+        // (conduction near the annulus axis is slowed in proportion, so no short
+        // cut around the axis outruns the circuit's angular speed)
+        for (let c = 0; c < M.nVox; c++) if (isFinite(fl.ang[c])) {
+          slowed.push([c, this.cvMul[c]]);
+          this.cvMul[c] *= (fl.isthmus[c] ? P.flutterIsthmusSlow : P.flutterRingSlow) * Math.max(1, P.flutterRadius / fl.radius[c]);
+        }
+        this.drivers.push({ kind: 'watch', slowed, cell: fl.start[0], lastAct: this.tAct[fl.start[0]], cls: [] });
+        for (const c of fl.start) this.schedule(c, this.t);
+      } else if (type === 'mat') {
+        const foci = opts.cells && opts.cells.length >= 3 ? opts.cells : pick((c) => M.kind[c] === KIND.ATRIAL && !M.seg[c], 4);
+        this.drivers.push({ kind: 'rotate', cells: foci, next: this.t + 200, cl: rand(P.matClMin, P.matClMax) });
+      } else if (type === 'vt') {
+        const c = opts.cell !== undefined ? opts.cell : pick(vent, 1)[0];
+        this.drivers.push({ kind: 'focus', cell: c, next: this.t, cl: () => opts.cl || P.vtCl });
+      } else if (type === 'vf') {
+        for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
+      } else throw new Error('unknown arrhythmia ' + type);
+      this.arrhythmia = { type, t: this.t, cell: opts.cell, clockwise: !!opts.clockwise };
+      this.rhythmChangedAt = this.t;
+    }
+    // substrate for R-on-T ventricular fibrillation: acute ischaemia (minutes
+    // to ~2 days after onset)
+    vulnerable() { return this.insults.length > 0 && this.ischemiaHours >= 0.1 && this.ischemiaHours <= 48; }
+
+    stopArrhythmia() {
+      for (const d of this.drivers) if (d.slowed) for (const [c, v] of d.slowed) this.cvMul[c] = v;
+      if (this.drivers.length) this.rhythmChangedAt = this.t;
+      this.drivers = []; this.arrhythmia = null; this._flutterGate = null;
+    }
+
+    _runDrivers(t) {
+      for (const d of this.drivers) {
+        if (d.kind === 'watch') {                                // flutter: measure the circuit's cycle length
+          const a = this.tAct[d.cell];
+          if (a !== d.lastAct) { if (a - d.lastAct < 400) { d.cls.push(a - d.lastAct); if (d.cls.length > 12) d.cls.shift(); } d.lastAct = a; }
+          continue;
+        }
+        if (t >= d.next) {
+          const c = d.kind === 'rotate' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.cell;
+          if (t >= this.refEnd[c] && !this.blocked[c]) this.schedule(c, t);
+          d.next = t + d.cl();
+        }
+      }
+    }
+
+    // DC shock: every excitable cell is depolarised at once, so no wavefront
+    // can find excitable tissue ahead of it; drivers stop; the sinus node
+    // (reset by the shock) takes over again.
+    shock() {
+      this.stopArrhythmia();
+      const M = this.M, t = this.t;
+      // (tissue already refractory has its refractoriness prolonged by the
+      // shock, and pending wavefronts are cancelled, so no wave survives)
+      for (let c = 0; c < M.nCells; c++) {
+        if (!M.kind[c] || this.blocked[c]) continue;
+        if (t >= this.refEnd[c]) this.schedule(c, t);
+        else { this.refEnd[c] = Math.max(this.refEnd[c], t + this.P.shockRefractory); this.arrive[c] = Infinity; }
+      }
+      this.shockLog = (this.shockLog || []).concat([{ t }]).slice(-10);
+      this.rhythmChangedAt = t;
+    }
+
+    // Adenosine (IV bolus): after ~1 s, transient complete AV-nodal block for
+    // a few seconds. Terminates re-entry that uses the AV node (AVNRT,
+    // AVRT) and exposes atrial activity in flutter and AF; accessory
+    // pathways are not affected.
+    giveAdenosine() { this.adenosine = { start: this.t + this.P.adenosineDelay, end: this.t + this.P.adenosineDelay + this.P.adenosineBlock }; this.rhythmChangedAt = this.adenosine.start; }
+
+    // a stimulus delivered at a set (future) time; refractory tissue ignores it
+    stimulateAt(c, time) { (this.timedStims = this.timedStims || []).push({ c, time: Math.round(time) }); }
+    // time of the next sinus discharge
+    nextSinus() { const pm = this.pacemakers.find((p) => p.name === 'sinus'); return pm ? Math.max(this.t, this.tAct[pm.cell] + pm.cl) : this.t; }
 
     schedule(c, time) {
       if (time >= this.arrive[c] && this.arrive[c] > this.tAct[c]) return;  // already sooner
@@ -1567,7 +1746,8 @@
       const P = this.P;
       // diastolic interval since previous repolarisation
       const DI = ta - this.repEnd[c];
-      const apd = this.apdMax[c] * (1 - P.restA * Math.exp(-Math.max(DI, 0) / P.restTau));
+      let apd = this.apdMax[c] * (1 - P.restA * Math.exp(-Math.max(DI, 0) / P.restTau));
+      if (apd < P.apdMinAtrial && this.M.kind[c] === KIND.ATRIAL) apd = P.apdMinAtrial;   // atrial refractoriness floor (~150 ms at the fastest rates)
       this.tAct[c] = ta; this.apd[c] = apd;
       this.repEnd[c] = ta + apd;
       this.refEnd[c] = ta + apd * P.erpFrac + this.erpExtra[c];
@@ -1581,6 +1761,13 @@
         const j = nb[e];
         if (this.blocked[j]) continue;
         let tau = w0[e] * this.cvMul[j];
+        const fg = this._flutterGate;
+        if (fg && j < this.M.nVox && c < this.M.nVox) {          // one-way conduction around the annulus (flutter circuit)
+          const a = fg.ang[c], b = fg.ang[j];
+          if (a === a && b === b) { let d = b - a; if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI; if (d * fg.dir < -fg.tol) continue; }
+          else if (fg.side[c] < 0 && fg.side[j] > 0) continue;   // LA back into RA: no short cut around the circuit
+          else if (fg.side[c] > 0 && fg.side[j] < 0 && fg.upperLA[j]) tau *= P.flutterBachmannSlow;   // LA driven from below (CS), not over Bachmann's bundle
+        }
         if (this._iaSlow && j < this.M.nVox && c < this.M.nVox && this._atrialSide[c] > 0 && this._atrialSide[j] < 0) tau *= this._iaSlow;   // RA→LA delay (LAE)
         const tEst = ta + tau;
         if (tEst < this.refEnd[j]) continue;          // will meet refractory tissue
@@ -1589,6 +1776,19 @@
         const tArr = ta + tau;
         if (tArr < this.arrive[j] || this.arrive[j] <= this.tAct[j]) this.schedule(j, tArr);
       }
+      // AF: concealed conduction. Fibrillatory impulses that penetrate the AV
+      // node partway leave it refractory for a random extra time, so the
+      // ventricular response becomes irregularly irregular and slower than the
+      // node's maximum rate.
+      if (c === this.M.avn[0] && this.arrhythmia && this.arrhythmia.type === 'af') this.refEnd[c] += this.rand() * P.afConcealed;
+      // retrograde fast-pathway conduction (AVNRT bookkeeping): the top of the
+      // AV node fired from below
+      if (c === this.M.avn[0] && this.tAct[this.M.avn[1]] < ta && this.tAct[this.M.avn[1]] > ta - 60) {
+        const log = this.retroLog || (this.retroLog = []); log.push({ t: ta }); if (log.length > 40) log.shift();
+      }
+      // vulnerable period: a ventricular stimulus captured on the T wave of an
+      // ischaemic heart degenerates into ventricular fibrillation
+      if (this._pendingRonT && c === this._pendingRonT) { this._pendingRonT = null; this.startArrhythmia('vf'); this.arrhythmia.trigger = 'R-on-T'; }
       // accessory pathway: fast, non-decremental, conducts both ways
       const ap = this.ap;
       if (ap && (c === ap.a || c === ap.v) && ta >= ap.refEnd) {
@@ -1690,12 +1890,20 @@
           this.fireLog.push({ name: pm.name, t }); if (this.fireLog.length > 40) this.fireLog.shift();
         }
       }
+      // 1b. arrhythmia drivers (fibrillatory foci, flutter circuit, MAT, VT)
+      if (this.drivers.length) this._runDrivers(t);
+      if (this.timedStims && this.timedStims.length) {
+        for (const q of this.timedStims) if (q.time <= t) this.stimulate(q.c, t);
+        this.timedStims = this.timedStims.filter((q) => q.time > t);
+      }
+      if (this.adenosine && t >= this.adenosine.end) this.adenosine = null;
+      const adeno = this.adenosine && t >= this.adenosine.start;
       // 2. process arrivals in [t, t+1)
       const bucket = this.buckets[t % RING];
       for (let q = 0; q < bucket.length; q += 2) {
         const c = bucket[q], ta = bucket[q + 1];
         if (ta !== this.arrive[c]) continue;          // superseded
-        if (this.blocked[c] || ta < this.refEnd[c]) { this.arrive[c] = Infinity; continue; }
+        if (this.blocked[c] || ta < this.refEnd[c] || (adeno && this.M.kind[c] === KIND.AVN)) { this.arrive[c] = Infinity; continue; }
         const gate = this.gates.get(c);
         if (gate && !this._gatePass(gate, ta)) { this.arrive[c] = Infinity; this.blockLog.push({ t: ta, at: gate.site }); if (this.blockLog.length > 40) this.blockLog.shift(); continue; }
         this._activate(c, ta);
