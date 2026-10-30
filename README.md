@@ -232,6 +232,18 @@ re-entry.
   queued per cell during the QRS, the propagation loop skips the recovery term for fully recovered tissue, and the app
   caps simulation work at ~9 ms per frame, carrying the rest into the following frames. Worst 40-step chunk 59 → 33 ms.
 
+### Round 10
+
+- **UI:** control tabs (Rhythm, Blocks, Ischemia, Structure, Learn) sit in the top row of the heart view; clicking the
+  open tab hides the panel (no separate header). The view name sits at the bottom left, above the view bar.
+- **Learn tab:** generated from the interpreter's measurements of the current beat: a step-by-step reading (rate,
+  rhythm, P/PR, QRS, axis, ST/T/Q, QT with this ECG's values), the key features of each active condition (rhythm,
+  blocks, ectopy, hypertrophy, enlargement, WPW, ischemia stage) and pitfalls.
+- **User guide** in sections (Getting started, Heart view, Control tabs, Rhythms, Ischemia, ECG panel, About).
+- **T waves:** the limb-lead T waves were about twice textbook height (II 1.14 mV, taller than the R; aVR −0.86 mV).
+  With the apicobasal APD gradient at +20 ms (`apdVentApexExtra`): I 0.48, II 0.61, III 0.30, aVF 0.43, aVR −0.51 mV;
+  V3 0.38, V4 0.57 mV (V2 and V6 somewhat small, 0.14–0.15 mV). LVH strain and RVH patterns unchanged.
+
 ## Layout
 
 ```

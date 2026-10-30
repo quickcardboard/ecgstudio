@@ -84,11 +84,21 @@ button.primary { background: var(--accent); color: var(--accent-fg); border-colo
   background: var(--panel); border: 1px solid var(--panel-line); border-radius: 10px; color: var(--viewport-fg);
   backdrop-filter: blur(6px); display: flex; flex-direction: column;
 }
-#controls.collapsed .body, #controls.collapsed .foot { display: none; }
-.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 0 8px 8px; }
-#controls .tabs button { padding: 6px 2px; font-size: 11.5px; border-radius: 5px; background: transparent; border-color: transparent; color: var(--panel-muted); }
-#controls .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
-#controls .tabs button:hover { color: var(--viewport-fg); }
+#controls.collapsed { display: none; }
+#controls .body { padding-top: 12px; }
+#controls.wide { width: 360px; }
+.learn { font-size: 12.5px; line-height: 1.45; color: var(--viewport-fg); }
+.learn h4 { margin: 12px 0 4px; font: 600 11.5px/1.2 var(--font-display); letter-spacing: 0.07em; text-transform: uppercase; color: var(--panel-muted); }
+.learn h4:first-child { margin-top: 0; }
+.learn ol, .learn ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.learn b { font-weight: 600; }
+.learn .now { font: 600 14px/1.3 var(--font-display); margin: 0 0 4px; }
+.learn .val { font: 500 12px/1 var(--font-data); color: var(--accent); }
+.learn .flag { color: #ff9aa4; }
+.tabs { display: flex; gap: 2px; flex-wrap: wrap; }
+#pane3d .pane-head .tabs button { padding: 6px 11px; font-size: 13px; border-radius: 5px; background: transparent; border-color: transparent; color: var(--panel-muted); }
+#pane3d .pane-head .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+#pane3d .pane-head .tabs button:hover { color: var(--viewport-fg); }
 .tabpanel { display: flex; flex-direction: column; gap: 14px; }
 .clicknote { border-left: 2px solid var(--accent); padding-left: 8px; }
 .foot { border-top: 1px solid var(--panel-line); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -183,7 +193,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .viewbar .tog { padding: 5px 8px; }
 
 /* legend + clock on the viewport */
-.legend { position: absolute; z-index: 2; left: 10px; bottom: calc(var(--vb) + 8px); max-width: calc(100% - 200px); box-sizing: border-box; display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--viewport-fg); background: var(--panel); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--panel-line); }
+.vinfo { position: absolute; z-index: 2; left: 10px; bottom: calc(var(--vb) + 8px); max-width: calc(100% - 200px); display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+.vinfo > * { pointer-events: auto; }
+.vtitle { font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); background: var(--panel); padding: 6px 9px; border-radius: 6px; border: 1px solid var(--panel-line); }
+.legend { position: static; max-width: 100%; box-sizing: border-box; display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--viewport-fg); background: var(--panel); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--panel-line); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
 .legend[hidden] { display: none; }
 .clock { position: absolute; z-index: 2; right: 10px; bottom: calc(var(--vb) + 8px); font: 500 12px/1 var(--font-data); color: var(--panel-muted); background: var(--panel); padding: 7px 10px; border-radius: 8px; border: 1px solid var(--panel-line); font-variant-numeric: tabular-nums; }
@@ -218,6 +231,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .sheet ul { padding-left: 18px; margin: 6px 0; }
 .sheet .src { font-size: 12px; color: var(--muted); }
 .sheet .close { float: right; }
+.toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.toc a { font-size: 12.5px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--fg); text-decoration: none; }
+.toc a:hover { border-color: var(--muted); }
+.sheet h3 { scroll-margin-top: 12px; }
 #loading .sheet { max-width: 360px; text-align: center; }
 #loadMsg { color: var(--muted); }
 .spin { width: 28px; height: 28px; margin: 6px auto 12px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
@@ -249,7 +266,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   #controls .body { gap: 10px; padding-bottom: 8px; }
   .hint { display: none; }
   .clock { display: none; }
-  .legend { font-size: 11px; gap: 8px; top: 34px; bottom: auto; left: auto; right: 8px; max-width: calc(100% - 260px); }
+  .legend { font-size: 11px; gap: 8px; }
+  .vinfo { max-width: calc(100% - 20px); }
+  .vtitle { font-size: 11px; padding: 4px 7px; }
+  #pane3d .pane-head .tabs button { padding: 5px 7px; }
+  #controls.wide { width: 300px; }
   #pane3d { --vb: 40px; }
   .viewbar { gap: 6px; padding: 0 8px; }
   .viewbar button, .viewbar .tog { padding: 4px 7px; font-size: 11.5px; }
@@ -285,20 +306,19 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <canvas id="c3d"></canvas>
       <div id="labels" aria-hidden="true"></div>
       <div class="pane-head">
-        <span class="title">Heart · <span id="viewName">external view</span></span>
+        <div class="tabs" id="tabs" role="tablist" aria-label="Control groups (click the open tab to hide the panel)">
+          <button type="button" role="tab" data-tab="rhythm" aria-selected="true">Rhythm</button>
+          <button type="button" role="tab" data-tab="blocks" aria-selected="false">Blocks</button>
+          <button type="button" role="tab" data-tab="ischemia" aria-selected="false">Ischemia</button>
+          <button type="button" role="tab" data-tab="structure" aria-selected="false">Structure</button>
+          <button type="button" role="tab" data-tab="learn" aria-selected="false">Learn</button>
+        </div>
         <span class="spacer"></span>
         <button id="focus3d" type="button" title="Give the heart more room">Expand</button>
       </div>
       <div class="hint" id="hint">Drag to rotate · scroll to zoom</div>
 
       <div id="controls">
-        <div class="head" id="ctlHead" role="button" tabindex="0" aria-expanded="true"><h2>Controls</h2><span id="ctlChevron">Hide</span></div>
-        <div class="tabs" role="tablist" aria-label="Control groups">
-          <button type="button" role="tab" data-tab="rhythm" aria-selected="true">Rhythm</button>
-          <button type="button" role="tab" data-tab="blocks">Blocks</button>
-          <button type="button" role="tab" data-tab="ischemia">Ischemia</button>
-          <button type="button" role="tab" data-tab="structure">Structure</button>
-        </div>
         <div class="body">
           <div class="note clicknote" id="actionNote">Click the atria for a PAC or the ventricles for a PVC.</div>
 
@@ -357,6 +377,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
             </div>
           </section>
 
+          <section class="tabpanel" data-panel="learn" hidden>
+            <div class="learn" id="learn"><p class="note">Reading the ECG…</p></div>
+          </section>
         </div>
         <div class="foot">
           <div class="ctl tsrow">
@@ -377,6 +400,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         <button type="button" class="pop-cancel" id="blockMenuCancel">Cancel</button>
       </div>
       <div class="flash" id="flash" hidden><span id="flashText">PVC</span></div>
+      <div class="vinfo">
+      <span class="title vtitle">Heart · <span id="viewName">external view</span></span>
       <div class="legend" id="legend" aria-label="Colour key" hidden>
         <span><i style="background:var(--rest)"></i>Resting</span>
         <span><i style="background:var(--dep)"></i>Depolarizing</span>
@@ -386,6 +411,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         <span id="legendIsch" hidden><i style="background:var(--ischemic)"></i>Ischemic <i style="background:var(--necrotic); margin-left:8px"></i>Necrotic <i style="background:#ffd84a; margin-left:8px"></i>Occlusion</span>
         <span id="legendAP" hidden><i style="background:var(--chest)"></i>Accessory pathway</span>
         <span id="legendLeads" hidden><i style="background:var(--limb)"></i>Limb leads <i style="background:var(--chest); margin-left:8px"></i>Chest leads <i style="background:#ffffff; margin-left:8px"></i>Heart vector</span>
+      </div>
       </div>
       <div class="clock" id="clock">t 0.000 s</div>
       <div class="viewbar" role="group" aria-label="View">
@@ -429,47 +455,71 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   <div class="sheet" role="dialog" aria-labelledby="guideTitle">
     <button class="close" id="guideClose" type="button">Close</button>
     <h2 id="guideTitle">Using LiveHeart</h2>
-    <p>LiveHeart computes the ECG forward from the heart. A cellular automaton spreads activation through about 37,000 tissue cells. Each cell carries its own action potential. The 12 leads are calculated from the electrical field those cells produce, so every wave you see comes from the simulated tissue.</p>
-    <h3>Screen</h3>
+    <nav class="toc" aria-label="Guide sections">
+      <a href="#g-start">Getting started</a><a href="#g-view">Heart view</a><a href="#g-tabs">Control tabs</a><a href="#g-rhythm">Rhythms</a><a href="#g-isch">Ischemia</a><a href="#g-ecg">ECG panel</a><a href="#g-about">About</a>
+    </nav>
+
+    <h3 id="g-start">Getting started</h3>
+    <p>LiveHeart computes the ECG forward from a beating heart. Activation spreads through about 37,000 tissue cells, each with its own action potential, and the twelve leads are calculated from the electrical field those cells produce. Every wave on the paper comes from the simulated tissue.</p>
     <ul>
-      <li><b>Left:</b> the heart. Pink tissue is resting, blue is depolarizing, green is repolarizing.</li>
-      <li><b>Right:</b> a standard 12-lead layout (2.5 s per column) with a 10 s lead II rhythm strip, written by a sweeping cursor.</li>
-      <li>Drag the divider to resize the two sides, or press <b>Expand</b> on either side. Double-click the divider to return to 50/50.</li>
+      <li><b>Left:</b> the heart. <b>Right:</b> a standard 12-lead layout (2.5 s per column) with up to three 10-s rhythm strips, written by a sweeping cursor.</li>
+      <li>Drag the divider to resize the two sides, or press <b>Expand</b> on either side; double-click the divider to return to 50/50.</li>
+      <li><b>On a phone</b> (landscape only) the Heart | ECG switch at the top shows one pane at a time. From iPad mini size up both panes show, stacked when the tablet is held upright.</li>
+      <li><b>Speed</b> slows the whole simulation down to 1/50 of real time so you can follow the wavefront; <b>Pause</b> freezes it; <b>Reset</b> restarts from rest and clears blocks and ischemia.</li>
     </ul>
-    <h3>Controls</h3>
+
+    <h3 id="g-view">The heart view</h3>
     <ul>
-      <li><b>Sinus rate</b> sets the sinus node rate (30–180 bpm). The rhythm stays sinus at every rate. Escape rhythms depend on where conduction is blocked, not on rate: a junctional escape (about 48 bpm) takes over when the sinus node or AV node is blocked, and a ventricular escape (40 bpm) when the block is below the AV node.</li>
-      <li><b>Time scale</b> slows the whole simulation, down to 1/50 of real time, so you can follow the wavefront. The ECG slows with it.</li>
-      <li><b>The control panel</b> has four tabs. The open tab also decides what a click on the heart does. In Rhythm a click stimulates (PAC or PVC); in Structure clicks do nothing, so the heart can be turned freely. In Blocks it opens the block menu for the conduction system. In Ischemia it occludes an artery, or on a cut face, makes a subendocardial patch. Speed, Pause and Reset stay at the bottom. Hide folds the panel down to its tab bar. <b>On a phone</b> (landscape only) the Heart | ECG switch at the top shows one pane at a time; tablets from iPad mini size up show both, stacked when held upright.</li>
-      <li><b>External ↔ Cut</b> (view bar): click either word to jump, or drag the slider between them. It slides a cut plane facing you from outside the heart (none) to its middle (halfway). The heart can be rotated at any depth, and the cut always faces you. Anterior, Lateral and Apex jump to standard directions; Anterior with a cut is the four-chamber view, and Apex gives the short axis. The conduction system (SA node, AV node, His bundle, bundle branches and fascicles) shows up once the heart is cut. The Purkinje network runs in the model but is not drawn.</li>
-      <li><b>View bar</b> (along the bottom of the heart view, always shown): the Cut slider cuts the heart away up to halfway; Anterior, Lateral and Apex turn the camera; Legend shows the colour key for the cell states. Labels names the chambers and vessels, and in the cutaway the conduction system too. Leads draws the limb-lead hexaxial reference (amber; the limb leads blend a computed torso lead field with Einthoven's equilateral triangle, so lead I is somewhat shorter than II and III; dashed lines are each lead's negative half), the chest electrodes V1–V6 with their lead vectors (blue), and the live heart vector (white). When the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
-      <li><b>Rhythm tab, clicks:</b> click atrial tissue for a premature atrial complex (PAC) or ventricular tissue for a premature ventricular complex (PVC), in either view. Tissue that is still refractory does not capture. Click twice quickly for a couplet.</li>
-      <li><b>Blocks tab:</b> cut the heart open (Cut slider in the view bar), then click any part of the conduction system and choose a block. The SA node offers SA exit block, a sinus pause or sinus arrest. The AV node offers 1st-degree, Mobitz I (Wenckebach), 2:1 and complete block. The His bundle offers Mobitz II and complete block. The bundle branches and fascicles can each be blocked. Blocked segments turn red, or orange for partial blocks, and are listed under Active blocks, where you can remove them. Escape rhythms appear only when conduction above them is lost.</li>
-      <li><b>Ischemia tab:</b> the main epicardial coronary arteries are drawn in red: the left main trunk dividing into the LAD and the circumflex, and the right coronary artery giving the posterior descending artery (a right-dominant heart). Each artery's territory includes the muscle fed by its smaller side branches. Click an artery to occlude it at that point. A yellow marker shows the occlusion, the vessel beyond it turns grey, and everything it supplies becomes transmurally ischemic (tinted purple, necrotic muscle grey). With the heart cut open, click ventricular muscle on the cut face for subendocardial ischemia in a patch of that wall. Occlusions and patches are listed in the panel, where each can be removed.</li>
-      <li><b>Time since onset</b> moves every ischemic region along the same time course. It stops only where the ECG changes character: onset, 15 min, 1 h, 4 h, 12 h, 2 days and 1 month. In the first minutes, K-ATP channels shorten the action potential: hyperacute T waves. Over the first half hour, depolarized ischemic cells drive an injury current: ST elevation over the territory with reciprocal depression opposite. Necrosis then advances from endocardium to epicardium over about six hours. Dead muscle loses its gap junctions and drops out of the QRS, so Q waves form. From about 12 hours the ST elevation eases and the T wave starts to invert. By 2 days the ST segment is back near baseline with deep symmetric T inversion. At 1 month the Q waves remain and the T waves are upright again. A proximal right coronary occlusion also starves the sinus-node and AV-node arteries, slowing the sinus rate and lengthening the PR; an occlusion beyond the crux slows only the AV node. A thin subendocardial patch gives ST depression rather than elevation.</li>
-      <li><b>Structure:</b> RAE and LAE enlarge an atrium. The enlarged atrium carries more muscle, so its sources are stronger; LAE also delays conduction from the right atrium into the left, across Bachmann's bundle and the inferior connections, so the left atrium fires as a separate, later wave. RAE gives a tall, peaked P wave in II (P pulmonale). LAE gives a broad P wave of about 150 ms with two humps, right then left atrium, about 80 ms apart (P mitrale). LVH and RVH rebuild the heart with a thicker free wall: about 6 mm extra on the LV, 10 mm on the RV. Hypertrophied muscle carries more current, and the transmural repolarization gradient reverses ("strain"). LVH gives Sokolow–Lyon voltage with T inversion in I, aVL and V6; RVH a dominant R in V1, right axis deviation and T inversion in V1–V2. Building a configuration the first time takes a few seconds; after that it is kept, so switching back is immediate. Switching clears blocks and ischemia.</li>
-      <li><b>Accessory pathway (WPW):</b> adds a fast, non-decremental muscle bridge across the AV ring at the chosen site (shown in blue). The ventricle near it is excited early, giving a short PR and a delta wave. The rest of the ventricle fuses with normally conducted activation, so the QRS is wide. The pathway also conducts backwards. <b>Triggering AVRT by hand:</b> with the left lateral pathway, click the left atrium for a PAC about 240–320 ms after the start of a P wave, which is during the QRS or early ST segment. The pathway is still refractory, so the PAC conducts down the AV node alone, with a narrow QRS. It then returns to the atria up the pathway and circles: orthodromic AVRT at about 190 bpm, with a retrograde P wave just after each QRS. Slowing time with the time scale makes the click easier. Reset ends it.</li>
-      <li><b>Arrhythmias:</b> each button starts a rhythm. The rates, the AV relationship and the ECG all come from the simulated tissue.
-        <ul>
-          <li><b>AF:</b> eleven atrial foci fire at random short cycle lengths. The colliding wavelets bombard the AV node, which lets through an irregularly irregular ventricular response. With an accessory pathway, AF can conduct over it (pre-excited AF).</li>
-          <li><b>Flutter:</b> macro-re-entry around the tricuspid annulus with slow conduction in the cavotricuspid isthmus. The typical counterclockwise circuit goes up the septum and down the free wall, at about 330–360/min with 2:1 or variable AV conduction.</li>
-          <li><b>Ectopic atrial rhythm:</b> one focus low in the right atrium, near the coronary-sinus ostium, takes over from the sinus node at the set rate. The atria are activated from below, so P is inverted in II, III and aVF and the PR is short.</li>
-          <li><b>MAT:</b> four atrial foci take turns irregularly, so each P wave differs.</li>
-          <li><b>AVNRT:</b> every heart has dual AV-node pathways here; the button removes any accessory pathway and, as in an EP study, delivers PACs after sinus beats, each one 20 ms more premature (280 down to 160 ms), until one starts the tachycardia. The inducing PAC blocks in the fast pathway, conducts down the slow one, then returns up the fast one. The retrograde P falls at the end of the QRS.</li>
-          <li><b>AVRT:</b> selects the left lateral accessory pathway and delivers a timed PAC. Conduction goes down the AV node and back up the pathway (orthodromic).</li>
-          <li><b>VT:</b> a single ventricular site fires at 180/min. The QRS is wide and monomorphic, with AV dissociation.</li>
-          <li><b>VF:</b> many ventricular foci fire chaotically.</li>
-        </ul>
-        <b>Adenosine</b> blocks the AV node for about 3 s after a 1 s delay. It ends AVNRT and AVRT, and exposes the flutter waves or fibrillation in flutter and AF. <b>Shock</b> depolarizes every excitable cell at once, ending any re-entry; the sinus node then resumes. Sustained arrhythmias start only from these buttons or from the right trigger: a well-timed PAC can start AVNRT (dual AV-nodal pathways) or AVRT (with an accessory pathway), and in an acutely ischemic heart (15 min to 2 days after onset), a PVC landing on the T wave triggers VF; a healthy heart tolerates it.</li>
-      <li><b>Rhythm strips:</b> under the interpretation, pick up to three leads for the 10 s rhythm strips at the bottom of the paper.</li>
-      <li><b>Ventricular rate in AF and flutter:</b> while AF or flutter runs, the rate slider becomes the ventricular rate. In AF it sets the mean of an irregular response, from slow AF (about 40/min) to rapid AF (about 150/min). In flutter it sets the conduction ratio (2:1, 3:1, 4:1…).</li>
-      <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest and clears all blocks and ischemia.</li>
+      <li><b>Colours:</b> pink tissue is resting, blue depolarizing, green repolarizing; purple is ischemic and grey necrotic. Toggle the colour key with <b>Legend</b>. The current view (for example "cutaway · anterior (four-chamber)") is named just above the view bar.</li>
+      <li><b>External ↔ Cut:</b> click either word to jump, or drag the slider between them. A cut plane facing you slides from outside the heart to its middle; the heart can be turned at any depth and the cut keeps facing you. Once cut, the conduction system shows (SA node, AV node, His bundle, bundle branches and fascicles; the Purkinje network runs but is not drawn).</li>
+      <li><b>Anterior, Lateral, Apex</b> turn the camera: Anterior looks along the four-chamber direction, Apex gives the short axis.</li>
+      <li><b>Labels</b> names chambers and vessels (and the conduction system when cut). <b>Leads</b> draws the limb-lead hexaxial reference (amber), the chest electrodes V1–V6 with their lead vectors (blue) and the live heart vector (white): when the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
     </ul>
-    <h3>Banner</h3>
-    <p>The rhythm label comes from the simulator's own state, for example which pacemaker fired. The ischemia statements are read off the ECG the way a reader would: ST level 40 ms after the J point against the PR segment, new Q waves of at least 30 ms, and T waves compared with this heart's own healthy beat. They use the STEMI thresholds (0.1 mV in two contiguous leads, 0.15 mV in V2–V3). PR, QRS and QT are measured from tissue activation and repolarization times. QTc uses Bazett's formula. The axis is measured from the QRS areas in leads I and aVF.</p>
-    <h3>Model</h3>
-    <p>The anatomy is the average adult four-chamber heart of Rodero et al. (2021), built from CT scans and voxelized at 2 mm. The model includes fibre-dependent conduction, AV-node decremental conduction, restitution, and transmural and apicobasal repolarization gradients with electrotonic modulation. Electrical sources are stronger along muscle fibres than across them. Limb leads come from the lead fields of an insulated torso (a computed Burger triangle), and precordial leads blend the heart-vector projection with the near-field potential at each chest electrode. The averaged CT heart's LV free wall is thickened by about 6 mm and the heart sits slightly more vertical than in the scan; with these settings the model reproduces normal, left anterior and left posterior fascicular block axes.</p>
-    <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. LiveHeart is an educational model, not a diagnostic device.</p>
+
+    <h3 id="g-tabs">Control tabs</h3>
+    <p>The tabs sit in the top row of the heart view. Clicking a tab opens its panel; clicking the open tab again hides the panel. The open tab also decides what a click on the heart does.</p>
+    <ul>
+      <li><b>Rhythm:</b> the rate slider and the arrhythmia buttons (see Rhythms). A click on atrial tissue gives a premature atrial complex (PAC), on ventricular tissue a PVC; tissue that is still refractory does not capture.</li>
+      <li><b>Blocks:</b> cut the heart open, then click part of the conduction system and choose a block. SA node: SA exit block, sinus pause, sinus arrest. AV node: 1st-degree, Mobitz I (Wenckebach), 2:1, complete. His bundle: Mobitz II, complete. Each bundle branch and fascicle can be blocked. Blocked segments turn red (orange for partial blocks) and are listed for removal. Escape rhythms appear only when conduction above them is lost: junctional (about 48 bpm) or ventricular (about 40 bpm).</li>
+      <li><b>Ischemia:</b> click a coronary artery to occlude it there, or (with the heart cut) click ventricular muscle on the cut face for a subendocardial patch. The time slider moves every insult along its course (see Ischemia).</li>
+      <li><b>Structure:</b> atrial enlargement (RAE, LAE), ventricular hypertrophy (LVH, RVH) and an accessory pathway (WPW) at a chosen site. Hypertrophy rebuilds the heart with a thicker wall: a few seconds the first time, immediate afterwards. Clicks on the heart do nothing here, so it can be turned freely.</li>
+      <li><b>Learn:</b> a step-by-step reading of the ECG on screen, with this beat's measured rate, PR, QRS, axis and QT, the key features of every condition present, and common pitfalls. It updates as the rhythm or settings change.</li>
+    </ul>
+
+    <h3 id="g-rhythm">Rhythms and arrhythmias</h3>
+    <ul>
+      <li><b>Rate slider:</b> the sinus rate (30–180 bpm). The rhythm stays sinus at every rate; the name follows the source, not the rate. It sets the atrial rate in ectopic atrial rhythm and MAT, and the ventricular rate in AF (mean of an irregular response) and flutter (the conduction ratio).</li>
+      <li><b>AF:</b> many atrial foci at random short cycle lengths; the AV node lets through an irregularly irregular response. With an accessory pathway, AF can conduct over it (pre-excited AF).</li>
+      <li><b>Flutter:</b> re-entry around the tricuspid annulus, slow through the cavotricuspid isthmus, up the septum and down the free wall (typical, counterclockwise), about 330–360/min with 2:1 or variable conduction.</li>
+      <li><b>Ectopic atrial rhythm:</b> one focus low in the right atrium replaces the sinus node at the set rate: P inverted in II, III and aVF, short PR.</li>
+      <li><b>MAT:</b> four atrial foci take turns irregularly, so each P differs (below 100 bpm: wandering atrial pacemaker).</li>
+      <li><b>AVNRT:</b> every heart has dual AV-node pathways. As in an EP study, PACs are delivered after sinus beats, each 20 ms more premature (280 down to 160 ms), until one blocks in the fast pathway, conducts down the slow one and returns up the fast one.</li>
+      <li><b>AVRT:</b> selects the left lateral accessory pathway and delivers a timed PAC: down the AV node, back up the pathway (orthodromic), retrograde P just after each QRS. By hand: click the left atrium about 240–320 ms after a P wave starts.</li>
+      <li><b>VT:</b> one ventricular site fires at about 180/min: wide monomorphic QRS with AV dissociation. <b>VF:</b> many ventricular foci fire chaotically.</li>
+      <li><b>Adenosine</b> blocks the AV node for about 3 s after a 1 s delay: it ends AVNRT and AVRT and exposes flutter or fibrillatory waves. <b>Shock</b> depolarizes all excitable tissue at once, ending any re-entry.</li>
+      <li>Sustained arrhythmias start only from the buttons or their natural triggers: a well-timed PAC (AVNRT, AVRT), or a PVC on the T wave of an acutely ischemic heart (VF, 15 min to 2 days after onset).</li>
+    </ul>
+
+    <h3 id="g-isch">Ischemia and infarction</h3>
+    <ul>
+      <li><b>Arteries:</b> the left main dividing into the LAD and circumflex, and the right coronary artery giving the posterior descending artery (right-dominant). Side branches (diagonals, marginals, septal perforators) are not drawn; their territories belong to the point where they leave the main vessel, so the more proximal the occlusion, the larger the infarct. A yellow marker shows the occlusion and the vessel beyond it turns grey.</li>
+      <li><b>Time course</b> (an occlusion that is not reperfused): <b>15 min</b> hyperacute T waves; <b>1 h</b> maximal ST elevation over the territory with reciprocal depression; <b>4 h</b> necrosis advancing from endocardium to epicardium, Q waves starting; <b>12 h</b> Q waves established, ST elevation still clear; <b>2 days</b> ST elevation partly resolved, deep T inversion over the infarct; <b>1 month</b> ST at baseline, Q waves and T inversion persisting.</li>
+      <li><b>Nodal arteries:</b> a proximal RCA occlusion also slows the sinus node and lengthens the PR (an occlusion beyond the crux affects only the AV node), recovering over days.</li>
+      <li><b>Subendocardial patch:</b> injury confined to the inner wall gives ST depression (with ST elevation in aVR) and no Q waves: the NSTEMI pattern.</li>
+    </ul>
+
+    <h3 id="g-ecg">Reading the ECG panel</h3>
+    <p>The rhythm line comes from the simulator's own state (which pacemaker fired, which blocks are set). The measurements and findings are read off the ECG the way a reader would: ST at J + 20 and J + 40 ms against the PR segment, with the STEMI thresholds (0.1 mV in two contiguous leads, 0.15 mV in V2–V3); pathological Q waves (≥ 30 ms and ≥ 0.1 mV, or ≥ 40 ms) and T waves judged against this heart's own healthy beat. PR, QRS and QT come from tissue activation and repolarization; QTc uses Bazett's formula; the axis comes from the QRS areas in I and aVF. Choose up to three rhythm-strip leads under the findings.</p>
+
+    <h3 id="g-about">About</h3>
+    <ul>
+      <li><b>Anatomy:</b> the average adult four-chamber heart of Rodero et al. (2021), built from CT scans and voxelized at 2 mm. The left ventricular free wall is thickened by about 6 mm and the heart is placed in the chest with its apex behind the 5th intercostal space.</li>
+      <li><b>Electrophysiology:</b> an event-driven cellular automaton with fibre-dependent conduction, AV-node decrement, restitution, transmural and apicobasal repolarization gradients, and a conduction system (SA node, AV node with dual pathways, His bundle, bundle branches, two left fascicles, Purkinje networks).</li>
+      <li><b>ECG:</b> limb leads blend the lead field of a computed insulated torso with Einthoven's equilateral triangle; chest leads blend the heart-vector projection with the near-field potential at each electrode.</li>
+      <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
+      <li><b>Not a medical device:</b> LiveHeart is for education only and must not be used for diagnosis or treatment.</li>
+    </ul>
+    <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
   </div>
 </div>
 
@@ -646,7 +696,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     atrialSourceGain: 0.31, // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
-    apdVentApexExtra: -20, // apex shorter than base (apex repolarises first)
+    apdVentApexExtra: 20,  // apicobasal APD gradient (+: apex longer; sized so limb-lead T stays within textbook height)
     apdRVoffset: 30,
     apdAtrial: 190, apdMinAtrial: 135,
     apdPurk: 340,
@@ -3826,17 +3876,22 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     S.setIschemiaTime(h); $('ischStage').textContent = ischStage(h);
   }
 
-  function toggleControls() {
-    const c = $('controls').classList.toggle('collapsed');
-    $('ctlChevron').textContent = c ? 'Show' : 'Hide'; $('ctlHead').setAttribute('aria-expanded', String(!c));
+  function toggleControls(show) {
+    const c = $('controls').classList.toggle('collapsed', show === undefined ? undefined : !show);
+    for (const b of document.querySelectorAll('#tabs button')) b.setAttribute('aria-selected', String(!c && b.dataset.tab === ui.tab));
     resize3D();
   }
-  // tabs: the open tab also sets what a click on the heart does
-  function setTab(t) {
+  // tabs (top row of the heart view): the open tab also sets what a click on
+  // the heart does; clicking the open tab again hides the panel
+  function setTab(t, fromClick = false) {
+    const collapsed = $('controls').classList.contains('collapsed');
+    if (fromClick && t === ui.tab && !collapsed) { toggleControls(false); return; }
     ui.tab = t; ui.action = t === 'blocks' ? 'block' : t === 'ischemia' ? 'ischemia' : t === 'rhythm' ? 'stimulate' : 'none';
-    for (const b of document.querySelectorAll('#controls .tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === t));
     for (const p of document.querySelectorAll('#controls .tabpanel')) p.hidden = p.dataset.panel !== t;
-    if ($('controls').classList.contains('collapsed')) toggleControls();
+    $('controls').classList.toggle('wide', t === 'learn');
+    $('actionNote').hidden = t === 'learn';
+    toggleControls(true);
+    if (t === 'learn') renderLearn();
     updateActionNote(); hideBlockMenu();
   }
 
@@ -4020,7 +4075,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const arr = S.arrhythmia ? S.arrhythmia.type : null;
     if (arr === 'vf') {
       $('rhythm').textContent = `Ventricular fibrillation${S.arrhythmia.trigger ? ' (R-on-T PVC in ischemic myocardium)' : ''}: shock now`;
-      $('chips').innerHTML = '<span class="chip flag"><em>Rhythm</em>chaotic, no QRS complexes</span>'; $('findings').innerHTML = ''; return;
+      $('chips').innerHTML = '<span class="chip flag"><em>Rhythm</em>chaotic, no QRS complexes</span>'; $('findings').innerHTML = '';
+      ui.snap = { rhythm: $('rhythm').textContent, arr: 'vf', B: S.blocks, findings: [] }; if (ui.tab === 'learn') renderLearn(); return;
     }
     const V = S.log.vent.filter((b) => S.t > b.repEnd + 60), Aa = S.log.atrial;
     if (V.length < 2) return;
@@ -4147,6 +4203,101 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     ].join('');
     const f = tachy ? [] : structFindings(vb).concat(ischFindings(vb));
     $('findings').innerHTML = f.map((x, i) => `<li${i === 0 && x.head ? ' class="head"' : ''}>${x.text || x}</li>`).join('');
+    ui.snap = { rhythm, arr, rate, aRate, PR, PRs, prVar, QRS, QT, QTc, axis, axisTxt, axisWin, rbbOnly, rrSd, RR, tachy, avComplete, distal, avnrt, avrt,
+      B, nPAC, nPVC, nBlockedPAC, flutterCl, dissociated, escape: fired('junctional') ? 'junctional' : fired('ventricular') || fired('idioventricular') ? 'ventricular' : '',
+      findings: f.map((x) => x.text || x) };
+    if (ui.tab === 'learn') renderLearn();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Learn tab: how to read the ECG on screen, generated from the current state
+  // and the interpreter's own measurements (ui.snap)
+  // ---------------------------------------------------------------------------
+  const TEACH = {
+    sinus: { t: 'Sinus rhythm', f: ['A P wave before every QRS, upright in I, II and aVF and inverted in aVR (the impulse starts high in the right atrium and spreads down and to the left).', 'Constant PR interval, 120–200 ms.', 'Rate 60–100 bpm (below 60 sinus bradycardia, above 100 sinus tachycardia); the name follows the P waves, not the rate.'], p: ['A sinus P is upright in II: if P is inverted in II, III and aVF the rhythm is not sinus (ectopic atrial or junctional).'] },
+    af: { t: 'Atrial fibrillation', f: ['No P waves: a wavy or flat baseline of fibrillatory (f) waves, often clearest in V1 and II.', 'Irregularly irregular RR intervals with no repeating pattern.', 'Narrow QRS unless there is bundle branch block or pre-excitation.'], p: ['A fast AF can look regular at a glance: measure several RR intervals.', 'AF with WPW gives broad, bizarre, very fast beats (pre-excited AF): AV-nodal blockers are dangerous there.'] },
+    flutter: { t: 'Atrial flutter', f: ['Sawtooth flutter (F) waves, about 300/min, best seen in II, III, aVF (negative in typical counterclockwise flutter) and V1.', 'Fixed AV conduction gives a regular rhythm: 2:1 (≈150 bpm), 3:1, 4:1; variable conduction gives an irregular one.'], p: ['2:1 flutter at 150 bpm hides every other F wave in the QRS or T: suspect it whenever a regular narrow tachycardia runs at ~150.', 'Adenosine slows the ventricular response and unmasks the F waves; it does not stop flutter.'] },
+    ectopic: { t: 'Ectopic atrial rhythm', f: ['A P wave before each QRS but with an abnormal axis: here inverted in II, III and aVF (low right-atrial focus).', 'PR often short (the focus lies close to the AV node); P shape constant, unlike MAT.'], p: ['Inverted inferior P waves with a short PR can also be junctional rhythm with retrograde P: in junctional rhythm the PR is usually < 120 ms or the P falls after the QRS.'] },
+    mat: { t: 'Multifocal atrial tachycardia', f: ['At least three different P-wave shapes in one lead, each followed by a QRS.', 'Varying PR and RR intervals: irregular, rate > 100 (below 100: wandering atrial pacemaker).'], p: ['Easily mistaken for AF: look for a distinct P before every QRS. Classically seen in severe lung disease.'] },
+    avnrt: { t: 'AVNRT', f: ['Regular narrow-complex tachycardia, usually 140–250 bpm, starting abruptly (often after a PAC with a long PR).', 'No visible P before the QRS: the retrograde P is buried in the QRS or seen as a pseudo-r′ in V1 / pseudo-S in II.'], p: ['Adenosine (or vagal manoeuvres) terminates it, unlike atrial flutter or atrial tachycardia.'] },
+    avrt: { t: 'Orthodromic AVRT', f: ['Regular narrow-complex tachycardia; retrograde P after the QRS with RP > 70 ms (the impulse returns up the accessory pathway).', 'In sinus rhythm the same patient may show pre-excitation (short PR, delta wave).'], p: ['RP > 70 ms favours AVRT over typical AVNRT (where the P hides in the QRS).'] },
+    vt: { t: 'Ventricular tachycardia', f: ['Regular broad-complex tachycardia (QRS ≥ 120 ms), rate > 100.', 'AV dissociation: P waves march through at their own slower rate; capture and fusion beats prove it.', 'Concordance (all chest leads positive or all negative) and extreme axis favour VT.'], p: ['A broad regular tachycardia is VT until proven otherwise, even if the patient looks well.'] },
+    vf: { t: 'Ventricular fibrillation', f: ['Chaotic, irregular deflections of varying amplitude; no identifiable QRS, P or T waves.'], p: ['Check leads and the patient: artefact can mimic VF, but if pulseless, defibrillate now.'] },
+    first: { t: '1st-degree AV block', f: ['PR > 200 ms and constant; every P is followed by a QRS.'], p: [] },
+    wenckebach: { t: 'Mobitz I (Wenckebach)', f: ['PR lengthens beat by beat until a P is not conducted (dropped QRS); the cycle repeats.', 'The longest PR is before the drop, the shortest just after; RR intervals shorten through the cycle (grouped beating).'], p: ['Usually AV-nodal and benign; compare with Mobitz II, where the PR does not change before the drop.'] },
+    twoone: { t: '2:1 AV block', f: ['Every second P is not conducted: two P waves for each QRS.'], p: ['With 2:1 block you cannot tell Mobitz I from II (there are no two consecutive conducted PRs). A narrow QRS favours the AV node; a broad QRS a lower block.'] },
+    mobitz2: { t: 'Mobitz II', f: ['Constant PR in conducted beats with sudden non-conducted P waves.', 'Block below the AV node (His–Purkinje); often with a broad QRS.'], p: ['High risk of progression to complete heart block: pacing indication.'] },
+    complete: { t: '3rd-degree (complete) AV block', f: ['P waves and QRS complexes are independent: regular P–P, regular R–R, PR varies at random.', 'Escape rhythm: junctional (40–60 bpm, narrow QRS) or ventricular (20–40 bpm, broad QRS).'], p: ['Some P waves fall by chance at a "normal" PR: march out the P waves with calipers to prove dissociation.'] },
+    saexit: { t: '2nd-degree SA exit block', f: ['Dropped P–QRS–T complexes; the pause is an exact multiple of the P–P interval.'], p: ['Distinguish from sinus arrest, where the pause is not a multiple of the P–P interval.'] },
+    pause: { t: 'Sinus pause / arrest', f: ['No P wave for a period that is not a multiple of the P–P interval; escape beats may appear (junctional: narrow, no preceding P).'], p: [] },
+    escape: { t: 'Escape rhythm', f: ['Junctional: narrow QRS at 40–60 bpm with absent or retrograde P waves.', 'Ventricular (idioventricular): broad QRS at 20–40 bpm.'], p: ['An escape rhythm is the heart rescuing itself: treat the cause, not the escape.'] },
+    pac: { t: 'Premature atrial contraction (PAC)', f: ['An early P wave with a different shape, usually followed by a normal narrow QRS.', 'Non-compensatory pause (the sinus node is reset).', 'A very early PAC may not conduct at all (non-conducted PAC, P hidden in the T wave) or conduct with RBBB aberrancy.'], p: ['A non-conducted PAC hidden in the T wave looks like a sinus pause: look for a notch on the preceding T.'] },
+    pvc: { t: 'Premature ventricular contraction (PVC)', f: ['An early broad bizarre QRS without a preceding P, with the T wave opposite to the QRS.', 'Usually a fully compensatory pause (the sinus node keeps its rhythm).'], p: ['A PVC on the T wave of an ischemic heart (R-on-T) can start VF.'] },
+    rbbb: { t: 'Right bundle branch block', f: ['QRS ≥ 120 ms; rSR′ ("M") in V1–V2; wide slurred S in I, aVL, V5–V6.', 'Secondary T inversion in V1–V3 is expected.', 'The axis is unchanged (LV activation is normal): read it from the first 60 ms.'], p: ['A new RBBB with LAFB (bifascicular block) or with a long PR deserves attention.'] },
+    lbbb: { t: 'Left bundle branch block', f: ['QRS ≥ 120 ms; broad notched R in I, aVL, V5–V6 without septal q; deep QS or rS in V1–V3.', 'ST and T opposite to the main QRS deflection (appropriate discordance).'], p: ['LBBB hides ischemia and mimics anterior Q waves; use Sgarbossa criteria for infarction.'] },
+    lafb: { t: 'Left anterior fascicular block', f: ['Left axis deviation, −45° or beyond.', 'qR in I and aVL; rS in II, III and aVF; QRS < 120 ms.'], p: ['Exclude other causes of left axis deviation (inferior MI, LVH) before calling LAFB.'] },
+    lpfb: { t: 'Left posterior fascicular block', f: ['Right axis deviation (> +90°).', 'rS in I and aVL; qR in II, III and aVF; QRS < 120 ms.'], p: ['A diagnosis of exclusion: rule out RVH, lateral MI and a vertical heart first.'] },
+    lvh: { t: 'Left ventricular hypertrophy', f: ['Voltage: Sokolow–Lyon S V1 + R V5/V6 ≥ 3.5 mV; Cornell R aVL + S V3 ≥ 2.8 (men) / 2.0 mV (women).', 'Repolarisation abnormality ("strain"): down-sloping ST depression and asymmetric T inversion in I, aVL, V5–V6.'], p: ['Voltage alone is common in thin young adults; strain and left atrial enlargement add weight.'] },
+    rvh: { t: 'Right ventricular hypertrophy', f: ['Right axis deviation; dominant R in V1 (R/S > 1); deep S in V5–V6.', 'Right ventricular strain: T inversion in V1–V3; often P pulmonale.'], p: ['Dominant R in V1 has other causes: posterior MI, RBBB, WPW (left-sided pathway), dextrocardia.'] },
+    rae: { t: 'Right atrial enlargement', f: ['Tall peaked P ≥ 0.25 mV (2.5 mm) in II, III, aVF ("P pulmonale"); P duration normal.'], p: [] },
+    lae: { t: 'Left atrial enlargement', f: ['Broad P ≥ 120 ms, notched in II with the humps ≥ 40 ms apart ("P mitrale").', 'Deep, broad negative terminal P in V1 (≥ 1 mm × 1 mm).'], p: [] },
+    wpw: { t: 'Wolff–Parkinson–White pattern', f: ['Short PR (< 120 ms), delta wave (slurred QRS upstroke), QRS > 110 ms.', 'Secondary ST/T changes opposite to the delta wave.', 'Delta-wave polarity localises the pathway (e.g. negative delta in I/aVL: left lateral).'], p: ['Delta waves can mimic Q waves (pseudo-infarction) and hide in some leads: look in all twelve.'] },
+    adenosine: { t: 'Adenosine', f: ['Transient AV-nodal block for seconds: P or flutter waves continue without QRS complexes.'], p: [] },
+  };
+  const ISCH_TEACH = {
+    stemi: { t: 'ST-elevation myocardial infarction', f: ['ST elevation ≥ 1 mm in two contiguous leads (≥ 1.5–2.5 mm in V2–V3, depending on age and sex), measured at the J point.', 'Reciprocal ST depression in the opposite leads supports a true infarction.', 'Territory: V1–V4 anterior (LAD; add I, aVL for proximal); II, III, aVF inferior (RCA or LCx; ST elevation III > II suggests RCA); I, aVL, V5–V6 lateral (LCx, diagonals); ST depression V1–V3 posterior.'], p: ['Pericarditis gives diffuse concave ST elevation without reciprocal depression (except aVR) and with PR depression.', 'With inferior STEMI look at V1 (and right-sided leads) for right ventricular involvement.'] },
+    hyper: { t: 'Hyperacute phase', f: ['The first minutes: tall, broad, symmetric T waves over the territory before ST elevation develops.'], p: ['Compare with the patient’s baseline: hyperacute T waves are easy to miss on a single ECG.'] },
+    evolving: { t: 'Evolving infarct', f: ['Q waves (≥ 40 ms or ≥ 1 mm deep in two contiguous leads) or QS complexes appear within hours.', 'ST elevation resolves over days while T waves invert.', 'Lost R waves (poor R-wave progression) are the precordial equivalent of Q waves.'], p: ['Persistent ST elevation weeks after an infarct suggests a ventricular aneurysm.'] },
+    old: { t: 'Old (healed) infarct', f: ['Q waves remain; ST is at baseline; T inversion often persists for months but may normalise.'], p: ['Q waves alone cannot date an infarct.'] },
+    subendo: { t: 'Subendocardial ischemia (NSTEMI pattern)', f: ['Horizontal or down-sloping ST depression, often widest in V4–V6 and II, with ST elevation in aVR.', 'No Q waves; the ECG may normalise after the episode.'], p: ['ST depression does not localise the ischemic region; ST elevation in aVR with widespread depression suggests left main or three-vessel disease.'] },
+  };
+  function learnHTML(snap) {
+    const s = snap || {}, B = s.B || {}, keys = [], ischK = [];
+    const arr = s.arr, r = Math.round(s.rate || 0), esc = (x) => x;
+    const reg = s.rrSd !== undefined ? s.rrSd < 40 : true;
+    if (arr && TEACH[arr]) keys.push(arr);
+    else if (s.avnrt) keys.push('avnrt'); else if (s.avrt) keys.push('avrt');
+    else if (s.avComplete) keys.push('complete', 'escape');
+    else if (B.AVN && B.AVN.type === 'wenckebach') keys.push('sinus', 'wenckebach');
+    else if (B.AVN && B.AVN.type === 'two-to-one') keys.push('sinus', 'twoone');
+    else if (B.HIS && B.HIS.type === 'mobitz2') keys.push('sinus', 'mobitz2');
+    else if (B.SAN && B.SAN.type === 'sa-exit') keys.push('sinus', 'saexit');
+    else if (B.SAN && (B.SAN.type === 'pause' || B.SAN.type === 'arrest')) keys.push('pause', 'escape');
+    else if (s.escape) keys.push('escape');
+    else keys.push('sinus');
+    if (/1st-degree/.test(s.rhythm || '')) keys.push('first');
+    if (!s.avComplete) { if (B.LBB) keys.push('lbbb'); else { if (B.RBB) keys.push('rbbb'); if (B.LAF) keys.push('lafb'); if (B.LPF) keys.push('lpfb'); } }
+    if (s.nPAC || s.nBlockedPAC) keys.push('pac'); if (s.nPVC) keys.push('pvc');
+    if (S.adenosine) keys.push('adenosine');
+    const st = ui.struct || {};
+    if (S.ap) keys.push('wpw'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae');
+    if (S.insults.length) {
+      const sub = S.insults.every((x) => x.kind === 'subendo'), h = ui.ischH;
+      if (sub) ischK.push('subendo');
+      else { if (h < 0.5) ischK.push('hyper'); if (h >= 0.5 && h < 100) ischK.push('stemi'); if (h >= 3 && h < 300) ischK.push('evolving'); if (h >= 300) ischK.push('old'); }
+    }
+    const v = (x) => `<span class="val">${x}</span>`, flag = (x, bad) => bad ? `<span class="flag">${x}</span>` : x;
+    const steps = [];
+    if (arr === 'vf') steps.push('No organised QRS complexes: rate, PR and axis cannot be measured.');
+    else if (s.rate) {
+      steps.push(`<b>Rate</b> ${v(r + ' bpm')}${s.dissociated && s.aRate ? ` (atria ${v(Math.round(s.aRate) + '/min')})` : ''}. ${reg ? `Regular: 300 ÷ large squares between R waves (here ≈ ${(300 / r).toFixed(1)} squares).` : 'Irregular: count the QRS complexes in the 10-s strip and multiply by 6.'} ${r < 60 ? 'Below 60: bradycardia.' : r > 100 ? 'Above 100: tachycardia.' : 'Normal 60–100.'}`);
+      steps.push(`<b>Rhythm</b> ${reg ? 'regular' : flag('irregular', true)} (RR spread ${Math.round(s.rrSd || 0)} ms). ${arr === 'af' ? 'No P waves and no pattern to the irregularity: irregularly irregular.' : s.avComplete ? 'P waves and QRS complexes keep their own rates: AV dissociation.' : 'Check that every P is followed by a QRS and every QRS preceded by a P.'}`);
+      if (arr !== 'af' && arr !== 'flutter' && arr !== 'vt') steps.push(`<b>P wave and PR</b> ${s.avComplete ? 'PR varies at random (no AV conduction).' : s.prVar ? `PR varies ${v(Math.round(Math.min(...s.PRs)) + '–' + Math.round(Math.max(...s.PRs)) + ' ms')}.` : s.PR ? `PR ${v(Math.round(s.PR) + ' ms')} ${s.PR > 200 ? flag('(long, > 200 ms)', true) : s.PR < 120 ? flag('(short, < 120 ms: pre-excitation or a low atrial/junctional focus?)', true) : '(normal 120–200 ms)'}.` : 'No P wave before the QRS.'} Look at P in II (upright, ≤ 2.5 mm tall, < 120 ms wide) and V1 (biphasic).`);
+      steps.push(`<b>QRS</b> ${v(Math.round(s.QRS) + ' ms')} ${s.QRS >= 120 ? flag('broad (≥ 120 ms): bundle branch block, ventricular origin or pre-excitation', true) : s.QRS >= 110 ? 'borderline (110–119 ms: incomplete block or fascicular block)' : 'narrow (< 110 ms): the ventricles are activated through the normal His–Purkinje system'}. Check R-wave progression V1→V6 (transition around V3–V4) and look for Q waves.`);
+      steps.push(`<b>Axis</b> ${v((s.axis > 0 ? '+' : '') + s.axis + '°')} (${s.axisTxt}${s.rbbOnly ? ', LV forces' : s.axisWin === 60 ? ', first 60 ms' : ''}). Quick method: QRS mostly positive in I and aVF = normal; positive in I, negative in aVF: check II (negative = left axis deviation, < −30°); negative in I = right axis deviation.`);
+      steps.push(`<b>ST, T and Q</b> ${s.findings && s.findings.length ? 'see the findings under the rhythm: ' + s.findings.slice(0, 3).join('; ') + '.' : 'ST at baseline; T upright where the QRS is upright (normally inverted only in aVR and often V1); no pathological Q waves.'} Normal T: ≤ 5 mm in limb leads, ≤ 10 mm in chest leads, smaller than the R wave.`);
+      steps.push(`<b>QT</b> ${v(Math.round(s.QT) + ' ms')}, QTc ${v(Math.round(s.QTc) + ' ms')} (Bazett) ${s.QTc > 460 ? flag('long (> 450 men, > 460 women)', true) : '(normal < 450–460)'}. Rule of thumb: the QT should be less than half the RR interval.`);
+    }
+    const sec = (title, list) => list.length ? `<h4>${title}</h4><ul>${list.map((x) => `<li>${x}</li>`).join('')}</ul>` : '';
+    const items = keys.map((k) => TEACH[k]).filter(Boolean).concat(ischK.map((k) => ISCH_TEACH[k]));
+    return `<p class="now">${esc(s.rhythm || 'Reading…')}</p>`
+      + (steps.length ? `<h4>Read this ECG step by step</h4><ol>${steps.map((x) => `<li>${x}</li>`).join('')}</ol>` : '')
+      + items.map((it) => sec(`Key features: ${it.t}`, it.f)).join('')
+      + sec('Pitfalls', items.flatMap((it) => it.p));
+  }
+  function renderLearn() {
+    const html = learnHTML(ui.snap);
+    if (html !== ui.learnHTML) { ui.learnHTML = html; $('learn').innerHTML = html; }
   }
 
   // ST, Q and T measurements on the last complete beat, read off the ECG
@@ -4368,7 +4519,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     $('btnShock').addEventListener('click', () => { ui.avnrt = null; S.shock(); syncRate(); interpret(); });
     $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
     $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); recolorIschemia(); renderIschList(); interpret(true); });
-    for (const b of document.querySelectorAll('#controls .tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab));
+    for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
     initPicking(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     $('cutDepth').addEventListener('input', (e) => setCut(+e.target.value));
@@ -4376,10 +4527,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     $('cutFull').addEventListener('click', () => setCut(100));
     initStrips();
     g3.controls.addEventListener('change', () => { if (ui.view === 'cutaway') g3.planeDirty = true; });
-    const toggle = toggleControls;
-    $('ctlHead').addEventListener('click', toggle);
-    if (window.matchMedia(PHONE).matches) toggle();   // start collapsed on phones
-    $('ctlHead').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    if (window.matchMedia(PHONE).matches) toggleControls(false);   // start collapsed on phones
     $('btnGuide').addEventListener('click', () => { $('guide').hidden = false; });
     $('guideClose').addEventListener('click', () => { $('guide').hidden = true; });
     $('guide').addEventListener('click', (e) => { if (e.target.id === 'guide') $('guide').hidden = true; });

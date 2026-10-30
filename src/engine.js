@@ -162,7 +162,7 @@
     atrialSourceGain: 0.31, // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
-    apdVentApexExtra: -20, // apex shorter than base (apex repolarises first)
+    apdVentApexExtra: 20,  // apicobasal APD gradient (+: apex longer; sized so limb-lead T stays within textbook height)
     apdRVoffset: 30,
     apdAtrial: 190, apdMinAtrial: 135,
     apdPurk: 340,

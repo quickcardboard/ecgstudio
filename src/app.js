@@ -1129,17 +1129,22 @@
     S.setIschemiaTime(h); $('ischStage').textContent = ischStage(h);
   }
 
-  function toggleControls() {
-    const c = $('controls').classList.toggle('collapsed');
-    $('ctlChevron').textContent = c ? 'Show' : 'Hide'; $('ctlHead').setAttribute('aria-expanded', String(!c));
+  function toggleControls(show) {
+    const c = $('controls').classList.toggle('collapsed', show === undefined ? undefined : !show);
+    for (const b of document.querySelectorAll('#tabs button')) b.setAttribute('aria-selected', String(!c && b.dataset.tab === ui.tab));
     resize3D();
   }
-  // tabs: the open tab also sets what a click on the heart does
-  function setTab(t) {
+  // tabs (top row of the heart view): the open tab also sets what a click on
+  // the heart does; clicking the open tab again hides the panel
+  function setTab(t, fromClick = false) {
+    const collapsed = $('controls').classList.contains('collapsed');
+    if (fromClick && t === ui.tab && !collapsed) { toggleControls(false); return; }
     ui.tab = t; ui.action = t === 'blocks' ? 'block' : t === 'ischemia' ? 'ischemia' : t === 'rhythm' ? 'stimulate' : 'none';
-    for (const b of document.querySelectorAll('#controls .tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === t));
     for (const p of document.querySelectorAll('#controls .tabpanel')) p.hidden = p.dataset.panel !== t;
-    if ($('controls').classList.contains('collapsed')) toggleControls();
+    $('controls').classList.toggle('wide', t === 'learn');
+    $('actionNote').hidden = t === 'learn';
+    toggleControls(true);
+    if (t === 'learn') renderLearn();
     updateActionNote(); hideBlockMenu();
   }
 
@@ -1323,7 +1328,8 @@
     const arr = S.arrhythmia ? S.arrhythmia.type : null;
     if (arr === 'vf') {
       $('rhythm').textContent = `Ventricular fibrillation${S.arrhythmia.trigger ? ' (R-on-T PVC in ischemic myocardium)' : ''}: shock now`;
-      $('chips').innerHTML = '<span class="chip flag"><em>Rhythm</em>chaotic, no QRS complexes</span>'; $('findings').innerHTML = ''; return;
+      $('chips').innerHTML = '<span class="chip flag"><em>Rhythm</em>chaotic, no QRS complexes</span>'; $('findings').innerHTML = '';
+      ui.snap = { rhythm: $('rhythm').textContent, arr: 'vf', B: S.blocks, findings: [] }; if (ui.tab === 'learn') renderLearn(); return;
     }
     const V = S.log.vent.filter((b) => S.t > b.repEnd + 60), Aa = S.log.atrial;
     if (V.length < 2) return;
@@ -1450,6 +1456,101 @@
     ].join('');
     const f = tachy ? [] : structFindings(vb).concat(ischFindings(vb));
     $('findings').innerHTML = f.map((x, i) => `<li${i === 0 && x.head ? ' class="head"' : ''}>${x.text || x}</li>`).join('');
+    ui.snap = { rhythm, arr, rate, aRate, PR, PRs, prVar, QRS, QT, QTc, axis, axisTxt, axisWin, rbbOnly, rrSd, RR, tachy, avComplete, distal, avnrt, avrt,
+      B, nPAC, nPVC, nBlockedPAC, flutterCl, dissociated, escape: fired('junctional') ? 'junctional' : fired('ventricular') || fired('idioventricular') ? 'ventricular' : '',
+      findings: f.map((x) => x.text || x) };
+    if (ui.tab === 'learn') renderLearn();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Learn tab: how to read the ECG on screen, generated from the current state
+  // and the interpreter's own measurements (ui.snap)
+  // ---------------------------------------------------------------------------
+  const TEACH = {
+    sinus: { t: 'Sinus rhythm', f: ['A P wave before every QRS, upright in I, II and aVF and inverted in aVR (the impulse starts high in the right atrium and spreads down and to the left).', 'Constant PR interval, 120–200 ms.', 'Rate 60–100 bpm (below 60 sinus bradycardia, above 100 sinus tachycardia); the name follows the P waves, not the rate.'], p: ['A sinus P is upright in II: if P is inverted in II, III and aVF the rhythm is not sinus (ectopic atrial or junctional).'] },
+    af: { t: 'Atrial fibrillation', f: ['No P waves: a wavy or flat baseline of fibrillatory (f) waves, often clearest in V1 and II.', 'Irregularly irregular RR intervals with no repeating pattern.', 'Narrow QRS unless there is bundle branch block or pre-excitation.'], p: ['A fast AF can look regular at a glance: measure several RR intervals.', 'AF with WPW gives broad, bizarre, very fast beats (pre-excited AF): AV-nodal blockers are dangerous there.'] },
+    flutter: { t: 'Atrial flutter', f: ['Sawtooth flutter (F) waves, about 300/min, best seen in II, III, aVF (negative in typical counterclockwise flutter) and V1.', 'Fixed AV conduction gives a regular rhythm: 2:1 (≈150 bpm), 3:1, 4:1; variable conduction gives an irregular one.'], p: ['2:1 flutter at 150 bpm hides every other F wave in the QRS or T: suspect it whenever a regular narrow tachycardia runs at ~150.', 'Adenosine slows the ventricular response and unmasks the F waves; it does not stop flutter.'] },
+    ectopic: { t: 'Ectopic atrial rhythm', f: ['A P wave before each QRS but with an abnormal axis: here inverted in II, III and aVF (low right-atrial focus).', 'PR often short (the focus lies close to the AV node); P shape constant, unlike MAT.'], p: ['Inverted inferior P waves with a short PR can also be junctional rhythm with retrograde P: in junctional rhythm the PR is usually < 120 ms or the P falls after the QRS.'] },
+    mat: { t: 'Multifocal atrial tachycardia', f: ['At least three different P-wave shapes in one lead, each followed by a QRS.', 'Varying PR and RR intervals: irregular, rate > 100 (below 100: wandering atrial pacemaker).'], p: ['Easily mistaken for AF: look for a distinct P before every QRS. Classically seen in severe lung disease.'] },
+    avnrt: { t: 'AVNRT', f: ['Regular narrow-complex tachycardia, usually 140–250 bpm, starting abruptly (often after a PAC with a long PR).', 'No visible P before the QRS: the retrograde P is buried in the QRS or seen as a pseudo-r′ in V1 / pseudo-S in II.'], p: ['Adenosine (or vagal manoeuvres) terminates it, unlike atrial flutter or atrial tachycardia.'] },
+    avrt: { t: 'Orthodromic AVRT', f: ['Regular narrow-complex tachycardia; retrograde P after the QRS with RP > 70 ms (the impulse returns up the accessory pathway).', 'In sinus rhythm the same patient may show pre-excitation (short PR, delta wave).'], p: ['RP > 70 ms favours AVRT over typical AVNRT (where the P hides in the QRS).'] },
+    vt: { t: 'Ventricular tachycardia', f: ['Regular broad-complex tachycardia (QRS ≥ 120 ms), rate > 100.', 'AV dissociation: P waves march through at their own slower rate; capture and fusion beats prove it.', 'Concordance (all chest leads positive or all negative) and extreme axis favour VT.'], p: ['A broad regular tachycardia is VT until proven otherwise, even if the patient looks well.'] },
+    vf: { t: 'Ventricular fibrillation', f: ['Chaotic, irregular deflections of varying amplitude; no identifiable QRS, P or T waves.'], p: ['Check leads and the patient: artefact can mimic VF, but if pulseless, defibrillate now.'] },
+    first: { t: '1st-degree AV block', f: ['PR > 200 ms and constant; every P is followed by a QRS.'], p: [] },
+    wenckebach: { t: 'Mobitz I (Wenckebach)', f: ['PR lengthens beat by beat until a P is not conducted (dropped QRS); the cycle repeats.', 'The longest PR is before the drop, the shortest just after; RR intervals shorten through the cycle (grouped beating).'], p: ['Usually AV-nodal and benign; compare with Mobitz II, where the PR does not change before the drop.'] },
+    twoone: { t: '2:1 AV block', f: ['Every second P is not conducted: two P waves for each QRS.'], p: ['With 2:1 block you cannot tell Mobitz I from II (there are no two consecutive conducted PRs). A narrow QRS favours the AV node; a broad QRS a lower block.'] },
+    mobitz2: { t: 'Mobitz II', f: ['Constant PR in conducted beats with sudden non-conducted P waves.', 'Block below the AV node (His–Purkinje); often with a broad QRS.'], p: ['High risk of progression to complete heart block: pacing indication.'] },
+    complete: { t: '3rd-degree (complete) AV block', f: ['P waves and QRS complexes are independent: regular P–P, regular R–R, PR varies at random.', 'Escape rhythm: junctional (40–60 bpm, narrow QRS) or ventricular (20–40 bpm, broad QRS).'], p: ['Some P waves fall by chance at a "normal" PR: march out the P waves with calipers to prove dissociation.'] },
+    saexit: { t: '2nd-degree SA exit block', f: ['Dropped P–QRS–T complexes; the pause is an exact multiple of the P–P interval.'], p: ['Distinguish from sinus arrest, where the pause is not a multiple of the P–P interval.'] },
+    pause: { t: 'Sinus pause / arrest', f: ['No P wave for a period that is not a multiple of the P–P interval; escape beats may appear (junctional: narrow, no preceding P).'], p: [] },
+    escape: { t: 'Escape rhythm', f: ['Junctional: narrow QRS at 40–60 bpm with absent or retrograde P waves.', 'Ventricular (idioventricular): broad QRS at 20–40 bpm.'], p: ['An escape rhythm is the heart rescuing itself: treat the cause, not the escape.'] },
+    pac: { t: 'Premature atrial contraction (PAC)', f: ['An early P wave with a different shape, usually followed by a normal narrow QRS.', 'Non-compensatory pause (the sinus node is reset).', 'A very early PAC may not conduct at all (non-conducted PAC, P hidden in the T wave) or conduct with RBBB aberrancy.'], p: ['A non-conducted PAC hidden in the T wave looks like a sinus pause: look for a notch on the preceding T.'] },
+    pvc: { t: 'Premature ventricular contraction (PVC)', f: ['An early broad bizarre QRS without a preceding P, with the T wave opposite to the QRS.', 'Usually a fully compensatory pause (the sinus node keeps its rhythm).'], p: ['A PVC on the T wave of an ischemic heart (R-on-T) can start VF.'] },
+    rbbb: { t: 'Right bundle branch block', f: ['QRS ≥ 120 ms; rSR′ ("M") in V1–V2; wide slurred S in I, aVL, V5–V6.', 'Secondary T inversion in V1–V3 is expected.', 'The axis is unchanged (LV activation is normal): read it from the first 60 ms.'], p: ['A new RBBB with LAFB (bifascicular block) or with a long PR deserves attention.'] },
+    lbbb: { t: 'Left bundle branch block', f: ['QRS ≥ 120 ms; broad notched R in I, aVL, V5–V6 without septal q; deep QS or rS in V1–V3.', 'ST and T opposite to the main QRS deflection (appropriate discordance).'], p: ['LBBB hides ischemia and mimics anterior Q waves; use Sgarbossa criteria for infarction.'] },
+    lafb: { t: 'Left anterior fascicular block', f: ['Left axis deviation, −45° or beyond.', 'qR in I and aVL; rS in II, III and aVF; QRS < 120 ms.'], p: ['Exclude other causes of left axis deviation (inferior MI, LVH) before calling LAFB.'] },
+    lpfb: { t: 'Left posterior fascicular block', f: ['Right axis deviation (> +90°).', 'rS in I and aVL; qR in II, III and aVF; QRS < 120 ms.'], p: ['A diagnosis of exclusion: rule out RVH, lateral MI and a vertical heart first.'] },
+    lvh: { t: 'Left ventricular hypertrophy', f: ['Voltage: Sokolow–Lyon S V1 + R V5/V6 ≥ 3.5 mV; Cornell R aVL + S V3 ≥ 2.8 (men) / 2.0 mV (women).', 'Repolarisation abnormality ("strain"): down-sloping ST depression and asymmetric T inversion in I, aVL, V5–V6.'], p: ['Voltage alone is common in thin young adults; strain and left atrial enlargement add weight.'] },
+    rvh: { t: 'Right ventricular hypertrophy', f: ['Right axis deviation; dominant R in V1 (R/S > 1); deep S in V5–V6.', 'Right ventricular strain: T inversion in V1–V3; often P pulmonale.'], p: ['Dominant R in V1 has other causes: posterior MI, RBBB, WPW (left-sided pathway), dextrocardia.'] },
+    rae: { t: 'Right atrial enlargement', f: ['Tall peaked P ≥ 0.25 mV (2.5 mm) in II, III, aVF ("P pulmonale"); P duration normal.'], p: [] },
+    lae: { t: 'Left atrial enlargement', f: ['Broad P ≥ 120 ms, notched in II with the humps ≥ 40 ms apart ("P mitrale").', 'Deep, broad negative terminal P in V1 (≥ 1 mm × 1 mm).'], p: [] },
+    wpw: { t: 'Wolff–Parkinson–White pattern', f: ['Short PR (< 120 ms), delta wave (slurred QRS upstroke), QRS > 110 ms.', 'Secondary ST/T changes opposite to the delta wave.', 'Delta-wave polarity localises the pathway (e.g. negative delta in I/aVL: left lateral).'], p: ['Delta waves can mimic Q waves (pseudo-infarction) and hide in some leads: look in all twelve.'] },
+    adenosine: { t: 'Adenosine', f: ['Transient AV-nodal block for seconds: P or flutter waves continue without QRS complexes.'], p: [] },
+  };
+  const ISCH_TEACH = {
+    stemi: { t: 'ST-elevation myocardial infarction', f: ['ST elevation ≥ 1 mm in two contiguous leads (≥ 1.5–2.5 mm in V2–V3, depending on age and sex), measured at the J point.', 'Reciprocal ST depression in the opposite leads supports a true infarction.', 'Territory: V1–V4 anterior (LAD; add I, aVL for proximal); II, III, aVF inferior (RCA or LCx; ST elevation III > II suggests RCA); I, aVL, V5–V6 lateral (LCx, diagonals); ST depression V1–V3 posterior.'], p: ['Pericarditis gives diffuse concave ST elevation without reciprocal depression (except aVR) and with PR depression.', 'With inferior STEMI look at V1 (and right-sided leads) for right ventricular involvement.'] },
+    hyper: { t: 'Hyperacute phase', f: ['The first minutes: tall, broad, symmetric T waves over the territory before ST elevation develops.'], p: ['Compare with the patient’s baseline: hyperacute T waves are easy to miss on a single ECG.'] },
+    evolving: { t: 'Evolving infarct', f: ['Q waves (≥ 40 ms or ≥ 1 mm deep in two contiguous leads) or QS complexes appear within hours.', 'ST elevation resolves over days while T waves invert.', 'Lost R waves (poor R-wave progression) are the precordial equivalent of Q waves.'], p: ['Persistent ST elevation weeks after an infarct suggests a ventricular aneurysm.'] },
+    old: { t: 'Old (healed) infarct', f: ['Q waves remain; ST is at baseline; T inversion often persists for months but may normalise.'], p: ['Q waves alone cannot date an infarct.'] },
+    subendo: { t: 'Subendocardial ischemia (NSTEMI pattern)', f: ['Horizontal or down-sloping ST depression, often widest in V4–V6 and II, with ST elevation in aVR.', 'No Q waves; the ECG may normalise after the episode.'], p: ['ST depression does not localise the ischemic region; ST elevation in aVR with widespread depression suggests left main or three-vessel disease.'] },
+  };
+  function learnHTML(snap) {
+    const s = snap || {}, B = s.B || {}, keys = [], ischK = [];
+    const arr = s.arr, r = Math.round(s.rate || 0), esc = (x) => x;
+    const reg = s.rrSd !== undefined ? s.rrSd < 40 : true;
+    if (arr && TEACH[arr]) keys.push(arr);
+    else if (s.avnrt) keys.push('avnrt'); else if (s.avrt) keys.push('avrt');
+    else if (s.avComplete) keys.push('complete', 'escape');
+    else if (B.AVN && B.AVN.type === 'wenckebach') keys.push('sinus', 'wenckebach');
+    else if (B.AVN && B.AVN.type === 'two-to-one') keys.push('sinus', 'twoone');
+    else if (B.HIS && B.HIS.type === 'mobitz2') keys.push('sinus', 'mobitz2');
+    else if (B.SAN && B.SAN.type === 'sa-exit') keys.push('sinus', 'saexit');
+    else if (B.SAN && (B.SAN.type === 'pause' || B.SAN.type === 'arrest')) keys.push('pause', 'escape');
+    else if (s.escape) keys.push('escape');
+    else keys.push('sinus');
+    if (/1st-degree/.test(s.rhythm || '')) keys.push('first');
+    if (!s.avComplete) { if (B.LBB) keys.push('lbbb'); else { if (B.RBB) keys.push('rbbb'); if (B.LAF) keys.push('lafb'); if (B.LPF) keys.push('lpfb'); } }
+    if (s.nPAC || s.nBlockedPAC) keys.push('pac'); if (s.nPVC) keys.push('pvc');
+    if (S.adenosine) keys.push('adenosine');
+    const st = ui.struct || {};
+    if (S.ap) keys.push('wpw'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae');
+    if (S.insults.length) {
+      const sub = S.insults.every((x) => x.kind === 'subendo'), h = ui.ischH;
+      if (sub) ischK.push('subendo');
+      else { if (h < 0.5) ischK.push('hyper'); if (h >= 0.5 && h < 100) ischK.push('stemi'); if (h >= 3 && h < 300) ischK.push('evolving'); if (h >= 300) ischK.push('old'); }
+    }
+    const v = (x) => `<span class="val">${x}</span>`, flag = (x, bad) => bad ? `<span class="flag">${x}</span>` : x;
+    const steps = [];
+    if (arr === 'vf') steps.push('No organised QRS complexes: rate, PR and axis cannot be measured.');
+    else if (s.rate) {
+      steps.push(`<b>Rate</b> ${v(r + ' bpm')}${s.dissociated && s.aRate ? ` (atria ${v(Math.round(s.aRate) + '/min')})` : ''}. ${reg ? `Regular: 300 ÷ large squares between R waves (here ≈ ${(300 / r).toFixed(1)} squares).` : 'Irregular: count the QRS complexes in the 10-s strip and multiply by 6.'} ${r < 60 ? 'Below 60: bradycardia.' : r > 100 ? 'Above 100: tachycardia.' : 'Normal 60–100.'}`);
+      steps.push(`<b>Rhythm</b> ${reg ? 'regular' : flag('irregular', true)} (RR spread ${Math.round(s.rrSd || 0)} ms). ${arr === 'af' ? 'No P waves and no pattern to the irregularity: irregularly irregular.' : s.avComplete ? 'P waves and QRS complexes keep their own rates: AV dissociation.' : 'Check that every P is followed by a QRS and every QRS preceded by a P.'}`);
+      if (arr !== 'af' && arr !== 'flutter' && arr !== 'vt') steps.push(`<b>P wave and PR</b> ${s.avComplete ? 'PR varies at random (no AV conduction).' : s.prVar ? `PR varies ${v(Math.round(Math.min(...s.PRs)) + '–' + Math.round(Math.max(...s.PRs)) + ' ms')}.` : s.PR ? `PR ${v(Math.round(s.PR) + ' ms')} ${s.PR > 200 ? flag('(long, > 200 ms)', true) : s.PR < 120 ? flag('(short, < 120 ms: pre-excitation or a low atrial/junctional focus?)', true) : '(normal 120–200 ms)'}.` : 'No P wave before the QRS.'} Look at P in II (upright, ≤ 2.5 mm tall, < 120 ms wide) and V1 (biphasic).`);
+      steps.push(`<b>QRS</b> ${v(Math.round(s.QRS) + ' ms')} ${s.QRS >= 120 ? flag('broad (≥ 120 ms): bundle branch block, ventricular origin or pre-excitation', true) : s.QRS >= 110 ? 'borderline (110–119 ms: incomplete block or fascicular block)' : 'narrow (< 110 ms): the ventricles are activated through the normal His–Purkinje system'}. Check R-wave progression V1→V6 (transition around V3–V4) and look for Q waves.`);
+      steps.push(`<b>Axis</b> ${v((s.axis > 0 ? '+' : '') + s.axis + '°')} (${s.axisTxt}${s.rbbOnly ? ', LV forces' : s.axisWin === 60 ? ', first 60 ms' : ''}). Quick method: QRS mostly positive in I and aVF = normal; positive in I, negative in aVF: check II (negative = left axis deviation, < −30°); negative in I = right axis deviation.`);
+      steps.push(`<b>ST, T and Q</b> ${s.findings && s.findings.length ? 'see the findings under the rhythm: ' + s.findings.slice(0, 3).join('; ') + '.' : 'ST at baseline; T upright where the QRS is upright (normally inverted only in aVR and often V1); no pathological Q waves.'} Normal T: ≤ 5 mm in limb leads, ≤ 10 mm in chest leads, smaller than the R wave.`);
+      steps.push(`<b>QT</b> ${v(Math.round(s.QT) + ' ms')}, QTc ${v(Math.round(s.QTc) + ' ms')} (Bazett) ${s.QTc > 460 ? flag('long (> 450 men, > 460 women)', true) : '(normal < 450–460)'}. Rule of thumb: the QT should be less than half the RR interval.`);
+    }
+    const sec = (title, list) => list.length ? `<h4>${title}</h4><ul>${list.map((x) => `<li>${x}</li>`).join('')}</ul>` : '';
+    const items = keys.map((k) => TEACH[k]).filter(Boolean).concat(ischK.map((k) => ISCH_TEACH[k]));
+    return `<p class="now">${esc(s.rhythm || 'Reading…')}</p>`
+      + (steps.length ? `<h4>Read this ECG step by step</h4><ol>${steps.map((x) => `<li>${x}</li>`).join('')}</ol>` : '')
+      + items.map((it) => sec(`Key features: ${it.t}`, it.f)).join('')
+      + sec('Pitfalls', items.flatMap((it) => it.p));
+  }
+  function renderLearn() {
+    const html = learnHTML(ui.snap);
+    if (html !== ui.learnHTML) { ui.learnHTML = html; $('learn').innerHTML = html; }
   }
 
   // ST, Q and T measurements on the last complete beat, read off the ECG
@@ -1671,7 +1772,7 @@
     $('btnShock').addEventListener('click', () => { ui.avnrt = null; S.shock(); syncRate(); interpret(); });
     $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
     $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); recolorIschemia(); renderIschList(); interpret(true); });
-    for (const b of document.querySelectorAll('#controls .tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab));
+    for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
     initPicking(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     $('cutDepth').addEventListener('input', (e) => setCut(+e.target.value));
@@ -1679,10 +1780,7 @@
     $('cutFull').addEventListener('click', () => setCut(100));
     initStrips();
     g3.controls.addEventListener('change', () => { if (ui.view === 'cutaway') g3.planeDirty = true; });
-    const toggle = toggleControls;
-    $('ctlHead').addEventListener('click', toggle);
-    if (window.matchMedia(PHONE).matches) toggle();   // start collapsed on phones
-    $('ctlHead').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    if (window.matchMedia(PHONE).matches) toggleControls(false);   // start collapsed on phones
     $('btnGuide').addEventListener('click', () => { $('guide').hidden = false; });
     $('guideClose').addEventListener('click', () => { $('guide').hidden = true; });
     $('guide').addEventListener('click', (e) => { if (e.target.id === 'guide') $('guide').hidden = true; });
