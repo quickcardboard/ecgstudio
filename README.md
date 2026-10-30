@@ -68,7 +68,9 @@ ms then drops (1:1 with long PR at 60 bpm, 3:2 at 90 bpm); RBBB 124–128 ms wit
 first 60 ms); LBBB 143 ms; RBBB+LAFB −69°; PACs reset the sinus node (non-compensatory pause); PVCs give a full
 compensatory pause. PACs within ~60 ms of the QRS meet refractory atria; at QRS +100–140 ms they block in the AV
 node (non-conducted PAC); later ones conduct with decremental PR prolongation (245 ms at +180 ms, 201 ms at +500 ms).
-A short-axis view (and external camera presets) shows the delayed wall in LAFB vs LPFB. The interpretation banner states rhythm, AV and intraventricular conduction and ectopy.
+The cutaway can be rotated freely: the cut plane always faces the viewer and a depth slider moves it along the
+view axis; presets give the anterior (four-chamber), lateral and short-axis cuts (the short axis shows the delayed
+wall in LAFB vs LPFB). External view presets: front, left, inferior, back. The interpretation banner states rhythm, AV and intraventricular conduction and ectopy.
 
 ## Layout
 

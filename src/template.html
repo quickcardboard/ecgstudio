@@ -108,6 +108,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
 /* camera presets */
 .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.presets3 { grid-template-columns: repeat(3, 1fr); }
 #controls .presets button { padding: 5px 2px; font-size: 11.5px; }
 
 /* click actions, block menu, stimulus flash */
@@ -228,14 +229,20 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           </div>
           <div class="ctl">
             <span class="lab">View</span>
-            <div class="seg seg3">
+            <div class="seg">
               <input type="radio" name="view" id="viewExt" value="external" checked><label for="viewExt">External</label>
               <input type="radio" name="view" id="viewCut" value="cutaway"><label for="viewCut">Cutaway</label>
-              <input type="radio" name="view" id="viewShort" value="short"><label for="viewShort">Short axis</label>
             </div>
-            <div class="presets" id="presets" role="group" aria-label="Camera presets">
+            <div class="presets" id="presetsExt" role="group" aria-label="External view presets">
               <button type="button" data-cam="front">Front</button><button type="button" data-cam="left">Left</button><button type="button" data-cam="inferior">Inferior</button><button type="button" data-cam="back">Back</button>
             </div>
+            <div class="presets presets3" id="presetsCut" role="group" aria-label="Cutaway presets" hidden>
+              <button type="button" data-cut="anterior">Anterior</button><button type="button" data-cut="lateral">Lateral</button><button type="button" data-cut="short">Short axis</button>
+            </div>
+          </div>
+          <div class="ctl" id="cutDepthWrap" hidden>
+            <div class="row"><span class="lab">Cut depth (toward you +)</span><span class="val" id="cutDepthVal">0 mm</span></div>
+            <input id="cutDepth" type="range" min="-70" max="70" step="1" value="0" aria-label="Cut depth">
           </div>
           <div class="ctl">
             <span class="lab">Click on the heart to</span>
@@ -313,7 +320,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     <ul>
       <li><b>Sinus rate</b> sets the sinus node rate (30–180 bpm). The rhythm stays sinus at every rate. Escape rhythms depend on where conduction is blocked, not on rate: a junctional escape (about 48 bpm) takes over when the sinus node or AV node is blocked, and a ventricular escape (40 bpm) when the block is below the AV node. Blocks arrive in milestone 2.</li>
       <li><b>Time scale</b> slows the whole simulation, down to 1/50 of real time, so you can follow the wavefront. The ECG slows with it.</li>
-      <li><b>View:</b> External lets you rotate the heart; Front, Left, Inferior and Back jump to standard views. Short axis cuts across both ventricles at mid level, viewed from the apex, so the anterior, lateral, inferior and septal walls are all visible at once. This is the best view for watching the delayed region in fascicular blocks. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches and fascicles. The Purkinje network runs in the model but is not drawn.</li>
+      <li><b>View:</b> External lets you rotate the heart; Front, Left, Inferior and Back jump to standard views. In Cutaway the heart can also be rotated: the cut plane always faces you, and Cut depth slides it toward or away from you. The presets jump to standard cuts. Anterior is the four-chamber cut. Lateral cuts the left ventricle from the patient's left, so the septum and the left bundle's fascicles face you. Short axis crosses both ventricles at mid level, seen from the apex, and is the best view for watching the delayed region in fascicular blocks. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches and fascicles. The Purkinje network runs in the model but is not drawn.</li>
       <li><b>Overlays:</b> Labels names the chambers and vessels, and in the cutaway the conduction system too. Lead vectors draws the limb-lead hexaxial reference (amber, drawn from the torso's own lead vectors, so lead I is visibly shorter than II and III; dashed lines are each lead's negative half), the chest electrodes V1–V6 with their lead vectors (blue), and the live heart vector (white). When the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
       <li><b>Click on the heart to Stimulate:</b> click atrial tissue for a premature atrial complex (PAC) or ventricular tissue for a premature ventricular complex (PVC), in either view. Tissue that is still refractory does not capture. Click twice quickly for a couplet.</li>
       <li><b>Click on the heart to Block:</b> in the cutaway, click any part of the conduction system and choose a block. The SA node offers SA exit block, a sinus pause or sinus arrest. The AV node offers 1st-degree, Mobitz I (Wenckebach), 2:1 and complete block. The His bundle offers Mobitz II and complete block. The bundle branches and fascicles can each be blocked. Blocked segments turn red, or orange for partial blocks, and are listed under Active blocks, where you can remove them. Escape rhythms appear only when conduction above them is lost.</li>
