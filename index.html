@@ -132,6 +132,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 @keyframes ring { from { transform: scale(0.3); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .flash::before { animation: none; } }
 
+#controls select { font: 500 12.5px/1.2 var(--font-ui); color: var(--viewport-fg); background: rgba(255,255,255,0.06); border: 1px solid var(--panel-line); border-radius: 6px; padding: 6px 8px; }
+#controls select option { color: #111; }
+
 /* overlay toggles */
 .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .tog { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; padding: 7px 4px; border-radius: 6px; border: 1px solid var(--panel-line); background: rgba(255,255,255,0.06); cursor: pointer; text-align: center; }
@@ -271,6 +274,24 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
             <button type="button" id="btnClearIsch">Clear ischemia</button>
           </div>
           <div class="ctl">
+            <span class="lab">Structure</span>
+            <div class="toggles">
+              <label class="tog" for="stRAE" title="Right atrial enlargement"><input type="checkbox" id="stRAE"><span>RAE</span></label>
+              <label class="tog" for="stLAE" title="Left atrial enlargement"><input type="checkbox" id="stLAE"><span>LAE</span></label>
+              <label class="tog" for="stLVH" title="Left ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stLVH"><span>LVH</span></label>
+              <label class="tog" for="stRVH" title="Right ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stRVH"><span>RVH</span></label>
+            </div>
+            <label class="lab" for="stAP">Accessory pathway (WPW)</label>
+            <select id="stAP">
+              <option value="">None</option>
+              <option value="left-lateral">Left lateral</option>
+              <option value="left-posterior">Left posterior</option>
+              <option value="posteroseptal">Posteroseptal</option>
+              <option value="right-free-wall">Right free wall</option>
+              <option value="right-anteroseptal">Right anteroseptal</option>
+            </select>
+          </div>
+          <div class="ctl">
             <span class="lab">Overlays</span>
             <div class="toggles">
               <label class="tog" for="ovLabels"><input type="checkbox" id="ovLabels"><span>Labels</span></label>
@@ -281,7 +302,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
             <button id="btnPause" type="button">Pause</button>
             <button id="btnReset" type="button">Reset</button>
           </div>
-          <div class="next">Coming next: <b>Structural</b> changes (atrial enlargement, hypertrophy, accessory pathways) and <b>re-entry</b> (AF, flutter, AVNRT, VT, VF).</div>
+          <div class="next">Coming next: <b>re-entry</b> (AF, flutter, AVNRT, VT, VF).</div>
         </div>
       </div>
 
@@ -298,6 +319,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         <span id="legendCs" hidden><i style="background:var(--cs)"></i>Conduction system</span>
         <span id="legendBlock" hidden><i style="background:var(--blocked)"></i>Blocked <i style="background:var(--partial); margin-left:8px"></i>Partial block</span>
         <span id="legendIsch" hidden><i style="background:var(--ischemic)"></i>Ischemic <i style="background:var(--necrotic); margin-left:8px"></i>Necrotic <i style="background:#ffd84a; margin-left:8px"></i>Occlusion</span>
+        <span id="legendAP" hidden><i style="background:var(--chest)"></i>Accessory pathway</span>
         <span id="legendLeads" hidden><i style="background:var(--limb)"></i>Limb leads <i style="background:var(--chest); margin-left:8px"></i>Chest leads <i style="background:#ffffff; margin-left:8px"></i>Heart vector</span>
       </div>
       <div class="clock" id="clock">t 0.000 s</div>
@@ -342,6 +364,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Click on the heart to Block:</b> in the cutaway, click any part of the conduction system and choose a block. The SA node offers SA exit block, a sinus pause or sinus arrest. The AV node offers 1st-degree, Mobitz I (Wenckebach), 2:1 and complete block. The His bundle offers Mobitz II and complete block. The bundle branches and fascicles can each be blocked. Blocked segments turn red, or orange for partial blocks, and are listed under Active blocks, where you can remove them. Escape rhythms appear only when conduction above them is lost.</li>
       <li><b>Click on the heart for Ischemia:</b> in the external view the main epicardial coronary arteries are drawn in red: the left main trunk dividing into the LAD and the circumflex, and the right coronary artery giving the posterior descending artery (a right-dominant heart). Each artery's territory includes the muscle fed by its smaller side branches. Click an artery to occlude it at that point. A yellow marker shows the occlusion, the vessel beyond it turns grey, and everything it supplies becomes transmurally ischemic (tinted purple, necrotic muscle grey). In the cutaway, click ventricular muscle on the cut face for subendocardial ischemia in a patch of that wall. Occlusions and patches are listed in the panel, where each can be removed.</li>
       <li><b>Time since onset</b> moves every ischemic region along the same time course. It stops only where the ECG changes character: onset, 15 min, 1 h, 4 h, 12 h, 2 days and 1 month. In the first minutes, K-ATP channels shorten the action potential: hyperacute T waves. Over the first half hour, depolarized ischemic cells drive an injury current: ST elevation over the territory with reciprocal depression opposite. Necrosis then advances from endocardium to epicardium over about six hours. Dead muscle loses its gap junctions and drops out of the QRS, so Q waves form. From about 12 hours the ST elevation eases and the T wave starts to invert. By 2 days the ST segment is back near baseline with deep symmetric T inversion. At 1 month the Q waves remain and the T waves are upright again. A proximal right coronary occlusion also starves the sinus-node and AV-node arteries, slowing the sinus rate and lengthening the PR; an occlusion beyond the crux slows only the AV node. A thin subendocardial patch gives ST depression rather than elevation.</li>
+      <li><b>Structure:</b> RAE and LAE enlarge an atrium. The enlarged atrium carries more muscle, so its sources are stronger; LAE also slows conduction through Bachmann's bundle and the left atrium. RAE gives a tall, peaked P wave in II (P pulmonale); LAE a broad P wave over 120 ms (P mitrale). LVH and RVH rebuild the heart with a thicker free wall: about 6 mm extra on the LV, 10 mm on the RV. Hypertrophied muscle carries more current, and the transmural repolarization gradient reverses ("strain"). LVH gives Sokolow–Lyon voltage with T inversion in I, aVL and V6; RVH a dominant R in V1, right axis deviation and T inversion in V1–V2. Rebuilding takes a few seconds and clears blocks and ischemia.</li>
+      <li><b>Accessory pathway (WPW):</b> adds a fast, non-decremental muscle bridge across the AV ring at the chosen site (shown in blue). The ventricle near it is excited early, giving a short PR and a delta wave. The rest of the ventricle fuses with normally conducted activation, so the QRS is wide. The pathway also conducts backwards, ready for re-entry in the next milestone.</li>
       <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest and clears all blocks and ischemia.</li>
     </ul>
     <h3>Banner</h3>
@@ -519,6 +543,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
     // Action potential durations (ms) at long diastolic interval
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
+    lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
     apdVentApexExtra: -20, // apex shorter than base (apex repolarises first)
     apdRVoffset: 30,
@@ -541,6 +566,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     plateauDecline: 0.05,  // fractional fall in plateau over the APD
     repWVent: 180, repWAtrial: 220,   // width of phase-3 repolarisation window (ms)
     upW: 2.0,                        // width of phase-0 upstroke (ms)
+
+    // Accessory pathway (see Sim.setAccessoryPathway)
+    apDelay: 6, apErp: 280,
+
+    // Atrial enlargement (see Sim.setAtrialEnlargement)
+    raeGain: 2.4, raeSlow: 0.85,
+    laeGain: 1.2, laeSlow: 1.3, laeBachmannSlow: 4.0,
 
     // Ischaemia (see Sim._ischemicState)
     ischBorderMm: 9,       // border-zone width over which severity rises to the core value
@@ -581,6 +613,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     return sm((Math.abs(phi) - 0.5) / 0.9) * sm((0.9 - z) / 0.25) * sm((z - 0.04) / 0.2);
   }
 
+  // RV free wall growth map: full over the body of the wall, tapering at the
+  // base (valve rings, outflow) and the apex
+  function rvThickenWeight(phi, z) {
+    if (!(z >= 0)) return 0;
+    const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+    return sm((0.92 - z) / 0.2) * sm((z - 0.05) / 0.2);
+  }
+
   // ---------------------------------------------------------------------------
   // Anatomy: decode the embedded voxel grid
   // ---------------------------------------------------------------------------
@@ -604,6 +644,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const layers = opts.lvWallLayers !== undefined ? opts.lvWallLayers : 3;
       this.lvWallLayers = layers;
       if (layers) this._editLVWall(V, layers);
+      // ventricular hypertrophy (opts.rvWallLayers: RV free wall, outward)
+      this.rvWallLayers = opts.rvWallLayers || 0;
+      if (this.rvWallLayers) this._editLVWall(V, this.rvWallLayers, LAB.RV, rvThickenWeight);
       this._materialize(V);
       this.landmarks = json.landmarks;
       this._classifySurfaces();
@@ -627,7 +670,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       });
     }
 
-    _editLVWall(V, layers) {
+    _editLVWall(V, layers, label = LAB.LV, weight = lvThickenWeight) {
       const [nx, ny, nz] = this.dims, N = nx * ny * nz;
       const nb = (g) => { const k = g % nz, j = ((g / nz) | 0) % ny, i = (g / (ny * nz)) | 0, out = [];
         if (i > 0) out.push(g - ny * nz); if (i < nx - 1) out.push(g + ny * nz);
@@ -641,7 +684,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       };
       const nL = Math.abs(layers);
       // a voxel joins growth layer L when the smooth thickness map asks for at least L of nL layers
-      const free = (v, L) => v.l === LAB.LV && lvThickenWeight(v.phi, v.z) >= (L + 0.5) / nL;
+      const free = (v, L) => v.l === label && weight(v.phi, v.z) >= (L + 0.5) / nL;
       for (let L = 0; L < Math.abs(layers); L++) {
         const { occ, out } = outside();
         if (layers > 0) {
@@ -649,9 +692,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           for (const v of V) {
             if (!free(v, L)) continue;
             for (const w of nb(v.g)) if (out[w] && !add.has(w)) {
-              // keep clear of other structures (atria, great vessels, RV)
-              if (nb(w).some((x) => occ[x] >= 0 && V[occ[x]].l !== LAB.LV)) continue;
-              add.set(w, { g: w, l: LAB.LV, rho: 1, z: v.z, phi: v.phi, vs: v.vs, f: v.f.slice() });
+              // keep clear of other structures (atria, great vessels, the other ventricle)
+              if (nb(w).some((x) => occ[x] >= 0 && V[occ[x]].l !== label)) continue;
+              add.set(w, { g: w, l: label, rho: 1, z: v.z, phi: v.phi, vs: v.vs, f: v.f.slice() });
             }
           }
           for (const v of add.values()) V.push(v);
@@ -1101,6 +1144,34 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       this.coronary = { nodes, branches, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
     }
 
+    // Accessory pathway endpoints: the ventricular voxel on the AV ring in the
+    // named direction from the valve centre (torso frame), and the nearest
+    // voxel of the atrium across the ring.
+    accessorySite(loc) {
+      this._apSites = this._apSites || {};
+      if (this._apSites[loc]) return this._apSites[loc];
+      const A = this.A, lm = A.landmarks;
+      const D = {   // torso-frame directions: X left, Y superior, Z anterior
+        'left-lateral': ['MV', [1, 0, 0.1], LAB.LV, LAB.LA],
+        'left-posterior': ['MV', [0.3, -0.2, -1], LAB.LV, LAB.LA],
+        'posteroseptal': ['TV', [0.6, -0.3, -1], LAB.LV, LAB.RA],
+        'right-free-wall': ['TV', [-1, 0, 0], LAB.RV, LAB.RA],
+        'right-anteroseptal': ['TV', [0.5, 0.4, 1], LAB.RV, LAB.RA],
+      }[loc];
+      if (!D) throw new Error('unknown accessory pathway site ' + loc);
+      const [valve, dir, vl, al] = D, ctr = this.toTorso(lm[valve].c), dl = Math.hypot(...dir);
+      const nearAtrium = (c, r) => { const i = A.ii[c], j = A.jj[c], k = A.kk[c];
+        for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) for (let e = -r; e <= r; e++) { const w = A.at(i + a, j + b, k + e); if (w >= 0 && A.label[w] === al) return true; } return false; };
+      let best = -1, bs = -Infinity;
+      for (let c = 0; c < A.n; c++) {
+        if (A.label[c] !== vl || A.zuvc[c] < 0.8) continue;
+        const p = this.toTorso(A.p(c)), sc = ((p[0] - ctr[0]) * dir[0] + (p[1] - ctr[1]) * dir[1] + (p[2] - ctr[2]) * dir[2]) / dl;
+        if (sc > bs && nearAtrium(c, 3)) { bs = sc; best = c; }
+      }
+      const a = A.nearest(A.p(best), (c) => A.label[c] === al);
+      return (this._apSites[loc] = { v: best, a });
+    }
+
     // is node `id` at or downstream of node `occl`?
     isDownstream(id, occl) {
       const N = this.coronary.nodes;
@@ -1402,7 +1473,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     pairCoef(c, w, a, out) {
       const A = this.A, h = A.h, kc = this.kind[c];
       const { TF, tfSample, tfScale, E, axes, B, rhat, aniso, anorm, fwd } = this._lw;
-      const sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : 1;
+      let sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : 1;
+      // hypertrophied myocytes carry more intracellular current (source
+      // strength ∝ conductance); scaling the pair keeps uniform plateaus silent
+      if (kc === KIND.VENT && (this.P.lvSourceGain !== 1 || this.P.rvSourceGain !== 1)) {
+        const g = (x) => (A.label[x] === LAB.RV ? this.P.rvSourceGain : this.P.lvSourceGain);
+        sc *= Math.sqrt(g(c) * g(w));
+      }
       const m = this.toTorso(lerp(A.p(c), A.p(w), 0.5));   // pair midpoint, torso frame
       const ex = axes[a];                                     // pair direction, torso frame
       // midpoint radial direction and its component along the pair
@@ -1468,7 +1545,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       this.buckets = Array.from({ length: RING }, () => []);
       this._assignParams();
       if (!opts.noMemory && this.P.electrotonicK > 0) this._electrotonicMemory();
-      this.apdMax0 = this.apdMax.slice();               // healthy values, restored when ischemia changes
+      this.apdMax0 = this.apdMax.slice(); this.vAmp0 = this.vAmp.slice();               // healthy values, restored when ischemia changes
       this.insults = []; this.ischemiaHours = 0; this._ischCells = new Set(); this._nextInsult = 1;
       // ECG bookkeeping. Cells in upstroke or repolarisation are summed
       // explicitly ("dynamic" list); cells on the plateau have Vm linear in t
@@ -1523,7 +1600,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         if (k === KIND.VENT) {
           // APD heterogeneity: endocardium > epicardium (tm), base > apex (zuvc)
           const tm = A.tm[c], zz = A.zuvc[c] < 0 ? 0.5 : A.zuvc[c];
-          apd = P.apdVent + P.apdVentEndoExtra * (0.5 - tm) + P.apdVentApexExtra * (0.5 - zz);
+          // hypertrophy "strain": the transmural repolarisation gradient
+          // reverses (epicardium repolarises last), inverting the T wave
+          const strain = A.label[c] === LAB.RV ? P.rvStrain : P.lvStrain;
+          apd = P.apdVent + P.apdVentEndoExtra * (1 - 2 * strain) * (0.5 - tm) + P.apdVentApexExtra * (0.5 - zz);
           if (A.label[c] === LAB.RV) apd += P.apdRVoffset;
           this.repW[c] = P.repWVent;
         } else if (k === KIND.ATRIAL) { apd = P.apdAtrial; this.repW[c] = P.repWAtrial; }
@@ -1647,6 +1727,27 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       return g.last;
     }
 
+    // ---- Atrial enlargement -------------------------------------------------
+    // A dilated, hypertrophied atrium carries more electrically active muscle
+    // (stronger sources) over a longer path (later activation). RA enlargement
+    // raises the early (right-atrial) part of the P wave: tall, peaked P in II.
+    // LA enlargement adds slow interatrial conduction through Bachmann's bundle
+    // and a slower, stronger LA: broad notched P in II and a deep terminal
+    // negative P in V1.
+    setAtrialEnlargement({ ra = false, la = false } = {}) {
+      const M = this.M, A = M.A, P = this.P;
+      this.atria = { ra, la };
+      for (let c = 0; c < M.nVox; c++) {
+        if (M.kind[c] !== KIND.ATRIAL) continue;
+        const isRA = A.label[c] === LAB.RA, on = isRA ? ra : la;
+        this.vAmp[c] = P.vAmp * (on ? (isRA ? P.raeGain : P.laeGain) : 1);
+        let cv = on ? (isRA ? P.raeSlow : P.laeSlow) : 1;
+        if (la && M.seg[c] === SEG.BACHMANN) cv *= P.laeBachmannSlow;
+        this.cvMul[c] = cv;
+      }
+      this._rebuildPlateauSums();
+    }
+
     // ---- Myocardial ischemia ------------------------------------------------
     // Insults: a coronary occlusion (everything downstream of a tree node,
     // transmural) or a subendocardial region around a clicked cell. Each
@@ -1738,7 +1839,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const M = this.M, A = M.A, P = this.P, h = this.ischemiaHours;
       const lvl = this.ischLevel || (this.ischLevel = new Float32Array(A.n));   // display: 0 healthy, (0,1] ischaemic, 2 necrotic
       for (const c of this._ischCells) {                                     // restore healthy values
-        lvl[c] = 0; this.apdMax[c] = this.apdMax0[c]; this.vRest[c] = P.vRest; this.vAmp[c] = P.vAmp; this.cvMul[c] = 1; this.blocked[c] = 0;
+        lvl[c] = 0; this.apdMax[c] = this.apdMax0[c]; this.vRest[c] = P.vRest; this.vAmp[c] = this.vAmp0[c]; this.cvMul[c] = 1; this.blocked[c] = 0;
       }
       this._ischCells = new Set();
       const best = new Map();                                                // strongest insult per cell
@@ -1750,7 +1851,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       }
       let nDead = 0;
       for (const [c, st] of best) {
-        this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = P.vAmp * st.amp;
+        this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = this.vAmp0[c] * st.amp;
         this.cvMul[c] = st.cv; this.blocked[c] = st.dead ? 1 : 0; this._ischCells.add(c);
         lvl[c] = st.dead ? 2 : st.level;
         if (st.dead) nDead++;
@@ -1845,6 +1946,25 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         const tArr = ta + tau;
         if (tArr < this.arrive[j] || this.arrive[j] <= this.tAct[j]) this.schedule(j, tArr);
       }
+      // accessory pathway: fast, non-decremental, conducts both ways
+      const ap = this.ap;
+      if (ap && (c === ap.a || c === ap.v) && ta >= ap.refEnd) {
+        ap.refEnd = ta + ap.erp;
+        this.schedule(c === ap.a ? ap.v : ap.a, ta + ap.delay);
+      }
+    }
+
+    // ---- Accessory pathway (Wolff–Parkinson–White) ---------------------------
+    // A strand of working muscle bridging the AV ring at one site. It conducts
+    // without the AV node's decrement, so the ventricle near its insertion is
+    // pre-excited (short PR, delta wave) and the rest is activated by the
+    // normal system: a fusion beat. Locations around the mitral and tricuspid rings.
+    setAccessoryPathway(loc) {
+      this.ap = null; this.apLocation = null;
+      if (!loc) return;
+      const site = this.M.accessorySite(loc);
+      this.ap = { a: site.a, v: site.v, delay: this.P.apDelay, erp: this.P.apErp, refEnd: -Infinity };
+      this.apLocation = loc;
     }
 
     _logActivation(c, ta) {
@@ -2041,7 +2161,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   }
   const setDefaultTorso = (tf) => { DEFAULT_TORSO = tf; };
 
-  const api = { Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, lvThickenWeight };
+  // Ventricular hypertrophy presets: thicker free wall (anatomy), stronger
+  // sources (lead fields) and a reversed transmural repolarisation gradient
+  // (strain). Validated with tools/hyper.js.
+  function hypertrophyOptions({ lvh = false, rvh = false } = {}) {
+    return {
+      anatomy: { lvWallLayers: lvh ? 6 : 3, rvWallLayers: rvh ? 5 : 0 },
+      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.6 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1 },
+    };
+  }
+
+  const api = { hypertrophyOptions, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, lvThickenWeight, rvThickenWeight };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.LiveHeart = api;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -2074,7 +2204,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { struct: { rae: false, lae: false, lvh: false, rvh: false, ap: '' }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const ecg = { buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
 
@@ -2088,11 +2218,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     if (!window.THREE) { setLoading('The 3D library could not load. Check your connection and reload.'); return; }
     await tick();
     LH.setDefaultTorso(JSON.parse($('torso-data').textContent));
-    A = new LH.Anatomy(JSON.parse($('anatomy-data').textContent));
-    setLoading('Building tissue graph and conduction system…'); await tick();
-    M = new LH.Model(A);
-    setLoading('Tuning repolarization to the sinus beat…'); await tick();
-    newSim();
+    await buildHeart();
     try { init3D(); } catch (e) { setLoading('WebGL is not available in this browser, so the 3D view cannot start.'); console.error(e); return; }
     initECG(); initUI();
     $('loading').hidden = true;
@@ -2117,10 +2243,34 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     requestAnimationFrame(loop);
   }
 
+  // anatomy + model for the current structural options (hypertrophy rebuilds both)
+  async function buildHeart() {
+    const ho = LH.hypertrophyOptions(ui.struct);
+    setLoading(ui.struct.lvh || ui.struct.rvh ? 'Growing the hypertrophied wall…' : 'Reading anatomy…'); await tick();
+    A = new LH.Anatomy(JSON.parse($('anatomy-data').textContent), ho.anatomy);
+    setLoading('Building tissue graph and conduction system…'); await tick();
+    M = new LH.Model(A, ho.params);
+    setLoading('Tuning repolarization to the sinus beat…'); await tick();
+    newSim();
+  }
+  async function rebuildHeart() {
+    $('loading').hidden = false;
+    await buildHeart();
+    setLoading('Building the 3D heart…'); await tick();
+    g3.inner.clear(); $('labels').innerHTML = '';
+    buildSurfaces(); buildConduction(); buildCoronaries(); buildCutPlane(); buildOverlays();
+    const v = ui.view; setView(v);
+    renderBlockList(); setIschTime(0); renderIschList(); ui.ref = null;
+    $('loading').hidden = true;
+  }
+
   function newSim() {
     S = new LH.Sim(M, { seed: 1 });
     S.setRate(ui.rate);
+    S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae });
+    S.setAccessoryPathway(ui.struct.ap || null);
     for (const b of ecg.buf) b.fill(NaN);
+    if (g3.apMark) placeAPMarker();
     S.onSample((t, L) => { const i = t % PAGE; for (let k = 0; k < 12; k++) ecg.buf[k][i] = L[k]; });
     ui.acc = 0; ui.ischPending = null;
     $('rhythm').textContent = 'Acquiring…'; $('chips').innerHTML = ''; $('findings').innerHTML = '';
@@ -2219,7 +2369,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   // surface; push the displayed epicardium out by the same amount so the
   // picture matches the tissue. The offset fades out at the septal junctions,
   // the base and near other structures, which keeps the surface set closed.
-  function thickenLV(geo, dist, others) {
+  function thickenLV(geo, dist, others, label = 1, weight = LH.lvThickenWeight) {
     const pos = geo.attributes.position.array, nrm = geo.attributes.normal.array, nv = pos.length / 3;
     const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
     const isOutside = (x, y, z) => {
@@ -2233,8 +2383,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const x = pos[3 * v], y = pos[3 * v + 1], z = pos[3 * v + 2], ax = nrm[3 * v], ay = nrm[3 * v + 1], az = nrm[3 * v + 2];
       if (!isOutside(x + ax * (dist + 2), y + ay * (dist + 2), z + az * (dist + 2))) continue;   // endocardial face
       epi[v] = 1;
-      const c = nearestTissue(x, y, z); if (c < 0 || A.label[c] !== 1) continue;
-      w[v] = LH.lvThickenWeight(A.phi[c], A.zuvc[c]) * smooth((others.nearest(x, y, z) - 3) / 9);
+      const c = nearestTissue(x, y, z); if (c < 0 || A.label[c] !== label) continue;
+      w[v] = weight(A.phi[c], A.zuvc[c]) * smooth((others.nearest(x, y, z) - 3) / 9);
     }
     // 2. smooth the weight over the mesh so neighbouring vertices agree (no voxel-scale noise)
     const idx = geo.index.array, nbr = Array.from({ length: nv }, () => []);
@@ -2272,13 +2422,16 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
   function buildSurfaces() {
     const span = A.dims.map((d) => d * A.h);
-    const otherList = [];
-    for (const s of A.json.surfaces) {
-      if (s.label === 1) continue;
-      const q = decodeB64(s.pos, Uint16Array);
-      for (let i = 0; i < q.length; i += 9) otherList.push([0, 1, 2].map((d) => A.origin[d] + (q[i + d] / 65535) * span[d]));
-    }
-    const otherVerts = vertexIndex(otherList);
+    const othersOf = (label) => {
+      const list = [];
+      for (const s of A.json.surfaces) {
+        if (s.label === label) continue;
+        const q = decodeB64(s.pos, Uint16Array);
+        for (let i = 0; i < q.length; i += 9) list.push([0, 1, 2].map((d) => A.origin[d] + (q[i + d] / 65535) * span[d]));
+      }
+      return vertexIndex(list);
+    };
+    const otherVerts = othersOf(1), otherRV = A.rvWallLayers ? othersOf(2) : null;
     g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = []; g3.pickTissue = [];
     for (const s of A.json.surfaces) {
       const q = decodeB64(s.pos, Uint16Array), idx = decodeB64(s.idx, Uint32Array);
@@ -2289,6 +2442,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       geo.setIndex(new THREE.BufferAttribute(idx, 1));
       geo.computeVertexNormals();
       if (s.label === 1 && A.lvWallLayers) thickenLV(geo, A.lvWallLayers * A.h, otherVerts);
+      if (s.label === 2 && A.rvWallLayers) thickenLV(geo, A.rvWallLayers * A.h, otherRV, 2, LH.rvThickenWeight);
       let mat;
       if (s.label <= 4) {
         const nv = pos.length / 3, col = new Float32Array(pos.length), vmap = new Int32Array(nv);
@@ -2363,12 +2517,25 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       const pick = new THREE.Mesh(pgeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
       pick.userData.map = map; grp.add(pick); g3.pickTubes.push(pick);
     }
+    // accessory pathway marker (shown when one is set)
+    g3.apMark = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 1, 10), new THREE.MeshPhongMaterial({ color: 0x38c6e8, emissive: 0x0a3a48 }));
+    g3.inner.add(g3.apMark); placeAPMarker();
     // sinus node marker (visible in both views)
     const san = g3.san = new THREE.Mesh(new THREE.SphereGeometry(2.6, 16, 12), new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x333333 }));
     const sp = nodePos(M.sanCell, -1.0); san.position.set(sp[0], sp[1], sp[2]);
     g3.inner.add(san);
     const sanPick = g3.sanPick = new THREE.Mesh(new THREE.SphereGeometry(6, 10, 8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     sanPick.position.copy(san.position); g3.inner.add(sanPick);
+  }
+
+  function placeAPMarker() {
+    const m = g3.apMark; if (!m) return;
+    m.visible = !!(S.ap); $('legendAP').hidden = !S.ap;
+    if (!S.ap) return;
+    const a = new THREE.Vector3(...A.p(S.ap.a)), v = new THREE.Vector3(...A.p(S.ap.v)), d = v.clone().sub(a);
+    const len = Math.max(4, d.length() + 4);
+    m.scale.set(1, len, 1); m.position.copy(a).add(v).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
   }
 
   // Epicardial coronary arteries: one tube per branch through the tree nodes,
@@ -3255,7 +3422,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       chip('QT/QTc', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 460),
       chip(axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
-    const f = ischFindings(vb);
+    const f = structFindings(vb).concat(ischFindings(vb));
     $('findings').innerHTML = f.map((x, i) => `<li${i === 0 && x.head ? ' class="head"' : ''}>${x.text || x}</li>`).join('');
   }
 
@@ -3275,10 +3442,39 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       for (let t = vb.on; t < vb.on + 60; t++) { const v = at(k, t) - base; if (v > 0.05) break; if (v < -0.04) qDur = t - vb.on + 1; qAmp = Math.min(qAmp, v); }
       for (let t = vb.on; t <= J; t++) rMax = Math.max(rMax, at(k, t) - base);
       let tv = 0; for (let t = J + 60; t < vb.repEnd + 40; t++) { const v = at(k, t) - base; if (Math.abs(v) > Math.abs(tv)) tv = v; }
-      out[n] = { st, qDur, qAmp, rMax, t: tv };
+      let sMin = 0; for (let t = vb.on; t <= J; t++) sMin = Math.min(sMin, at(k, t) - base);
+      out[n] = { st, qDur, qAmp, rMax, s: -sMin, t: tv };
     }
     return out;
   }
+  // Structural findings read off the ECG: P-wave size and duration, voltage
+  // criteria, dominant R in V1, pre-excitation (short PR + delta wave).
+  function structFindings(vb) {
+    if (!vb || !isFinite(vb.repEnd)) return [];
+    const out = [], m = measureBeat(vb);
+    const at = (k, t) => ecg.buf[k][((Math.round(t) % PAGE) + PAGE) % PAGE];
+    const ab = S.log.atrial.filter((x) => x.on < vb.on - 30 && x.on > vb.on - 400).pop();
+    if (ab && S.t > ab.on + 400) {
+      const base = at(1, ab.on - 8); let pII = 0;
+      for (let t = ab.on; t < Math.min(ab.last + 25, vb.on - 2); t++) pII = Math.max(pII, at(1, t) - base);
+      const pDur = ab.last - ab.on + 12;                          // atrial activation plus the last front's own width
+      const tall = pII >= 0.25, broad = pDur >= 120;
+      if (tall && broad) out.push(`Biatrial enlargement: P ${pII.toFixed(2)} mV in II and ${Math.round(pDur)} ms wide`);
+      else if (tall) out.push(`Right atrial enlargement (P pulmonale): P ${pII.toFixed(2)} mV in II`);
+      else if (broad) out.push(`Left atrial enlargement (P mitrale): P ${Math.round(pDur)} ms wide`);
+    }
+    const PR = ab ? vb.on - ab.on : null, QRS = vb.last - vb.on + 4;
+    if (S.ap && PR !== null && PR < 120) out.push(`Ventricular pre-excitation (WPW pattern): short PR (${Math.round(PR)} ms), delta wave, QRS ${Math.round(QRS)} ms. Repolarization changes are secondary.`);
+    if (!S.ap && !Object.keys(S.blocks).length) {
+      const sok = m.V1.s + Math.max(m.V5.rMax, m.V6.rMax), corn = m.aVL.rMax + m.V3.s;
+      const strainLat = ['I', 'aVL', 'V5', 'V6'].filter((n) => m[n].t < -0.08).length >= 2;
+      if (sok >= 3.5 || corn >= 2.8) out.push(`Left ventricular hypertrophy by voltage (Sokolow–Lyon ${sok.toFixed(1)} mV, Cornell ${corn.toFixed(1)} mV)${strainLat ? ' with repolarization abnormality (strain)' : ''}`);
+      const domR = m.V1.rMax > m.V1.s && m.V1.rMax >= 0.5;
+      if (domR) out.push(`Right ventricular hypertrophy: dominant R in V1 (R ${m.V1.rMax.toFixed(2)} mV)${['V1', 'V2'].every((n) => m[n].t < -0.1) ? ' with T inversion in V1–V2 (RV strain)' : ''}`);
+    }
+    return out;
+  }
+
   // the healthy reference beat, taken just before the first ischemic insult
   function captureRef() {
     if (S.insults.length || Object.keys(S.blocks).length) return;
@@ -3399,6 +3595,16 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       ui.ischH = ISCH_STOPS[+e.target.value][0]; $('ischVal').textContent = fmtHours(ui.ischH); $('ischStage').textContent = ischStage(ui.ischH);
       ui.ischPending = ui.ischH;                                  // applied once per frame
     });
+    for (const [id, key] of [['stRAE', 'rae'], ['stLAE', 'lae']]) $(id).addEventListener('change', (e) => {
+      ui.struct[key] = e.target.checked; S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae }); interpret();
+    });
+    for (const [id, key] of [['stLVH', 'lvh'], ['stRVH', 'rvh']]) $(id).addEventListener('change', async (e) => {
+      ui.struct[key] = e.target.checked;
+      for (const x of ['stLVH', 'stRVH']) $(x).disabled = true;
+      await rebuildHeart();
+      for (const x of ['stLVH', 'stRVH']) $(x).disabled = false;
+    });
+    $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
     $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); recolorIschemia(); renderIschList(); interpret(true); });
     for (const id of ['actStim', 'actBlock', 'actIsch']) $(id).addEventListener('change', (e) => { ui.action = e.target.value; updateActionNote(); hideBlockMenu(); });
     initPicking(); updateActionNote();

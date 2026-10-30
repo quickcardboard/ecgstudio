@@ -156,6 +156,7 @@
 
     // Action potential durations (ms) at long diastolic interval
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
+    lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
     apdVentApexExtra: -20, // apex shorter than base (apex repolarises first)
     apdRVoffset: 30,
@@ -178,6 +179,13 @@
     plateauDecline: 0.05,  // fractional fall in plateau over the APD
     repWVent: 180, repWAtrial: 220,   // width of phase-3 repolarisation window (ms)
     upW: 2.0,                        // width of phase-0 upstroke (ms)
+
+    // Accessory pathway (see Sim.setAccessoryPathway)
+    apDelay: 6, apErp: 280,
+
+    // Atrial enlargement (see Sim.setAtrialEnlargement)
+    raeGain: 2.4, raeSlow: 0.85,
+    laeGain: 1.2, laeSlow: 1.3, laeBachmannSlow: 4.0,
 
     // Ischaemia (see Sim._ischemicState)
     ischBorderMm: 9,       // border-zone width over which severity rises to the core value
@@ -218,6 +226,14 @@
     return sm((Math.abs(phi) - 0.5) / 0.9) * sm((0.9 - z) / 0.25) * sm((z - 0.04) / 0.2);
   }
 
+  // RV free wall growth map: full over the body of the wall, tapering at the
+  // base (valve rings, outflow) and the apex
+  function rvThickenWeight(phi, z) {
+    if (!(z >= 0)) return 0;
+    const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+    return sm((0.92 - z) / 0.2) * sm((z - 0.05) / 0.2);
+  }
+
   // ---------------------------------------------------------------------------
   // Anatomy: decode the embedded voxel grid
   // ---------------------------------------------------------------------------
@@ -241,6 +257,9 @@
       const layers = opts.lvWallLayers !== undefined ? opts.lvWallLayers : 3;
       this.lvWallLayers = layers;
       if (layers) this._editLVWall(V, layers);
+      // ventricular hypertrophy (opts.rvWallLayers: RV free wall, outward)
+      this.rvWallLayers = opts.rvWallLayers || 0;
+      if (this.rvWallLayers) this._editLVWall(V, this.rvWallLayers, LAB.RV, rvThickenWeight);
       this._materialize(V);
       this.landmarks = json.landmarks;
       this._classifySurfaces();
@@ -264,7 +283,7 @@
       });
     }
 
-    _editLVWall(V, layers) {
+    _editLVWall(V, layers, label = LAB.LV, weight = lvThickenWeight) {
       const [nx, ny, nz] = this.dims, N = nx * ny * nz;
       const nb = (g) => { const k = g % nz, j = ((g / nz) | 0) % ny, i = (g / (ny * nz)) | 0, out = [];
         if (i > 0) out.push(g - ny * nz); if (i < nx - 1) out.push(g + ny * nz);
@@ -278,7 +297,7 @@
       };
       const nL = Math.abs(layers);
       // a voxel joins growth layer L when the smooth thickness map asks for at least L of nL layers
-      const free = (v, L) => v.l === LAB.LV && lvThickenWeight(v.phi, v.z) >= (L + 0.5) / nL;
+      const free = (v, L) => v.l === label && weight(v.phi, v.z) >= (L + 0.5) / nL;
       for (let L = 0; L < Math.abs(layers); L++) {
         const { occ, out } = outside();
         if (layers > 0) {
@@ -286,9 +305,9 @@
           for (const v of V) {
             if (!free(v, L)) continue;
             for (const w of nb(v.g)) if (out[w] && !add.has(w)) {
-              // keep clear of other structures (atria, great vessels, RV)
-              if (nb(w).some((x) => occ[x] >= 0 && V[occ[x]].l !== LAB.LV)) continue;
-              add.set(w, { g: w, l: LAB.LV, rho: 1, z: v.z, phi: v.phi, vs: v.vs, f: v.f.slice() });
+              // keep clear of other structures (atria, great vessels, the other ventricle)
+              if (nb(w).some((x) => occ[x] >= 0 && V[occ[x]].l !== label)) continue;
+              add.set(w, { g: w, l: label, rho: 1, z: v.z, phi: v.phi, vs: v.vs, f: v.f.slice() });
             }
           }
           for (const v of add.values()) V.push(v);
@@ -738,6 +757,34 @@
       this.coronary = { nodes, branches, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
     }
 
+    // Accessory pathway endpoints: the ventricular voxel on the AV ring in the
+    // named direction from the valve centre (torso frame), and the nearest
+    // voxel of the atrium across the ring.
+    accessorySite(loc) {
+      this._apSites = this._apSites || {};
+      if (this._apSites[loc]) return this._apSites[loc];
+      const A = this.A, lm = A.landmarks;
+      const D = {   // torso-frame directions: X left, Y superior, Z anterior
+        'left-lateral': ['MV', [1, 0, 0.1], LAB.LV, LAB.LA],
+        'left-posterior': ['MV', [0.3, -0.2, -1], LAB.LV, LAB.LA],
+        'posteroseptal': ['TV', [0.6, -0.3, -1], LAB.LV, LAB.RA],
+        'right-free-wall': ['TV', [-1, 0, 0], LAB.RV, LAB.RA],
+        'right-anteroseptal': ['TV', [0.5, 0.4, 1], LAB.RV, LAB.RA],
+      }[loc];
+      if (!D) throw new Error('unknown accessory pathway site ' + loc);
+      const [valve, dir, vl, al] = D, ctr = this.toTorso(lm[valve].c), dl = Math.hypot(...dir);
+      const nearAtrium = (c, r) => { const i = A.ii[c], j = A.jj[c], k = A.kk[c];
+        for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) for (let e = -r; e <= r; e++) { const w = A.at(i + a, j + b, k + e); if (w >= 0 && A.label[w] === al) return true; } return false; };
+      let best = -1, bs = -Infinity;
+      for (let c = 0; c < A.n; c++) {
+        if (A.label[c] !== vl || A.zuvc[c] < 0.8) continue;
+        const p = this.toTorso(A.p(c)), sc = ((p[0] - ctr[0]) * dir[0] + (p[1] - ctr[1]) * dir[1] + (p[2] - ctr[2]) * dir[2]) / dl;
+        if (sc > bs && nearAtrium(c, 3)) { bs = sc; best = c; }
+      }
+      const a = A.nearest(A.p(best), (c) => A.label[c] === al);
+      return (this._apSites[loc] = { v: best, a });
+    }
+
     // is node `id` at or downstream of node `occl`?
     isDownstream(id, occl) {
       const N = this.coronary.nodes;
@@ -1039,7 +1086,13 @@
     pairCoef(c, w, a, out) {
       const A = this.A, h = A.h, kc = this.kind[c];
       const { TF, tfSample, tfScale, E, axes, B, rhat, aniso, anorm, fwd } = this._lw;
-      const sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : 1;
+      let sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : 1;
+      // hypertrophied myocytes carry more intracellular current (source
+      // strength ∝ conductance); scaling the pair keeps uniform plateaus silent
+      if (kc === KIND.VENT && (this.P.lvSourceGain !== 1 || this.P.rvSourceGain !== 1)) {
+        const g = (x) => (A.label[x] === LAB.RV ? this.P.rvSourceGain : this.P.lvSourceGain);
+        sc *= Math.sqrt(g(c) * g(w));
+      }
       const m = this.toTorso(lerp(A.p(c), A.p(w), 0.5));   // pair midpoint, torso frame
       const ex = axes[a];                                     // pair direction, torso frame
       // midpoint radial direction and its component along the pair
@@ -1105,7 +1158,7 @@
       this.buckets = Array.from({ length: RING }, () => []);
       this._assignParams();
       if (!opts.noMemory && this.P.electrotonicK > 0) this._electrotonicMemory();
-      this.apdMax0 = this.apdMax.slice();               // healthy values, restored when ischemia changes
+      this.apdMax0 = this.apdMax.slice(); this.vAmp0 = this.vAmp.slice();               // healthy values, restored when ischemia changes
       this.insults = []; this.ischemiaHours = 0; this._ischCells = new Set(); this._nextInsult = 1;
       // ECG bookkeeping. Cells in upstroke or repolarisation are summed
       // explicitly ("dynamic" list); cells on the plateau have Vm linear in t
@@ -1160,7 +1213,10 @@
         if (k === KIND.VENT) {
           // APD heterogeneity: endocardium > epicardium (tm), base > apex (zuvc)
           const tm = A.tm[c], zz = A.zuvc[c] < 0 ? 0.5 : A.zuvc[c];
-          apd = P.apdVent + P.apdVentEndoExtra * (0.5 - tm) + P.apdVentApexExtra * (0.5 - zz);
+          // hypertrophy "strain": the transmural repolarisation gradient
+          // reverses (epicardium repolarises last), inverting the T wave
+          const strain = A.label[c] === LAB.RV ? P.rvStrain : P.lvStrain;
+          apd = P.apdVent + P.apdVentEndoExtra * (1 - 2 * strain) * (0.5 - tm) + P.apdVentApexExtra * (0.5 - zz);
           if (A.label[c] === LAB.RV) apd += P.apdRVoffset;
           this.repW[c] = P.repWVent;
         } else if (k === KIND.ATRIAL) { apd = P.apdAtrial; this.repW[c] = P.repWAtrial; }
@@ -1284,6 +1340,27 @@
       return g.last;
     }
 
+    // ---- Atrial enlargement -------------------------------------------------
+    // A dilated, hypertrophied atrium carries more electrically active muscle
+    // (stronger sources) over a longer path (later activation). RA enlargement
+    // raises the early (right-atrial) part of the P wave: tall, peaked P in II.
+    // LA enlargement adds slow interatrial conduction through Bachmann's bundle
+    // and a slower, stronger LA: broad notched P in II and a deep terminal
+    // negative P in V1.
+    setAtrialEnlargement({ ra = false, la = false } = {}) {
+      const M = this.M, A = M.A, P = this.P;
+      this.atria = { ra, la };
+      for (let c = 0; c < M.nVox; c++) {
+        if (M.kind[c] !== KIND.ATRIAL) continue;
+        const isRA = A.label[c] === LAB.RA, on = isRA ? ra : la;
+        this.vAmp[c] = P.vAmp * (on ? (isRA ? P.raeGain : P.laeGain) : 1);
+        let cv = on ? (isRA ? P.raeSlow : P.laeSlow) : 1;
+        if (la && M.seg[c] === SEG.BACHMANN) cv *= P.laeBachmannSlow;
+        this.cvMul[c] = cv;
+      }
+      this._rebuildPlateauSums();
+    }
+
     // ---- Myocardial ischemia ------------------------------------------------
     // Insults: a coronary occlusion (everything downstream of a tree node,
     // transmural) or a subendocardial region around a clicked cell. Each
@@ -1375,7 +1452,7 @@
       const M = this.M, A = M.A, P = this.P, h = this.ischemiaHours;
       const lvl = this.ischLevel || (this.ischLevel = new Float32Array(A.n));   // display: 0 healthy, (0,1] ischaemic, 2 necrotic
       for (const c of this._ischCells) {                                     // restore healthy values
-        lvl[c] = 0; this.apdMax[c] = this.apdMax0[c]; this.vRest[c] = P.vRest; this.vAmp[c] = P.vAmp; this.cvMul[c] = 1; this.blocked[c] = 0;
+        lvl[c] = 0; this.apdMax[c] = this.apdMax0[c]; this.vRest[c] = P.vRest; this.vAmp[c] = this.vAmp0[c]; this.cvMul[c] = 1; this.blocked[c] = 0;
       }
       this._ischCells = new Set();
       const best = new Map();                                                // strongest insult per cell
@@ -1387,7 +1464,7 @@
       }
       let nDead = 0;
       for (const [c, st] of best) {
-        this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = P.vAmp * st.amp;
+        this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = this.vAmp0[c] * st.amp;
         this.cvMul[c] = st.cv; this.blocked[c] = st.dead ? 1 : 0; this._ischCells.add(c);
         lvl[c] = st.dead ? 2 : st.level;
         if (st.dead) nDead++;
@@ -1482,6 +1559,25 @@
         const tArr = ta + tau;
         if (tArr < this.arrive[j] || this.arrive[j] <= this.tAct[j]) this.schedule(j, tArr);
       }
+      // accessory pathway: fast, non-decremental, conducts both ways
+      const ap = this.ap;
+      if (ap && (c === ap.a || c === ap.v) && ta >= ap.refEnd) {
+        ap.refEnd = ta + ap.erp;
+        this.schedule(c === ap.a ? ap.v : ap.a, ta + ap.delay);
+      }
+    }
+
+    // ---- Accessory pathway (Wolff–Parkinson–White) ---------------------------
+    // A strand of working muscle bridging the AV ring at one site. It conducts
+    // without the AV node's decrement, so the ventricle near its insertion is
+    // pre-excited (short PR, delta wave) and the rest is activated by the
+    // normal system: a fusion beat. Locations around the mitral and tricuspid rings.
+    setAccessoryPathway(loc) {
+      this.ap = null; this.apLocation = null;
+      if (!loc) return;
+      const site = this.M.accessorySite(loc);
+      this.ap = { a: site.a, v: site.v, delay: this.P.apDelay, erp: this.P.apErp, refEnd: -Infinity };
+      this.apLocation = loc;
     }
 
     _logActivation(c, ta) {
@@ -1678,7 +1774,17 @@
   }
   const setDefaultTorso = (tf) => { DEFAULT_TORSO = tf; };
 
-  const api = { Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, lvThickenWeight };
+  // Ventricular hypertrophy presets: thicker free wall (anatomy), stronger
+  // sources (lead fields) and a reversed transmural repolarisation gradient
+  // (strain). Validated with tools/hyper.js.
+  function hypertrophyOptions({ lvh = false, rvh = false } = {}) {
+    return {
+      anatomy: { lvWallLayers: lvh ? 6 : 3, rvWallLayers: rvh ? 5 : 0 },
+      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.6 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1 },
+    };
+  }
+
+  const api = { hypertrophyOptions, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, lvThickenWeight, rvThickenWeight };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.LiveHeart = api;
 })(typeof window !== 'undefined' ? window : globalThis);

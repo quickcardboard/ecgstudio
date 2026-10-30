@@ -24,7 +24,7 @@
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { struct: { rae: false, lae: false, lvh: false, rvh: false, ap: '' }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const ecg = { buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
 
@@ -38,11 +38,7 @@
     if (!window.THREE) { setLoading('The 3D library could not load. Check your connection and reload.'); return; }
     await tick();
     LH.setDefaultTorso(JSON.parse($('torso-data').textContent));
-    A = new LH.Anatomy(JSON.parse($('anatomy-data').textContent));
-    setLoading('Building tissue graph and conduction system…'); await tick();
-    M = new LH.Model(A);
-    setLoading('Tuning repolarization to the sinus beat…'); await tick();
-    newSim();
+    await buildHeart();
     try { init3D(); } catch (e) { setLoading('WebGL is not available in this browser, so the 3D view cannot start.'); console.error(e); return; }
     initECG(); initUI();
     $('loading').hidden = true;
@@ -67,10 +63,34 @@
     requestAnimationFrame(loop);
   }
 
+  // anatomy + model for the current structural options (hypertrophy rebuilds both)
+  async function buildHeart() {
+    const ho = LH.hypertrophyOptions(ui.struct);
+    setLoading(ui.struct.lvh || ui.struct.rvh ? 'Growing the hypertrophied wall…' : 'Reading anatomy…'); await tick();
+    A = new LH.Anatomy(JSON.parse($('anatomy-data').textContent), ho.anatomy);
+    setLoading('Building tissue graph and conduction system…'); await tick();
+    M = new LH.Model(A, ho.params);
+    setLoading('Tuning repolarization to the sinus beat…'); await tick();
+    newSim();
+  }
+  async function rebuildHeart() {
+    $('loading').hidden = false;
+    await buildHeart();
+    setLoading('Building the 3D heart…'); await tick();
+    g3.inner.clear(); $('labels').innerHTML = '';
+    buildSurfaces(); buildConduction(); buildCoronaries(); buildCutPlane(); buildOverlays();
+    const v = ui.view; setView(v);
+    renderBlockList(); setIschTime(0); renderIschList(); ui.ref = null;
+    $('loading').hidden = true;
+  }
+
   function newSim() {
     S = new LH.Sim(M, { seed: 1 });
     S.setRate(ui.rate);
+    S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae });
+    S.setAccessoryPathway(ui.struct.ap || null);
     for (const b of ecg.buf) b.fill(NaN);
+    if (g3.apMark) placeAPMarker();
     S.onSample((t, L) => { const i = t % PAGE; for (let k = 0; k < 12; k++) ecg.buf[k][i] = L[k]; });
     ui.acc = 0; ui.ischPending = null;
     $('rhythm').textContent = 'Acquiring…'; $('chips').innerHTML = ''; $('findings').innerHTML = '';
@@ -169,7 +189,7 @@
   // surface; push the displayed epicardium out by the same amount so the
   // picture matches the tissue. The offset fades out at the septal junctions,
   // the base and near other structures, which keeps the surface set closed.
-  function thickenLV(geo, dist, others) {
+  function thickenLV(geo, dist, others, label = 1, weight = LH.lvThickenWeight) {
     const pos = geo.attributes.position.array, nrm = geo.attributes.normal.array, nv = pos.length / 3;
     const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
     const isOutside = (x, y, z) => {
@@ -183,8 +203,8 @@
       const x = pos[3 * v], y = pos[3 * v + 1], z = pos[3 * v + 2], ax = nrm[3 * v], ay = nrm[3 * v + 1], az = nrm[3 * v + 2];
       if (!isOutside(x + ax * (dist + 2), y + ay * (dist + 2), z + az * (dist + 2))) continue;   // endocardial face
       epi[v] = 1;
-      const c = nearestTissue(x, y, z); if (c < 0 || A.label[c] !== 1) continue;
-      w[v] = LH.lvThickenWeight(A.phi[c], A.zuvc[c]) * smooth((others.nearest(x, y, z) - 3) / 9);
+      const c = nearestTissue(x, y, z); if (c < 0 || A.label[c] !== label) continue;
+      w[v] = weight(A.phi[c], A.zuvc[c]) * smooth((others.nearest(x, y, z) - 3) / 9);
     }
     // 2. smooth the weight over the mesh so neighbouring vertices agree (no voxel-scale noise)
     const idx = geo.index.array, nbr = Array.from({ length: nv }, () => []);
@@ -222,13 +242,16 @@
 
   function buildSurfaces() {
     const span = A.dims.map((d) => d * A.h);
-    const otherList = [];
-    for (const s of A.json.surfaces) {
-      if (s.label === 1) continue;
-      const q = decodeB64(s.pos, Uint16Array);
-      for (let i = 0; i < q.length; i += 9) otherList.push([0, 1, 2].map((d) => A.origin[d] + (q[i + d] / 65535) * span[d]));
-    }
-    const otherVerts = vertexIndex(otherList);
+    const othersOf = (label) => {
+      const list = [];
+      for (const s of A.json.surfaces) {
+        if (s.label === label) continue;
+        const q = decodeB64(s.pos, Uint16Array);
+        for (let i = 0; i < q.length; i += 9) list.push([0, 1, 2].map((d) => A.origin[d] + (q[i + d] / 65535) * span[d]));
+      }
+      return vertexIndex(list);
+    };
+    const otherVerts = othersOf(1), otherRV = A.rvWallLayers ? othersOf(2) : null;
     g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = []; g3.pickTissue = [];
     for (const s of A.json.surfaces) {
       const q = decodeB64(s.pos, Uint16Array), idx = decodeB64(s.idx, Uint32Array);
@@ -239,6 +262,7 @@
       geo.setIndex(new THREE.BufferAttribute(idx, 1));
       geo.computeVertexNormals();
       if (s.label === 1 && A.lvWallLayers) thickenLV(geo, A.lvWallLayers * A.h, otherVerts);
+      if (s.label === 2 && A.rvWallLayers) thickenLV(geo, A.rvWallLayers * A.h, otherRV, 2, LH.rvThickenWeight);
       let mat;
       if (s.label <= 4) {
         const nv = pos.length / 3, col = new Float32Array(pos.length), vmap = new Int32Array(nv);
@@ -313,12 +337,25 @@
       const pick = new THREE.Mesh(pgeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
       pick.userData.map = map; grp.add(pick); g3.pickTubes.push(pick);
     }
+    // accessory pathway marker (shown when one is set)
+    g3.apMark = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 1, 10), new THREE.MeshPhongMaterial({ color: 0x38c6e8, emissive: 0x0a3a48 }));
+    g3.inner.add(g3.apMark); placeAPMarker();
     // sinus node marker (visible in both views)
     const san = g3.san = new THREE.Mesh(new THREE.SphereGeometry(2.6, 16, 12), new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x333333 }));
     const sp = nodePos(M.sanCell, -1.0); san.position.set(sp[0], sp[1], sp[2]);
     g3.inner.add(san);
     const sanPick = g3.sanPick = new THREE.Mesh(new THREE.SphereGeometry(6, 10, 8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     sanPick.position.copy(san.position); g3.inner.add(sanPick);
+  }
+
+  function placeAPMarker() {
+    const m = g3.apMark; if (!m) return;
+    m.visible = !!(S.ap); $('legendAP').hidden = !S.ap;
+    if (!S.ap) return;
+    const a = new THREE.Vector3(...A.p(S.ap.a)), v = new THREE.Vector3(...A.p(S.ap.v)), d = v.clone().sub(a);
+    const len = Math.max(4, d.length() + 4);
+    m.scale.set(1, len, 1); m.position.copy(a).add(v).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
   }
 
   // Epicardial coronary arteries: one tube per branch through the tree nodes,
@@ -1205,7 +1242,7 @@
       chip('QT/QTc', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 460),
       chip(axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
-    const f = ischFindings(vb);
+    const f = structFindings(vb).concat(ischFindings(vb));
     $('findings').innerHTML = f.map((x, i) => `<li${i === 0 && x.head ? ' class="head"' : ''}>${x.text || x}</li>`).join('');
   }
 
@@ -1225,10 +1262,39 @@
       for (let t = vb.on; t < vb.on + 60; t++) { const v = at(k, t) - base; if (v > 0.05) break; if (v < -0.04) qDur = t - vb.on + 1; qAmp = Math.min(qAmp, v); }
       for (let t = vb.on; t <= J; t++) rMax = Math.max(rMax, at(k, t) - base);
       let tv = 0; for (let t = J + 60; t < vb.repEnd + 40; t++) { const v = at(k, t) - base; if (Math.abs(v) > Math.abs(tv)) tv = v; }
-      out[n] = { st, qDur, qAmp, rMax, t: tv };
+      let sMin = 0; for (let t = vb.on; t <= J; t++) sMin = Math.min(sMin, at(k, t) - base);
+      out[n] = { st, qDur, qAmp, rMax, s: -sMin, t: tv };
     }
     return out;
   }
+  // Structural findings read off the ECG: P-wave size and duration, voltage
+  // criteria, dominant R in V1, pre-excitation (short PR + delta wave).
+  function structFindings(vb) {
+    if (!vb || !isFinite(vb.repEnd)) return [];
+    const out = [], m = measureBeat(vb);
+    const at = (k, t) => ecg.buf[k][((Math.round(t) % PAGE) + PAGE) % PAGE];
+    const ab = S.log.atrial.filter((x) => x.on < vb.on - 30 && x.on > vb.on - 400).pop();
+    if (ab && S.t > ab.on + 400) {
+      const base = at(1, ab.on - 8); let pII = 0;
+      for (let t = ab.on; t < Math.min(ab.last + 25, vb.on - 2); t++) pII = Math.max(pII, at(1, t) - base);
+      const pDur = ab.last - ab.on + 12;                          // atrial activation plus the last front's own width
+      const tall = pII >= 0.25, broad = pDur >= 120;
+      if (tall && broad) out.push(`Biatrial enlargement: P ${pII.toFixed(2)} mV in II and ${Math.round(pDur)} ms wide`);
+      else if (tall) out.push(`Right atrial enlargement (P pulmonale): P ${pII.toFixed(2)} mV in II`);
+      else if (broad) out.push(`Left atrial enlargement (P mitrale): P ${Math.round(pDur)} ms wide`);
+    }
+    const PR = ab ? vb.on - ab.on : null, QRS = vb.last - vb.on + 4;
+    if (S.ap && PR !== null && PR < 120) out.push(`Ventricular pre-excitation (WPW pattern): short PR (${Math.round(PR)} ms), delta wave, QRS ${Math.round(QRS)} ms. Repolarization changes are secondary.`);
+    if (!S.ap && !Object.keys(S.blocks).length) {
+      const sok = m.V1.s + Math.max(m.V5.rMax, m.V6.rMax), corn = m.aVL.rMax + m.V3.s;
+      const strainLat = ['I', 'aVL', 'V5', 'V6'].filter((n) => m[n].t < -0.08).length >= 2;
+      if (sok >= 3.5 || corn >= 2.8) out.push(`Left ventricular hypertrophy by voltage (Sokolow–Lyon ${sok.toFixed(1)} mV, Cornell ${corn.toFixed(1)} mV)${strainLat ? ' with repolarization abnormality (strain)' : ''}`);
+      const domR = m.V1.rMax > m.V1.s && m.V1.rMax >= 0.5;
+      if (domR) out.push(`Right ventricular hypertrophy: dominant R in V1 (R ${m.V1.rMax.toFixed(2)} mV)${['V1', 'V2'].every((n) => m[n].t < -0.1) ? ' with T inversion in V1–V2 (RV strain)' : ''}`);
+    }
+    return out;
+  }
+
   // the healthy reference beat, taken just before the first ischemic insult
   function captureRef() {
     if (S.insults.length || Object.keys(S.blocks).length) return;
@@ -1349,6 +1415,16 @@
       ui.ischH = ISCH_STOPS[+e.target.value][0]; $('ischVal').textContent = fmtHours(ui.ischH); $('ischStage').textContent = ischStage(ui.ischH);
       ui.ischPending = ui.ischH;                                  // applied once per frame
     });
+    for (const [id, key] of [['stRAE', 'rae'], ['stLAE', 'lae']]) $(id).addEventListener('change', (e) => {
+      ui.struct[key] = e.target.checked; S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae }); interpret();
+    });
+    for (const [id, key] of [['stLVH', 'lvh'], ['stRVH', 'rvh']]) $(id).addEventListener('change', async (e) => {
+      ui.struct[key] = e.target.checked;
+      for (const x of ['stLVH', 'stRVH']) $(x).disabled = true;
+      await rebuildHeart();
+      for (const x of ['stLVH', 'stRVH']) $(x).disabled = false;
+    });
+    $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
     $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); recolorIschemia(); renderIschList(); interpret(true); });
     for (const id of ['actStim', 'actBlock', 'actIsch']) $(id).addEventListener('change', (e) => { ui.action = e.target.value; updateActionNote(); hideBlockMenu(); });
     initPicking(); updateActionNote();

@@ -8,7 +8,7 @@ electrical field.
 Open `index.html` in a browser. It is a single self-contained file (≈4.7 MB) that loads
 Three.js r128 and OrbitControls from CDNs.
 
-## Status: milestone 3 (ischemia) on top of milestones 1–2
+## Status: milestone 3 (ischemia, structural changes) on top of milestones 1–2
 
 | Area | Done |
 |---|---|
@@ -91,12 +91,30 @@ time course. Engine API: `sim.addOcclusion(node)`, `sim.addSubendocardial(cell, 
 | Subendocardial | inner ~25% of a wall patch, stronger injury → ST depression in the leads facing it |
 | ECG | 0.05 Hz diagnostic high-pass |
 
+The slider steps through onset, 15 min, 1 h, 4 h, 12 h, 2 days and 1 month: the injury current fades by ~2 days
+(ST back to baseline), border-zone APD prolongation peaks at 1–3 days (deep T inversion) and fades over weeks (T
+upright in an old infarct), scar uncoupling completes, and nodal ischemia recovers. Only the main arteries (LM, LAD,
+LCx, RCA, PDA) are drawn; side-branch territories belong to the parent vessel at the branch origin.
+
 Headless check (`node tools/ischemia.js`, plots in `docs/m3/`): proximal LAD → ST elevation in I, aVL, V2–V5 with
 inferior reciprocal depression; mid LAD → V2–V5 only; LCx → ST depression V1–V3 (posterior) with slight V5–V6
 elevation; proximal RCA → ST elevation III > II, aVL depression, V1 elevation (RV), sinus slowing and PR lengthening;
 distal RCA → inferior elevation with V1–V4 depression. By 6–8 h: Q waves (QS in III for RCA, loss of R in V3–V4 for
 LAD) and terminal T inversion. The interpretation reads ST at J + 40 ms, new Q waves and T changes against the
 heart's own healthy beat, and names the territory with STEMI thresholds.
+
+### Structural changes
+
+| Toggle | Model | ECG (tools/pwave.js, tools/hyper.js, tools/wpw.js) |
+|---|---|---|
+| RAE | RA sources ×2.4, RA conduction slightly faster (synchronous) | P 0.30 mV in II, duration unchanged |
+| LAE | LA sources ×1.2, LA conduction ×1/1.3, Bachmann's bundle ×1/4 | P 147–159 ms (activation), modest terminal negativity in V1 |
+| LVH | anatomy rebuilt with the LV free wall +6 mm, LV lead-field pair coefficients ×1.6 (more intracellular current), reversed transmural APD gradient | Sokolow–Lyon 3.6 mV, Cornell 2.4 mV, QRS 102–106 ms, T inversion I, aVL, V6 |
+| RVH | RV free wall +10 mm, RV pair coefficients ×1.8, 70% reversed gradient | axis +136°, R/S V1 0.63/0.05 mV, T inversion V1–V2 |
+| WPW | bidirectional non-decremental atrioventricular strand (6 ms, ERP 280 ms) at left lateral, left posterior, posteroseptal, right free wall or right anteroseptal ring sites | PR 44–101 ms, QRS 121–181 ms, delta waves |
+
+Limitations: the LAE V1 terminal negativity is shallow (the model's left atrium projects little onto V1), and the
+delta-wave polarity does not follow localisation algorithms for every site (the model's heart sits fairly vertical).
 
 ## Layout
 
