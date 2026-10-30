@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="author" content="{{AUTHOR}}">
 <title>LiveHeart · Interactive ECG Simulator</title>
 <meta name="description" content="LiveHeart: a 3D beating heart that computes the 12-lead ECG from its own electrical activity. Explore rhythms, conduction blocks, ischemia and infarction, hypertrophy, WPW, pericarditis and Brugada in real time.">
 <meta property="og:title" content="LiveHeart · Interactive ECG Simulator">
@@ -155,6 +156,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .pop-items button.remove { color: #ff9aa4; }
 .pop-items button:hover, .pop-cancel:hover { border-color: var(--panel-muted); }
 .pop-cancel { margin-top: 6px; width: 100%; text-align: center; }
+.toast { position: fixed; z-index: 20; left: 50%; top: 56px; transform: translateX(-50%); max-width: min(560px, calc(100vw - 32px)); box-sizing: border-box; padding: 8px 12px; border-radius: 6px; background: var(--fg); color: var(--bg); font: 500 13px/1.35 var(--font-ui); box-shadow: 0 4px 16px rgba(0,0,0,0.25); overflow-wrap: anywhere; }
+.toast input { display: block; width: 100%; margin-top: 6px; box-sizing: border-box; font: 12px/1.3 var(--font-data); padding: 4px 6px; border: 0; border-radius: 4px; }
+.credit { margin: 12px 0 0; font-weight: 500; }
 .flash { position: absolute; z-index: 4; left: 0; top: 0; pointer-events: none; width: 0; height: 0; }
 .flash::before { content: ""; position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ffffff; animation: ring 0.9s ease-out forwards; }
 .flash span { position: absolute; left: 14px; top: -24px; white-space: nowrap; font: 600 12px/1 var(--font-ui); color: #fff; background: rgba(10,18,26,0.8); padding: 4px 7px; border-radius: 4px; }
@@ -267,7 +271,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   .brand h1 { font-size: 17px; }
   .brand span { display: none; }
   .viewsw { display: flex; }
-  #btnHelp, .simctl button { padding: 6px 9px; font-size: 12px; }
+  #btnHelp, #btnShare, .simctl button { padding: 6px 9px; font-size: 12px; }
   .simctl .lab { display: none; }
   .simctl input { width: 70px; }
   #divider, #focus3d, #focusEcg { display: none; }
@@ -317,8 +321,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <button id="btnPause" type="button">Pause</button>
       <button id="btnReset" type="button">Reset</button>
     </div>
+    <button id="btnShare" type="button" title="Copy a link that reopens this exact scenario">Share</button>
     <button id="btnHelp" type="button">Help</button>
   </header>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <main id="split">
     <section class="pane" id="pane3d" aria-label="3D heart">
@@ -448,6 +454,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <div class="pane-head">
         <span class="title">12-lead ECG · 25 mm/s · 10 mm/mV</span>
         <span class="spacer"></span>
+        <button id="btnSavePng" type="button" title="Download this ECG as a PNG image">Save PNG</button>
         <button id="focusEcg" type="button" title="Give the ECG more room">Expand</button>
       </div>
       <div id="interp">
@@ -515,6 +522,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> LiveHeart is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
+      <p class="credit">Created by {{AUTHOR}}{{CONTACT}}. © {{YEAR}} {{AUTHOR}}. All rights reserved. Version {{VERSION}}.</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -524,8 +532,31 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   <div class="sheet"><div class="spin"></div><b>Building the heart</b><p id="loadMsg">Reading anatomy…</p></div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<!-- Three.js r128 and OrbitControls, inlined so the app works offline.
+The MIT License
+
+Copyright © 2010-2021 three.js authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+<script>/*__THREE__*/</script>
+<script>/*__ORBIT__*/</script>
 <script type="application/json" id="anatomy-data">/*__ANATOMY__*/</script>
 <script type="application/json" id="torso-data">/*__TORSO__*/</script>
 <script>

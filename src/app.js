@@ -40,9 +40,11 @@
     if (!window.THREE) { setLoading('The 3D library could not load. Check your connection and reload.'); return; }
     await tick();
     LH.setDefaultTorso(JSON.parse($('torso-data').textContent));
+    const scen = readScenario();
     await buildHeart();
     try { init3D(); } catch (e) { setLoading('WebGL is not available in this browser, so the 3D view cannot start.'); console.error(e); return; }
     initECG(); initUI();
+    if (scen) applyScenario(scen);
     $('loading').hidden = true;
     // handle for automation (tests, future quiz mode): simulator, model and a projector
     window.LiveHeartApp = {
@@ -1793,6 +1795,108 @@
   // ---------------------------------------------------------------------------
   // Controls, focus and divider
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // Shareable scenario links (#r=72&a=af&b=LAF.complete&o=812&h=12&s=lvh,peri…)
+  // and ECG export. The link holds settings, not the simulation, so a shared
+  // scenario re-runs from the same starting point.
+  // ---------------------------------------------------------------------------
+  const STRUCT_KEYS = ['rae', 'lae', 'lvh', 'rvh', 'peri', 'brugada'];
+  const STRUCT_BOX = { rae: 'stRAE', lae: 'stLAE', lvh: 'stLVH', rvh: 'stRVH', peri: 'stPeri', brugada: 'stBrugada' };
+  const ARR_TYPES = ['af', 'flutter', 'ectopic', 'mat', 'avnrt', 'avrt', 'vt', 'vf'];
+  function scenarioLink() {
+    const q = new URLSearchParams();
+    q.set('r', ui.rate);
+    const arr = S.arrhythmia && S.arrhythmia.type;
+    if (arr && ARR_TYPES.includes(arr)) q.set('a', arr);
+    else if (ui.avnrt || (S.retroLog || []).filter((x) => x.t > S.t - 3000).length >= 4) q.set('a', 'avnrt');
+    if (arr && (arr === 'af' || arr === 'flutter') && S.vResponse) q.set('v', Math.round(S.vResponse));
+    const blocks = Object.entries(S.blocks).map(([site, b]) => `${site}.${b.type}`);
+    if (blocks.length) q.set('b', blocks.join(','));
+    const occ = S.insults.filter((x) => x.kind === 'occlusion').map((x) => x.node), sub = S.insults.filter((x) => x.kind === 'subendo').map((x) => x.cell);
+    if (occ.length) q.set('o', occ.join(','));
+    if (sub.length) q.set('se', sub.join(','));
+    if (S.insults.length) q.set('h', ui.ischH);
+    const st = STRUCT_KEYS.filter((k) => ui.struct[k]);
+    if (st.length) q.set('s', st.join(','));
+    if (ui.struct.ap) q.set('ap', ui.struct.ap);
+    return `${location.origin}${location.pathname}#${q.toString()}`;
+  }
+  // Parse (and validate: links come from anywhere) the scenario in the address,
+  // applying what has to be known before the heart is built.
+  function readScenario() {
+    if (location.hash.length < 3) return null;
+    const q = new URLSearchParams(location.hash.slice(1)), ints = (k) => (q.get(k) || '').split(',').filter((x) => /^\d+$/.test(x)).map(Number);
+    const r = +q.get('r');
+    if (r >= 30 && r <= 180) { ui.rate = Math.round(r); $('rate').value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`; }
+    for (const k of (q.get('s') || '').split(',')) if (STRUCT_KEYS.includes(k)) { ui.struct[k] = true; $(STRUCT_BOX[k]).checked = true; }
+    const ap = q.get('ap');
+    if (ap && [...$('stAP').options].some((o) => o.value === ap)) { ui.struct.ap = ap; $('stAP').value = ap; }
+    const a = q.get('a'), v = +q.get('v'), h = +q.get('h');
+    return {
+      arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null,
+      blocks: (q.get('b') || '').split(',').map((x) => x.split('.')).filter(([site, type]) => BLOCK_MENU[site] && BLOCK_MENU[site].some((m) => m[0] === type)),
+      occ: ints('o'), sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
+    };
+  }
+  function applyScenario(sc) {
+    const nodes = M.coronary.nodes.length, sub = sc.sub.filter((c) => c < A.n && (A.label[c] === LH.LAB.LV || A.label[c] === LH.LAB.RV));
+    const occ = sc.occ.filter((n) => n < nodes);
+    // a healthy stretch first, so the interpretation has this heart's normal beat to compare with
+    if (sc.blocks.length || occ.length || sub.length) { S.run(2600); captureRef(); ecg.full = true; }
+    for (const [site, type] of sc.blocks) { const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type, m[2] || {}); }
+    renderBlockList();
+    if (occ.length || sub.length) {
+      for (const n of occ) S.addOcclusion(n);
+      for (const c of sub) S.addSubendocardial(c, 55);
+      setIschTime(sc.h); recolorIschemia(); renderIschList();
+    }
+    if (sc.arr) {
+      if (sc.vRate) ui.vRate = sc.vRate;
+      const r = ui.rate;
+      startRhythm(sc.arr);
+      if (sc.arr === 'mat' || sc.arr === 'ectopic') { ui.rate = r; S.setRate(r); }
+      syncRate();
+    }
+    placeAPMarker(); interpret(true);
+  }
+  function toast(html, ms = 2600) {
+    const t = $('toast'); t.innerHTML = html; t.hidden = false;
+    clearTimeout(toast.timer); toast.timer = setTimeout(() => { t.hidden = true; }, ms);
+  }
+  async function shareScenario() {
+    const url = scenarioLink();
+    history.replaceState(null, '', url);
+    try { await navigator.clipboard.writeText(url); toast('Link copied: it reopens this scenario (rhythm, blocks, ischemia and structure).'); }
+    catch (e) {                                                   // no clipboard access (http, some browsers): show the link to copy by hand
+      toast('Copy this link to share the scenario:<input readonly>', 12000);
+      const inp = $('toast').querySelector('input'); inp.value = url; inp.focus(); inp.select();
+    }
+  }
+  // The ECG as shown, with the interpretation above it and a "simulated" stamp
+  function saveEcgPng() {
+    const src = ecg.canvas, dpr = src.width / ($('ecgWrap').clientWidth || src.width), W = src.width;
+    const lines = [$('rhythm').textContent.trim(), [...$('chips').children].map((c) => [...c.childNodes].map((n) => n.textContent.trim()).filter(Boolean).join(' ')).join('   ·   ')]
+      .concat([...$('findings').querySelectorAll('li')].map((li) => '• ' + li.textContent.trim())).filter(Boolean);
+    const lh = 17 * dpr, head = Math.round((26 + lines.length * 17 + 10) * dpr), foot = Math.round(24 * dpr);
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = head + src.height + foot;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, cv.width, cv.height);
+    g.fillStyle = '#121b26'; g.font = `600 ${15 * dpr}px "IBM Plex Sans", system-ui, sans-serif`; g.textBaseline = 'top';
+    g.fillText('LiveHeart · simulated 12-lead ECG · 25 mm/s · 10 mm/mV', 10 * dpr, 8 * dpr);
+    g.font = `${12.5 * dpr}px "IBM Plex Sans", system-ui, sans-serif`;
+    lines.forEach((t, i) => { g.fillStyle = i ? '#3c4a57' : '#121b26'; g.fillText(t, 10 * dpr, 8 * dpr + 22 * dpr + i * lh, W - 20 * dpr); });
+    g.drawImage(src, 0, head);
+    g.fillStyle = '#6b7a87'; g.font = `${11 * dpr}px "IBM Plex Sans", system-ui, sans-serif`;
+    g.fillText(`Simulated by LiveHeart for education; not a patient record. ${new Date().toLocaleString()}`, 10 * dpr, head + src.height + 6 * dpr);
+    cv.toBlob((blob) => {
+      const a = document.createElement('a'), d = new Date(), z = (n) => String(n).padStart(2, '0');
+      a.href = URL.createObjectURL(blob);
+      a.download = `liveheart-ecg-${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }, 'image/png');
+  }
+
   function initUI() {
     const rate = $('rate');
     rate.addEventListener('input', () => {
@@ -1858,6 +1962,9 @@
     g3.controls.addEventListener('change', () => { if (ui.view === 'cutaway') g3.planeDirty = true; });
     if (window.matchMedia(PHONE).matches) toggleControls(false);   // start collapsed on phones
     $('btnHelp').addEventListener('click', () => { $('guide').hidden = false; });
+    $('btnShare').addEventListener('click', shareScenario);
+    window.addEventListener('hashchange', () => location.reload());   // a scenario link pasted into an open tab
+    $('btnSavePng').addEventListener('click', saveEcgPng);
     $('guideClose').addEventListener('click', () => { $('guide').hidden = true; });
     for (const b of document.querySelectorAll('#guide .toc button')) b.addEventListener('click', () => {
       for (const x of document.querySelectorAll('#guide .toc button')) x.setAttribute('aria-selected', String(x === b));

@@ -1,0 +1,30 @@
+LiveHeart
+Copyright (c) 2026 YOUR NAME. All rights reserved.
+
+This software, including its source code, simulation model, calibration,
+documentation, text and images (the "Software"), is proprietary. No licence
+is granted except as stated below.
+
+You may open and use the published web application for personal, non-
+commercial evaluation and education.
+
+Without prior written permission from the copyright holder you may not copy,
+modify, merge, publish, distribute, sublicense, sell, host or otherwise make
+available the Software or any part of it, create derivative works from it, or
+use it in any commercial product or service. The source code being publicly
+visible does not grant any of these rights.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE. The Software
+is an educational simulation, not a medical device, and must not be used for
+diagnosis or treatment.
+
+Third-party components, which remain under their own licences:
+- Three.js r128 and OrbitControls, Copyright 2010-2021 Three.js Authors, MIT
+  licence (vendor/THREE-LICENSE.txt).
+- Heart anatomy: Rodero C, Strocchi M, Marciniak M, et al. "Virtual cohort of
+  extreme and average four-chamber heart meshes from statistical shape model."
+  Zenodo (2021), doi:10.5281/zenodo.4593739, CC BY 4.0
+  (https://creativecommons.org/licenses/by/4.0/). The mesh was voxelized,
+  decimated and re-oriented.

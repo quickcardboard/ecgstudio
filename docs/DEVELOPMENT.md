@@ -320,3 +320,16 @@ Model fixes for subendocardial ischemia:
 - No late APD prolongation in subendocardial ischemia: prolonging the inner wall only
   steepened the normal transmural gradient, giving T waves 2–4× too tall at 2 days.
 - Remaining: the inferior patch deepens the inferior q to ~30 ms, 0.2–0.3 mV with R kept.
+
+### Round 16: share links, ECG export, offline build, licence
+
+- Share (top bar) copies a link whose `#` part holds the scenario: `r` rate, `a` arrhythmia,
+  `v` AF/flutter ventricular rate, `b` blocks (`SITE.type`), `o` occluded coronary nodes, `se`
+  subendocardial cells, `h` hours, `s` structure flags, `ap` accessory pathway. Every field is
+  validated against the app's own lists. With blocks or ischemia, 2.6 s of healthy rhythm run
+  first so the interpretation has the heart's normal beat for comparison.
+- Save PNG (ECG pane) downloads the tracing with the interpretation above it and a
+  "simulated, not a patient record" stamp.
+- Three.js r128 and OrbitControls are vendored (`vendor/`) and inlined: the app runs offline.
+- `site.json` holds the author, contact and year shown in Help → About and the page metadata;
+  the build stamps the version (date + commit). `LICENSE`: all rights reserved.

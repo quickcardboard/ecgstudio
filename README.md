@@ -6,7 +6,7 @@ computed live from a CT-derived four-chamber heart: block a fascicle, occlude a 
 artery or start a tachycardia, and watch the wavefront change in 3D while the 12 leads
 redraw on standard ECG paper.
 
-It runs entirely in the browser as a single self-contained file. No install, no account,
+It runs entirely in the browser as a single self-contained file, offline too. No install, no account,
 no data leaves the device.
 
 ## What you can do
@@ -29,6 +29,9 @@ no data leaves the device.
 - **Explore the anatomy:** rotate the heart, cut it open in four-chamber, lateral or short-axis
   views, show lead vectors and the live heart vector, and colour cells by their electrical state.
 
+- **Share and save:** the Share button copies a link that reopens the exact scenario; Save PNG
+  downloads the ECG with its interpretation.
+
 Works on desktop, tablets and phones (landscape).
 
 ## How it works
@@ -43,8 +46,8 @@ ECG. Model choices and validation against textbook values are in
 
 ## Running it
 
-Open `index.html` in a modern browser. The file (≈4.7 MB) loads Three.js r128 and
-OrbitControls from a CDN; everything else is inlined.
+Open `index.html` in a modern browser. It is one self-contained file (≈5.5 MB): Three.js r128 and
+OrbitControls are inlined too (`vendor/`), so it works offline.
 
 ## Layout
 
@@ -55,6 +58,8 @@ src/template.html  page shell and styles
 src/anatomy.json   generated voxel grid + surfaces + landmarks
 src/torso_leadfield.json  limb-lead fields of the insulated torso (tools/torso_leadfield.py)
 tools/             build + validation scripts
+vendor/            Three.js r128 + OrbitControls (MIT), inlined by the build
+site.json          author, contact and year shown in Help → About and the page metadata
 index.html         built single-file app (python3 tools/build.py)
 ```
 
@@ -76,3 +81,8 @@ doi:10.5281/zenodo.4593739, licensed CC BY 4.0. The mesh was voxelized, decimate
 re-oriented; the conduction system and electrophysiology are LiveHeart's own.
 
 LiveHeart is an educational model, not a diagnostic device.
+
+## Licence
+
+Copyright (c) 2026 YOUR NAME. All rights reserved. See [LICENSE](LICENSE). Three.js (MIT) and the
+anatomy (CC BY 4.0) remain under their own licences.
