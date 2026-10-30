@@ -11,7 +11,7 @@
   const ERASE = 140;         // ms blank gap ahead of the sweep cursor
   const SCALES = [0.02, 0.05, 0.1, 0.2, 1 / 3, 0.5, 1];
   const SCALE_LABEL = ['1/50×', '1/20×', '1/10×', '1/5×', '1/3×', '1/2×', '1×'];
-  const MAX_STEPS_PER_FRAME = 40;   // a slow frame drops simulated time instead of catching up (no stutter spiral)
+  const MAX_STEPS_PER_FRAME = 250;   // a slow frame drops simulated time instead of catching up (no stutter spiral)
 
   // Tissue state colours (linear RGB 0..1): spec — pink resting, blue
   // depolarizing, green repolarizing; the conduction system rests in gold.
@@ -46,7 +46,7 @@
     $('loading').hidden = true;
     // handle for automation (tests, future quiz mode): simulator, model and a projector
     window.LiveHeartApp = {
-      get sim() { return S; }, model: M, perf,
+      get sim() { return S; }, model: M, perf, quality: Q,
       ischemia: {
         occlude(node) { captureRef(); const id = S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
         subendo(cell, r = 55) { captureRef(); const id = S.addSubendocardial(cell, r); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
@@ -114,7 +114,10 @@
     S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae });
     S.setAccessoryPathway(ui.struct.ap || null);
     S.setDualAVN(ui.struct.dual);
+    if (ui.struct.peri) S.setPericarditis(true);
+    if (ui.struct.brugada) S.setBrugada(true);
     if (!keepEcg) for (const b of ecg.buf) b.fill(NaN);
+    ecg.full = true;
     if (g3.apMark) placeAPMarker();
     const t0 = ecg.t0;
     S.onSample((t, L) => { const i = (t + t0) % PAGE; for (let k = 0; k < 12; k++) ecg.buf[k][i] = L[k]; });
@@ -128,25 +131,47 @@
   // ---------------------------------------------------------------------------
   let interpTimer = 0;
   const perf = { frames: 0, steps: 0, tSim: 0, t3d: 0, tEcg: 0 };
+  // Adaptive quality: the simulation and the ECG keep real time first. If the
+  // simulation falls behind (slow machine, large window), the 3D view is drawn
+  // less often (down to ~15 fps) and then at a lower resolution; it recovers
+  // when there is headroom again.
+  const Q = { every: 1, dpr: Math.min(1.5, window.devicePixelRatio || 1), lag: 0, ok: 0, frame: 0 };
+  function adaptQuality(behind) {
+    Q.lag = behind ? Q.lag + 1 : 0; Q.ok = behind ? 0 : Q.ok + 1;
+    if (Q.lag > 10) {
+      Q.lag = 0;
+      if (Q.every < 4) Q.every++;
+      else if (Q.dpr > 0.75) { Q.dpr = Math.max(0.75, Q.dpr - 0.25); g3.renderer.setPixelRatio(Q.dpr); resize3D(); }
+    } else if (Q.ok > 240) {
+      Q.ok = 0;
+      const maxDpr = Math.min(1.5, window.devicePixelRatio || 1);
+      if (Q.dpr < maxDpr) { Q.dpr = Math.min(maxDpr, Q.dpr + 0.25); g3.renderer.setPixelRatio(Q.dpr); resize3D(); }
+      else if (Q.every > 1) Q.every--;
+    }
+  }
   function loop(now) {
-    const dt = Math.min(100, now - ui.last); ui.last = now;
+    const raw = now - ui.last, dt = Math.min(250, raw); ui.last = now;
     if (ui.ischPending !== null) { S.setIschemiaTime(ui.ischPending); ui.ischPending = null; recolorIschemia(); interpret(true); }
+    // frames slower than ~30 fps (GPU-bound 3D included) count as falling behind
+    let behind = raw > 34;
     if (!ui.paused) {
       ui.acc += dt * SCALES[ui.scaleIdx];
       let n = Math.floor(ui.acc); ui.acc -= n;
-      if (n > MAX_STEPS_PER_FRAME) { n = MAX_STEPS_PER_FRAME; ui.acc = 0; }
+      if (n > MAX_STEPS_PER_FRAME) { n = MAX_STEPS_PER_FRAME; ui.acc = 0; behind = true; }
       const t0 = performance.now();
-      // frame budget: the QRS costs several times a diastolic step, so stop at
-      // ~9 ms and carry the rest into the next frames (caught up in diastole)
+      // budget: the QRS costs several times a diastolic step; past ~28 ms the
+      // rest carries into the next frames (caught up in diastole)
       for (let i = 0; i < n; i++) {
         S.step();
-        if ((i & 3) === 3 && performance.now() - t0 > 9) { ui.acc = Math.min(ui.acc + n - i - 1, 120); break; }
+        if ((i & 3) === 3 && performance.now() - t0 > 60) { ui.acc = Math.min(ui.acc + n - i - 1, 150); behind = true; break; }
       }
+      if (ui.acc > 60) behind = true;
       perf.tSim += performance.now() - t0; perf.steps += n;
       checkAvnrt();
+      adaptQuality(behind);
     }
     const t1 = performance.now();
-    update3D();
+    if (++Q.frame % Q.every === 0 || ui.paused) update3D();
     const t2 = performance.now();
     drawECG();
     perf.t3d += t2 - t1; perf.tEcg += performance.now() - t2; perf.frames++;
@@ -161,7 +186,7 @@
   function init3D() {
     const canvas = $('c3d');
     const R = g3.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    R.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    R.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
     R.localClippingEnabled = true;
     R.setClearColor(0x13202b, 1);
     const scene = g3.scene = new THREE.Scene();
@@ -993,14 +1018,9 @@
   }
 
   function updateActionNote() {
-    const cut = ui.view !== 'external';
-    $('actionNote').textContent = ui.action === 'block'
-      ? (cut ? 'Click the SA node, AV node, His bundle, a bundle branch or a fascicle to choose a block.'
-        : 'Cut the heart open (Cut slider below) to reach the conduction system. The SA node (white dot) can be clicked now.')
-      : ui.action === 'ischemia'
-        ? 'Click a coronary artery to occlude it there.' + (cut ? ' Click muscle on the cut face for subendocardial ischemia.' : ' Cut the heart open (Cut slider below) to click muscle for subendocardial ischemia.')
-        : ui.action === 'stimulate' ? 'Click the atria for a PAC or the ventricles for a PVC. A well-timed PAC can start AVNRT (or AVRT with an accessory pathway); a PVC on the T wave of an acutely ischemic heart starts VF.'
-          : 'Drag to turn the heart. Clicks on the heart do nothing in this tab.';
+    const note = { stimulate: 'Click on the heart to stimulate an ectopic beat', block: 'Click on the conduction system to block', ischemia: 'Click on a coronary artery or the endocardium to start ischemia' }[ui.action];
+    $('actionNote').hidden = !note || ui.tab === 'learn';
+    $('actionNote').textContent = note || '';
   }
 
   // pointer handling on the 3D canvas: a click (not a drag) acts
@@ -1142,7 +1162,6 @@
     ui.tab = t; ui.action = t === 'blocks' ? 'block' : t === 'ischemia' ? 'ischemia' : t === 'rhythm' ? 'stimulate' : 'none';
     for (const p of document.querySelectorAll('#controls .tabpanel')) p.hidden = p.dataset.panel !== t;
     $('controls').classList.toggle('wide', t === 'learn');
-    $('actionNote').hidden = t === 'learn';
     toggleControls(true);
     if (t === 'learn') renderLearn();
     updateActionNote(); hideBlockMenu();
@@ -1159,7 +1178,7 @@
     ui.rateMode = mode;
     if (vent) {
       if (ui.vRate) S.setVentricularResponse(ui.vRate);
-      const v = S.vResponse || (arr === 'af' ? LH.DEFAULTS.afDefaultRate : 170);
+      const v = S.vResponse || (arr === 'af' ? LH.DEFAULTS.afDefaultRate : 145);
       $('rateLab').textContent = 'Ventricular rate'; r.min = 30; r.max = 180; r.value = v; $('rateVal').textContent = `${Math.round(v)} bpm`;
     } else {
       $('rateLab').textContent = atr ? 'Atrial rate' : 'Sinus rate'; r.min = 30; r.max = 180; r.value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`;
@@ -1244,7 +1263,7 @@
     PAPER.rowH = Math.min(52, Math.max(27, (H / mmCss - 4) / NR));
     PAPER.h = NR * PAPER.rowH + 4;
     const mm = mmCss * dpr;
-    ecg.mm = mm; ecg.W = W * dpr; ecg.H = H * dpr;
+    ecg.mm = mm; ecg.W = W * dpr; ecg.H = H * dpr; ecg.full = true;
     ecg.ox = (ecg.W - PAPER.w * mm) / 2; ecg.oy = (ecg.H - PAPER.h * mm) / 2;
     // grid aligned to the paper origin, covering the whole canvas
     const g = ecg.grid.getContext('2d');
@@ -1300,22 +1319,48 @@
     }
   }
 
+  // The paper is drawn incrementally: each frame restores the grid only over
+  // the slice the cursor swept since the last frame (plus the blank gap ahead
+  // of it) and draws that slice of every row. Time maps to the same x in every
+  // row (the four 2.5-s columns run on at 25 mm/s), so one band covers them all.
+  // A full redraw happens only after a resize, a strip change or a new run.
   function drawECG() {
     if (!ecg.mm) return;
     const ctx = ecg.ctx, mm = ecg.mm;
-    ctx.drawImage(ecg.grid, 0, 0);
-    const cursor = (S.t + ecg.t0) % PAGE;
-    ctx.strokeStyle = '#111'; ctx.lineWidth = Math.max(1.1, 0.32 * mm); ctx.lineJoin = 'round';
-    ctx.beginPath();
-    for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
-      const k = LH.LEADS.indexOf(LAYOUT[r][c]);
-      trace(ctx, ecg.buf[k], c * 2500, (c + 1) * 2500, ecg.ox + (PAPER.left + c * 62.5) * mm, rowBase(r), cursor);
+    const cursor = Math.floor((S.t + ecg.t0) % PAGE);
+    if (ecg.full) {
+      ctx.drawImage(ecg.grid, 0, 0);
+      drawRange(ctx, 0, PAGE, cursor);
+      ecg.full = false;
+    } else {
+      const last = ecg.lastCursor;
+      if (cursor === last) return;
+      const a = Math.max(0, last - 3);
+      if (cursor > last) { clearRange(a, cursor + ERASE); drawRange(ctx, a, cursor + 1, cursor); }
+      else { clearRange(a, PAGE); drawRange(ctx, a, PAGE, cursor); clearRange(0, cursor + ERASE); drawRange(ctx, 0, cursor + 1, cursor); }
+      if (cursor + ERASE > PAGE) clearRange(0, cursor + ERASE - PAGE);
     }
-    ui.strips.forEach((n, i) => trace(ctx, ecg.buf[LH.LEADS.indexOf(n)], 0, PAGE, ecg.ox + PAPER.left * mm, rowBase(3 + i), cursor));
-    ctx.stroke();
-    // sweep cursor
+    ecg.lastCursor = cursor;
+    // sweep cursor (wiped with the next slice)
     const x = ecg.ox + (PAPER.left + cursor * 0.025) * mm;
     ctx.fillStyle = 'rgba(194,48,79,0.18)'; ctx.fillRect(x, ecg.oy, Math.max(2, 0.6 * mm), PAPER.h * mm);
+  }
+  const xOfT = (t) => ecg.ox + (PAPER.left + t * 0.025) * ecg.mm;
+  function clearRange(ta, tb) {
+    const x0 = Math.max(0, Math.floor(xOfT(ta))), x1 = Math.min(ecg.W, Math.ceil(xOfT(Math.min(tb, PAGE))) + Math.ceil(0.6 * ecg.mm) + 2);
+    if (x1 > x0) ecg.ctx.drawImage(ecg.grid, x0, 0, x1 - x0, ecg.H, x0, 0, x1 - x0, ecg.H);
+  }
+  function drawRange(ctx, ta, tb, cursor) {
+    ctx.strokeStyle = '#111'; ctx.lineWidth = Math.max(1.1, 0.32 * ecg.mm); ctx.lineJoin = 'round';
+    ctx.beginPath();
+    tb = Math.min(tb, PAGE);
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+      const s0 = Math.max(ta, c * 2500), s1 = Math.min(tb, (c + 1) * 2500);
+      if (s1 <= s0) continue;
+      trace(ctx, ecg.buf[LH.LEADS.indexOf(LAYOUT[r][c])], s0, s1, xOfT(s0), rowBase(r), cursor);
+    }
+    ui.strips.forEach((n, i) => trace(ctx, ecg.buf[LH.LEADS.indexOf(n)], ta, tb, xOfT(ta), rowBase(3 + i), cursor));
+    ctx.stroke();
   }
 
   // ---------------------------------------------------------------------------
@@ -1495,6 +1540,8 @@
     rae: { t: 'Right atrial enlargement', f: ['Tall peaked P ≥ 0.25 mV (2.5 mm) in II, III, aVF ("P pulmonale"); P duration normal.'], p: [] },
     lae: { t: 'Left atrial enlargement', f: ['Broad P ≥ 120 ms, notched in II with the humps ≥ 40 ms apart ("P mitrale").', 'Deep, broad negative terminal P in V1 (≥ 1 mm × 1 mm).'], p: [] },
     wpw: { t: 'Wolff–Parkinson–White pattern', f: ['Short PR (< 120 ms), delta wave (slurred QRS upstroke), QRS > 110 ms.', 'Secondary ST/T changes opposite to the delta wave.', 'Delta-wave polarity localises the pathway (e.g. negative delta in I/aVL: left lateral).'], p: ['Delta waves can mimic Q waves (pseudo-infarction) and hide in some leads: look in all twelve.'] },
+    peri: { t: 'Acute pericarditis', f: ['Diffuse concave ST elevation across many territories (I, II, aVL, aVF, V2–V6), with ST depression in aVR (and often V1).', 'PR-segment depression (PR elevation in aVR) from the inflamed atria.', 'No Q waves, no reciprocal depression outside aVR/V1; ST elevation often larger in II than in III. Sinus tachycardia is common.'], p: ['STEMI has territorial ST elevation with reciprocal depression and often convex ST: compare the distribution.', 'Early repolarisation can look similar; the ST/T ratio in V6 > 0.25 favours pericarditis.'] },
+    brugada: { t: 'Brugada syndrome (type 1)', f: ['Coved ST elevation ≥ 2 mm (J point) in V1–V2, descending into a negative T wave.', 'Often an rSR′ or a terminal r′ in V1; limb leads usually normal.', 'Only type 1 is diagnostic; higher V1–V2 placement (2nd–3rd intercostal space) can unmask it.'], p: ['Fever and sodium-channel blockers accentuate the pattern; RBBB, pectus excavatum and high-K can mimic it.'] },
     adenosine: { t: 'Adenosine', f: ['Transient AV-nodal block for seconds: P or flutter waves continue without QRS complexes.'], p: [] },
   };
   const ISCH_TEACH = {
@@ -1506,8 +1553,7 @@
   };
   function learnHTML(snap) {
     const s = snap || {}, B = s.B || {}, keys = [], ischK = [];
-    const arr = s.arr, r = Math.round(s.rate || 0), esc = (x) => x;
-    const reg = s.rrSd !== undefined ? s.rrSd < 40 : true;
+    const arr = s.arr;
     if (arr && TEACH[arr]) keys.push(arr);
     else if (s.avnrt) keys.push('avnrt'); else if (s.avrt) keys.push('avrt');
     else if (s.avComplete) keys.push('complete', 'escape');
@@ -1523,28 +1569,15 @@
     if (s.nPAC || s.nBlockedPAC) keys.push('pac'); if (s.nPVC) keys.push('pvc');
     if (S.adenosine) keys.push('adenosine');
     const st = ui.struct || {};
-    if (S.ap) keys.push('wpw'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae');
+    if (S.ap) keys.push('wpw'); if (st.peri) keys.push('peri'); if (st.brugada) keys.push('brugada'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae');
     if (S.insults.length) {
       const sub = S.insults.every((x) => x.kind === 'subendo'), h = ui.ischH;
       if (sub) ischK.push('subendo');
       else { if (h < 0.5) ischK.push('hyper'); if (h >= 0.5 && h < 100) ischK.push('stemi'); if (h >= 3 && h < 300) ischK.push('evolving'); if (h >= 300) ischK.push('old'); }
     }
-    const v = (x) => `<span class="val">${x}</span>`, flag = (x, bad) => bad ? `<span class="flag">${x}</span>` : x;
-    const steps = [];
-    if (arr === 'vf') steps.push('No organised QRS complexes: rate, PR and axis cannot be measured.');
-    else if (s.rate) {
-      steps.push(`<b>Rate</b> ${v(r + ' bpm')}${s.dissociated && s.aRate ? ` (atria ${v(Math.round(s.aRate) + '/min')})` : ''}. ${reg ? `Regular: 300 ÷ large squares between R waves (here ≈ ${(300 / r).toFixed(1)} squares).` : 'Irregular: count the QRS complexes in the 10-s strip and multiply by 6.'} ${r < 60 ? 'Below 60: bradycardia.' : r > 100 ? 'Above 100: tachycardia.' : 'Normal 60–100.'}`);
-      steps.push(`<b>Rhythm</b> ${reg ? 'regular' : flag('irregular', true)} (RR spread ${Math.round(s.rrSd || 0)} ms). ${arr === 'af' ? 'No P waves and no pattern to the irregularity: irregularly irregular.' : s.avComplete ? 'P waves and QRS complexes keep their own rates: AV dissociation.' : 'Check that every P is followed by a QRS and every QRS preceded by a P.'}`);
-      if (arr !== 'af' && arr !== 'flutter' && arr !== 'vt') steps.push(`<b>P wave and PR</b> ${s.avComplete ? 'PR varies at random (no AV conduction).' : s.prVar ? `PR varies ${v(Math.round(Math.min(...s.PRs)) + '–' + Math.round(Math.max(...s.PRs)) + ' ms')}.` : s.PR ? `PR ${v(Math.round(s.PR) + ' ms')} ${s.PR > 200 ? flag('(long, > 200 ms)', true) : s.PR < 120 ? flag('(short, < 120 ms: pre-excitation or a low atrial/junctional focus?)', true) : '(normal 120–200 ms)'}.` : 'No P wave before the QRS.'} Look at P in II (upright, ≤ 2.5 mm tall, < 120 ms wide) and V1 (biphasic).`);
-      steps.push(`<b>QRS</b> ${v(Math.round(s.QRS) + ' ms')} ${s.QRS >= 120 ? flag('broad (≥ 120 ms): bundle branch block, ventricular origin or pre-excitation', true) : s.QRS >= 110 ? 'borderline (110–119 ms: incomplete block or fascicular block)' : 'narrow (< 110 ms): the ventricles are activated through the normal His–Purkinje system'}. Check R-wave progression V1→V6 (transition around V3–V4) and look for Q waves.`);
-      steps.push(`<b>Axis</b> ${v((s.axis > 0 ? '+' : '') + s.axis + '°')} (${s.axisTxt}${s.rbbOnly ? ', LV forces' : s.axisWin === 60 ? ', first 60 ms' : ''}). Quick method: QRS mostly positive in I and aVF = normal; positive in I, negative in aVF: check II (negative = left axis deviation, < −30°); negative in I = right axis deviation.`);
-      steps.push(`<b>ST, T and Q</b> ${s.findings && s.findings.length ? 'see the findings under the rhythm: ' + s.findings.slice(0, 3).join('; ') + '.' : 'ST at baseline; T upright where the QRS is upright (normally inverted only in aVR and often V1); no pathological Q waves.'} Normal T: ≤ 5 mm in limb leads, ≤ 10 mm in chest leads, smaller than the R wave.`);
-      steps.push(`<b>QT</b> ${v(Math.round(s.QT) + ' ms')}, QTc ${v(Math.round(s.QTc) + ' ms')} (Bazett) ${s.QTc > 460 ? flag('long (> 450 men, > 460 women)', true) : '(normal < 450–460)'}. Rule of thumb: the QT should be less than half the RR interval.`);
-    }
     const sec = (title, list) => list.length ? `<h4>${title}</h4><ul>${list.map((x) => `<li>${x}</li>`).join('')}</ul>` : '';
     const items = keys.map((k) => TEACH[k]).filter(Boolean).concat(ischK.map((k) => ISCH_TEACH[k]));
-    return `<p class="now">${esc(s.rhythm || 'Reading…')}</p>`
-      + (steps.length ? `<h4>Read this ECG step by step</h4><ol>${steps.map((x) => `<li>${x}</li>`).join('')}</ol>` : '')
+    return `<p class="now">${s.rhythm || 'Reading…'}</p>`
       + items.map((it) => sec(`Key features: ${it.t}`, it.f)).join('')
       + sec('Pitfalls', items.flatMap((it) => it.p));
   }
@@ -1618,6 +1651,15 @@
       if (sok >= 3.5 || (corn >= 2.8 && !domR)) out.push(`Left ventricular hypertrophy by voltage (Sokolow–Lyon ${sok.toFixed(1)} mV, Cornell ${corn.toFixed(1)} mV)${strainLat ? ' with repolarization abnormality (strain)' : ''}`);
       if (domR) out.push(`Right ventricular hypertrophy: dominant R in V1 (R ${m.V1.rMax.toFixed(2)} mV)${['V1', 'V2'].every((n) => m[n].t < -0.1) ? ' with T inversion in V1–V2 (RV strain)' : ''}`);
     }
+    // pericarditis: diffuse ST elevation, ST depression in aVR, PR depression (PR segment against TP)
+    const steLeads = ['I', 'II', 'III', 'aVL', 'aVF', 'V2', 'V3', 'V4', 'V5', 'V6'].filter((n) => m[n].st >= 0.08);
+    if (steLeads.length >= 5 && m.aVR.st <= -0.05 && !S.insults.length) {
+      const prDep = ab ? at(1, Math.floor(vb.on) - 10) - at(1, Math.floor(ab.on) - 15) : 0;
+      out.push(`Diffuse ST elevation (${steLeads.join(', ')}) with ST depression in aVR${prDep <= -0.05 ? ` and PR depression in II (${prDep.toFixed(2)} mV)` : ''}: acute pericarditis pattern`);
+    }
+    // Brugada type 1: coved J-point elevation ≥ 2 mm in V1–V2 ending in a negative T wave
+    const cov = ['V1', 'V2'].filter((n) => { const k = L_IDX[n], b0 = at(k, qrsBaseT(vb)), J = S.beatEnds(vb).last + 6; return at(k, J + 10) - b0 >= 0.2 && at(k, vb.on + 300) - b0 < -0.05; });
+    if (cov.length) out.push(`Coved ST elevation ≥ 2 mm with T inversion in ${cov.join(', ')}: Brugada type 1 pattern`);
     return out;
   }
 
@@ -1752,7 +1794,17 @@
       if (ui.leads && g3.camera.position.length() < 600) { g3.camera.position.setLength(660); g3.controls.update(); }
     });
     $('btnPause').addEventListener('click', () => { ui.paused = !ui.paused; $('btnPause').textContent = ui.paused ? 'Resume' : 'Pause'; });
-    $('btnReset').addEventListener('click', () => { ui.avnrt = null; newSim(); renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); syncRate(); });
+    // Reset: normal sinus rhythm at 72 bpm with no abnormalities
+    $('btnReset').addEventListener('click', async () => {
+      ui.avnrt = null; ui.preAtrRate = null; ui.vRate = null;
+      ui.rate = 72; $('rate').value = 72;
+      const prev = heartKey(), rebuild = ui.struct.lvh || ui.struct.rvh;
+      Object.assign(ui.struct, { rae: false, lae: false, lvh: false, rvh: false, ap: '', peri: false, brugada: false });
+      for (const id of ['stRAE', 'stLAE', 'stLVH', 'stRVH', 'stPeri', 'stBrugada']) $(id).checked = false;
+      $('stAP').value = ''; placeAPMarker();
+      if (rebuild) await rebuildHeart(prev); else newSim();
+      renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); ui.rateMode = ''; syncRate();
+    });
     $('ischTime').addEventListener('input', (e) => {
       ui.ischH = ISCH_STOPS[+e.target.value][0]; $('ischVal').textContent = fmtHours(ui.ischH); $('ischStage').textContent = ischStage(ui.ischH);
       ui.ischPending = ui.ischH;                                  // applied once per frame
@@ -1770,6 +1822,8 @@
     for (const b of $('arrButtons').querySelectorAll('button')) b.addEventListener('click', () => { startRhythm(b.dataset.arr); syncRate(); interpret(); });
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); });
     $('btnShock').addEventListener('click', () => { ui.avnrt = null; S.shock(); syncRate(); interpret(); });
+    $('stPeri').addEventListener('change', (e) => { ui.struct.peri = e.target.checked; S.setPericarditis(ui.struct.peri); interpret(); });
+    $('stBrugada').addEventListener('change', (e) => { ui.struct.brugada = e.target.checked; S.setBrugada(ui.struct.brugada); interpret(); });
     $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
     $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); recolorIschemia(); renderIschList(); interpret(true); });
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
@@ -1781,8 +1835,12 @@
     initStrips();
     g3.controls.addEventListener('change', () => { if (ui.view === 'cutaway') g3.planeDirty = true; });
     if (window.matchMedia(PHONE).matches) toggleControls(false);   // start collapsed on phones
-    $('btnGuide').addEventListener('click', () => { $('guide').hidden = false; });
+    $('btnHelp').addEventListener('click', () => { $('guide').hidden = false; });
     $('guideClose').addEventListener('click', () => { $('guide').hidden = true; });
+    for (const b of document.querySelectorAll('#guide .toc button')) b.addEventListener('click', () => {
+      for (const x of document.querySelectorAll('#guide .toc button')) x.setAttribute('aria-selected', String(x === b));
+      for (const pg of document.querySelectorAll('#guide .hpage')) pg.hidden = pg.dataset.page !== b.dataset.page;
+    });
     $('guide').addEventListener('click', (e) => { if (e.target.id === 'guide') $('guide').hidden = true; });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('guide').hidden = true; });
 

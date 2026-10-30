@@ -53,6 +53,10 @@ header.top { display: flex; align-items: center; gap: 14px; min-height: 36px; }
 .brand h1 b { color: var(--accent); font-weight: 600; }
 .brand span { color: var(--muted); font-size: 12.5px; }
 .top .spacer { flex: 1; }
+.simctl { display: flex; align-items: center; gap: 8px; }
+.simctl .tsrow { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.simctl input { width: 110px; accent-color: var(--accent); }
+.simctl .val { font: 500 12.5px/1 var(--font-data); min-width: 3.2em; color: var(--fg); }
 button, .seg label {
   font: 500 13px/1 var(--font-ui); color: inherit; background: var(--surface); border: 1px solid var(--line);
   border-radius: 6px; padding: 7px 11px; cursor: pointer;
@@ -232,8 +236,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .sheet .src { font-size: 12px; color: var(--muted); }
 .sheet .close { float: right; }
 .toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
-.toc a { font-size: 12.5px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--fg); text-decoration: none; }
-.toc a:hover { border-color: var(--muted); }
+.toc button { font-size: 12.5px; padding: 5px 11px; border-radius: 999px; }
+.toc button[aria-selected="true"] { background: var(--fg); color: var(--surface); border-color: var(--fg); }
+.hpage { min-height: 260px; }
 .sheet h3 { scroll-margin-top: 12px; }
 #loading .sheet { max-width: 360px; text-align: center; }
 #loadMsg { color: var(--muted); }
@@ -257,7 +262,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   .brand h1 { font-size: 17px; }
   .brand span { display: none; }
   .viewsw { display: flex; }
-  #btnGuide { padding: 6px 9px; font-size: 12px; }
+  #btnHelp, .simctl button { padding: 6px 9px; font-size: 12px; }
+  .simctl .lab { display: none; }
+  .simctl input { width: 70px; }
   #divider, #focus3d, #focusEcg { display: none; }
   #pane3d, #paneEcg { flex: 1 1 auto; }
   body:not(.show-ecg) #paneEcg, body.show-ecg #pane3d { display: none; }
@@ -298,7 +305,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <button type="button" role="tab" data-pane="heart" aria-selected="true">Heart</button><button type="button" role="tab" data-pane="ecg" aria-selected="false">ECG</button>
     </div>
     <div class="spacer"></div>
-    <button id="btnGuide" type="button">User guide</button>
+    <div class="simctl" role="group" aria-label="Simulation">
+      <label class="tsrow" for="timescale"><span class="lab">Speed</span>
+        <input id="timescale" type="range" min="0" max="6" step="1" value="6" aria-label="Time scale">
+        <span class="val" id="tsVal">1×</span></label>
+      <button id="btnPause" type="button">Pause</button>
+      <button id="btnReset" type="button">Reset</button>
+    </div>
+    <button id="btnHelp" type="button">Help</button>
   </header>
 
   <main id="split">
@@ -365,6 +379,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
                 <label class="tog" for="stLAE" title="Left atrial enlargement"><input type="checkbox" id="stLAE"><span>LAE</span></label>
                 <label class="tog" for="stLVH" title="Left ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stLVH"><span>LVH</span></label>
                 <label class="tog" for="stRVH" title="Right ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stRVH"><span>RVH</span></label>
+                <label class="tog" for="stPeri" title="Acute pericarditis"><input type="checkbox" id="stPeri"><span>Pericarditis</span></label>
+                <label class="tog" for="stBrugada" title="Brugada syndrome, type 1 pattern"><input type="checkbox" id="stBrugada"><span>Brugada</span></label>
               </div>
             </div>
             <div class="ctl">
@@ -380,17 +396,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           <section class="tabpanel" data-panel="learn" hidden>
             <div class="learn" id="learn"><p class="note">Reading the ECG…</p></div>
           </section>
-        </div>
-        <div class="foot">
-          <div class="ctl tsrow">
-            <span class="lab">Speed</span>
-            <input id="timescale" type="range" min="0" max="6" step="1" value="6" aria-label="Time scale">
-            <span class="val" id="tsVal">1×</span>
-          </div>
-          <div class="btnrow">
-            <button id="btnPause" type="button">Pause</button>
-            <button id="btnReset" type="button">Reset</button>
-          </div>
         </div>
       </div>
 
@@ -454,64 +459,50 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 <div class="overlay" id="guide" hidden>
   <div class="sheet" role="dialog" aria-labelledby="guideTitle">
     <button class="close" id="guideClose" type="button">Close</button>
-    <h2 id="guideTitle">Using LiveHeart</h2>
-    <nav class="toc" aria-label="Guide sections">
-      <a href="#g-start">Getting started</a><a href="#g-view">Heart view</a><a href="#g-tabs">Control tabs</a><a href="#g-rhythm">Rhythms</a><a href="#g-isch">Ischemia</a><a href="#g-ecg">ECG panel</a><a href="#g-about">About</a>
+    <h2 id="guideTitle">Help</h2>
+    <nav class="toc" role="tablist" aria-label="Help pages">
+      <button type="button" role="tab" data-page="start" aria-selected="true">Getting started</button><button type="button" role="tab" data-page="view" aria-selected="false">View controls</button><button type="button" role="tab" data-page="tabs" aria-selected="false">Control tabs</button><button type="button" role="tab" data-page="about" aria-selected="false">About</button>
     </nav>
-
-    <h3 id="g-start">Getting started</h3>
-    <p>LiveHeart computes the ECG forward from a beating heart. Activation spreads through about 37,000 tissue cells, each with its own action potential, and the twelve leads are calculated from the electrical field those cells produce. Every wave on the paper comes from the simulated tissue.</p>
-    <ul>
-      <li><b>Left:</b> the heart. <b>Right:</b> a standard 12-lead layout (2.5 s per column) with up to three 10-s rhythm strips, written by a sweeping cursor.</li>
-      <li>Drag the divider to resize the two sides, or press <b>Expand</b> on either side; double-click the divider to return to 50/50.</li>
-      <li><b>On a phone</b> (landscape only) the Heart | ECG switch at the top shows one pane at a time. From iPad mini size up both panes show, stacked when the tablet is held upright.</li>
-      <li><b>Speed</b> slows the whole simulation down to 1/50 of real time so you can follow the wavefront; <b>Pause</b> freezes it; <b>Reset</b> restarts from rest and clears blocks and ischemia.</li>
-    </ul>
-
-    <h3 id="g-view">The heart view</h3>
-    <ul>
-      <li><b>Colours:</b> pink tissue is resting, blue depolarizing, green repolarizing; purple is ischemic and grey necrotic. Toggle the colour key with <b>Legend</b>. The current view (for example "cutaway · anterior (four-chamber)") is named just above the view bar.</li>
-      <li><b>External ↔ Cut:</b> click either word to jump, or drag the slider between them. A cut plane facing you slides from outside the heart to its middle; the heart can be turned at any depth and the cut keeps facing you. Once cut, the conduction system shows (SA node, AV node, His bundle, bundle branches and fascicles; the Purkinje network runs but is not drawn).</li>
-      <li><b>Anterior, Lateral, Apex</b> turn the camera: Anterior looks along the four-chamber direction, Apex gives the short axis.</li>
-      <li><b>Labels</b> names chambers and vessels (and the conduction system when cut). <b>Leads</b> draws the limb-lead hexaxial reference (amber), the chest electrodes V1–V6 with their lead vectors (blue) and the live heart vector (white): when the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
-    </ul>
-
-    <h3 id="g-tabs">Control tabs</h3>
-    <p>The tabs sit in the top row of the heart view. Clicking a tab opens its panel; clicking the open tab again hides the panel. The open tab also decides what a click on the heart does.</p>
-    <ul>
-      <li><b>Rhythm:</b> the rate slider and the arrhythmia buttons (see Rhythms). A click on atrial tissue gives a premature atrial complex (PAC), on ventricular tissue a PVC; tissue that is still refractory does not capture.</li>
-      <li><b>Blocks:</b> cut the heart open, then click part of the conduction system and choose a block. SA node: SA exit block, sinus pause, sinus arrest. AV node: 1st-degree, Mobitz I (Wenckebach), 2:1, complete. His bundle: Mobitz II, complete. Each bundle branch and fascicle can be blocked. Blocked segments turn red (orange for partial blocks) and are listed for removal. Escape rhythms appear only when conduction above them is lost: junctional (about 48 bpm) or ventricular (about 40 bpm).</li>
-      <li><b>Ischemia:</b> click a coronary artery to occlude it there, or (with the heart cut) click ventricular muscle on the cut face for a subendocardial patch. The time slider moves every insult along its course (see Ischemia).</li>
-      <li><b>Structure:</b> atrial enlargement (RAE, LAE), ventricular hypertrophy (LVH, RVH) and an accessory pathway (WPW) at a chosen site. Hypertrophy rebuilds the heart with a thicker wall: a few seconds the first time, immediate afterwards. Clicks on the heart do nothing here, so it can be turned freely.</li>
-      <li><b>Learn:</b> a step-by-step reading of the ECG on screen, with this beat's measured rate, PR, QRS, axis and QT, the key features of every condition present, and common pitfalls. It updates as the rhythm or settings change.</li>
-    </ul>
-
-    <h3 id="g-rhythm">Rhythms and arrhythmias</h3>
-    <ul>
-      <li><b>Rate slider:</b> the sinus rate (30–180 bpm). The rhythm stays sinus at every rate; the name follows the source, not the rate. It sets the atrial rate in ectopic atrial rhythm and MAT, and the ventricular rate in AF (mean of an irregular response) and flutter (the conduction ratio).</li>
-      <li><b>AF:</b> many atrial foci at random short cycle lengths; the AV node lets through an irregularly irregular response. With an accessory pathway, AF can conduct over it (pre-excited AF).</li>
-      <li><b>Flutter:</b> re-entry around the tricuspid annulus, slow through the cavotricuspid isthmus, up the septum and down the free wall (typical, counterclockwise), about 330–360/min with 2:1 or variable conduction.</li>
-      <li><b>Ectopic atrial rhythm:</b> one focus low in the right atrium replaces the sinus node at the set rate: P inverted in II, III and aVF, short PR.</li>
-      <li><b>MAT:</b> four atrial foci take turns irregularly, so each P differs (below 100 bpm: wandering atrial pacemaker).</li>
-      <li><b>AVNRT:</b> every heart has dual AV-node pathways. As in an EP study, PACs are delivered after sinus beats, each 20 ms more premature (280 down to 160 ms), until one blocks in the fast pathway, conducts down the slow one and returns up the fast one.</li>
-      <li><b>AVRT:</b> selects the left lateral accessory pathway and delivers a timed PAC: down the AV node, back up the pathway (orthodromic), retrograde P just after each QRS. By hand: click the left atrium about 240–320 ms after a P wave starts.</li>
-      <li><b>VT:</b> one ventricular site fires at about 180/min: wide monomorphic QRS with AV dissociation. <b>VF:</b> many ventricular foci fire chaotically.</li>
-      <li><b>Adenosine</b> blocks the AV node for about 3 s after a 1 s delay: it ends AVNRT and AVRT and exposes flutter or fibrillatory waves. <b>Shock</b> depolarizes all excitable tissue at once, ending any re-entry.</li>
-      <li>Sustained arrhythmias start only from the buttons or their natural triggers: a well-timed PAC (AVNRT, AVRT), or a PVC on the T wave of an acutely ischemic heart (VF, 15 min to 2 days after onset).</li>
-    </ul>
-
-    <h3 id="g-isch">Ischemia and infarction</h3>
-    <ul>
-      <li><b>Arteries:</b> the left main dividing into the LAD and circumflex, and the right coronary artery giving the posterior descending artery (right-dominant). Side branches (diagonals, marginals, septal perforators) are not drawn; their territories belong to the point where they leave the main vessel, so the more proximal the occlusion, the larger the infarct. A yellow marker shows the occlusion and the vessel beyond it turns grey.</li>
-      <li><b>Time course</b> (an occlusion that is not reperfused): <b>15 min</b> hyperacute T waves; <b>1 h</b> maximal ST elevation over the territory with reciprocal depression; <b>4 h</b> necrosis advancing from endocardium to epicardium, Q waves starting; <b>12 h</b> Q waves established, ST elevation still clear; <b>2 days</b> ST elevation partly resolved, deep T inversion over the infarct; <b>1 month</b> ST at baseline, Q waves and T inversion persisting.</li>
-      <li><b>Nodal arteries:</b> a proximal RCA occlusion also slows the sinus node and lengthens the PR (an occlusion beyond the crux affects only the AV node), recovering over days.</li>
-      <li><b>Subendocardial patch:</b> injury confined to the inner wall gives ST depression (with ST elevation in aVR) and no Q waves: the NSTEMI pattern.</li>
-    </ul>
-
-    <h3 id="g-ecg">Reading the ECG panel</h3>
-    <p>The rhythm line comes from the simulator's own state (which pacemaker fired, which blocks are set). The measurements and findings are read off the ECG the way a reader would: ST at J + 20 and J + 40 ms against the PR segment, with the STEMI thresholds (0.1 mV in two contiguous leads, 0.15 mV in V2–V3); pathological Q waves (≥ 30 ms and ≥ 0.1 mV, or ≥ 40 ms) and T waves judged against this heart's own healthy beat. PR, QRS and QT come from tissue activation and repolarization; QTc uses Bazett's formula; the axis comes from the QRS areas in I and aVF. Choose up to three rhythm-strip leads under the findings.</p>
-
-    <h3 id="g-about">About</h3>
+    <section class="hpage" data-page="start">
+      <h3>Getting started</h3>
+      <p>LiveHeart computes the ECG forward from a beating heart. Activation spreads through about 37,000 tissue cells, each with its own action potential, and the twelve leads are calculated from the electrical field those cells produce. Every wave on the paper comes from the simulated tissue.</p>
+      <ul>
+        <li><b>Left:</b> 3D electrophysiologically animated model of the heart.</li>
+        <li><b>Right:</b> a standard 12-lead layout with up to three 10-s rhythm strips, written by a sweeping cursor.</li>
+        <li>Drag the divider to resize the two sides, or press <b>Expand</b> on either side.</li>
+        <li><b>Mobile</b> (landscape only): the Heart | ECG switch at the top shows one pane at a time.</li>
+        <li><b>Simulation controls:</b>
+          <ul>
+            <li><b>Speed</b> slows the whole simulation down to 1/50 of real time.</li>
+            <li><b>Pause</b> freezes the animation.</li>
+            <li><b>Reset</b> returns to normal sinus rhythm at 72 bpm with no abnormalities.</li>
+          </ul>
+        </li>
+      </ul>
+    </section>
+    <section class="hpage" data-page="view" hidden>
+      <h3>View controls</h3>
+      <ul>
+        <li><b>External ↔ Cut:</b> click either word to jump, or drag the slider between them. A cut plane facing you slides from outside the heart to its middle.</li>
+        <li><b>Anterior, Lateral, Apex</b> turn the camera to the predetermined view.</li>
+        <li><b>Labels:</b> toggles structural labels on and off.</li>
+        <li><b>Leads:</b> toggles lead direction references on and off.</li>
+        <li><b>Legend:</b> toggles the colour legend panel.</li>
+      </ul>
+    </section>
+    <section class="hpage" data-page="tabs" hidden>
+      <h3>Control tabs</h3>
+      <p>Clicking a tab toggles its panel. The open tab also decides what a click on the heart does.</p>
+      <ul>
+        <li><b>Rhythm:</b> adjust the heart rate and toggle persistent arrhythmias. Click on the heart to stimulate an ectopic beat.</li>
+        <li><b>Blocks:</b> only useful during a cutaway view. Click on the conduction system to start a block.</li>
+        <li><b>Ischemia:</b> click a coronary artery to occlude it there, or (with the heart cut) click ventricular muscle on the cut face for a subendocardial patch. Use the time slider to see progression of the injury.</li>
+        <li><b>Structure:</b> add structural abnormalities with the toggles.</li>
+        <li><b>Learn:</b> a review of the key features of this ECG and common pitfalls.</li>
+      </ul>
+    </section>
+    <section class="hpage" data-page="about" hidden>
+      <h3>About</h3>
     <ul>
       <li><b>Anatomy:</b> the average adult four-chamber heart of Rodero et al. (2021), built from CT scans and voxelized at 2 mm. The left ventricular free wall is thickened by about 6 mm and the heart is placed in the chest with its apex behind the 5th intercostal space.</li>
       <li><b>Electrophysiology:</b> an event-driven cellular automaton with fibre-dependent conduction, AV-node decrement, restitution, transmural and apicobasal repolarization gradients, and a conduction system (SA node, AV node with dual pathways, His bundle, bundle branches, two left fascicles, Purkinje networks).</li>
@@ -519,7 +510,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> LiveHeart is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-    <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
+      <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
+    </section>
   </div>
 </div>
 

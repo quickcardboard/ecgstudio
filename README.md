@@ -244,6 +244,27 @@ re-entry.
   With the apicobasal APD gradient at +20 ms (`apdVentApexExtra`): I 0.48, II 0.61, III 0.30, aVF 0.43, aVR −0.51 mV;
   V3 0.38, V4 0.57 mV (V2 and V6 somewhat small, 0.14–0.15 mV). LVH strain and RVH patterns unchanged.
 
+### Round 11
+
+- **Real time on slower machines:** the ECG paper is drawn incrementally (only the slice swept since the last frame,
+  ~0.1 ms/frame instead of a full redraw), the simulation runs first with a 60 ms budget and up to 250 steps per
+  frame, and the 3D view adapts: when frames run slower than ~30 fps it is drawn every 2nd–4th frame and then at a
+  lower pixel ratio (1.5 → 0.75), recovering when there is headroom. Headless software rendering: 0.43× → ~0.95× real time.
+- **Pericarditis** (Structure): injured epicardium (outer 30% of the LV wall, RV and atrial epicardium; depolarised,
+  lower or sagging plateau): diffuse ST elevation 0.1–0.27 mV (I, II, aVF, V2–V5), ST depression in aVR, PR depression
+  in II (−0.1 mV) with PR elevation in aVR. Read as "acute pericarditis pattern".
+- **Brugada type 1** (Structure): RV outflow epicardium under V1–V2 loses its AP dome (plateau starts at 20% and climbs
+  back: per-cell plateau slope) and repolarises 50% later: coved J-point elevation ~0.4 mV in V2 descending into a
+  negative T (V1 0.15 mV → −0.22 mV). Read as "Brugada type 1 pattern".
+- **Flutter:** the circuit turned at the atrial refractory limit (~400/min). While flutter runs the atrial
+  refractory floor is 185 ms: 291/min with 2:1 conduction (145 bpm).
+- **AV-nodal ischaemia** (proximal RCA) lengthens nodal refractoriness and closes the slow pathway: first-degree AV block
+  instead of the spontaneous AVNRT that scrubbing the time slider used to start.
+- **Subendocardial ischaemia:** the RV patch now works (inner layers of the thin RV wall, half severity); injury
+  scaled to textbook ST depression (0.1–0.4 mV). aVR elevation is −(I + II)/2 of the ST depression in I and II.
+- **UI:** short tab instructions; Speed, Pause, Reset in the page header; Reset also clears structural changes and
+  returns to 72 bpm; Help (renamed) in separate pages; Learn keeps key features and pitfalls only.
+
 ## Layout
 
 ```

@@ -164,7 +164,7 @@
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
     apdVentApexExtra: 20,  // apicobasal APD gradient (+: apex longer; sized so limb-lead T stays within textbook height)
     apdRVoffset: 30,
-    apdAtrial: 190, apdMinAtrial: 135,
+    apdAtrial: 190, apdMinAtrial: 135, flutterApdMin: 185,
     apdPurk: 340,
     apdBundle: 360,        // His bundle, LBB and fascicles
     apdRBB: 400,           // right bundle branch: longest refractoriness
@@ -207,7 +207,7 @@
     ischInjuryOnset: 0.15, // hours before the injury current starts (the first minutes show hyperacute T only)
     ischInjuryH: 0.6,      // hours for the injury current (resting depolarisation) to develop
     ischApdShort: 0.45, ischApdLate: 0.9, ischLateH: 3,
-    ischSubendoGain: 1.6, subendoSpanPhi: 1.6, subendoSpanZ: 0.5,  // demand ischaemia: the inner wall is the most severely injured
+    ischSubendoGain: 1.6, subendoInj: 0.6, subendoRVGain: 0.5, subendoSpanPhi: 1.6, subendoSpanZ: 0.5,  // demand ischaemia: the inner wall is the most severely injured
     ischStResolve: 0.6,    // subendocardial: fraction of the injury current gone by 8 h
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
@@ -215,11 +215,13 @@
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
+    pericardDepth: 0.7, pericardDv: 14, pericardAmpDrop: 0.25, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
+    brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
     ischBlockInj: 0.7,     // injury level above which living ischaemic muscle (after 2 h) no longer conducts
     ischHaloMm: 10, ischHaloLate: 0.45,   // zone of ischaemia around the infarct: width (mm) and late APD prolongation (T inversion)
     ischNecrosisH: 5.6,    // hours for necrosis to advance from endocardium to epicardium
     ischUncouple: 0.7,     // fraction of necrotic/living coupling lost early on (all of it once the scar forms)
-    ischSanSlow: 0.25, ischAvnSlow: 1.2,
+    ischSanSlow: 0.25, ischAvnSlow: 1.2, ischAvnErp: 0.6,
 
     // Automaticity (cycle lengths, ms)
     sinusRate: 72,
@@ -1268,6 +1270,10 @@
       this._assignParams();
       if (!opts.noMemory && this.P.electrotonicK > 0) this._electrotonicMemory();
       this.apdMax0 = this.apdMax.slice(); this.vAmp0 = this.vAmp.slice();               // healthy values, restored when ischemia changes
+      this.vRest0 = this.vRest.slice();
+      this.pDecl = new Float32Array(N).fill(this.P.plateauDecline);                       // per-cell plateau slope (Brugada: delayed dome)
+      this._apdBase = this.apdMax0.slice(); this._vAmpBase = this.vAmp0.slice();           // before pericarditis / Brugada
+      this.pericarditis = false; this.brugada = false;
       this.insults = []; this.ischemiaHours = 0; this._ischCells = new Set(); this._nextInsult = 1;
       // ECG bookkeeping. Cells in upstroke or repolarisation are summed
       // explicitly ("dynamic" list); cells on the plateau have Vm linear in t
@@ -1433,7 +1439,8 @@
       for (const c of this.M.avn) {
         this.cvMul[c] = tone * (this.avnBlockMul || 1) * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
         // nodal refractoriness also follows autonomic tone (vagal lengthens, sympathetic shortens)
-        if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone;
+        // (AV-nodal ischaemia also lengthens nodal refractoriness: 1st-degree block, Wenckebach)
+        if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone * (1 + this.P.ischAvnErp * (this._avnIschemia || 0));
       }
       // slow pathway: same autonomic coupling, short refractoriness; open only
       // with dual AV-node physiology and no AV-nodal block
@@ -1441,7 +1448,8 @@
         this.cvMul[c] = tone * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
         if (this.erpExtra) this.erpExtra[c] = this.P.slowPathErpExtra * tone;
         if (this.cvK) this.cvK[c] = this.P.slowPathCvK;
-        this.blocked[c] = this.dualAVN && !this.blocks.AVN ? 0 : 1;
+        // (an ischaemic AV node conducts no slow-pathway echoes: inferior MI gives AV block, not AVNRT)
+        this.blocked[c] = this.dualAVN && !this.blocks.AVN && !(this._avnIschemia > 0.05) ? 0 : 1;
       }
     }
     setDualAVN(on) { this.dualAVN = !!on; this._applyAvn(); }
@@ -1534,9 +1542,60 @@
         if (dp < this.P.subendoSpanPhi && Math.abs(A.zuvc[c] - z0) < this.P.subendoSpanZ) aff[c] = 1;
       }
       const ins = this._makeInsult('subendo', aff, radiusMm * 0.45);
+      if (L === LAB.RV) for (let q = 0; q < ins.sev.length; q++) ins.sev[q] *= this.P.subendoRVGain;   // thin, low-pressure RV: milder demand ischaemia
       ins.cell = cell;
       return this._addInsult(ins);
     }
+    // ---- Pericarditis and Brugada syndrome ------------------------------------
+    // Acute pericarditis: the inflamed epicardium (outer ventricular layer and
+    // the atrial epicardium) is injured: depolarised at rest and with a lower
+    // plateau. The injury current points outward everywhere: diffuse ST
+    // elevation with ST depression in aVR (and V1), and PR depression from the
+    // atrial injury current (PR elevation in aVR).
+    // Brugada type 1: the right-ventricular outflow-tract epicardium loses the
+    // dome of its action potential (Ito-mediated) and repolarises late: coved
+    // ST elevation in V1–V2 descending into a negative T wave.
+    setPericarditis(on) { this.pericarditis = !!on; this._applyMyocardialDisease(); }
+    setBrugada(on) { this.brugada = !!on; this._applyMyocardialDisease(); }
+    _applyMyocardialDisease() {
+      const M = this.M, A = M.A, P = this.P;
+      // Brugada substrate: the anterior RV outflow epicardium under V1–V2
+      // (the RV epicardial cell nearest the V1–V2 midpoint, in the torso frame)
+      if (!this._brugadaC) {
+        const e1 = M.electrodes.V1, e2 = M.electrodes.V2, mid = [0, 1, 2].map((i) => (e1[i] + e2[i]) / 2);
+        let best = -1, bd = Infinity;
+        for (let c = 0; c < M.nVox; c++) if (A.label[c] === LAB.RV && A.epi[c]) { const t = M.toTorso(A.p(c)); const d = Math.hypot(t[0] - mid[0], t[1] - mid[1], t[2] - mid[2]); if (d < bd) { bd = d; best = c; } }
+        this._brugadaC = A.p(best);
+      }
+      const puv = this._brugadaC;
+      for (let c = 0; c < M.nVox; c++) {
+        const k = M.kind[c]; if (!k) continue;
+        let amp = 1, apd = 1, dv = 0;
+        if (k === KIND.VENT) {
+          const outer = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (A.tm[c] - P.pericardDepth) / (1 - P.pericardDepth)));
+          if (this.pericarditis && outer > 0) { dv += P.pericardDv * outer; amp *= 1 - P.pericardAmpDrop * outer; }
+          if (this.brugada && A.label[c] === LAB.RV && A.epi[c]) {
+            const d = Math.hypot(A.pos[3 * c] - puv[0], A.pos[3 * c + 1] - puv[1], A.pos[3 * c + 2] - puv[2]);
+            const w = Math.max(0, Math.min(1, (P.brugadaMm - d) / 8));
+            amp *= 1 - P.brugadaDomeLoss * w; apd *= 1 + P.brugadaApdLong * w;
+          }
+          // notch with a delayed dome: the plateau starts low and climbs back to
+          // near-normal height (negative slope), so the ST gap closes into a coved shape
+          this.pDecl[c] = amp < 1 && this.brugada && A.label[c] === LAB.RV ? 1 - (1 - P.plateauDecline) / amp : P.plateauDecline;
+          this.vAmp0[c] = this._vAmpBase[c] * amp; this.apdMax0[c] = this._apdBase[c] * apd;
+          if (!this._ischCells.has(c)) { this.vAmp[c] = this.vAmp0[c]; this.apdMax[c] = this.apdMax0[c]; }
+        } else if (k === KIND.ATRIAL) {
+          // inflamed atrial epicardium: depolarised, with a sagging plateau (atrial injury current → PR depression)
+          const on = this.pericarditis && A.epi[c];
+          if (on) dv += P.pericardAtrialDv;
+          this.pDecl[c] = on ? P.pericardAtrialDecline : P.plateauDecline;
+        }
+        this.vRest0[c] = P.vRest + dv;
+        if (!this._ischCells.has(c)) this.vRest[c] = this.vRest0[c];
+      }
+      this._applyIschemia();
+    }
+
     removeInsult(id) { this.insults = this.insults.filter((x) => x.id !== id); this._applyIschemia(); }
     clearIschemia() { this.insults = []; this._applyIschemia(); }
     setIschemiaTime(h) { this.ischemiaHours = h; this._applyIschemia(); }
@@ -1594,7 +1653,7 @@
       // minutes: K-ATP APD shortening (hyperacute T), gone once the cells have died or recovered (~1 day)
       const katp = sm(h / P.ischKatpH) * (1 - sm((h - 6) / 18));
       // injury current: develops over half an hour, eases after a few hours, gone by ~2 days (ST back to baseline)
-      const inj = Math.min(1, s * (kind === 'subendo' ? P.ischSubendoGain : 1)) * sm((h - P.ischInjuryOnset) / P.ischInjuryH)
+      const inj = Math.min(1, s * (kind === 'subendo' ? P.ischSubendoGain : 1)) * (kind === 'subendo' ? P.subendoInj : 1) * sm((h - P.ischInjuryOnset) / P.ischInjuryH)
         * (kind === 'subendo' ? (1 - P.ischStResolve * sm((h - 3) / 5)) * (1 - sm((h - 12) / 30)) : stResidual(h));
       let apd = 1 - P.ischApdShort * s * katp;
       // prolonged repolarisation in the surviving border: T inversion from ~6 h, deepest at 1–3 days,
@@ -1624,12 +1683,16 @@
       const M = this.M, A = M.A, P = this.P, h = this.ischemiaHours;
       const lvl = this.ischLevel || (this.ischLevel = new Float32Array(A.n));   // display: 0 healthy, (0,1] ischaemic, 2 necrotic
       for (const c of this._ischCells) {                                     // restore healthy values
-        lvl[c] = 0; this.apdMax[c] = this.apdMax0[c]; this.vRest[c] = P.vRest; this.vAmp[c] = this.vAmp0[c]; this.cvMul[c] = 1; this.blocked[c] = 0;
+        lvl[c] = 0; this.apdMax[c] = this.apdMax0[c]; this.vRest[c] = this.vRest0[c]; this.vAmp[c] = this.vAmp0[c]; this.cvMul[c] = 1; this.blocked[c] = 0;
       }
       this._ischCells = new Set();
       const best = new Map();                                                // strongest insult per cell
       for (const ins of this.insults) for (let q = 0; q < ins.cells.length; q++) {
-        const c = ins.cells[q], st = this._ischemicState(ins.sev[q], A.tm[c] < 0 || A.label[c] === LAB.RV ? 0.5 : A.tm[c], h, ins.kind);   // (the thin RV wall dies through its thickness)
+        // transmural depth: the thin RV wall has none in the model; occlusions treat
+        // it as mid-wall (it dies through its thickness), subendocardial patches
+        // take its inner layers (everything off the epicardial surface)
+        const c = ins.cells[q], rv = A.label[c] === LAB.RV, tm = rv ? (ins.kind === 'subendo' ? (A.epi[c] ? 1 : 0.05) : 0.5) : A.tm[c] < 0 ? 0.5 : A.tm[c];
+        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind);
         if (!st) continue;
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);
@@ -1885,7 +1948,10 @@
       // diastolic interval since previous repolarisation
       const DI = ta - this.repEnd[c];
       let apd = this.apdMax[c] * (1 - P.restA * Math.exp(-Math.max(DI, 0) / P.restTau));
-      if (apd < P.apdMinAtrial && this.M.kind[c] === KIND.ATRIAL) apd = P.apdMinAtrial;   // atrial refractoriness floor (~150 ms at the fastest rates)
+      // atrial refractoriness floor at the fastest rates; in flutter the circuit
+      // turns with an excitable gap at ~200 ms (≈300/min), not at the refractory limit of AF
+      const apdMinA = this._flutterGate ? P.flutterApdMin : P.apdMinAtrial;
+      if (apd < apdMinA && this.M.kind[c] === KIND.ATRIAL) apd = apdMinA;
       this.tAct[c] = ta; this.apd[c] = apd;
       this.repEnd[c] = ta + apd;
       this.refEnd[c] = ta + apd * P.erpFrac + this.erpExtra[c];
@@ -1996,7 +2062,7 @@
       let up = 1; if (s < uw) { const x = s / uw; up = x * x * (3 - 2 * x); }
       let rep = 1; const r0 = apd - 0.5 * w;
       if (s > r0) { const x = (s - r0) / w; rep = 1 - x * x * (3 - 2 * x); }
-      const pl = 1 - this.P.plateauDecline * (s < apd ? s / apd : 1);
+      const pl = 1 - this.pDecl[c] * (s < apd ? s / apd : 1);
       return vr + this.vAmp[c] * up * pl * rep;
     }
 
@@ -2021,7 +2087,7 @@
       const M = this.M, NE = M.NE, o = c * NE, W = this.W;
       let k0 = 0, k1 = 0;
       if (piece === 1) {                                     // plateau
-        const A = this.vAmp[c], p = this.P.plateauDecline, apd = this.apd[c];
+        const A = this.vAmp[c], p = this.pDecl[c], apd = this.apd[c];
         k0 = A * (1 + p * this.tAct[c] / apd); k1 = A * p / apd;
       } else if (piece >= 2) {                               // repolarisation segment piece − 2
         const ta = this._segT(c, piece - 2), tb = this._segT(c, piece - 1), va = this.vm(c, ta) - this.vRest[c], vb = this.vm(c, tb) - this.vRest[c];
