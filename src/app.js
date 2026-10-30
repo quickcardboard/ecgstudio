@@ -100,7 +100,7 @@
     }
     placeAPMarker(); recolorIschemia();
     const v = ui.view; setView(v);
-    renderBlockList(); setIschTime(0); renderIschList(); ui.ref = null;
+    renderBlockList(); setIschTime(0); renderIschList(); ui.ref = null; ui.normalAxis = undefined;
     $('rebuildNote').hidden = true; syncRate();
   }
 
@@ -1341,7 +1341,14 @@
     let aI = 0, aF = 0; const t0 = Math.floor(vb.on), tJ = Math.ceil(vb.last + 6), b = (k, t) => ecg.buf[k][bufIdx(t)];
     const lin = (k, t) => b(k, t0) + (b(k, tJ) - b(k, t0)) * (t - t0) / (tJ - t0);
     for (let t = t0; t <= Math.ceil(vb.on + axisWin); t++) { aI += b(0, t) - lin(0, t); aF += b(5, t) - lin(5, t); }
-    const axis = Math.round(Math.atan2(aF, aI) * 180 / Math.PI);
+    let axis = Math.round(Math.atan2(aF, aI) * 180 / Math.PI);
+    // Isolated RBBB leaves the LV forces, and so the frontal axis, unchanged;
+    // in this model the missing early RV forces still tilt the first 60 ms,
+    // so the axis shown is that of the heart's own conducted (LV) beat.
+    const plain = !Object.keys(B).length && !S.arrhythmia && !S.ap && !S.insults.length;
+    if (plain && V.length > 2) ui.normalAxis = axis;
+    const rbbOnly = B.RBB && !B.LBB && !B.LAF && !B.LPF && !escapeOnly && !S.ap && !S.insults.length;
+    if (rbbOnly && ui.normalAxis !== undefined) axis = ui.normalAxis;
 
     // ---- rhythm (ground truth)
     const recentFires = S.fireLog.filter((f) => f.t > S.t - 10000);
@@ -1420,7 +1427,7 @@
       arr === 'af' || arr === 'flutter' || arr === 'vt' ? '' : avrt ? chip('RP', (() => { const a = Aa.find((x) => x.on > vb.on); return a ? `${Math.round(a.on - vb.on)} ms (retrograde P)` : '—'; })()) : chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
       chip('QRS', `${Math.round(QRS)} ms`, QRS >= 120),
       chip('QT/QTc', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 460),
-      chip(axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
+      chip(rbbOnly && ui.normalAxis !== undefined ? 'Axis (LV forces)' : axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
     const f = tachy ? [] : structFindings(vb).concat(ischFindings(vb));
     $('findings').innerHTML = f.map((x, i) => `<li${i === 0 && x.head ? ' class="head"' : ''}>${x.text || x}</li>`).join('');
@@ -1531,7 +1538,9 @@
     const isQ = (v) => v.qDur >= 30 && v.qAmp <= -0.1;
     // QS: the initial R has shrunk to ≤1 mm (from ≥2 mm) and the complex is mainly negative
     const isQS = (n) => ref && ref[n].r40 >= 0.2 && m[n].r40 < 0.1 && m[n].s >= 0.3 && m[n].s > 2 * m[n].rMax;
-    const Q = order(new Set(LH.LEADS.filter((n) => n !== 'aVR' && ((isQ(m[n]) && !was(n, isQ)) || isQS(n)))));
+    // new: absent from the healthy beat, or at least 0.2 mV deeper than its physiological q
+    const newQ = (n) => isQ(m[n]) && (!was(n, isQ) || (ref && m[n].qAmp < ref[n].qAmp - 0.2));
+    const Q = order(new Set(LH.LEADS.filter((n) => n !== 'aVR' && (newQ(n) || isQS(n)))));
     // R waves lost over the infarct (the precordial Q-wave equivalent)
     const rLoss = ref ? ['V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'I', 'aVL', 'II', 'III', 'aVF'].filter((n) => ref[n].rMax > 0.2 && m[n].rMax < 0.65 * ref[n].rMax && ref[n].rMax - m[n].rMax > 0.1 && !Q.includes(n)) : [];
     const rLossC = order(contiguous((n) => rLoss.includes(n)));

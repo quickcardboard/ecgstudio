@@ -118,9 +118,9 @@
     bachmannReach: 0.25,   // Bachmann insertion: fraction of the way SVC→LAA
     csPos: 0.45,           // CS-ostium interatrial connection: fraction CFB→IVC
     cvHis: 1.50,
-    cvBundle: 2.56,        // bundle branches and fascicles
+    cvBundle: 3.03,        // bundle branches and fascicles
     // Spec: conduction system ~3x faster than ventricular myocardium
-    cvPurkinje: 2.28,
+    cvPurkinje: 1.82,
     avnSegDelay: 17,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
     avnSegments: 5,
     slowPathSegments: 4, slowPathSegDelay: 42, slowPathErpExtra: 20, slowPathCvK: 1,   // dual AV-node pathways (AVNRT)
@@ -128,35 +128,36 @@
     // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
     wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
     avnToneExp: 0.45,      // AV-nodal delay ∝ (72/rate)^exp (autonomic coupling)
-    rbbSeptalFrac: 0.15,   // distal fraction of septal RBB giving off RV septal Purkinje
-    rbbSeptalDelay: 19.39,    // ms extra delay into the RV septal Purkinje
+    rbbSeptalFrac: 0,   // distal fraction of septal RBB giving off RV septal Purkinje
+    rbbSeptalDelay: 20.31,    // ms extra delay into the RV septal Purkinje
 
-    lafPhi: 2.28, lafZ: 0.63, lpfPhi: -1.87, lpfZ: 0.27, lsfPhi: 0.05, lsfZ: 0.42,
+    lafPhi: 2.75, lafZ: 0.54, lpfPhi: -2.23, lpfZ: 0.29, lsfPhi: 0.05, lsfZ: 0.42,
     septalFascicle: false,  // optional left septal fascicle (anatomically debated; off)
     fascConnectFrac: 0.59,  // distal fraction of LAF/LPF giving off Purkinje branches
     lbbSplitZ: 0.84, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
     septalTerrHalf: 0,    // half-width (rad) of the mid-septal Purkinje territory
     lbbSeptalFrac: 0,           // distal fraction of the LBB trunk giving off septal Purkinje
-    lpfApexZ: 0.21,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
-    lpfTerrLo: -1.88, lpfTerrHi: 0.46,  // LPF territory in rotational UVC (inferior/posterior wall)
+    lpfApexZ: 0.25,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
+    lpfTerrLo: -1.54, lpfTerrHi: 0.56,  // LPF territory in rotational UVC (inferior/posterior wall)
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
-    purkCrossSlow: 11.85,     // conduction-time factor on Purkinje links between fascicle territories
+    purkCrossSlow: 6.8,     // conduction-time factor on Purkinje links between fascicle territories
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
     precordialGain: 0.625,        // overall chest-lead gain
-    sigmaRatio: 8.42,          // intracellular conductivity along:across fibres (1 = isotropic sources)
+    sigmaRatio: 6,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
-    heartPitch: -4.6,          // degrees about the left–right axis (+ tips the anterior wall upward)
-    heartRotation: 17.4,    // degrees about the AP axis (+ = more vertical heart)
-    apexX: 72, apexY: -20,  // apex position in the chest (mm from midline / from V4 level)
+    heartPitch: -23.1,          // degrees about the left–right axis (+ tips the anterior wall upward)
+    heartRotation: 5.9,    // degrees about the AP axis (+ = more vertical heart)
+    apexX: 72, apexY: -34.83,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
-    purkZmaxLV: 0.96, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)
+    purkZmaxLV: 0.94, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)
     pmjAntero: 2,          // Purkinje -> muscle junction delay (ms)
     pmjRetro: 20,          // muscle -> Purkinje (retrograde) junction delay (ms)
     pmjRetroRV: 35,        // retrograde PMJ delay in the RV (thin wall, sparse junctions)
 
     // Action potential durations (ms) at long diastolic interval
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
+    atrialSourceGain: 0.6,  // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
     apdVentApexExtra: -20, // apex shorter than base (apex repolarises first)
@@ -1146,7 +1147,7 @@
     pairCoef(c, w, a, out) {
       const A = this.A, h = A.h, kc = this.kind[c];
       const { TF, tfSample, tfScale, E, axes, B, rhat, aniso, anorm, fwd } = this._lw;
-      let sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : 1;
+      let sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : this.P.atrialSourceGain;
       // hypertrophied myocytes carry more intracellular current (source
       // strength ∝ conductance); scaling the pair keeps uniform plateaus silent
       if (kc === KIND.VENT && (this.P.lvSourceGain !== 1 || this.P.rvSourceGain !== 1)) {

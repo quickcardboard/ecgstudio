@@ -116,6 +116,17 @@ heart's own healthy beat, and names the territory with STEMI thresholds.
 Limitations: the LAE V1 terminal negativity is shallow (the model's left atrium projects little onto V1), and the
 delta-wave polarity does not follow localisation algorithms for every site (the model's heart sits fairly vertical).
 
+### Heart orientation (revised)
+
+The long axis now lies ~42° below horizontal in the frontal plane (was 67°), tilted ~52° anteriorly
+(rotation +5.9°, pitch −23.1°, apex lower in the chest). The earlier vertical position was compensating for
+an over-strong fibre anisotropy of the sources (σ ratio 8.42), which by itself rotated the QRS axis ~55°
+superiorly; the effective source anisotropy is smaller than the intracellular ratio because the
+extracellular space is anisotropic too. With σ ratio 6, re-searched fascicle sites/territories
+(`tools/fasclocal.js`, ROT/PITCH bounds) and no right-bundle septal branches: normal +59°, LAFB −45°,
+LPFB +90°, LBBB +82°, RBBB+LAFB −82° (first 60 ms). Atrial sources ×0.6 keep P at 0.21 mV in II.
+For isolated RBBB the banner reports the axis of the conducted LV beat.
+
 ### Milestone 4: arrhythmias
 
 Buttons in the Arrhythmias panel, or click gestures (≥4 rapid clicks on the LA → AF, RA → flutter, ≥3 separate

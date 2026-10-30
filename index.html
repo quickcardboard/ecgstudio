@@ -558,9 +558,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     bachmannReach: 0.25,   // Bachmann insertion: fraction of the way SVC→LAA
     csPos: 0.45,           // CS-ostium interatrial connection: fraction CFB→IVC
     cvHis: 1.50,
-    cvBundle: 2.56,        // bundle branches and fascicles
+    cvBundle: 3.03,        // bundle branches and fascicles
     // Spec: conduction system ~3x faster than ventricular myocardium
-    cvPurkinje: 2.28,
+    cvPurkinje: 1.82,
     avnSegDelay: 17,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
     avnSegments: 5,
     slowPathSegments: 4, slowPathSegDelay: 42, slowPathErpExtra: 20, slowPathCvK: 1,   // dual AV-node pathways (AVNRT)
@@ -568,35 +568,36 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
     wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
     avnToneExp: 0.45,      // AV-nodal delay ∝ (72/rate)^exp (autonomic coupling)
-    rbbSeptalFrac: 0.15,   // distal fraction of septal RBB giving off RV septal Purkinje
-    rbbSeptalDelay: 19.39,    // ms extra delay into the RV septal Purkinje
+    rbbSeptalFrac: 0,   // distal fraction of septal RBB giving off RV septal Purkinje
+    rbbSeptalDelay: 20.31,    // ms extra delay into the RV septal Purkinje
 
-    lafPhi: 2.28, lafZ: 0.63, lpfPhi: -1.87, lpfZ: 0.27, lsfPhi: 0.05, lsfZ: 0.42,
+    lafPhi: 2.75, lafZ: 0.54, lpfPhi: -2.23, lpfZ: 0.29, lsfPhi: 0.05, lsfZ: 0.42,
     septalFascicle: false,  // optional left septal fascicle (anatomically debated; off)
     fascConnectFrac: 0.59,  // distal fraction of LAF/LPF giving off Purkinje branches
     lbbSplitZ: 0.84, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
     septalTerrHalf: 0,    // half-width (rad) of the mid-septal Purkinje territory
     lbbSeptalFrac: 0,           // distal fraction of the LBB trunk giving off septal Purkinje
-    lpfApexZ: 0.21,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
-    lpfTerrLo: -1.88, lpfTerrHi: 0.46,  // LPF territory in rotational UVC (inferior/posterior wall)
+    lpfApexZ: 0.25,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
+    lpfTerrLo: -1.54, lpfTerrHi: 0.56,  // LPF territory in rotational UVC (inferior/posterior wall)
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
-    purkCrossSlow: 11.85,     // conduction-time factor on Purkinje links between fascicle territories
+    purkCrossSlow: 6.8,     // conduction-time factor on Purkinje links between fascicle territories
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
     precordialGain: 0.625,        // overall chest-lead gain
-    sigmaRatio: 8.42,          // intracellular conductivity along:across fibres (1 = isotropic sources)
+    sigmaRatio: 6,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
-    heartPitch: -4.6,          // degrees about the left–right axis (+ tips the anterior wall upward)
-    heartRotation: 17.4,    // degrees about the AP axis (+ = more vertical heart)
-    apexX: 72, apexY: -20,  // apex position in the chest (mm from midline / from V4 level)
+    heartPitch: -23.1,          // degrees about the left–right axis (+ tips the anterior wall upward)
+    heartRotation: 5.9,    // degrees about the AP axis (+ = more vertical heart)
+    apexX: 72, apexY: -34.83,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
-    purkZmaxLV: 0.96, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)
+    purkZmaxLV: 0.94, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)
     pmjAntero: 2,          // Purkinje -> muscle junction delay (ms)
     pmjRetro: 20,          // muscle -> Purkinje (retrograde) junction delay (ms)
     pmjRetroRV: 35,        // retrograde PMJ delay in the RV (thin wall, sparse junctions)
 
     // Action potential durations (ms) at long diastolic interval
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
+    atrialSourceGain: 0.6,  // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
     apdVentApexExtra: -20, // apex shorter than base (apex repolarises first)
@@ -1586,7 +1587,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     pairCoef(c, w, a, out) {
       const A = this.A, h = A.h, kc = this.kind[c];
       const { TF, tfSample, tfScale, E, axes, B, rhat, aniso, anorm, fwd } = this._lw;
-      let sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : 1;
+      let sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : this.P.atrialSourceGain;
       // hypertrophied myocytes carry more intracellular current (source
       // strength ∝ conductance); scaling the pair keeps uniform plateaus silent
       if (kc === KIND.VENT && (this.P.lvSourceGain !== 1 || this.P.rvSourceGain !== 1)) {
@@ -2601,7 +2602,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     }
     placeAPMarker(); recolorIschemia();
     const v = ui.view; setView(v);
-    renderBlockList(); setIschTime(0); renderIschList(); ui.ref = null;
+    renderBlockList(); setIschTime(0); renderIschList(); ui.ref = null; ui.normalAxis = undefined;
     $('rebuildNote').hidden = true; syncRate();
   }
 
@@ -3842,7 +3843,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     let aI = 0, aF = 0; const t0 = Math.floor(vb.on), tJ = Math.ceil(vb.last + 6), b = (k, t) => ecg.buf[k][bufIdx(t)];
     const lin = (k, t) => b(k, t0) + (b(k, tJ) - b(k, t0)) * (t - t0) / (tJ - t0);
     for (let t = t0; t <= Math.ceil(vb.on + axisWin); t++) { aI += b(0, t) - lin(0, t); aF += b(5, t) - lin(5, t); }
-    const axis = Math.round(Math.atan2(aF, aI) * 180 / Math.PI);
+    let axis = Math.round(Math.atan2(aF, aI) * 180 / Math.PI);
+    // Isolated RBBB leaves the LV forces, and so the frontal axis, unchanged;
+    // in this model the missing early RV forces still tilt the first 60 ms,
+    // so the axis shown is that of the heart's own conducted (LV) beat.
+    const plain = !Object.keys(B).length && !S.arrhythmia && !S.ap && !S.insults.length;
+    if (plain && V.length > 2) ui.normalAxis = axis;
+    const rbbOnly = B.RBB && !B.LBB && !B.LAF && !B.LPF && !escapeOnly && !S.ap && !S.insults.length;
+    if (rbbOnly && ui.normalAxis !== undefined) axis = ui.normalAxis;
 
     // ---- rhythm (ground truth)
     const recentFires = S.fireLog.filter((f) => f.t > S.t - 10000);
@@ -3921,7 +3929,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       arr === 'af' || arr === 'flutter' || arr === 'vt' ? '' : avrt ? chip('RP', (() => { const a = Aa.find((x) => x.on > vb.on); return a ? `${Math.round(a.on - vb.on)} ms (retrograde P)` : '—'; })()) : chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
       chip('QRS', `${Math.round(QRS)} ms`, QRS >= 120),
       chip('QT/QTc', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 460),
-      chip(axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
+      chip(rbbOnly && ui.normalAxis !== undefined ? 'Axis (LV forces)' : axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
     const f = tachy ? [] : structFindings(vb).concat(ischFindings(vb));
     $('findings').innerHTML = f.map((x, i) => `<li${i === 0 && x.head ? ' class="head"' : ''}>${x.text || x}</li>`).join('');
@@ -4032,7 +4040,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const isQ = (v) => v.qDur >= 30 && v.qAmp <= -0.1;
     // QS: the initial R has shrunk to ≤1 mm (from ≥2 mm) and the complex is mainly negative
     const isQS = (n) => ref && ref[n].r40 >= 0.2 && m[n].r40 < 0.1 && m[n].s >= 0.3 && m[n].s > 2 * m[n].rMax;
-    const Q = order(new Set(LH.LEADS.filter((n) => n !== 'aVR' && ((isQ(m[n]) && !was(n, isQ)) || isQS(n)))));
+    // new: absent from the healthy beat, or at least 0.2 mV deeper than its physiological q
+    const newQ = (n) => isQ(m[n]) && (!was(n, isQ) || (ref && m[n].qAmp < ref[n].qAmp - 0.2));
+    const Q = order(new Set(LH.LEADS.filter((n) => n !== 'aVR' && (newQ(n) || isQS(n)))));
     // R waves lost over the infarct (the precordial Q-wave equivalent)
     const rLoss = ref ? ['V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'I', 'aVL', 'II', 'III', 'aVF'].filter((n) => ref[n].rMax > 0.2 && m[n].rMax < 0.65 * ref[n].rMax && ref[n].rMax - m[n].rMax > 0.1 && !Q.includes(n)) : [];
     const rLossC = order(contiguous((n) => rLoss.includes(n)));

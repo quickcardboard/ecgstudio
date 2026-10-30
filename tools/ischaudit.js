@@ -28,7 +28,7 @@ for (const site of sites) for (const h of hours) {
   const ste = L.filter((n) => m[n].st >= (n === 'V2' || n === 'V3' ? 0.15 : 0.1)), std = L.filter((n) => m[n].st <= -0.08);
   const isQ = (v) => v.qDur >= 30 && v.qAmp <= -0.1;
   const isQS = (n) => ref[n].r40 >= 0.2 && m[n].r40 < 0.1 && m[n].s >= 0.3 && m[n].s > 2 * m[n].rMax;
-  const Q = L.filter((n) => n !== 'aVR' && ((isQ(m[n]) && !isQ(ref[n])) || isQS(n)));
+  const Q = L.filter((n) => n !== 'aVR' && ((isQ(m[n]) && (!isQ(ref[n]) || m[n].qAmp < ref[n].qAmp - 0.2)) || isQS(n)));
   const rl = L.filter((n) => ref[n].rMax > 0.2 && m[n].rMax < 0.65 * ref[n].rMax && ref[n].rMax - m[n].rMax > 0.1);
   const twi = L.filter((n) => !['aVR', 'V1', 'III'].includes(n) && m[n].t < -0.1 && !(ref[n].t < -0.05));
   console.log(`${site.padEnd(5)} ${String(h).padStart(4)}h  STE[${ste.join(' ')}]  STD[${std.join(' ')}]  Q[${Q.join(' ')}]  Rloss[${rl.join(' ')}]  TWI[${twi.join(' ')}]  dead ${S.nDead}`);
