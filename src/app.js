@@ -73,12 +73,31 @@
     setLoading('Tuning repolarization to the sinus beat…'); await tick();
     newSim();
   }
-  async function rebuildHeart() {
-    $('loading').hidden = false;
-    await buildHeart();
-    setLoading('Building the 3D heart…'); await tick();
-    g3.inner.clear(); $('labels').innerHTML = '';
-    buildSurfaces(); buildConduction(); buildCoronaries(); buildCutPlane(); buildOverlays();
+  // Each hypertrophy configuration (anatomy, model and its 3D scene) is kept
+  // once built, so switching back to it is immediate.
+  const heartCache = new Map();
+  const G3_FIXED = new Set(['renderer', 'scene', 'camera', 'outer', 'inner', 'controls', 'planeDirty']);
+  const heartKey = () => `${+ui.struct.lvh}${+ui.struct.rvh}`;
+  function storeHeart(key) {
+    if (heartCache.has(key)) return;
+    const fields = {}; for (const k of Object.keys(g3)) if (!G3_FIXED.has(k)) fields[k] = g3[k];
+    heartCache.set(key, { A, M, fields, children: g3.inner.children.slice(), labels: [...$('labels').childNodes] });
+  }
+  async function rebuildHeart(prevKey) {
+    storeHeart(prevKey);
+    const hit = heartCache.get(heartKey());
+    g3.inner.clear();
+    if (hit) {
+      A = hit.A; M = hit.M; newSim();
+      Object.assign(g3, hit.fields); g3.inner.add(...hit.children); $('labels').replaceChildren(...hit.labels);
+    } else {
+      $('loading').hidden = false;
+      await buildHeart();
+      setLoading('Building the 3D heart…'); await tick();
+      $('labels').innerHTML = '';
+      buildSurfaces(); buildConduction(); buildCoronaries(); buildCutPlane(); buildOverlays();
+    }
+    placeAPMarker(); recolorIschemia();
     const v = ui.view; setView(v);
     renderBlockList(); setIschTime(0); renderIschList(); ui.ref = null;
     $('loading').hidden = true;
@@ -563,6 +582,24 @@
     const pL = pW.clone().applyMatrix4(inv), nL = dir.clone().transformDirection(inv);
     layCap(nL, pL);
     placeCutLabels(nL, pL, cam.position.clone().applyMatrix4(inv));
+    $('viewName').textContent = `cutaway · ${cutViewName(dir, nL)}`;
+  }
+
+  // Name the current cut from the viewing direction (world = torso frame:
+  // X patient left, Y superior, Z anterior): short axis when looking along the
+  // LV long axis, the four-chamber cut near the anterior preset, otherwise the
+  // side the heart is seen from.
+  function cutViewName(dir, nL) {
+    const ax = Math.abs(nL.dot(g3.lax));
+    if (ax > 0.85) return nL.dot(g3.lax) > 0 ? 'short axis (from the apex)' : 'short axis (from the base)';
+    if (nL.dot(g3.cutPresets.anterior.n) > 0.93) return 'anterior (four-chamber)';
+    const parts = [[dir.z, 'anterior', 'posterior'], [dir.x, 'left lateral', 'right lateral'], [dir.y, 'superior', 'inferior']]
+      .map(([v, pos, neg]) => ({ w: Math.abs(v), name: v > 0 ? pos : neg })).sort((a, b) => b.w - a.w);
+    if (parts[1].w > 0.45 * parts[0].w + 0.15) {
+      const n0 = parts[0].name, n1 = parts[1].name.replace(' lateral', '');
+      return `${n0.replace(' lateral', '')}–${n1}${/lateral/.test(n0 + parts[1].name) ? '' : ''} oblique`;
+    }
+    return parts[0].name;
   }
 
   function cutPreset(name) {
@@ -577,7 +614,6 @@
     const pW = pr.p.clone().applyMatrix4(mw);
     ui.cutDepth = Math.round(pW.dot(dir));
     $('cutDepth').value = ui.cutDepth; $('cutDepthVal').textContent = `${ui.cutDepth > 0 ? '+' : ''}${ui.cutDepth} mm`;
-    $('viewName').textContent = `cutaway · ${{ anterior: 'anterior (four-chamber)', lateral: 'lateral', short: 'short axis (from the apex)' }[name]}`;
     g3.planeDirty = true;
   }
 
@@ -1156,10 +1192,13 @@
     const V = S.log.vent.filter((b) => S.t > b.repEnd + 60), Aa = S.log.atrial;
     if (V.length < 2) return;
     const vb = V[V.length - 1];
-    const recent = V.filter((b) => b.on > S.t - 10000);
+    // orthodromic AVRT: every beat returns to the atria through the pathway
+    const apWin = (S.apLog || []).filter((x) => x.t > S.t - 3000);
+    const avrt = S.ap && apWin.filter((x) => x.dir === 'retrograde').length >= 4 && !apWin.some((x) => x.dir === 'antegrade');
+    const recent = V.filter((b) => b.on > S.t - (avrt ? 3000 : 10000));
     const rrs = recent.slice(1).map((b, i) => b.on - recent[i].on);
     const RR = rrs.length ? rrs.reduce((a, c) => a + c, 0) / rrs.length : vb.on - V[V.length - 2].on, rate = 60000 / RR;
-    const aRecent = Aa.filter((a) => a.on > S.t - 10000);
+    const aRecent = Aa.filter((a) => a.on > S.t - (avrt ? 3000 : 10000));
     const aRate = aRecent.length > 1 ? 60000 * (aRecent.length - 1) / (aRecent[aRecent.length - 1].on - aRecent[0].on) : 0;
     const prOf = (v) => { const a = Aa.filter((x) => x.on < v.on - 40 && x.on > v.on - 480).pop(); return a ? v.on - a.on : null; };
     const PRs = recent.map(prOf).filter((x) => x !== null);
@@ -1194,7 +1233,10 @@
     const distal = B.RBB && (B.LBB || (B.LAF && B.LPF));
     const avComplete = (B.AVN && B.AVN.type === 'complete') || (B.HIS && B.HIS.type === 'complete') || distal;
     let rhythm;
-    if (avComplete) {
+    if (avrt) {
+      const SITE = { 'left-lateral': 'left lateral', 'left-posterior': 'left posterior', posteroseptal: 'posteroseptal', 'right-free-wall': 'right free wall', 'right-anteroseptal': 'right anteroseptal' };
+      rhythm = `Orthodromic AVRT: down the AV node, back up the ${SITE[S.apLocation] || ''} accessory pathway (narrow QRS, no pre-excitation)`;
+    } else if (avComplete) {
       const esc = fired('idioventricular') ? 'idioventricular' : fired('ventricular') ? 'ventricular' : 'junctional';
       const level = distal && !(B.HIS && B.HIS.type === 'complete') && !(B.AVN && B.AVN.type === 'complete')
         ? (B.LBB ? ' (bilateral bundle branch block)' : ' (trifascicular block)') : '';
@@ -1208,7 +1250,7 @@
     else if (fired('junctional')) rhythm = 'Junctional escape rhythm';
     else if (fired('ventricular') || fired('idioventricular')) rhythm = 'Ventricular escape rhythm';
     else rhythm = sinusLabel(aRate || rate);
-    if ((B.AVN && B.AVN.type === 'first') || (!B.AVN && !avComplete && PR !== null && PR > 200 && !prVar)) rhythm += ' with 1st-degree AV block';
+    if ((B.AVN && B.AVN.type === 'first') || (!B.AVN && !avComplete && !avrt && PR !== null && PR > 200 && !prVar)) rhythm += ' with 1st-degree AV block';
     // ventricular conduction
     const iv = [];
     if (!avComplete) {
@@ -1228,7 +1270,7 @@
     if (nPAC) ect.push(`${nPAC} PAC${nPAC > 1 ? 's' : ''}`);
     if (nBlockedPAC) ect.push(`${nBlockedPAC} non-conducted PAC${nBlockedPAC > 1 ? 's' : ''}`);
     if (nPVC) ect.push(`${nPVC} PVC${nPVC > 1 ? 's' : ''}`);
-    if (ect.length) rhythm += ` with ${ect.join(' and ')}`;
+    if (ect.length && !avrt) rhythm += ` with ${ect.join(' and ')}`;
 
     const axisTxt = axis < -30 ? 'left axis deviation' : axis > 90 ? 'right axis deviation' : 'normal axis';
     $('rhythm').textContent = rhythm;
@@ -1237,12 +1279,12 @@
     $('chips').innerHTML = [
       chip(dissociated ? 'Ventricular' : 'Rate', `${Math.round(rate)} bpm`, rate < 60 || rate > 100),
       dissociated && aRate ? chip('Atrial', `${Math.round(aRate)} bpm`, aRate < 60 || aRate > 100) : '',
-      chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
+      avrt ? chip('RP', (() => { const a = Aa.find((x) => x.on > vb.on); return a ? `${Math.round(a.on - vb.on)} ms (retrograde P)` : '—'; })()) : chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
       chip('QRS', `${Math.round(QRS)} ms`, QRS >= 120),
       chip('QT/QTc', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 460),
       chip(axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
-    const f = structFindings(vb).concat(ischFindings(vb));
+    const f = (avrt ? [] : structFindings(vb)).concat(ischFindings(vb));
     $('findings').innerHTML = f.map((x, i) => `<li${i === 0 && x.head ? ' class="head"' : ''}>${x.text || x}</li>`).join('');
   }
 
@@ -1419,9 +1461,10 @@
       ui.struct[key] = e.target.checked; S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae }); interpret();
     });
     for (const [id, key] of [['stLVH', 'lvh'], ['stRVH', 'rvh']]) $(id).addEventListener('change', async (e) => {
+      const prev = heartKey();
       ui.struct[key] = e.target.checked;
       for (const x of ['stLVH', 'stRVH']) $(x).disabled = true;
-      await rebuildHeart();
+      await rebuildHeart(prev);
       for (const x of ['stLVH', 'stRVH']) $(x).disabled = false;
     });
     $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });

@@ -170,7 +170,7 @@
     // CV restitution (slowing in partially recovered tissue)
     cvRestK: 0.6, cvRestTau: 30,
     avnCvRestK: 4, avnCvRestTau: 150,  // AV-node decremental conduction
-    avnErpExtra: 240,      // post-repolarisation refractoriness of AV node (ms)
+    avnErpExtra: 180,      // post-repolarisation refractoriness of AV node (ms)
     electrotonicK: 1.4,    // APD shortening per ms of later activation (cardiac memory)
     erpFrac: 0.92,         // ERP as fraction of APD (myocardium)
 
@@ -1240,6 +1240,9 @@
     // Abnormal activation later (BBB, ectopy, pacing) keeps this sinus-tuned
     // map, so secondary (discordant) T-wave changes emerge on their own.
     _electrotonicMemory() {
+      // the reference beat depends only on the model: compute once, reuse for every Sim (Reset)
+      const memo = this.M._memory;
+      if (memo) { this.refAT = memo.refAT; for (let c = 0; c < memo.refAT.length; c++) if (memo.refAT[c] >= 0) this.apdMax[c] -= memo.delta[c]; return; }
       const ref = new Sim(this.M, { noMemory: true, seed: 1 });
       ref.run(Math.ceil(60000 / this.P.sinusRate) + 450);
       const vb = ref.log.vent[0];
@@ -1255,6 +1258,9 @@
         this.refAT[c] = at;
         this.apdMax[c] -= k * (at - mean);
       }
+      const delta = new Float32Array(M.nVox);
+      for (let c = 0; c < M.nVox; c++) if (this.refAT[c] >= 0) delta[c] = k * (this.refAT[c] - mean);
+      M._memory = { refAT: this.refAT, delta };
     }
 
     _addPacemaker(cell, cl, name, armed = null) {
@@ -1564,6 +1570,8 @@
       if (ap && (c === ap.a || c === ap.v) && ta >= ap.refEnd) {
         ap.refEnd = ta + ap.erp;
         this.schedule(c === ap.a ? ap.v : ap.a, ta + ap.delay);
+        const log = this.apLog || (this.apLog = []);
+        log.push({ t: ta, dir: c === ap.a ? 'antegrade' : 'retrograde' }); if (log.length > 60) log.shift();
       }
     }
 

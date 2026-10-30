@@ -364,8 +364,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Click on the heart to Block:</b> in the cutaway, click any part of the conduction system and choose a block. The SA node offers SA exit block, a sinus pause or sinus arrest. The AV node offers 1st-degree, Mobitz I (Wenckebach), 2:1 and complete block. The His bundle offers Mobitz II and complete block. The bundle branches and fascicles can each be blocked. Blocked segments turn red, or orange for partial blocks, and are listed under Active blocks, where you can remove them. Escape rhythms appear only when conduction above them is lost.</li>
       <li><b>Click on the heart for Ischemia:</b> in the external view the main epicardial coronary arteries are drawn in red: the left main trunk dividing into the LAD and the circumflex, and the right coronary artery giving the posterior descending artery (a right-dominant heart). Each artery's territory includes the muscle fed by its smaller side branches. Click an artery to occlude it at that point. A yellow marker shows the occlusion, the vessel beyond it turns grey, and everything it supplies becomes transmurally ischemic (tinted purple, necrotic muscle grey). In the cutaway, click ventricular muscle on the cut face for subendocardial ischemia in a patch of that wall. Occlusions and patches are listed in the panel, where each can be removed.</li>
       <li><b>Time since onset</b> moves every ischemic region along the same time course. It stops only where the ECG changes character: onset, 15 min, 1 h, 4 h, 12 h, 2 days and 1 month. In the first minutes, K-ATP channels shorten the action potential: hyperacute T waves. Over the first half hour, depolarized ischemic cells drive an injury current: ST elevation over the territory with reciprocal depression opposite. Necrosis then advances from endocardium to epicardium over about six hours. Dead muscle loses its gap junctions and drops out of the QRS, so Q waves form. From about 12 hours the ST elevation eases and the T wave starts to invert. By 2 days the ST segment is back near baseline with deep symmetric T inversion. At 1 month the Q waves remain and the T waves are upright again. A proximal right coronary occlusion also starves the sinus-node and AV-node arteries, slowing the sinus rate and lengthening the PR; an occlusion beyond the crux slows only the AV node. A thin subendocardial patch gives ST depression rather than elevation.</li>
-      <li><b>Structure:</b> RAE and LAE enlarge an atrium. The enlarged atrium carries more muscle, so its sources are stronger; LAE also slows conduction through Bachmann's bundle and the left atrium. RAE gives a tall, peaked P wave in II (P pulmonale); LAE a broad P wave over 120 ms (P mitrale). LVH and RVH rebuild the heart with a thicker free wall: about 6 mm extra on the LV, 10 mm on the RV. Hypertrophied muscle carries more current, and the transmural repolarization gradient reverses ("strain"). LVH gives Sokolow–Lyon voltage with T inversion in I, aVL and V6; RVH a dominant R in V1, right axis deviation and T inversion in V1–V2. Rebuilding takes a few seconds and clears blocks and ischemia.</li>
-      <li><b>Accessory pathway (WPW):</b> adds a fast, non-decremental muscle bridge across the AV ring at the chosen site (shown in blue). The ventricle near it is excited early, giving a short PR and a delta wave. The rest of the ventricle fuses with normally conducted activation, so the QRS is wide. The pathway also conducts backwards, ready for re-entry in the next milestone.</li>
+      <li><b>Structure:</b> RAE and LAE enlarge an atrium. The enlarged atrium carries more muscle, so its sources are stronger; LAE also slows conduction through Bachmann's bundle and the left atrium. RAE gives a tall, peaked P wave in II (P pulmonale); LAE a broad P wave over 120 ms (P mitrale). LVH and RVH rebuild the heart with a thicker free wall: about 6 mm extra on the LV, 10 mm on the RV. Hypertrophied muscle carries more current, and the transmural repolarization gradient reverses ("strain"). LVH gives Sokolow–Lyon voltage with T inversion in I, aVL and V6; RVH a dominant R in V1, right axis deviation and T inversion in V1–V2. Building a configuration the first time takes a few seconds; after that it is kept, so switching back is immediate. Switching clears blocks and ischemia.</li>
+      <li><b>Accessory pathway (WPW):</b> adds a fast, non-decremental muscle bridge across the AV ring at the chosen site (shown in blue). The ventricle near it is excited early, giving a short PR and a delta wave. The rest of the ventricle fuses with normally conducted activation, so the QRS is wide. The pathway also conducts backwards. <b>Triggering AVRT:</b> with a left lateral or left posterior pathway, click the left atrium for a PAC about 240–320 ms after the start of a P wave, which is during the QRS or early ST segment. The pathway is still refractory, so the PAC conducts down the AV node alone, with a narrow QRS. It then returns to the atria up the pathway and circles: orthodromic AVRT at about 190 bpm, with a retrograde P wave just after each QRS. Slowing time with the time scale makes the click easier. Reset ends it.</li>
       <li><b>Pause</b> freezes time. <b>Reset</b> restarts from rest and clears all blocks and ischemia.</li>
     </ul>
     <h3>Banner</h3>
@@ -557,7 +557,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     // CV restitution (slowing in partially recovered tissue)
     cvRestK: 0.6, cvRestTau: 30,
     avnCvRestK: 4, avnCvRestTau: 150,  // AV-node decremental conduction
-    avnErpExtra: 240,      // post-repolarisation refractoriness of AV node (ms)
+    avnErpExtra: 180,      // post-repolarisation refractoriness of AV node (ms)
     electrotonicK: 1.4,    // APD shortening per ms of later activation (cardiac memory)
     erpFrac: 0.92,         // ERP as fraction of APD (myocardium)
 
@@ -1627,6 +1627,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     // Abnormal activation later (BBB, ectopy, pacing) keeps this sinus-tuned
     // map, so secondary (discordant) T-wave changes emerge on their own.
     _electrotonicMemory() {
+      // the reference beat depends only on the model: compute once, reuse for every Sim (Reset)
+      const memo = this.M._memory;
+      if (memo) { this.refAT = memo.refAT; for (let c = 0; c < memo.refAT.length; c++) if (memo.refAT[c] >= 0) this.apdMax[c] -= memo.delta[c]; return; }
       const ref = new Sim(this.M, { noMemory: true, seed: 1 });
       ref.run(Math.ceil(60000 / this.P.sinusRate) + 450);
       const vb = ref.log.vent[0];
@@ -1642,6 +1645,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         this.refAT[c] = at;
         this.apdMax[c] -= k * (at - mean);
       }
+      const delta = new Float32Array(M.nVox);
+      for (let c = 0; c < M.nVox; c++) if (this.refAT[c] >= 0) delta[c] = k * (this.refAT[c] - mean);
+      M._memory = { refAT: this.refAT, delta };
     }
 
     _addPacemaker(cell, cl, name, armed = null) {
@@ -1951,6 +1957,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       if (ap && (c === ap.a || c === ap.v) && ta >= ap.refEnd) {
         ap.refEnd = ta + ap.erp;
         this.schedule(c === ap.a ? ap.v : ap.a, ta + ap.delay);
+        const log = this.apLog || (this.apLog = []);
+        log.push({ t: ta, dir: c === ap.a ? 'antegrade' : 'retrograde' }); if (log.length > 60) log.shift();
       }
     }
 
@@ -2253,12 +2261,31 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     setLoading('Tuning repolarization to the sinus beat…'); await tick();
     newSim();
   }
-  async function rebuildHeart() {
-    $('loading').hidden = false;
-    await buildHeart();
-    setLoading('Building the 3D heart…'); await tick();
-    g3.inner.clear(); $('labels').innerHTML = '';
-    buildSurfaces(); buildConduction(); buildCoronaries(); buildCutPlane(); buildOverlays();
+  // Each hypertrophy configuration (anatomy, model and its 3D scene) is kept
+  // once built, so switching back to it is immediate.
+  const heartCache = new Map();
+  const G3_FIXED = new Set(['renderer', 'scene', 'camera', 'outer', 'inner', 'controls', 'planeDirty']);
+  const heartKey = () => `${+ui.struct.lvh}${+ui.struct.rvh}`;
+  function storeHeart(key) {
+    if (heartCache.has(key)) return;
+    const fields = {}; for (const k of Object.keys(g3)) if (!G3_FIXED.has(k)) fields[k] = g3[k];
+    heartCache.set(key, { A, M, fields, children: g3.inner.children.slice(), labels: [...$('labels').childNodes] });
+  }
+  async function rebuildHeart(prevKey) {
+    storeHeart(prevKey);
+    const hit = heartCache.get(heartKey());
+    g3.inner.clear();
+    if (hit) {
+      A = hit.A; M = hit.M; newSim();
+      Object.assign(g3, hit.fields); g3.inner.add(...hit.children); $('labels').replaceChildren(...hit.labels);
+    } else {
+      $('loading').hidden = false;
+      await buildHeart();
+      setLoading('Building the 3D heart…'); await tick();
+      $('labels').innerHTML = '';
+      buildSurfaces(); buildConduction(); buildCoronaries(); buildCutPlane(); buildOverlays();
+    }
+    placeAPMarker(); recolorIschemia();
     const v = ui.view; setView(v);
     renderBlockList(); setIschTime(0); renderIschList(); ui.ref = null;
     $('loading').hidden = true;
@@ -2743,6 +2770,24 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const pL = pW.clone().applyMatrix4(inv), nL = dir.clone().transformDirection(inv);
     layCap(nL, pL);
     placeCutLabels(nL, pL, cam.position.clone().applyMatrix4(inv));
+    $('viewName').textContent = `cutaway · ${cutViewName(dir, nL)}`;
+  }
+
+  // Name the current cut from the viewing direction (world = torso frame:
+  // X patient left, Y superior, Z anterior): short axis when looking along the
+  // LV long axis, the four-chamber cut near the anterior preset, otherwise the
+  // side the heart is seen from.
+  function cutViewName(dir, nL) {
+    const ax = Math.abs(nL.dot(g3.lax));
+    if (ax > 0.85) return nL.dot(g3.lax) > 0 ? 'short axis (from the apex)' : 'short axis (from the base)';
+    if (nL.dot(g3.cutPresets.anterior.n) > 0.93) return 'anterior (four-chamber)';
+    const parts = [[dir.z, 'anterior', 'posterior'], [dir.x, 'left lateral', 'right lateral'], [dir.y, 'superior', 'inferior']]
+      .map(([v, pos, neg]) => ({ w: Math.abs(v), name: v > 0 ? pos : neg })).sort((a, b) => b.w - a.w);
+    if (parts[1].w > 0.45 * parts[0].w + 0.15) {
+      const n0 = parts[0].name, n1 = parts[1].name.replace(' lateral', '');
+      return `${n0.replace(' lateral', '')}–${n1}${/lateral/.test(n0 + parts[1].name) ? '' : ''} oblique`;
+    }
+    return parts[0].name;
   }
 
   function cutPreset(name) {
@@ -2757,7 +2802,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const pW = pr.p.clone().applyMatrix4(mw);
     ui.cutDepth = Math.round(pW.dot(dir));
     $('cutDepth').value = ui.cutDepth; $('cutDepthVal').textContent = `${ui.cutDepth > 0 ? '+' : ''}${ui.cutDepth} mm`;
-    $('viewName').textContent = `cutaway · ${{ anterior: 'anterior (four-chamber)', lateral: 'lateral', short: 'short axis (from the apex)' }[name]}`;
     g3.planeDirty = true;
   }
 
@@ -3336,10 +3380,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const V = S.log.vent.filter((b) => S.t > b.repEnd + 60), Aa = S.log.atrial;
     if (V.length < 2) return;
     const vb = V[V.length - 1];
-    const recent = V.filter((b) => b.on > S.t - 10000);
+    // orthodromic AVRT: every beat returns to the atria through the pathway
+    const apWin = (S.apLog || []).filter((x) => x.t > S.t - 3000);
+    const avrt = S.ap && apWin.filter((x) => x.dir === 'retrograde').length >= 4 && !apWin.some((x) => x.dir === 'antegrade');
+    const recent = V.filter((b) => b.on > S.t - (avrt ? 3000 : 10000));
     const rrs = recent.slice(1).map((b, i) => b.on - recent[i].on);
     const RR = rrs.length ? rrs.reduce((a, c) => a + c, 0) / rrs.length : vb.on - V[V.length - 2].on, rate = 60000 / RR;
-    const aRecent = Aa.filter((a) => a.on > S.t - 10000);
+    const aRecent = Aa.filter((a) => a.on > S.t - (avrt ? 3000 : 10000));
     const aRate = aRecent.length > 1 ? 60000 * (aRecent.length - 1) / (aRecent[aRecent.length - 1].on - aRecent[0].on) : 0;
     const prOf = (v) => { const a = Aa.filter((x) => x.on < v.on - 40 && x.on > v.on - 480).pop(); return a ? v.on - a.on : null; };
     const PRs = recent.map(prOf).filter((x) => x !== null);
@@ -3374,7 +3421,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     const distal = B.RBB && (B.LBB || (B.LAF && B.LPF));
     const avComplete = (B.AVN && B.AVN.type === 'complete') || (B.HIS && B.HIS.type === 'complete') || distal;
     let rhythm;
-    if (avComplete) {
+    if (avrt) {
+      const SITE = { 'left-lateral': 'left lateral', 'left-posterior': 'left posterior', posteroseptal: 'posteroseptal', 'right-free-wall': 'right free wall', 'right-anteroseptal': 'right anteroseptal' };
+      rhythm = `Orthodromic AVRT: down the AV node, back up the ${SITE[S.apLocation] || ''} accessory pathway (narrow QRS, no pre-excitation)`;
+    } else if (avComplete) {
       const esc = fired('idioventricular') ? 'idioventricular' : fired('ventricular') ? 'ventricular' : 'junctional';
       const level = distal && !(B.HIS && B.HIS.type === 'complete') && !(B.AVN && B.AVN.type === 'complete')
         ? (B.LBB ? ' (bilateral bundle branch block)' : ' (trifascicular block)') : '';
@@ -3388,7 +3438,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     else if (fired('junctional')) rhythm = 'Junctional escape rhythm';
     else if (fired('ventricular') || fired('idioventricular')) rhythm = 'Ventricular escape rhythm';
     else rhythm = sinusLabel(aRate || rate);
-    if ((B.AVN && B.AVN.type === 'first') || (!B.AVN && !avComplete && PR !== null && PR > 200 && !prVar)) rhythm += ' with 1st-degree AV block';
+    if ((B.AVN && B.AVN.type === 'first') || (!B.AVN && !avComplete && !avrt && PR !== null && PR > 200 && !prVar)) rhythm += ' with 1st-degree AV block';
     // ventricular conduction
     const iv = [];
     if (!avComplete) {
@@ -3408,7 +3458,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     if (nPAC) ect.push(`${nPAC} PAC${nPAC > 1 ? 's' : ''}`);
     if (nBlockedPAC) ect.push(`${nBlockedPAC} non-conducted PAC${nBlockedPAC > 1 ? 's' : ''}`);
     if (nPVC) ect.push(`${nPVC} PVC${nPVC > 1 ? 's' : ''}`);
-    if (ect.length) rhythm += ` with ${ect.join(' and ')}`;
+    if (ect.length && !avrt) rhythm += ` with ${ect.join(' and ')}`;
 
     const axisTxt = axis < -30 ? 'left axis deviation' : axis > 90 ? 'right axis deviation' : 'normal axis';
     $('rhythm').textContent = rhythm;
@@ -3417,12 +3467,12 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     $('chips').innerHTML = [
       chip(dissociated ? 'Ventricular' : 'Rate', `${Math.round(rate)} bpm`, rate < 60 || rate > 100),
       dissociated && aRate ? chip('Atrial', `${Math.round(aRate)} bpm`, aRate < 60 || aRate > 100) : '',
-      chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
+      avrt ? chip('RP', (() => { const a = Aa.find((x) => x.on > vb.on); return a ? `${Math.round(a.on - vb.on)} ms (retrograde P)` : '—'; })()) : chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
       chip('QRS', `${Math.round(QRS)} ms`, QRS >= 120),
       chip('QT/QTc', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 460),
       chip(axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
-    const f = structFindings(vb).concat(ischFindings(vb));
+    const f = (avrt ? [] : structFindings(vb)).concat(ischFindings(vb));
     $('findings').innerHTML = f.map((x, i) => `<li${i === 0 && x.head ? ' class="head"' : ''}>${x.text || x}</li>`).join('');
   }
 
@@ -3599,9 +3649,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       ui.struct[key] = e.target.checked; S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae }); interpret();
     });
     for (const [id, key] of [['stLVH', 'lvh'], ['stRVH', 'rvh']]) $(id).addEventListener('change', async (e) => {
+      const prev = heartKey();
       ui.struct[key] = e.target.checked;
       for (const x of ['stLVH', 'stRVH']) $(x).disabled = true;
-      await rebuildHeart();
+      await rebuildHeart(prev);
       for (const x of ['stLVH', 'stRVH']) $(x).disabled = false;
     });
     $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
