@@ -97,12 +97,18 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
 .seg input { position: absolute; opacity: 0; pointer-events: none; }
 .seg label { text-align: center; border-radius: 0; padding: 7px 4px; font-size: 12.5px; }
+.seg3 { grid-template-columns: 1fr 1fr 1fr; }
+.seg3 label:nth-of-type(2) { border-left: 0; }
 .seg label:first-of-type { border-radius: 6px 0 0 6px; }
 .seg label:last-of-type { border-radius: 0 6px 6px 0; border-left: 0; }
 #controls .seg input:checked + label { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .btnrow { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .next { font-size: 11.5px; color: var(--panel-muted); border-top: 1px solid var(--panel-line); padding-top: 10px; line-height: 1.45; }
 .next b { color: var(--viewport-fg); font-weight: 500; }
+
+/* camera presets */
+.presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+#controls .presets button { padding: 5px 2px; font-size: 11.5px; }
 
 /* click actions, block menu, stimulus flash */
 .note { font-size: 11.5px; color: var(--panel-muted); line-height: 1.4; }
@@ -222,9 +228,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           </div>
           <div class="ctl">
             <span class="lab">View</span>
-            <div class="seg">
+            <div class="seg seg3">
               <input type="radio" name="view" id="viewExt" value="external" checked><label for="viewExt">External</label>
               <input type="radio" name="view" id="viewCut" value="cutaway"><label for="viewCut">Cutaway</label>
+              <input type="radio" name="view" id="viewShort" value="short"><label for="viewShort">Short axis</label>
+            </div>
+            <div class="presets" id="presets" role="group" aria-label="Camera presets">
+              <button type="button" data-cam="front">Front</button><button type="button" data-cam="left">Left</button><button type="button" data-cam="inferior">Inferior</button><button type="button" data-cam="back">Back</button>
             </div>
           </div>
           <div class="ctl">
@@ -303,7 +313,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     <ul>
       <li><b>Sinus rate</b> sets the sinus node rate (30–180 bpm). The rhythm stays sinus at every rate. Escape rhythms depend on where conduction is blocked, not on rate: a junctional escape (about 48 bpm) takes over when the sinus node or AV node is blocked, and a ventricular escape (40 bpm) when the block is below the AV node. Blocks arrive in milestone 2.</li>
       <li><b>Time scale</b> slows the whole simulation, down to 1/50 of real time, so you can follow the wavefront. The ECG slows with it.</li>
-      <li><b>View:</b> External lets you rotate the heart. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches and fascicles. The Purkinje network runs in the model but is not drawn.</li>
+      <li><b>View:</b> External lets you rotate the heart; Front, Left, Inferior and Back jump to standard views. Short axis cuts across both ventricles at mid level, viewed from the apex, so the anterior, lateral, inferior and septal walls are all visible at once. This is the best view for watching the delayed region in fascicular blocks. Cutaway shows the standard anterior four-chamber cut with the conduction system: SA node, AV node, His bundle, bundle branches and fascicles. The Purkinje network runs in the model but is not drawn.</li>
       <li><b>Overlays:</b> Labels names the chambers and vessels, and in the cutaway the conduction system too. Lead vectors draws the limb-lead hexaxial reference (amber, drawn from the torso's own lead vectors, so lead I is visibly shorter than II and III; dashed lines are each lead's negative half), the chest electrodes V1–V6 with their lead vectors (blue), and the live heart vector (white). When the heart vector points along a lead's arrow, that lead records a positive deflection.</li>
       <li><b>Click on the heart to Stimulate:</b> click atrial tissue for a premature atrial complex (PAC) or ventricular tissue for a premature ventricular complex (PVC), in either view. Tissue that is still refractory does not capture. Click twice quickly for a couplet.</li>
       <li><b>Click on the heart to Block:</b> in the cutaway, click any part of the conduction system and choose a block. The SA node offers SA exit block, a sinus pause or sinus arrest. The AV node offers 1st-degree, Mobitz I (Wenckebach), 2:1 and complete block. The His bundle offers Mobitz II and complete block. The bundle branches and fascicles can each be blocked. Blocked segments turn red, or orange for partial blocks, and are listed under Active blocks, where you can remove them. Escape rhythms appear only when conduction above them is lost.</li>

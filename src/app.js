@@ -322,6 +322,12 @@
     const p0 = new THREE.Vector3((mv[0] + tv[0]) / 2, (mv[1] + tv[1]) / 2, (mv[2] + tv[2]) / 2);
     g3.cutN = nrm; g3.cutP = p0;
     g3.plane = new THREE.Plane();
+    // short-axis cut: perpendicular to the LV long axis at mid-ventricular
+    // (papillary) level, apical half removed, viewed from the apex
+    const lax = new THREE.Vector3(apex[0] - mv[0], apex[1] - mv[1], apex[2] - mv[2]);
+    const saN = lax.clone().normalize();                        // points toward the removed (apical) side
+    const saP = new THREE.Vector3(mv[0], mv[1], mv[2]).addScaledVector(lax, 0.55);
+    g3.cuts = { cutaway: { n: nrm, p: p0 }, short: { n: saN, p: saP } };
     // Cut face by stencil capping. Every surface (which together bound the
     // heart wall as one closed solid) is drawn into the stencil buffer only:
     // back faces +1, front faces −1, both clipped by the cut plane. Where the
@@ -337,8 +343,17 @@
       const mb = new THREE.Mesh(geo, back), mf = new THREE.Mesh(geo, front);
       mb.renderOrder = mf.renderOrder = 1; sg.add(mb, mf);
     }
-    // the cap itself: a fine grid on the plane, vertex-coloured from the tissue underneath
-    const u = new THREE.Vector3().crossVectors(nrm, new THREE.Vector3(0, 1, 0)).normalize();
+    for (const cut of Object.values(g3.cuts)) cut.cap = buildCap(cut.n, cut.p);
+    const stat = {}; for (const [k, hex] of Object.entries(STATIC)) { const cc = new THREE.Color(hex); stat[k] = [cc.r, cc.g, cc.b]; }
+    for (const cut of Object.values(g3.cuts)) cut.cap.stat = stat;
+    g3.slab = g3.cuts.cutaway.cap;
+  }
+
+  // the cap: a fine grid on a cut plane, vertex-coloured from the tissue underneath,
+  // drawn only where the stencil says the plane lies inside the heart wall
+  function buildCap(nrm, p0) {
+    const ref = Math.abs(nrm.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+    const u = new THREE.Vector3().crossVectors(nrm, ref).normalize();
     const v = new THREE.Vector3().crossVectors(u, nrm).normalize();
     let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
     for (let c = 0; c < A.n; c++) {
@@ -370,9 +385,8 @@
     }));
     cap.renderOrder = 2;
     cap.onAfterRender = (r) => r.clearStencil();
-    g3.inner.add(cap);
-    const stat = {}; for (const [k, hex] of Object.entries(STATIC)) { const cc = new THREE.Color(hex); stat[k] = [cc.r, cc.g, cc.b]; }
-    g3.slab = { im: cap, map, col: ccol, geo: cg, stat };
+    g3.inner.add(cap); cap.visible = false;
+    return { im: cap, map, col: ccol, geo: cg };
   }
 
   // ---------------------------------------------------------------------------
@@ -438,6 +452,25 @@
     add('Left anterior fascicle', mid(S_.LAF, 0.75), 'cutaway', 'cs');
     add('Left posterior fascicle', mid(S_.LPF, 0.75), 'cutaway', 'cs');
     if (S_.LSF.length) add('Septal fascicle', mid(S_.LSF, 0.9), 'cutaway', 'cs');
+    // short-axis view: chamber and LV wall names at the centre of each region's cross-section
+    const sa = g3.cuts.short, saD = (c) => (A.pos[3 * c] - sa.p.x) * sa.n.x + (A.pos[3 * c + 1] - sa.p.y) * sa.n.y + (A.pos[3 * c + 2] - sa.p.z) * sa.n.z;
+    const inSA = (f) => (c) => f(c) && Math.abs(saD(c)) < 3;
+    const isLV = (c) => A.label[c] === 1;
+    for (const [name, f, kind] of [
+      ['RV', (c) => A.label[c] === 2, 'chamber'],
+      ['Anterior wall', (c) => isLV(c) && A.phi[c] > 0.7 && A.phi[c] < 2.2],
+      ['Lateral wall', (c) => isLV(c) && Math.abs(A.phi[c]) >= 2.4],
+      ['Inferior wall', (c) => isLV(c) && A.phi[c] < -0.7 && A.phi[c] > -2.2],
+      ['Septum', (c) => isLV(c) && Math.abs(A.phi[c]) < 0.35],
+    ]) { const cc = voxCentroid(inSA(f)); if (cc) add(name, cc, 'short', kind || 'anat'); }
+    { const [nx, ny, nz] = A.dims, s3 = [0, 0, 0]; let cnt = 0;
+      for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
+        const cid = A.cavityComp[(i * ny + j) * nz + k]; if (cid <= 0 || A.cavityLabel[cid] !== 1) continue;
+        const x = A.origin[0] + (i + 0.5) * A.h, y = A.origin[1] + (j + 0.5) * A.h, z = A.origin[2] + (k + 0.5) * A.h;
+        if (Math.abs((x - sa.p.x) * sa.n.x + (y - sa.p.y) * sa.n.y + (z - sa.p.z) * sa.n.z) > 3) continue;
+        s3[0] += x; s3[1] += y; s3[2] += z; cnt++;
+      }
+      if (cnt) add('LV', s3.map((v) => v / cnt), 'short', 'chamber'); }
     add('Right bundle', mid(S_.RBB, 0.45), 'cutaway', 'cs');
     add('Moderator band', mid(S_.RBB, 0.85), 'cutaway', 'cs');
 
@@ -507,7 +540,7 @@
     for (const l of g3.labels) {
       let vis;
       if (l.view === 'leads') vis = showLeads && !(l.hidden);
-      else vis = showLabels && (l.view === 'both' || (l.view === 'cutaway') === cut);
+      else vis = showLabels && (l.view === 'both' ? ui.view !== 'short' : l.view === ui.view);
       if (l === g3.heartVecTag) vis = showLeads && !g3.heartVecTag.hidden;
       if (vis) {
         if (l.space === 'heart') tmp.copy(l.pos).applyMatrix4(mw); else tmp.copy(l.pos);
@@ -537,33 +570,47 @@
     }
   }
 
-  function worldCutPlane() {
+  function worldCutPlane(view = 'cutaway') {
     g3.scene.updateMatrixWorld(true);
-    const mw = g3.inner.matrixWorld;
-    const p = g3.cutP.clone().applyMatrix4(mw);
-    const n = g3.cutN.clone().transformDirection(mw);
+    const mw = g3.inner.matrixWorld, cut = g3.cuts[view] || g3.cuts.cutaway;
+    const p = cut.p.clone().applyMatrix4(mw);
+    const n = cut.n.clone().transformDirection(mw);
     return { p, n };
+  }
+
+  // standard external views (torso frame: X patient-left, Y up, Z anterior)
+  function cameraPreset(name) {
+    const d = ui.leads ? 660 : 380, cam = g3.camera;
+    const P = { front: [[0.1, 0.08, 1], [0, 1, 0]], left: [[1, 0.1, 0.15], [0, 1, 0]], inferior: [[0.1, -1, 0.35], [0, 0, 1]], back: [[-0.1, 0.08, -1], [0, 1, 0]] }[name];
+    cam.position.set(...P[0]).normalize().multiplyScalar(d); cam.up.set(...P[1]);
+    g3.controls.target.set(0, 0, 0); cam.lookAt(0, 0, 0); g3.controls.update();
   }
 
   function setView(v) {
     ui.view = v;
-    const cut = v === 'cutaway';
-    const { p, n } = worldCutPlane();
+    const cut = v !== 'external';
+    const { p, n } = worldCutPlane(v);
+    for (const c of Object.values(g3.cuts)) c.cap.im.visible = false;
+    if (cut) { g3.slab = g3.cuts[v].cap; g3.slab.im.visible = true; }
     g3.plane.setFromNormalAndCoplanarPoint(n.clone().negate(), p);   // keep the posterior half
     // clip tissue only: the conduction system stays whole so it can be seen (and later clicked)
     for (const m of g3.clipMats) { m.clippingPlanes = cut ? [g3.plane] : null; m.needsUpdate = true; }
-    g3.cs.visible = cut; g3.slab.im.visible = cut; g3.stencil.visible = cut;
+    g3.cs.visible = cut; g3.stencil.visible = cut;
     $('legendCs').hidden = !cut;
+    $('presets').hidden = cut;
     $('legendBlock').hidden = !cut || !Object.keys(S.blocks).length;
     updateActionNote(); hideBlockMenu();
-    $('viewName').textContent = cut ? 'anterior cutaway (four-chamber)' : 'external view';
-    $('hint').textContent = cut ? 'Fixed anterior cutaway · scroll to zoom' : 'Drag to rotate · scroll to zoom';
+    $('viewName').textContent = v === 'cutaway' ? 'anterior cutaway (four-chamber)' : v === 'short' ? 'short-axis cut (mid-ventricle, from the apex)' : 'external view';
+    $('hint').textContent = cut ? 'Fixed cut view · scroll to zoom' : 'Drag to rotate · scroll to zoom';
     const ctl = g3.controls, cam = g3.camera;
     ctl.target.set(0, 0, 0);
     if (cut) {
-      const dir = n.clone(); dir.y *= 0.6; dir.normalize();
-      cam.position.copy(dir.multiplyScalar(ui.leads ? 660 : 360));
+      const dir = n.clone(); if (v === 'cutaway') { dir.y *= 0.6; dir.normalize(); }
+      cam.position.copy(dir.multiplyScalar(ui.leads ? 660 : v === 'short' ? 300 : 360));
       ctl.enableRotate = false;
+      cam.up.set(0, 0, 0).add(v === 'short' ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0));
+      cam.lookAt(0, 0, 0); ctl.update();
+      updateActionNote(); return;
     } else {
       cam.position.set(40, 30, 380);
       if (ui.leads) cam.position.setLength(660);
@@ -601,7 +648,7 @@
     }
     const sc = [0, 0, 0];
     stateColor(M.sanCell, t, sc, 0, S.blocks.SAN ? blockColour('SAN') : [1, 1, 1]); g3.san.material.color.setRGB(sc[0], sc[1], sc[2]);
-    if (ui.view === 'cutaway') {
+    if (ui.view !== 'external') {
       const sl = g3.slab, cc = sl.col, mp = sl.map;
       for (let i = 0; i < mp.length; i++) {
         const c = mp[i], o = 3 * i;
@@ -644,7 +691,7 @@
   function renderBlockList() {
     const sites = Object.keys(S.blocks);
     $('blockListWrap').hidden = !sites.length;
-    $('legendBlock').hidden = !sites.length || ui.view !== 'cutaway';
+    $('legendBlock').hidden = !sites.length || ui.view === 'external';
     $('blockList').innerHTML = sites.map((s) => `<div class="bchip${isComplete(S.blocks[s]) ? '' : ' partial'}"><span>${SITE_NAME[s]}: ${blockLabel(s)}</span><button type="button" data-site="${s}" aria-label="Remove ${SITE_NAME[s]} block">×</button></div>`).join('');
     for (const b of $('blockList').querySelectorAll('button')) b.addEventListener('click', () => { S.setBlock(b.dataset.site, null); renderBlockList(); interpret(true); });
   }
@@ -682,7 +729,7 @@
   }
 
   function updateActionNote() {
-    const cut = ui.view === 'cutaway';
+    const cut = ui.view !== 'external';
     $('actionNote').textContent = ui.action === 'stimulate'
       ? 'Click the atria for a PAC or the ventricles for a PVC.'
       : cut ? 'Click the SA node, AV node, His bundle, a bundle branch or a fascicle to choose a block.'
@@ -707,9 +754,9 @@
   }
 
   function pickBlock(ray, x, y) {
-    const targets = [g3.sanPick].concat(ui.view === 'cutaway' ? g3.pickTubes : []);
+    const targets = [g3.sanPick].concat(ui.view !== 'external' ? g3.pickTubes : []);
     const hit = ray.intersectObjects(targets, false)[0];
-    if (!hit) { flash(x, y, ui.view === 'cutaway' ? 'Click the conduction system' : 'Use Cutaway for blocks'); return; }
+    if (!hit) { flash(x, y, ui.view !== 'external' ? 'Click the conduction system' : 'Use a cut view for blocks'); return; }
     if (hit.object === g3.sanPick) { showBlockMenu('SAN', 'sa-exit', x, y); return; }
     const id = hit.object.userData.map[hit.face.a], site = SEG_SITE[M.seg[id]];
     if (!site) return;
@@ -719,7 +766,7 @@
   }
 
   function pickStimulus(ray, x, y) {
-    const cut = ui.view === 'cutaway';
+    const cut = ui.view !== 'external';
     const targets = g3.pickTissue.concat(cut ? [g3.slab.im] : []);
     for (const hit of ray.intersectObjects(targets, false)) {
       if (cut && hit.object !== g3.slab.im && g3.plane.distanceToPoint(hit.point) < -0.3) continue;   // clipped away
@@ -856,7 +903,8 @@
     // QRS axis from net areas in I and aVF. With RBBB the delayed terminal RV
     // forces are excluded (clinical convention: first 60 ms of the QRS).
     const B = S.blocks;
-    const axisWin = B.RBB && !B.LBB && QRS >= 110 ? 60 : QRS;
+    const escapeOnly = B.RBB && (B.LBB || (B.LAF && B.LPF)) || (B.HIS && B.HIS.type === 'complete') || (B.AVN && B.AVN.type === 'complete');
+    const axisWin = B.RBB && !B.LBB && !escapeOnly && QRS >= 110 ? 60 : QRS;
     let aI = 0, aF = 0; const base = Math.floor(vb.on - 15) % PAGE;
     for (let t = Math.floor(vb.on); t <= Math.ceil(vb.on + axisWin); t++) {
       const i = t % PAGE; aI += ecg.buf[0][i] - ecg.buf[0][base]; aF += ecg.buf[5][i] - ecg.buf[5][base];
@@ -867,13 +915,22 @@
     const recentFires = S.fireLog.filter((f) => f.t > S.t - 10000);
     const fired = (name) => recent.some((v) => recentFires.some((f) => f.name === name && f.t > v.on - 160 && f.t <= v.on + 1));
     const stims = S.stimLog.filter((x) => x.captured && x.t > S.t - 10000);
-    const nPVC = stims.filter((x) => x.kind === 'ventricular').length, nPAC = stims.filter((x) => x.kind === 'atrial').length;
+    const nPVC = stims.filter((x) => x.kind === 'ventricular').length;
+    // a PAC with no QRS within 450 ms was blocked in the AV node (non-conducted PAC)
+    const pacs = stims.filter((x) => x.kind === 'atrial' && x.t < S.t - 450);
+    const nBlockedPAC = pacs.filter((x) => !S.log.vent.some((v) => v.on > x.t + 40 && v.on < x.t + 450)).length;
+    const nPAC = stims.filter((x) => x.kind === 'atrial').length - nBlockedPAC;
     const sinusLabel = (r) => r < 60 ? 'Sinus bradycardia' : r > 100 ? 'Sinus tachycardia' : 'Normal sinus rhythm';
-    const avComplete = (B.AVN && B.AVN.type === 'complete') || (B.HIS && B.HIS.type === 'complete') || (B.LBB && B.RBB);
+    // complete AV block at any level: AV node, His, or every ventricular route
+    // (RBB + LBB, or RBB + both left fascicles = bilateral/trifascicular block)
+    const distal = B.RBB && (B.LBB || (B.LAF && B.LPF));
+    const avComplete = (B.AVN && B.AVN.type === 'complete') || (B.HIS && B.HIS.type === 'complete') || distal;
     let rhythm;
     if (avComplete) {
-      const esc = fired('ventricular') ? 'ventricular' : 'junctional';
-      rhythm = `3rd-degree (complete) AV block with ${esc} escape rhythm`;
+      const esc = fired('idioventricular') ? 'idioventricular' : fired('ventricular') ? 'ventricular' : 'junctional';
+      const level = distal && !(B.HIS && B.HIS.type === 'complete') && !(B.AVN && B.AVN.type === 'complete')
+        ? (B.LBB ? ' (bilateral bundle branch block)' : ' (trifascicular block)') : '';
+      rhythm = `3rd-degree (complete) AV block${level} with ${esc} escape rhythm`;
     } else if (B.SAN && B.SAN.type === 'arrest') rhythm = 'Sinus arrest with junctional escape rhythm';
     else if (B.SAN && B.SAN.type === 'pause' && S.t < S.sinusPauseUntil + 6000) rhythm = `Sinus rhythm with sinus pause${fired('junctional') ? ' and junctional escape beats' : ''}`;
     else if (B.SAN && B.SAN.type === 'sa-exit') rhythm = 'Sinus rhythm with 2nd-degree SA exit block';
@@ -881,7 +938,7 @@
     else if (B.AVN && B.AVN.type === 'two-to-one') rhythm = 'Sinus rhythm with 2:1 AV block';
     else if (B.HIS && B.HIS.type === 'mobitz2') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz II';
     else if (fired('junctional')) rhythm = 'Junctional escape rhythm';
-    else if (fired('ventricular')) rhythm = 'Ventricular escape rhythm';
+    else if (fired('ventricular') || fired('idioventricular')) rhythm = 'Ventricular escape rhythm';
     else rhythm = sinusLabel(aRate || rate);
     if (B.AVN && B.AVN.type === 'first') rhythm += ' with 1st-degree AV block';
     // ventricular conduction
@@ -901,6 +958,7 @@
     if (iv.length) rhythm += `; ${iv.join(', ')}`;
     const ect = [];
     if (nPAC) ect.push(`${nPAC} PAC${nPAC > 1 ? 's' : ''}`);
+    if (nBlockedPAC) ect.push(`${nBlockedPAC} non-conducted PAC${nBlockedPAC > 1 ? 's' : ''}`);
     if (nPVC) ect.push(`${nPVC} PVC${nPVC > 1 ? 's' : ''}`);
     if (ect.length) rhythm += ` with ${ect.join(' and ')}`;
 
@@ -926,7 +984,7 @@
     rate.addEventListener('input', () => { ui.rate = +rate.value; $('rateVal').textContent = `${ui.rate} bpm`; S.setRate(ui.rate); });
     const ts = $('timescale');
     ts.addEventListener('input', () => { ui.scaleIdx = +ts.value; $('tsVal').textContent = SCALE_LABEL[ui.scaleIdx]; });
-    for (const id of ['viewExt', 'viewCut']) $(id).addEventListener('change', (e) => setView(e.target.value));
+    for (const id of ['viewExt', 'viewCut', 'viewShort']) $(id).addEventListener('change', (e) => setView(e.target.value));
     $('ovLabels').addEventListener('change', (e) => { ui.labels = e.target.checked; });
     $('ovLeads').addEventListener('change', (e) => {
       ui.leads = e.target.checked;
@@ -938,6 +996,7 @@
     $('btnReset').addEventListener('click', () => { newSim(); renderBlockList(); hideBlockMenu(); });
     for (const id of ['actStim', 'actBlock']) $(id).addEventListener('change', (e) => { ui.action = e.target.value; updateActionNote(); hideBlockMenu(); });
     initPicking(); updateActionNote();
+    for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     const toggle = () => {
       const c = $('controls').classList.toggle('collapsed');
       $('ctlChevron').textContent = c ? 'Show' : 'Hide'; $('ctlHead').setAttribute('aria-expanded', String(!c));

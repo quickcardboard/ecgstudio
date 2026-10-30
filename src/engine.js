@@ -161,13 +161,15 @@
     apdRVoffset: 30,
     apdAtrial: 190,
     apdPurk: 340,
+    apdBundle: 360,        // His bundle, LBB and fascicles
+    apdRBB: 400,           // right bundle branch: longest refractoriness
     apdAVN: 160,
     // APD restitution: APD = APDmax * (1 - a * exp(-DI/tau))
     restA: 0.70, restTau: 450,
     // CV restitution (slowing in partially recovered tissue)
     cvRestK: 0.6, cvRestTau: 30,
-    avnCvRestK: 1.8, avnCvRestTau: 110,  // AV-node decremental conduction
-    avnErpExtra: 110,      // post-repolarisation refractoriness of AV node (ms)
+    avnCvRestK: 4, avnCvRestTau: 150,  // AV-node decremental conduction
+    avnErpExtra: 240,      // post-repolarisation refractoriness of AV node (ms)
     electrotonicK: 1.4,    // APD shortening per ms of later activation (cardiac memory)
     erpFrac: 0.92,         // ERP as fraction of APD (myocardium)
 
@@ -181,6 +183,7 @@
     sinusRate: 72,
     junctionalRate: 48,
     ventEscapeRate: 40,
+    idioventricularRate: 34,
 
     // ECG
     ecgGain: 0.0174,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm)
@@ -622,6 +625,11 @@
       // ---- Escape pacemakers (overdrive-suppressed by faster rhythms)
       this.junctionalCell = his[1];                         // proximal His (junctional)
       this.ventEscapeCell = this.lpf[Math.floor(this.lpf.length * 0.3)];  // fascicular/ventricular
+      // idioventricular: an LV Purkinje node in the inferior wall, mid-level
+      this.idioCell = this.purkLV.reduce((best, id) => {
+        const c = A.nearest([this.x[id], this.y[id], this.z[id]]), sc = Math.abs(A.zuvc[c] - 0.5) + Math.abs(A.phi[c] + 1.5);
+        return !best || sc < best.sc ? { id, sc } : best;
+      }, null).id;
 
       // conduction-system node lists for rendering/picking
       this.csSegments = {
@@ -999,8 +1007,14 @@
       const M = model, cs = M.csSegments;
       this._addPacemaker(M.junctionalCell, 60000 / this.P.junctionalRate, 'junctional',
         () => this.blocked[M.sanCell] || this.sinusArrest || this.t < this.sinusPauseUntil || anyBlocked(M.avn));
+      // Conduction to the ventricles is lost with His block or block of every
+      // ventricular route: RBB plus LBB, or RBB plus both left fascicles.
+      const allDistal = () => anyBlocked(cs.RBB) && (anyBlocked(cs.LBB) || (anyBlocked(cs.LAF) && anyBlocked(cs.LPF)));
       this._addPacemaker(M.ventEscapeCell, 60000 / this.P.ventEscapeRate, 'ventricular',
         () => anyBlocked(cs.HIS) || (anyBlocked(cs.LBB) && anyBlocked(cs.RBB)));
+      // idioventricular pacemaker in the LV Purkinje network, below every blockable segment
+      this._addPacemaker(M.idioCell, 60000 / this.P.idioventricularRate, 'idioventricular',
+        () => allDistal() && anyBlocked(cs.LPF));
       // beat bookkeeping for interval measurement
       this.log = { atrial: [], vent: [] };
       this.blockLog = [];  // impulses stopped by a fixed-ratio/intermittent block {t, at}
@@ -1028,7 +1042,11 @@
           if (A.label[c] === LAB.RV) apd += P.apdRVoffset;
           this.repW[c] = P.repWVent;
         } else if (k === KIND.ATRIAL) { apd = P.apdAtrial; this.repW[c] = P.repWAtrial; }
-        else if (k === KIND.PURK || k === KIND.BUNDLE || k === KIND.HIS) { apd = P.apdPurk; this.repW[c] = P.repWVent; }
+        else if (k === KIND.PURK || k === KIND.BUNDLE || k === KIND.HIS) {
+          // His–Purkinje refractoriness: right bundle longest (classic RBBB aberrancy)
+          apd = M.seg[c] === SEG.RBB ? P.apdRBB : k === KIND.PURK ? P.apdPurk : P.apdBundle;
+          this.repW[c] = P.repWVent;
+        }
         else if (k === KIND.AVN) { apd = P.apdAVN; this.repW[c] = P.repWAtrial; this.erpExtra[c] = P.avnErpExtra; }
         this.apdMax[c] = apd;
         this.cvK[c] = k === KIND.AVN ? P.avnCvRestK : P.cvRestK;
@@ -1116,7 +1134,14 @@
       this._applyAvn();
     }
     clearBlocks() { for (const s of Object.keys(this.blocks)) this.setBlock(s, null); }
-    _applyAvn() { for (const c of this.M.avn) this.cvMul[c] = (this._avnTone || 1) * (this.avnBlockMul || 1); }
+    _applyAvn() {
+      const tone = this._avnTone || 1;
+      for (const c of this.M.avn) {
+        this.cvMul[c] = tone * (this.avnBlockMul || 1);
+        // nodal refractoriness also follows autonomic tone (vagal lengthens, sympathetic shortens)
+        if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone;
+      }
+    }
     // One decision per beat: a site is reached by several converging
     // wavelets within a few ms; they all share the first one's fate.
     _gatePass(g, ta) {

@@ -18,6 +18,8 @@ const SCEN = {
   'RBBB': (S) => S.setBlock('RBB', 'complete'),
   'LAFB': (S) => S.setBlock('LAF', 'complete'),
   'LPFB': (S) => S.setBlock('LPF', 'complete'),
+  'RBB+LBB': (S) => { S.setBlock('RBB', 'complete'); S.setBlock('LBB', 'complete'); },
+  'RBB+LAF+LPF': (S) => { S.setBlock('RBB', 'complete'); S.setBlock('LAF', 'complete'); S.setBlock('LPF', 'complete'); },
   'PAC': (S) => { S.run(2400); const c = A.nearest(A.landmarks.LAA.c, (x) => A.label[x] === 3); S.stimulate(c); },
   'PVC': (S) => { S.run(2400); let best = -1, bz = 9; for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.epi[c] && A.zuvc[c] > 0.3 && A.zuvc[c] < bz && A.phi[c] > 2) { bz = A.zuvc[c]; best = c; } S.stimulate(best); },
 };
