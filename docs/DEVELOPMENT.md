@@ -348,3 +348,44 @@ Model fixes for subendocardial ischemia:
 - Share links are unchanged (`s=` on/off conditions, `ap=` pathway), so older links still open.
 - AVNRT/AVRT set or clear the pathway through `setCondition`, so the active list stays in step.
 - Engine untouched; validation tools not affected.
+
+### Round 18: phone layout prototype (mobile-1)
+
+Phones get their own layout (`body.m`, set by `setMode()` from two media queries: portrait
+width ≤ 743 px, or a touch screen ≤ 500 px tall held sideways). Tablets and desktop are unchanged.
+
+- Portrait only: heart (44%) above the ECG, interpretation bar under the ECG, tab bar at the
+  bottom. The old landscape-only phone layout and "turn your phone sideways" prompt are gone;
+  a phone held sideways shows the full 12-lead ECG instead.
+- ECG: one lead group at a time (I–III, aVR–aVF, V1–V3, V4–V6), swiped or picked with the dots,
+  drawn swept at 25 mm/s and 10 mm/mV over 2.5, 5 (default) or 10 s (`drawLeads`). A double-tap
+  shows the full 12-lead sheet turned 90° (flip button for the other way), interpretation in a
+  collapsible column on the left and a fixed lead II rhythm strip; double-tap again to return.
+- Interpretation bar: rhythm and measurement chips; a tap expands it with the findings.
+- Controls: the tab bar opens the existing panel as a bottom sheet in the page flow (half
+  height, so the heart and ECG stay visible), or full height by dragging or tapping the handle.
+  Drag down or swipe down at the top of its content to close.
+- Header: speed chip (tap to step 1× → 1/50×), ⏯ (tap pause, press and hold reset), ⋯ menu
+  (share via the system share sheet, save ECG image via the share sheet or download, help).
+  The image export draws the 12-lead sheet offscreen when it is not on screen (`sheetCanvas`).
+- Heart gestures (tab-independent; `initTouch`): tap muscle = PAC/PVC; three taps within 0.5 s
+  on the right atrium = flutter, left atrium = AF, ventricles = VT, a fourth = VF (each tap still
+  stimulates, as in burst pacing). In the cut view, tap the AV node or His bundle to step
+  none → 1st degree → Wenckebach → 2:1 → Mobitz II → complete (nodal) → complete (His) → none,
+  three quick taps = AVNRT (AVRT with a pathway); tap the SA node to step SA exit block → pause →
+  arrest → none; tap a bundle branch or fascicle to toggle it. Conduction paths are drawn 1.6×
+  thicker with a wider touch target, and a tap snaps to the nearest conduction point within
+  22 px. Press and hold (0.55 s, with a filling ring) = occlusion, or subendocardial ischemia on
+  the cut face or inner wall; the Ischemia sheet then opens. Taps are timed by the touch event's
+  own timestamp, so a busy frame does not split a burst.
+- Opening the Blocks tab cuts the heart and turns to the four-chamber view (not undone on leaving).
+- Double-tap empty space beside the heart: full-screen heart with one live lead (tap to change
+  lead). Floating Shock (VT/VF) and Adenosine (AVNRT, AVRT, flutter) buttons.
+- Each sheet, menu, popover and full-screen view is a history entry, so the system back button
+  closes it first. Page pinch-zoom, text selection and long-press callouts are off on the
+  touch surfaces.
+- `ECGStudioApp.touchTarget(x, y)` reports what a tap at a page point would act on (tests).
+- Fix (also on desktop): clicking or holding the heart surface near an artery could pick a
+  side-branch node that is no longer offered for occlusion and throw; only the offered vessels
+  are searched now.
+- Help guide text is unchanged (written for the desktop); the phone tab notes describe the gestures.
