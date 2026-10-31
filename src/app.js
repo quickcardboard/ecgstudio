@@ -1171,6 +1171,7 @@
       removeIschemia(+b.dataset.id);
     });
     $('ischStage').textContent = ischStage(ui.ischH);
+    syncScrub();
   }
   // the time slider stops only where the ECG changes character
   const ISCH_STOPS = [
@@ -1205,6 +1206,7 @@
   function setIschTime(h) {
     ui.ischH = h; $('ischTime').value = stopOf(h); $('ischVal').textContent = fmtHours(h);
     S.setIschemiaTime(h); $('ischStage').textContent = ischStage(h);
+    syncScrub();
   }
 
   function toggleControls(show) {
@@ -2101,7 +2103,7 @@
       for (const k of ['interp-open', 'sheet-full']) b.classList.remove(k);
       $('mMenu').hidden = true;
     }
-    fsClass(); updateActionNote();
+    fsClass(); updateActionNote(); if (S) syncScrub();
   }
   function fsClass() {
     const b = document.body, m = isM(), ml = b.classList.contains('ml');
@@ -2148,6 +2150,12 @@
   function setSpeed(i) {
     ui.scaleIdx = i; $('timescale').value = i; $('tsVal').textContent = SCALE_LABEL[i];
     $('mSpeed').textContent = SCALE_LABEL[i]; $('mSpeed').setAttribute('aria-label', `Simulation speed: ${SCALE_LABEL[i]}. Tap to change`);
+  }
+  // phones: the ischemia time scrubber on the heart (shown while ischemia is present)
+  function syncScrub() {
+    const on = isM() && S.insults.length > 0, i = stopOf(ui.ischH);
+    document.body.classList.toggle('has-isch', on); $('mScrub').hidden = !on;
+    $('mScrubR').value = i; $('mScrubVal').textContent = ISCH_STOPS[i][1];
   }
   function updateFloat() {
     if (!isM()) return;
@@ -2501,6 +2509,10 @@
     $('mHelp').addEventListener('click', () => { closeLayer('menu'); $('guide').hidden = false; openLayer('help', () => { $('guide').hidden = true; }); });
     // heart: view options, floating actions, live lead
     $('mLearn').addEventListener('click', () => { if (sheetOpen() && ui.tab === 'learn') closeLayer('sheet'); else openSheet('learn'); });
+    $('mScrubR').addEventListener('input', (e) => {
+      if (+e.target.value === +$('ischTime').value) return;
+      $('ischTime').value = e.target.value; $('ischTime').dispatchEvent(new Event('input')); buzz(8);
+    });
     $('mShock').addEventListener('click', () => { buzz(40); $('btnShock').click(); updateFloat(); });
     $('mAdeno').addEventListener('click', () => { buzz(); $('btnAdeno').click(); });
     // live lead: its label opens a lead menu; a double-tap on the strip returns to two panes
@@ -2570,6 +2582,7 @@
     $('ischTime').addEventListener('input', (e) => {
       ui.ischH = ISCH_STOPS[+e.target.value][0]; $('ischVal').textContent = fmtHours(ui.ischH); $('ischStage').textContent = ischStage(ui.ischH);
       ui.ischPending = ui.ischH;                                  // applied once per frame
+      syncScrub();
     });
     for (const b of $('arrButtons').querySelectorAll('button')) b.addEventListener('click', () => { startRhythm(b.dataset.arr); syncRate(); interpret(); });
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); });

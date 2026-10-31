@@ -448,3 +448,11 @@ width ≤ 743 px, or a touch screen ≤ 500 px tall held sideways). Tablets and 
   smaller page dots (centred) and the one-time double-tap hint float over the grid.
 - Full-screen heart: the live lead's label is a button that opens a 12-lead menu (closes with the
   back button or a tap outside); a double-tap on the strip still returns to the two-pane view.
+
+### mobile-1 round 6: ischemia time scrubber on the heart
+
+- While any ischemia is present, a slim time scrubber runs along the bottom of the heart pane
+  (above the live lead on the full-screen heart), replacing the view label. It has the same seven
+  discrete stops as the Ischemia tab's slider (Onset … 1 month) and stays in step with it in both
+  directions, so time can be scrubbed while the ECG stays visible. Floating Shock/Adenosine move
+  up above it; it disappears when the last occlusion or patch is removed. Phones only.

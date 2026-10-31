@@ -283,7 +283,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
    shows that view upright. A double-tap beside the heart fills the screen with
    it (body.fs-heart) above one live lead. */
 :root { --tabh: 56px; }
-.mctl, .mtabs, .mmenu, .leadmenu, .mlearn, .mfloat, .gbar, .fsbar, #cgroup, #cgroup2, .shead, .press, .live { display: none; }
+.mctl, .mtabs, .mmenu, .leadmenu, .mscrub, .mlearn, .mfloat, .gbar, .fsbar, #cgroup, #cgroup2, .shead, .press, .live { display: none; }
 body.m { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 body.m button { touch-action: manipulation; }
 body.m #c3d, body.m #ecgWrap, body.m .live, body.m #shead { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -380,6 +380,17 @@ body.m .leadmenu { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6p
 .leadmenu button[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .live canvas { display: block; width: 100%; height: 100%; }
 body.m.fs-heart .vinfo, body.m.fs-heart .mfloat { bottom: 112px; }
+/* ischemia time scrubber along the bottom of the heart (while ischemia is present) */
+body.m .mscrub { display: flex; align-items: center; gap: 10px; position: absolute; z-index: 3; left: 8px; right: 8px; bottom: 8px; height: 40px; padding: 0 14px; box-sizing: border-box; background: var(--panel); border: 1px solid var(--panel-line); border-radius: 20px; color: var(--viewport-fg); }
+.mscrub .sval { font: 600 12.5px/1 var(--font-data); min-width: 4.4em; }
+.strack { position: relative; flex: 1; display: flex; align-items: center; height: 100%; }
+.strack input { position: relative; z-index: 1; width: 100%; }
+.sticks { position: absolute; left: 8px; right: 8px; top: calc(50% + 7px); display: flex; justify-content: space-between; pointer-events: none; }
+.sticks i { width: 2px; height: 5px; border-radius: 1px; background: var(--panel-muted); }
+body.m.has-isch .vtitle { display: none; }
+body.m.has-isch .vinfo, body.m.has-isch .mfloat { bottom: 56px; }
+body.m.fs-heart .mscrub { bottom: 112px; }
+body.m.fs-heart.has-isch .vinfo, body.m.fs-heart.has-isch .mfloat { bottom: 160px; }
 
 /* full 12-lead ECG, turned sideways (or upright when the phone is held sideways) */
 body.m.fs-ecg #paneEcg { position: fixed; z-index: 15; left: 50%; top: 50%; width: 100vh; width: 100dvh; height: 100vw; box-sizing: border-box;
@@ -559,6 +570,10 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <div class="mfloat" id="mFloat">
         <button type="button" id="mShock" class="shock" hidden>⚡ Shock</button>
         <button type="button" id="mAdeno" class="adeno" hidden>Adenosine</button>
+      </div>
+      <div class="mscrub" id="mScrub" hidden>
+        <span class="sval" id="mScrubVal" aria-hidden="true">1 h</span>
+        <div class="strack"><input type="range" id="mScrubR" min="0" max="6" step="1" value="2" aria-label="Time since onset of ischemia"><div class="sticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
       </div>
       <div class="press" id="press" hidden></div>
       <div class="live" id="liveWrap"><canvas id="clive" aria-hidden="true"></canvas><button type="button" class="leadbtn" id="leadBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Live lead: II. Change lead">II ▾</button></div>
