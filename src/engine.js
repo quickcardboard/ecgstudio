@@ -212,6 +212,7 @@
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
+    ladRvMm: 0,            // RV muscle within this distance (mm) of the LAD is supplied by it (RV branches)
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
@@ -796,7 +797,11 @@
       for (let c = 0; c < A.n; c++) {
         const L = A.label[c]; if (L !== LAB.LV && L !== LAB.RV) continue;
         const ph = A.phi[c], zz = A.zuvc[c];
-        if (L === LAB.RV) voxNode[c] = nearestOf(rvNodes, c, euc);
+        if (L === LAB.RV) {
+          // the anterior RV beside the interventricular groove is fed by the LAD's right-ventricular branches
+          const lad = nearestOf(branches.LAD, c, euc);
+          voxNode[c] = P.ladRvMm > 0 && euc(c, lad) < P.ladRvMm * P.ladRvMm && nodes[lad].zz > 0.15 ? lad : nearestOf(rvNodes, c, euc);
+        }
         else if (zz >= 0 && zz < 0.2) voxNode[c] = nearestOf(branches.LAD, c, euc);                 // apex: wrap-around LAD
         else if (ph > 0.1 && ph < 1.7) voxNode[c] = nearestOf(branches.LAD, c, (x, id) => Math.abs(nodes[id].zz - (zz - P.septalSpread)));   // septum (LAD perforators)
         else if (ph > -0.7 && ph <= 0.1) voxNode[c] = nearestOf(branches.PDA, c, zOnly);                                   // inferior septum (PDA)
