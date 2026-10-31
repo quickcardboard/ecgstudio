@@ -348,3 +348,5 @@ Model fixes for subendocardial ischemia:
 - Share links are unchanged (`s=` on/off conditions, `ap=` pathway), so older links still open.
 - AVNRT/AVRT set or clear the pathway through `setCondition`, so the active list stays in step.
 - Engine untouched; validation tools not affected.
+- Fix: a click on the heart surface near an artery could pick a side-branch node (D1, OM1, …),
+  which is not offered for occlusion, and throw; only the offered vessels are searched now.

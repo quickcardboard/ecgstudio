@@ -1111,7 +1111,8 @@
       if (corHit) node = corHit.object.userData.map[corHit.face.a];
       else if (front) {                                         // a click on the surface near an artery counts
         let bd = 100;
-        g3.corPos.forEach((q, i) => { const d = q.distanceToSquared(p); if (d < bd) { bd = d; node = i; } });
+        const cor = M.coronary;                                   // (only the vessels offered: side-branch nodes are not)
+        g3.corPos.forEach((q, i) => { if (!cor.branches[cor.nodes[i].branch]) return; const d = q.distanceToSquared(p); if (d < bd) { bd = d; node = i; } });
       }
       if (node < 0) { flash(x, y, cut ? 'Click an artery, the cut face or the inner wall' : 'Click a coronary artery'); return; }
       if (S.insults.some((v) => v.kind === 'occlusion' && v.node === node)) { flash(x, y, 'Already occluded here'); return; }
