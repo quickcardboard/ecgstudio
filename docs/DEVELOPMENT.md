@@ -333,3 +333,19 @@ Model fixes for subendocardial ischemia:
 - Three.js r128 and OrbitControls are vendored (`vendor/`) and inlined: the app runs offline.
 - `site.json` holds the author, contact and year shown in Help → About and the page metadata;
   the build stamps the version (date + commit). `LICENSE`: all rights reserved.
+
+### Round 17: Conditions tab (milestone-2)
+
+- The Structure tab is now **Conditions**: a list of active conditions (each removable with ×),
+  "+ Add condition" opening a searchable catalogue grouped by category (Chambers, Accessory
+  pathways, Pericardium, Channelopathies), and up to four recently used conditions (kept in
+  this browser's localStorage only).
+- Every condition is one entry in `CONDITIONS` (`src/app.js`): id, category, short label, name,
+  one-line description (shown on screen, replacing hover-only tooltips), extra search words,
+  `apply(value)` for the simulation, `options` for a choice such as the WPW pathway location,
+  and `rebuild: true` for conditions that rebuild the heart (LVH, RVH). The tab, search, Reset,
+  share links and the hypertrophy cache key all read this list. To add a condition: an entry
+  here, its engine setter, and its interpretation/Learn text.
+- Share links are unchanged (`s=` on/off conditions, `ap=` pathway), so older links still open.
+- AVNRT/AVRT set or clear the pathway through `setCondition`, so the active list stays in step.
+- Engine untouched; validation tools not affected.
