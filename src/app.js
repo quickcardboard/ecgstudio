@@ -53,7 +53,7 @@
         occlude(node) { captureRef(); const id = S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
         subendo(cell, r = 55) { captureRef(); const id = S.addSubendocardial(cell, r); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
         hours(h) { setIschTime(h); recolorIschemia(); },
-        clear() { S.clearIschemia(); recolorIschemia(); renderIschList(); },
+        clear() { S.clearIschemia(); setIschTime(0); recolorIschemia(); renderIschList(); },
         segmentName: (id) => segmentName(id),
       },
       interpret: () => interpret(),
@@ -1026,7 +1026,7 @@
     let down = null;
     canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });
     canvas.addEventListener('pointerup', (e) => {
-      if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; }
+      if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > (e.pointerType === 'touch' ? 10 : 5)) { down = null; return; }   // (fingers wobble more than a mouse)
       down = null;
       const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
@@ -1064,37 +1064,54 @@
     }
   }
 
+  // Which wall surface a picked point lies on: the nearest ventricular surface
+  // voxel is either endocardial (beside a cavity) or epicardial.
+  function ventricularSide(x, y, z) {
+    const h = A.h, o = A.origin, r = 3;
+    const i0 = Math.floor((x - o[0]) / h), j0 = Math.floor((y - o[1]) / h), k0 = Math.floor((z - o[2]) / h);
+    let best = -1, bd = Infinity;
+    for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) for (let e = -r; e <= r; e++) {
+      const c = A.at(i0 + a, j0 + b, k0 + e);
+      if (c < 0 || (A.label[c] !== 1 && A.label[c] !== 2) || !(A.endo[c] || A.epi[c])) continue;
+      const dx = A.pos[3 * c] - x, dy = A.pos[3 * c + 1] - y, dz = A.pos[3 * c + 2] - z, d = dx * dx + dy * dy + dz * dz;
+      if (d < bd) { bd = d; best = c; }
+    }
+    return best < 0 ? null : { cell: best, endo: !!A.endo[best] };
+  }
+
+  // Ischemia clicks: an artery (or the outer surface near one) occludes it; with
+  // the heart cut, the cut face or the inner (endocardial) wall of a ventricle
+  // starts a subendocardial patch.
   function pickIschemia(ray, x, y) {
     const cut = ui.view !== 'external';
     let added = null;
-    // first surface the ray meets (tissue or cut face, ignoring what the cut removed)
+    // first surface the ray meets: tissue, or the cut face where it has muscle (the
+    // cut plane spans the cavities too), ignoring what the cut removed
+    const onSlab = (h) => { const q = g3.inner.worldToLocal(h.point.clone()); return nearestTissue(q.x, q.y, q.z, 1) >= 0; };
     const front = ray.intersectObjects(g3.pickTissue.concat(cut ? [g3.slab.im] : []), false)
-      .find((h) => !cut || h.object === g3.slab.im || g3.plane.distanceToPoint(h.point) >= -0.3);
+      .find((h) => !cut || (h.object === g3.slab.im ? onSlab(h) : g3.plane.distanceToPoint(h.point) >= -0.3));
     const corHit = ray.intersectObjects(g3.corPick, false)
       .find((h) => (!cut || g3.plane.distanceToPoint(h.point) >= -0.3) && (!front || h.distance <= front.distance + 3));
-    if (corHit || !front || front.object !== g3.slab.im) {
+    const p = front ? g3.inner.worldToLocal(front.point.clone()) : null;
+    let subCell = -1;
+    if (!corHit && cut && front) {
+      if (front.object === g3.slab.im) { const c = nearestTissue(p.x, p.y, p.z, 1); if (c >= 0 && (A.label[c] === 1 || A.label[c] === 2)) subCell = c; else { flash(x, y, 'Click ventricular muscle'); return; } }
+      else { const side = ventricularSide(p.x, p.y, p.z); if (side && side.endo) subCell = side.cell; }
+    }
+    if (subCell >= 0) {
+      captureRef(); added = S.addSubendocardial(subCell, 55);
+      flash(x, y, 'Subendocardial ischemia');
+    } else {
       let node = -1;
       if (corHit) node = corHit.object.userData.map[corHit.face.a];
       else if (front) {                                         // a click on the surface near an artery counts
-        const p = g3.inner.worldToLocal(front.point.clone()); let bd = 100;
+        let bd = 100;
         g3.corPos.forEach((q, i) => { const d = q.distanceToSquared(p); if (d < bd) { bd = d; node = i; } });
       }
-      if (node < 0) { flash(x, y, 'Click a coronary artery'); return; }
+      if (node < 0) { flash(x, y, cut ? 'Click an artery, the cut face or the inner wall' : 'Click a coronary artery'); return; }
       if (S.insults.some((v) => v.kind === 'occlusion' && v.node === node)) { flash(x, y, 'Already occluded here'); return; }
       captureRef(); added = S.addOcclusion(node);
       flash(x, y, `Occluded: ${segmentName(node)}`);
-    } else {
-      for (const hit of ray.intersectObjects(g3.pickTissue.concat([g3.slab.im]), false)) {
-        if (hit.object !== g3.slab.im && g3.plane.distanceToPoint(hit.point) < -0.3) continue;
-        const p = g3.inner.worldToLocal(hit.point.clone());
-        const c = nearestTissue(p.x, p.y, p.z, hit.object === g3.slab.im ? 1 : 3);
-        if (c < 0) continue;
-        if (A.label[c] !== 1 && A.label[c] !== 2) { flash(x, y, 'Click ventricular muscle'); return; }
-        captureRef(); added = S.addSubendocardial(c, 55);
-        flash(x, y, 'Subendocardial ischemia');
-        break;
-      }
-      if (!added) { flash(x, y, 'Click ventricular muscle'); return; }
     }
     if (ui.ischH === 0) setIschTime(1);                         // start an hour in, so the change is visible
     else S.setIschemiaTime(ui.ischH);
@@ -1111,7 +1128,7 @@
     $('ischWrap').hidden = !list.length;
     $('ischList').innerHTML = list.map((v) => `<div class="bchip isch"><span>${insultLabel(v)}</span><button type="button" data-id="${v.id}" aria-label="Remove">×</button></div>`).join('');
     for (const b of $('ischList').querySelectorAll('button')) b.addEventListener('click', () => {
-      S.removeInsult(+b.dataset.id); recolorIschemia(); renderIschList(); interpret(true);
+      S.removeInsult(+b.dataset.id); if (!S.insults.length) setIschTime(0); recolorIschemia(); renderIschList(); interpret(true);
     });
     $('ischStage').textContent = ischStage(ui.ischH);
   }
@@ -1951,7 +1968,8 @@
     $('stPeri').addEventListener('change', (e) => { ui.struct.peri = e.target.checked; S.setPericarditis(ui.struct.peri); interpret(); });
     $('stBrugada').addEventListener('change', (e) => { ui.struct.brugada = e.target.checked; S.setBrugada(ui.struct.brugada); interpret(); });
     $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
-    $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); recolorIschemia(); renderIschList(); interpret(true); });
+    // with no ischemia left the clock restarts, so the next insult begins at 1 h, not at a late stop
+    $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); setIschTime(0); recolorIschemia(); renderIschList(); interpret(true); });
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
     initPicking(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
