@@ -523,7 +523,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-10-31 (c039428).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-10-31 (96b9571).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -1826,6 +1826,8 @@ THE SOFTWARE.
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
+    scarWindow: 0.5,       // old scar as an electrical window: its would-be activation counted inverted (0 = silent scar)
+    scarRefractory: 200,   // ms between phantom activations of a scar cell
     ladRvMm: 0,            // RV muscle within this distance (mm) of the LAD is supplied by it (RV branches)
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
@@ -3322,7 +3324,7 @@ THE SOFTWARE.
       // conducting (sodium-channel inactivation) while it still drives injury current
       const unexcitable = !dead && kind !== 'subendo' && h >= 2 && s > P.ischDeadS && inj > P.ischBlockInj;
       return {
-        apd, dead, rim, unexcitable, level: Math.max(inj, 0.5 * s * katp),
+        apd, dead, rim, unexcitable, level: Math.max(inj, 0.5 * s * katp), kind,
         // necrotic muscle stays depolarised (and partly coupled, see _uncoupleDead) until it turns to scar
         vRest: dead ? P.vRest + P.ischDvRest * (kind === 'subendo' ? 0 : stResidual(h)) : P.vRest + P.ischDvRest * inj,
         amp: dead ? 0 : 1 - P.ischAmpDrop * inj,
@@ -3365,7 +3367,9 @@ THE SOFTWARE.
         for (const [c, st] of best) if (!st.dead && !reach[c] && M.kind[c] === KIND.VENT) { st.dead = true; st.vRest = P.vRest; st.amp = 0; }
       }
       let nDead = 0;
+      const ph = this.phantom = new Uint8Array(M.nCells);
       for (const [c, st] of best) {
+        if (st.dead && st.kind !== 'subendo' && M.kind[c] === KIND.VENT) ph[c] = 1;   // (a subendocardial scar is covered by living muscle: no window)
         this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = this.vAmp0[c] * st.amp;
         this.cvMul[c] = st.cv; this.blocked[c] = st.dead || st.unexcitable ? 1 : 0; this._ischCells.add(c);
         lvl[c] = st.dead || st.rim ? 2 : st.level;   // (display only: 2 = necrotic)
@@ -3381,6 +3385,7 @@ THE SOFTWARE.
         if (this.apdMax0[c] * f > this.apdMax[c]) { this.apdMax[c] = this.apdMax0[c] * f; this._ischCells.add(c); }
       }
       this._uncoupleDead();
+      this._buildPhantom();
       // nodal arteries: proximal RCA occlusion slows the sinus node and the AV node
       // (nodal ischaemia recovers over the first days)
       const nodalT = Math.min(1, h / 0.5) * (1 - Math.min(1, Math.max(0, (h - 48) / 96)));
@@ -3413,6 +3418,50 @@ THE SOFTWARE.
           M.pairCoef(lo, hi, a, cc);
           for (let e = 0; e < NE; e++) { W[hi * NE + e] -= u * cc[e]; W[lo * NE + e] += u * cc[e]; }
         }
+      }
+    }
+
+    // Old scar as an electrical "window". A dead wall is not merely silent:
+    // the electrode over it looks through the hole at the cavity, which is
+    // negative throughout the QRS, so it records a Q/QS. In the dipole sum
+    // this is the scar's would-be activation counted inverted: dead cells are
+    // activated as phantoms (from living muscle, Purkinje and each other, never
+    // back into living tissue) and add −scarWindow × their pair sources. Only
+    // pairs inside the scar are used, so a fully activated scar sums to zero:
+    // no ST or T contribution, only the QRS while the phantom front moves.
+    _buildPhantom() {
+      const M = this.M, A = M.A, NE = M.NE, ph = this.phantom, k = this.P.scarWindow;
+      this._pOn = false;
+      if (!k || !this.nDead || !ph) return;
+      const idx = this._pIdx = new Int32Array(M.nCells).fill(-1);
+      let n = 0; for (let c = 0; c < M.nVox; c++) if (ph[c]) idx[c] = n++;
+      const Wp = this._pW = new Float64Array(n * NE), cc = new Float64Array(NE);
+      for (let c = 0; c < M.nVox; c++) {
+        if (!ph[c]) continue;
+        const i = A.ii[c], j = A.jj[c], kk = A.kk[c];
+        for (let a = 0; a < 3; a++) {
+          const w = A.at(i + (a === 0), j + (a === 1), kk + (a === 2));
+          if (w < 0 || !ph[w]) continue;
+          M.pairCoef(c, w, a, cc);                                // pair stored low (c) → high (w)
+          const oh = idx[w] * NE, ol = idx[c] * NE;
+          for (let e = 0; e < NE; e++) { Wp[oh + e] += cc[e]; Wp[ol + e] -= cc[e]; }
+        }
+      }
+      this._pAct = new Float64Array(M.nCells).fill(-1e9);
+      this._pSum = new Float64Array(NE); this._pFirst = null; this._pOn = true;
+    }
+    _phantomActivate(c, ta) {
+      const P = this.P;
+      if (ta - this._pAct[c] < P.scarRefractory) return;
+      this._pAct[c] = ta;
+      if (this._pFirst === null) this._pFirst = ta;
+      const NE = this.M.NE, o = this._pIdx[c] * NE, sum = this._pSum, Wp = this._pW;
+      for (let e = 0; e < NE; e++) sum[e] += Wp[o + e];
+      const M = this.M, st = M.start, nb = M.nbr, w0 = M.w0, ph = this.phantom;
+      for (let e = st[c]; e < st[c + 1]; e++) {
+        const j = nb[e]; if (!ph[j]) continue;
+        const tArr = ta + w0[e] * this.cvMul[j];
+        if (tArr - this._pAct[j] >= P.scarRefractory) this.schedule(j, tArr);
       }
     }
 
@@ -3618,7 +3667,7 @@ THE SOFTWARE.
       const fg = this._flutterGate, iaSlow = this._iaSlow;
       for (let e = st[c]; e < st[c + 1]; e++) {
         const j = nb[e];
-        if (blocked[j]) continue;
+        if (blocked[j]) { if (this._pOn && this.phantom[j] && ta + w0[e] * cvMul[j] - this._pAct[j] >= P.scarRefractory) this.schedule(j, ta + w0[e] * cvMul[j]); continue; }
         let tau = w0[e] * cvMul[j];
         if (fg && j < nVox && c < nVox) {          // one-way conduction around the annulus (flutter circuit)
           const a = fg.ang[c], b = fg.ang[j];
@@ -3823,6 +3872,7 @@ THE SOFTWARE.
       for (let q = 0; q < bucket.length; q += 2) {
         const c = bucket[q], ta = bucket[q + 1];
         if (ta !== this.arrive[c]) continue;          // superseded
+        if (this._pOn && this.blocked[c] && this.phantom[c]) { this.arrive[c] = Infinity; this._phantomActivate(c, ta); continue; }
         if (this.blocked[c] || ta < this.refEnd[c] || (adeno && this.M.kind[c] === KIND.AVN)) { this.arrive[c] = Infinity; continue; }
         if (this._flutterRatio && c === this._flutterRatio.cell && !this._flutterPass(ta)) { this.arrive[c] = Infinity; continue; }
         const gate = this.gates.get(c);
@@ -3868,6 +3918,10 @@ THE SOFTWARE.
         if (dv === 0 && t > this.tAct[c]) { this._dynRemove(c); q--; continue; }   // back at rest
         const o = c * NE;
         for (let e = 0; e < NE; e++) phi[e] += W[o + e] * dv;
+      }
+      if (this._pOn && this._pFirst !== null) {
+        if (t > this._pFirst + 160) { this._pSum.fill(0); this._pFirst = null; }   // scar fully activated: its inverted sources sum to zero
+        else { const k = this.P.scarWindow * this.P.vAmp, sum = this._pSum; for (let e = 0; e < NE; e++) phi[e] -= k * sum[e]; }
       }
       const g = -this.P.ecgGain;
       const base = this._baseline || (this._baseline = this._computeBaseline());
