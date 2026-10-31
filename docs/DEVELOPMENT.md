@@ -338,11 +338,10 @@ Model fixes for subendocardial ischemia:
 
 - The Structure tab is now **Conditions**: a list of active conditions (each removable with ×),
   "+ Add condition" opening a searchable catalogue grouped by category (Chambers, Accessory
-  pathways, Pericardium, Channelopathies), and up to four recently used conditions (kept in
-  this browser's localStorage only).
-- Every condition is one entry in `CONDITIONS` (`src/app.js`): id, category, short label, name,
-  one-line description (shown on screen, replacing hover-only tooltips), extra search words,
-  `apply(value)` for the simulation, `options` for a choice such as the WPW pathway location,
+  pathways, Pericardium, Channelopathies) showing names only, and up to four recently used
+  conditions (kept in this browser's localStorage only).
+- Every condition is one entry in `CONDITIONS` (`src/app.js`): id, category, short label, name, extra
+  search words, `apply(value)` for the simulation, `options` for a choice such as the WPW pathway location,
   and `rebuild: true` for conditions that rebuild the heart (LVH, RVH). The tab, search, Reset,
   share links and the hypertrophy cache key all read this list. To add a condition: an entry
   here, its engine setter, and its interpretation/Learn text.

@@ -1826,14 +1826,14 @@
   // ---------------------------------------------------------------------------
   const atrialSize = () => S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae });
   const CONDITIONS = [
-    { id: 'rae', cat: 'Chambers', label: 'RAE', name: 'Right atrial enlargement', desc: 'Tall peaked P in II, III and aVF', also: 'P pulmonale atrium', apply: atrialSize },
-    { id: 'lae', cat: 'Chambers', label: 'LAE', name: 'Left atrial enlargement', desc: 'Broad notched P in II; deep negative terminal P in V1', also: 'P mitrale atrium', apply: atrialSize },
-    { id: 'lvh', cat: 'Chambers', label: 'LVH', name: 'Left ventricular hypertrophy', desc: 'Tall left-sided voltages with strain; rebuilds the heart', also: 'ventricle', rebuild: true },
-    { id: 'rvh', cat: 'Chambers', label: 'RVH', name: 'Right ventricular hypertrophy', desc: 'Dominant R in V1, right axis deviation; rebuilds the heart', also: 'ventricle', rebuild: true },
-    { id: 'ap', cat: 'Accessory pathways', label: 'WPW', name: 'Accessory pathway (WPW)', desc: 'Short PR and delta wave', also: 'Wolff-Parkinson-White pre-excitation bypass tract',
+    { id: 'rae', cat: 'Chambers', label: 'RAE', name: 'Right atrial enlargement', also: 'RAE P pulmonale atrium peaked P', apply: atrialSize },
+    { id: 'lae', cat: 'Chambers', label: 'LAE', name: 'Left atrial enlargement', also: 'LAE P mitrale atrium notched P', apply: atrialSize },
+    { id: 'lvh', cat: 'Chambers', label: 'LVH', name: 'Left ventricular hypertrophy', also: 'LVH ventricle voltage strain', rebuild: true },
+    { id: 'rvh', cat: 'Chambers', label: 'RVH', name: 'Right ventricular hypertrophy', also: 'RVH ventricle right axis deviation', rebuild: true },
+    { id: 'ap', cat: 'Accessory pathways', label: 'WPW', name: 'Accessory pathway (WPW)', also: 'Wolff-Parkinson-White pre-excitation bypass tract delta wave short PR',
       options: [['left-lateral', 'Left lateral', '~55%'], ['posteroseptal', 'Posteroseptal', '~25%']], apply: (v) => S.setAccessoryPathway(v || null) },
-    { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', desc: 'Diffuse concave ST elevation with PR depression', apply: (v) => S.setPericarditis(!!v) },
-    { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', desc: 'Coved ST elevation in V1–V2', also: 'sodium channel', apply: (v) => S.setBrugada(!!v) },
+    { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
+    { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
   ];
   const COND = Object.fromEntries(CONDITIONS.map((c) => [c.id, c]));
   const RECENT_KEY = 'ecgstudio.recentConditions';
@@ -1872,16 +1872,16 @@
     $('condRecent').hidden = !recent.length;
     $('condRecentList').innerHTML = recent.map(([id, v]) => `<button type="button" data-id="${id}" data-v="${v || ''}"${busy && COND[id].rebuild ? ' disabled' : ''}>${esc(COND[id].options ? `${COND[id].label}, ${COND[id].options.find((o) => o[0] === v)[1].toLowerCase()}` : COND[id].label)}</button>`).join('');
     const q = $('condSearch').value.trim().toLowerCase();
-    const match = (c) => !q || [c.name, c.label, c.desc, c.cat, c.also || ''].concat((c.options || []).map((o) => o[1])).join(' ').toLowerCase().includes(q);
+    const match = (c) => !q || [c.name, c.label, c.cat, c.also || ''].concat((c.options || []).map((o) => o[1])).join(' ').toLowerCase().includes(q);
     let html = '', cat = '';
     for (const c of CONDITIONS.filter(match)) {
       if (c.cat !== cat) { cat = c.cat; html += `<h4>${esc(cat)}</h4>`; }
       const dis = busy && c.rebuild ? ' disabled' : '';
       if (c.options) {
-        html += `<div class="crow${ui.struct[c.id] ? ' on' : ''}"><b>${esc(c.name)}</b><span>${esc(c.desc)}</span><div class="copts" role="group" aria-label="${esc(c.name)}">` +
+        html += `<div class="crow${ui.struct[c.id] ? ' on' : ''}"><b>${esc(c.name)}</b><div class="copts" role="group" aria-label="${esc(c.name)}">` +
           c.options.map(([v, lab, note]) => `<button type="button" data-id="${c.id}" data-v="${v}" aria-pressed="${ui.struct[c.id] === v}"${dis}>${esc(lab)}${note ? `<i>${esc(note)}</i>` : ''}</button>`).join('') + '</div></div>';
       } else {
-        html += `<button type="button" class="crow" data-id="${c.id}" aria-pressed="${!!ui.struct[c.id]}"${dis}><b>${esc(c.name)}</b><span>${esc(c.desc)}</span></button>`;
+        html += `<button type="button" class="crow" data-id="${c.id}" aria-pressed="${!!ui.struct[c.id]}"${dis}><b>${esc(c.name)}</b></button>`;
       }
     }
     $('condList').innerHTML = html;
