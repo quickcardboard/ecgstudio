@@ -63,7 +63,7 @@ header.top { display: flex; align-items: center; gap: 14px; min-height: 36px; }
 .top .spacer { flex: 1; }
 .simctl { display: flex; align-items: center; gap: 8px; }
 .simctl .tsrow { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
-.simctl input { width: 110px; accent-color: var(--accent); }
+.simctl input[type=range] { width: 160px; accent-color: var(--accent); }
 .simctl .val { font: 500 12.5px/1 var(--font-data); min-width: 3.2em; color: var(--fg); }
 button, .seg label {
   font: 500 13px/1 var(--font-ui); color: inherit; background: var(--surface); border: 1px solid var(--line);
@@ -275,7 +275,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   .viewsw { display: flex; }
   #btnHelp, #btnShare, .simctl button { padding: 6px 9px; font-size: 12px; }
   .simctl .lab { display: none; }
-  .simctl input { width: 70px; }
+  .simctl input[type=range] { width: 70px; }
   #divider, #focus3d, #focusEcg { display: none; }
   #pane3d, #paneEcg { flex: 1 1 auto; }
   body:not(.show-ecg) #paneEcg, body.show-ecg #pane3d { display: none; }
@@ -381,7 +381,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
               <input id="ischTime" type="range" min="0" max="6" step="1" value="0" aria-label="Time since onset of ischemia">
               <div class="note" id="ischStage"></div>
               <div class="blocklist" id="ischList"></div>
-              <button type="button" id="btnClearIsch">Clear ischemia</button>
             </div>
           </section>
 

@@ -63,7 +63,7 @@ header.top { display: flex; align-items: center; gap: 14px; min-height: 36px; }
 .top .spacer { flex: 1; }
 .simctl { display: flex; align-items: center; gap: 8px; }
 .simctl .tsrow { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
-.simctl input { width: 110px; accent-color: var(--accent); }
+.simctl input[type=range] { width: 160px; accent-color: var(--accent); }
 .simctl .val { font: 500 12.5px/1 var(--font-data); min-width: 3.2em; color: var(--fg); }
 button, .seg label {
   font: 500 13px/1 var(--font-ui); color: inherit; background: var(--surface); border: 1px solid var(--line);
@@ -275,7 +275,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   .viewsw { display: flex; }
   #btnHelp, #btnShare, .simctl button { padding: 6px 9px; font-size: 12px; }
   .simctl .lab { display: none; }
-  .simctl input { width: 70px; }
+  .simctl input[type=range] { width: 70px; }
   #divider, #focus3d, #focusEcg { display: none; }
   #pane3d, #paneEcg { flex: 1 1 auto; }
   body:not(.show-ecg) #paneEcg, body.show-ecg #pane3d { display: none; }
@@ -381,7 +381,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
               <input id="ischTime" type="range" min="0" max="6" step="1" value="0" aria-label="Time since onset of ischemia">
               <div class="note" id="ischStage"></div>
               <div class="blocklist" id="ischList"></div>
-              <button type="button" id="btnClearIsch">Clear ischemia</button>
             </div>
           </section>
 
@@ -524,7 +523,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-10-31 (7ed1dd3).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-10-31 (45df16e).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -5013,6 +5012,14 @@ THE SOFTWARE.
     if (hit.object === g3.sanPick) { showBlockMenu('SAN', 'sa-exit', x, y); return; }
     const id = hit.object.userData.map[hit.face.a], site = SEG_SITE[M.seg[id]];
     if (!site) return;
+    // a single choice (bundle branches, fascicles) needs no menu
+    if (BLOCK_MENU[site].length === 1) {
+      if (S.blocks[site]) { flash(x, y, 'Already blocked: remove it with ×'); return; }
+      const [type, label, opts] = BLOCK_MENU[site][0];
+      S.setBlock(site, type, opts || {}); renderBlockList(); interpret(true);
+      flash(x, y, label);
+      return;
+    }
     let def = BLOCK_MENU[site][0][0];
     if (site === 'AVN') def = M.avn.indexOf(id) <= 1 ? 'first' : 'wenckebach';   // proximal node: 1st degree; distal: Wenckebach
     showBlockMenu(site, def, x, y);
@@ -5097,7 +5104,7 @@ THE SOFTWARE.
     $('ischWrap').hidden = !list.length;
     $('ischList').innerHTML = list.map((v) => `<div class="bchip isch"><span>${insultLabel(v)}</span><button type="button" data-id="${v.id}" aria-label="Remove">×</button></div>`).join('');
     for (const b of $('ischList').querySelectorAll('button')) b.addEventListener('click', () => {
-      S.removeInsult(+b.dataset.id); if (!S.insults.length) setIschTime(0); recolorIschemia(); renderIschList(); interpret(true);
+      S.removeInsult(+b.dataset.id); if (!S.insults.length) setIschTime(0);   // the clock restarts, so the next insult begins at 1 h, not at a late stop recolorIschemia(); renderIschList(); interpret(true);
     });
     $('ischStage').textContent = ischStage(ui.ischH);
   }
@@ -5937,8 +5944,6 @@ THE SOFTWARE.
     $('stPeri').addEventListener('change', (e) => { ui.struct.peri = e.target.checked; S.setPericarditis(ui.struct.peri); interpret(); });
     $('stBrugada').addEventListener('change', (e) => { ui.struct.brugada = e.target.checked; S.setBrugada(ui.struct.brugada); interpret(); });
     $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
-    // with no ischemia left the clock restarts, so the next insult begins at 1 h, not at a late stop
-    $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); setIschTime(0); recolorIschemia(); renderIschList(); interpret(true); });
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
     initPicking(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));

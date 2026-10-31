@@ -1044,6 +1044,14 @@
     if (hit.object === g3.sanPick) { showBlockMenu('SAN', 'sa-exit', x, y); return; }
     const id = hit.object.userData.map[hit.face.a], site = SEG_SITE[M.seg[id]];
     if (!site) return;
+    // a single choice (bundle branches, fascicles) needs no menu
+    if (BLOCK_MENU[site].length === 1) {
+      if (S.blocks[site]) { flash(x, y, 'Already blocked: remove it with ×'); return; }
+      const [type, label, opts] = BLOCK_MENU[site][0];
+      S.setBlock(site, type, opts || {}); renderBlockList(); interpret(true);
+      flash(x, y, label);
+      return;
+    }
     let def = BLOCK_MENU[site][0][0];
     if (site === 'AVN') def = M.avn.indexOf(id) <= 1 ? 'first' : 'wenckebach';   // proximal node: 1st degree; distal: Wenckebach
     showBlockMenu(site, def, x, y);
@@ -1128,7 +1136,7 @@
     $('ischWrap').hidden = !list.length;
     $('ischList').innerHTML = list.map((v) => `<div class="bchip isch"><span>${insultLabel(v)}</span><button type="button" data-id="${v.id}" aria-label="Remove">×</button></div>`).join('');
     for (const b of $('ischList').querySelectorAll('button')) b.addEventListener('click', () => {
-      S.removeInsult(+b.dataset.id); if (!S.insults.length) setIschTime(0); recolorIschemia(); renderIschList(); interpret(true);
+      S.removeInsult(+b.dataset.id); if (!S.insults.length) setIschTime(0);   // the clock restarts, so the next insult begins at 1 h, not at a late stop recolorIschemia(); renderIschList(); interpret(true);
     });
     $('ischStage').textContent = ischStage(ui.ischH);
   }
@@ -1968,8 +1976,6 @@
     $('stPeri').addEventListener('change', (e) => { ui.struct.peri = e.target.checked; S.setPericarditis(ui.struct.peri); interpret(); });
     $('stBrugada').addEventListener('change', (e) => { ui.struct.brugada = e.target.checked; S.setBrugada(ui.struct.brugada); interpret(); });
     $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
-    // with no ischemia left the clock restarts, so the next insult begins at 1 h, not at a late stop
-    $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); setIschTime(0); recolorIschemia(); renderIschList(); interpret(true); });
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
     initPicking(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
