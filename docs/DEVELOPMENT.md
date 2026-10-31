@@ -348,6 +348,8 @@ Model fixes for subendocardial ischemia:
 - Share links are unchanged (`s=` on/off conditions, `ap=` pathway), so older links still open.
 - AVNRT/AVRT set or clear the pathway through `setCondition`, so the active list stays in step.
 - Engine untouched; validation tools not affected.
+- Fix: a click on the heart surface near an artery could pick a side-branch node (D1, OM1, …),
+  which is not offered for occlusion, and throw; only the offered vessels are searched now.
 
 ### Round 18: phone layout prototype (mobile-1)
 
@@ -385,7 +387,4 @@ width ≤ 743 px, or a touch screen ≤ 500 px tall held sideways). Tablets and 
   closes it first. Page pinch-zoom, text selection and long-press callouts are off on the
   touch surfaces.
 - `ECGStudioApp.touchTarget(x, y)` reports what a tap at a page point would act on (tests).
-- Fix (also on desktop): clicking or holding the heart surface near an artery could pick a
-  side-branch node that is no longer offered for occlusion and throw; only the offered vessels
-  are searched now.
 - Help guide text is unchanged (written for the desktop); the phone tab notes describe the gestures.
