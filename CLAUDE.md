@@ -52,4 +52,9 @@ Known limitations (Round 14–15 notes in docs/DEVELOPMENT.md):
   and the short tab instructions as they are unless asked.
 - Reset returns to sinus rhythm at 72 bpm with no abnormalities.
 - Do not put model identifiers in commits, code or docs.
-- Work on a feature branch; `milestone-1` is the live site.
+- Branches: `milestone-1` is the live site and takes engine work and bug fixes. Feature work
+  lives on branches cut from it (`mobile-1`: phone layout). Keep a feature branch current by
+  merging `origin/milestone-1` into it (never cherry-pick between branches: duplicate commits
+  conflict later). After any merge, resolve `index.html` by rebuilding with
+  `python3 tools/build.py`. A feature reaches the live site through a pull request into
+  `milestone-1`. Preview a branch at `https://raw.githack.com/quickcardboard/ecgstudio/<branch>/index.html`.
