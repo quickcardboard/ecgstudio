@@ -2191,7 +2191,7 @@
       else { ctx.lineTo(x, yMax); ctx.lineTo(x, yMin); lastY = yMin; }
     }
   }
-  function drawLeads(cv, leads, win, note) {
+  function drawLeads(cv, leads, win, note, noLabel) {
     const W = cv.clientWidth, H = cv.clientHeight;
     if (!W || !H) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(W * dpr), h = Math.round(H * dpr);
@@ -2212,7 +2212,7 @@
     });
     ctx.fillStyle = 'rgba(194,48,79,0.25)'; ctx.fillRect((now - ws) * pxPerMs, 0, Math.max(2, 0.5 * mm), h);
     ctx.font = `600 ${12 * dpr}px "IBM Plex Sans", system-ui, sans-serif`; ctx.textBaseline = 'top';
-    leads.forEach((n, i) => {
+    if (!noLabel) leads.forEach((n, i) => {
       const y = rowH * i + 5 * dpr, tw = ctx.measureText(n).width;
       ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(4 * dpr, y - 2 * dpr, tw + 8 * dpr, 17 * dpr);
       ctx.fillStyle = '#111'; ctx.fillText(n, 8 * dpr, y);
@@ -2225,7 +2225,7 @@
   function drawPhone() {
     if (!isM()) return;
     const b = document.body.classList;
-    if (b.contains('fs-heart')) drawLeads($('clive'), [ph.live], 5000, 'tap: next lead · double-tap: back');
+    if (b.contains('fs-heart')) drawLeads($('clive'), [ph.live], 5000, 'double-tap: back', true);
     else if (!b.contains('fs-ecg')) {
       drawLeads($('cgroup'), GROUPS[ph.group], ph.win);
       if (ph.peek !== null) drawLeads($('cgroup2'), GROUPS[ph.peek], ph.win);
@@ -2245,7 +2245,7 @@
   function toggleFsHeart() {
     if (ph.fsHeart) { closeLayer('fs-heart'); return; }
     ph.fsHeart = true; fsClass(); buzz();
-    openLayer('fs-heart', () => { ph.fsHeart = false; fsClass(); });
+    openLayer('fs-heart', () => { ph.fsHeart = false; fsClass(); if (hasLayer('leads')) closeLayer('leads'); });
   }
 
   // gestures on the heart
@@ -2503,11 +2503,23 @@
     $('mLearn').addEventListener('click', () => { if (sheetOpen() && ui.tab === 'learn') closeLayer('sheet'); else openSheet('learn'); });
     $('mShock').addEventListener('click', () => { buzz(40); $('btnShock').click(); updateFloat(); });
     $('mAdeno').addEventListener('click', () => { buzz(); $('btnAdeno').click(); });
+    // live lead: its label opens a lead menu; a double-tap on the strip returns to two panes
     let liveTap = null;
     $('liveWrap').addEventListener('click', (e) => {
-      if (liveTap && e.timeStamp - liveTap.t < DOUBLE_MS) { clearTimeout(liveTap.timer); liveTap = null; toggleFsHeart(); return; }
-      liveTap = { t: e.timeStamp, timer: setTimeout(() => { liveTap = null; ph.live = LH.LEADS[(LH.LEADS.indexOf(ph.live) + 1) % LH.LEADS.length]; buzz(); }, DOUBLE_MS) };
+      if (e.target.closest('button')) return;
+      if (liveTap && e.timeStamp - liveTap < DOUBLE_MS) { liveTap = null; toggleFsHeart(); } else liveTap = e.timeStamp;
     });
+    const lm = $('leadMenu'), lb = $('leadBtn');
+    const showLeads = (on) => {
+      lm.hidden = !on; lb.setAttribute('aria-expanded', String(on));
+      if (on) lm.innerHTML = LH.LEADS.map((n) => `<button type="button" role="menuitemradio" aria-checked="${n === ph.live}" data-lead="${n}">${n}</button>`).join('');
+    };
+    lb.addEventListener('click', () => { if (lm.hidden) { showLeads(true); openLayer('leads', () => showLeads(false)); } else closeLayer('leads'); });
+    lm.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-lead]'); if (!b) return;
+      ph.live = b.dataset.lead; lb.textContent = `${ph.live} ▾`; lb.setAttribute('aria-label', `Live lead: ${ph.live}. Change lead`); buzz(); closeLayer('leads');
+    });
+    document.addEventListener('pointerdown', (e) => { if (!lm.hidden && !lm.contains(e.target) && !lb.contains(e.target)) closeLayer('leads'); }, true);
     // ECG: interpretation bar, lead groups, seconds, full-screen controls
     $('interp').addEventListener('click', (e) => {
       if (!isM() || document.body.classList.contains('fs-ecg') || e.target.closest('button')) return;

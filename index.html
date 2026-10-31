@@ -283,7 +283,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
    shows that view upright. A double-tap beside the heart fills the screen with
    it (body.fs-heart) above one live lead. */
 :root { --tabh: 56px; }
-.mctl, .mtabs, .mmenu, .mlearn, .mfloat, .gbar, .fsbar, #cgroup, #cgroup2, .shead, .press, .live { display: none; }
+.mctl, .mtabs, .mmenu, .leadmenu, .mlearn, .mfloat, .gbar, .fsbar, #cgroup, #cgroup2, .shead, .press, .live { display: none; }
 body.m { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 body.m button { touch-action: manipulation; }
 body.m #c3d, body.m #ecgWrap, body.m .live, body.m #shead { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -327,17 +327,18 @@ body.m .press { display: block; position: absolute; z-index: 4; width: 60px; hei
 
 /* ECG: one lead group at a time */
 body.m #ecgWrap { order: 1; touch-action: none; }
-body.m #cgroup, body.m #cgroup2 { display: block; position: absolute; left: 0; top: 0; width: 100%; height: calc(100% - 38px); will-change: transform; }
+body.m #cgroup, body.m #cgroup2 { display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%; will-change: transform; }
 body.m #ecgWrap { overflow: hidden; }
 body.m .slide #cgroup, body.m .slide #cgroup2 { transition: transform 0.22s cubic-bezier(0.2, 0.7, 0.3, 1); }
-body.m .gbar { display: flex; align-items: center; gap: 8px; position: absolute; left: 0; right: 0; bottom: 0; height: 38px; box-sizing: border-box; padding: 0 8px; border-top: 1px solid #f3dbe1; }
+body.m .gbar { display: flex; align-items: center; gap: 6px; position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; padding: 0 6px 4px; pointer-events: none; }
+.gbar > * { pointer-events: auto; }
 .msecs, .fsbar button { color: #1d2a36; background: rgba(255,255,255,0.92); border-color: #d3dae1; }
-.msecs { padding: 6px 10px; font: 500 12px/1 var(--font-data); border-radius: 15px; }
-.dots { flex: 1; display: flex; justify-content: center; }
-.dots button { width: 30px; height: 30px; padding: 0; border: 0; background: none; display: grid; place-items: center; }
-.dots button::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #e2b0bd; }
+.msecs { padding: 5px 8px; font: 500 11px/1 var(--font-data); border-radius: 12px; }
+.dots { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); display: flex; padding: 0 4px; border-radius: 10px; background: rgba(255,255,255,0.8); }
+.dots button { width: 18px; height: 20px; padding: 0; border: 0; background: none; display: grid; place-items: center; }
+.dots button::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #e2b0bd; }
 .dots button[aria-selected="true"]::before { background: #c2304f; }
-.ghint { font-size: 11px; color: #8a5a66; background: rgba(255,255,255,0.88); padding: 3px 6px; border-radius: 4px; }
+.ghint { position: absolute; right: 6px; bottom: 4px; font-size: 10.5px; color: #8a5a66; background: rgba(255,255,255,0.85); padding: 3px 6px; border-radius: 4px; }
 body.m #interp { order: 2; flex: none; flex-wrap: wrap; gap: 6px; padding: 8px 32px 8px 10px; border-bottom: 0; border-top: 1px solid var(--line); cursor: pointer; position: relative; }
 body.m #interp::after { content: "▴"; position: absolute; right: 12px; top: 8px; color: var(--muted); font-size: 13px; }
 body.m #rhythm { flex: 1 1 100%; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -373,6 +374,10 @@ body.m.fs-heart #paneEcg { display: none; }
 body.m.fs-heart #pane3d { flex: 1 1 auto; }
 body.m.fs-heart .live { display: block; position: absolute; z-index: 3; left: 8px; right: 8px; bottom: 8px; height: 96px; border-radius: 8px; overflow: hidden; background: var(--paper); cursor: pointer; }
 .live { touch-action: manipulation; }
+.leadbtn { position: absolute; left: 4px; top: 4px; padding: 5px 9px; font: 600 13px/1 var(--font-data); color: #111; background: rgba(255,255,255,0.92); border-color: #d3dae1; border-radius: 6px; }
+body.m .leadmenu { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; position: absolute; z-index: 5; left: 8px; bottom: 110px; width: min(300px, calc(100% - 16px)); box-sizing: border-box; padding: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+.leadmenu button { padding: 10px 0; font: 500 14px/1 var(--font-data); color: var(--fg); background: var(--surface); border-color: var(--line); }
+.leadmenu button[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .live canvas { display: block; width: 100%; height: 100%; }
 body.m.fs-heart .vinfo, body.m.fs-heart .mfloat { bottom: 112px; }
 
@@ -556,7 +561,8 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <button type="button" id="mAdeno" class="adeno" hidden>Adenosine</button>
       </div>
       <div class="press" id="press" hidden></div>
-      <div class="live" id="liveWrap" role="button" tabindex="0"><canvas id="clive" aria-label="Live lead (tap to change)"></canvas></div>
+      <div class="live" id="liveWrap"><canvas id="clive" aria-hidden="true"></canvas><button type="button" class="leadbtn" id="leadBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Live lead: II. Change lead">II ▾</button></div>
+      <div class="leadmenu" id="leadMenu" role="menu" aria-label="Live lead" hidden></div>
     </section>
 
     <div id="divider" role="separator" aria-orientation="vertical" tabindex="0" title="Drag to resize · double-click to reset"></div>
@@ -637,7 +643,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-10-31 (749bc37).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-10-31 (fc5cfd1).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -6278,7 +6284,7 @@ THE SOFTWARE.
       else { ctx.lineTo(x, yMax); ctx.lineTo(x, yMin); lastY = yMin; }
     }
   }
-  function drawLeads(cv, leads, win, note) {
+  function drawLeads(cv, leads, win, note, noLabel) {
     const W = cv.clientWidth, H = cv.clientHeight;
     if (!W || !H) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(W * dpr), h = Math.round(H * dpr);
@@ -6299,7 +6305,7 @@ THE SOFTWARE.
     });
     ctx.fillStyle = 'rgba(194,48,79,0.25)'; ctx.fillRect((now - ws) * pxPerMs, 0, Math.max(2, 0.5 * mm), h);
     ctx.font = `600 ${12 * dpr}px "IBM Plex Sans", system-ui, sans-serif`; ctx.textBaseline = 'top';
-    leads.forEach((n, i) => {
+    if (!noLabel) leads.forEach((n, i) => {
       const y = rowH * i + 5 * dpr, tw = ctx.measureText(n).width;
       ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(4 * dpr, y - 2 * dpr, tw + 8 * dpr, 17 * dpr);
       ctx.fillStyle = '#111'; ctx.fillText(n, 8 * dpr, y);
@@ -6312,7 +6318,7 @@ THE SOFTWARE.
   function drawPhone() {
     if (!isM()) return;
     const b = document.body.classList;
-    if (b.contains('fs-heart')) drawLeads($('clive'), [ph.live], 5000, 'tap: next lead · double-tap: back');
+    if (b.contains('fs-heart')) drawLeads($('clive'), [ph.live], 5000, 'double-tap: back', true);
     else if (!b.contains('fs-ecg')) {
       drawLeads($('cgroup'), GROUPS[ph.group], ph.win);
       if (ph.peek !== null) drawLeads($('cgroup2'), GROUPS[ph.peek], ph.win);
@@ -6332,7 +6338,7 @@ THE SOFTWARE.
   function toggleFsHeart() {
     if (ph.fsHeart) { closeLayer('fs-heart'); return; }
     ph.fsHeart = true; fsClass(); buzz();
-    openLayer('fs-heart', () => { ph.fsHeart = false; fsClass(); });
+    openLayer('fs-heart', () => { ph.fsHeart = false; fsClass(); if (hasLayer('leads')) closeLayer('leads'); });
   }
 
   // gestures on the heart
@@ -6590,11 +6596,23 @@ THE SOFTWARE.
     $('mLearn').addEventListener('click', () => { if (sheetOpen() && ui.tab === 'learn') closeLayer('sheet'); else openSheet('learn'); });
     $('mShock').addEventListener('click', () => { buzz(40); $('btnShock').click(); updateFloat(); });
     $('mAdeno').addEventListener('click', () => { buzz(); $('btnAdeno').click(); });
+    // live lead: its label opens a lead menu; a double-tap on the strip returns to two panes
     let liveTap = null;
     $('liveWrap').addEventListener('click', (e) => {
-      if (liveTap && e.timeStamp - liveTap.t < DOUBLE_MS) { clearTimeout(liveTap.timer); liveTap = null; toggleFsHeart(); return; }
-      liveTap = { t: e.timeStamp, timer: setTimeout(() => { liveTap = null; ph.live = LH.LEADS[(LH.LEADS.indexOf(ph.live) + 1) % LH.LEADS.length]; buzz(); }, DOUBLE_MS) };
+      if (e.target.closest('button')) return;
+      if (liveTap && e.timeStamp - liveTap < DOUBLE_MS) { liveTap = null; toggleFsHeart(); } else liveTap = e.timeStamp;
     });
+    const lm = $('leadMenu'), lb = $('leadBtn');
+    const showLeads = (on) => {
+      lm.hidden = !on; lb.setAttribute('aria-expanded', String(on));
+      if (on) lm.innerHTML = LH.LEADS.map((n) => `<button type="button" role="menuitemradio" aria-checked="${n === ph.live}" data-lead="${n}">${n}</button>`).join('');
+    };
+    lb.addEventListener('click', () => { if (lm.hidden) { showLeads(true); openLayer('leads', () => showLeads(false)); } else closeLayer('leads'); });
+    lm.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-lead]'); if (!b) return;
+      ph.live = b.dataset.lead; lb.textContent = `${ph.live} ▾`; lb.setAttribute('aria-label', `Live lead: ${ph.live}. Change lead`); buzz(); closeLayer('leads');
+    });
+    document.addEventListener('pointerdown', (e) => { if (!lm.hidden && !lm.contains(e.target) && !lb.contains(e.target)) closeLayer('leads'); }, true);
     // ECG: interpretation bar, lead groups, seconds, full-screen controls
     $('interp').addEventListener('click', (e) => {
       if (!isM() || document.body.classList.contains('fs-ecg') || e.target.closest('button')) return;

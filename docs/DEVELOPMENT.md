@@ -410,3 +410,10 @@ width ≤ 743 px, or a touch screen ≤ 500 px tall held sideways). Tablets and 
 - Lead groups slide: while swiping, the strip follows the finger with the neighbouring group
   drawn beside it (`#cgroup2`); past a quarter of the width or on a quick flick it slides on
   (0.22 s), otherwise it slides back. Tapping an adjacent page dot slides too.
+
+### Round 21: phone ECG controls over the grid, live-lead menu
+
+- The strip under the lead groups is gone: the tracing fills the ECG area and the seconds button,
+  smaller page dots (centred) and the one-time double-tap hint float over the grid.
+- Full-screen heart: the live lead's label is a button that opens a 12-lead menu (closes with the
+  back button or a tap outside); a double-tap on the strip still returns to the two-pane view.
