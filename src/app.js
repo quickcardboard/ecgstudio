@@ -481,6 +481,12 @@
   }
 
   // territory tint (resting colour per voxel) and artery colours after any change
+  // with no ischemia left the clock restarts, so the next insult begins at 1 h, not at a late stop
+  function removeIschemia(id) {
+    S.removeInsult(id);
+    if (!S.insults.length) setIschTime(0);
+    recolorIschemia(); renderIschList(); interpret(true);
+  }
   function recolorIschemia() {
     ui.ischChangedAt = S.t;                                       // beats before this no longer reflect the tissue
     const rc = g3.restCol, lv = S.ischLevel, occl = S.insults.filter((x) => x.kind === 'occlusion');
@@ -500,7 +506,7 @@
     g3.clots.clear();
     for (const x of occl) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(2.8, 14, 10), new THREE.MeshPhongMaterial({ color: 0xffd84a, emissive: 0x6a5200 }));
-      m.position.copy(g3.corPos[x.node]); g3.clots.add(m);
+      m.position.copy(g3.corPos[x.node]); m.userData.insult = x.id; g3.clots.add(m);
     }
     const any = S.insults.length > 0;
     $('legendIsch').hidden = !any;
@@ -1046,7 +1052,7 @@
     if (!site) return;
     // a single choice (bundle branches, fascicles) needs no menu
     if (BLOCK_MENU[site].length === 1) {
-      if (S.blocks[site]) { flash(x, y, 'Already blocked: remove it with ×'); return; }
+      if (S.blocks[site]) { S.setBlock(site, null); renderBlockList(); interpret(true); flash(x, y, 'Block removed'); return; }
       const [type, label, opts] = BLOCK_MENU[site][0];
       S.setBlock(site, type, opts || {}); renderBlockList(); interpret(true);
       flash(x, y, label);
@@ -1101,6 +1107,9 @@
     const corHit = ray.intersectObjects(g3.corPick, false)
       .find((h) => (!cut || g3.plane.distanceToPoint(h.point) >= -0.3) && (!front || h.distance <= front.distance + 3));
     const p = front ? g3.inner.worldToLocal(front.point.clone()) : null;
+    // a click on an occlusion marker removes that occlusion
+    const clot = ray.intersectObjects(g3.clots.children, false).find((h) => !front || h.distance <= front.distance + 3);
+    if (clot) { const v = S.insults.find((x) => x.id === clot.object.userData.insult); if (v) { removeIschemia(v.id); flash(x, y, 'Occlusion removed'); return; } }
     let subCell = -1;
     if (!corHit && cut && front) {
       if (front.object === g3.slab.im) { const c = nearestTissue(p.x, p.y, p.z, 1); if (c >= 0 && (A.label[c] === 1 || A.label[c] === 2)) subCell = c; else { flash(x, y, 'Click ventricular muscle'); return; } }
@@ -1117,7 +1126,8 @@
         g3.corPos.forEach((q, i) => { const d = q.distanceToSquared(p); if (d < bd) { bd = d; node = i; } });
       }
       if (node < 0) { flash(x, y, cut ? 'Click an artery, the cut face or the inner wall' : 'Click a coronary artery'); return; }
-      if (S.insults.some((v) => v.kind === 'occlusion' && v.node === node)) { flash(x, y, 'Already occluded here'); return; }
+      const same = S.insults.find((v) => v.kind === 'occlusion' && v.node === node);
+      if (same) { removeIschemia(same.id); flash(x, y, 'Occlusion removed'); return; }
       captureRef(); added = S.addOcclusion(node);
       flash(x, y, `Occluded: ${segmentName(node)}`);
     }
@@ -1136,7 +1146,7 @@
     $('ischWrap').hidden = !list.length;
     $('ischList').innerHTML = list.map((v) => `<div class="bchip isch"><span>${insultLabel(v)}</span><button type="button" data-id="${v.id}" aria-label="Remove">×</button></div>`).join('');
     for (const b of $('ischList').querySelectorAll('button')) b.addEventListener('click', () => {
-      S.removeInsult(+b.dataset.id); if (!S.insults.length) setIschTime(0);   // the clock restarts, so the next insult begins at 1 h, not at a late stop recolorIschemia(); renderIschList(); interpret(true);
+      removeIschemia(+b.dataset.id);
     });
     $('ischStage').textContent = ischStage(ui.ischH);
   }
