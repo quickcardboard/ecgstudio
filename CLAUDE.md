@@ -16,7 +16,8 @@ all rights reserved (LICENSE).
   `window.ECGStudioApp` is a handle for automated tests.
 - `site.json`: author, contact, year shown in Help → About; the build stamps date + commit.
 - `docs/DEVELOPMENT.md`: model choices, validation and per-round notes. Add a section for each
-  round of changes.
+  round of changes (`Round N` on `milestone-1`; `<branch> round N` on a feature branch, so merges
+  do not clash).
 
 ## Validation (headless, Node)
 
