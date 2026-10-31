@@ -1,6 +1,6 @@
-# LiveHeart
+# ECG Studio
 
-**See the ECG come from the heart.** LiveHeart is an interactive 3D heart and 12-lead ECG
+**See the ECG come from the heart.** [ECG Studio](https://ecgstudio.app) is an interactive 3D heart and 12-lead ECG
 simulator for students and teachers of electrocardiography. Every complex on the tracing is
 computed live from a CT-derived four-chamber heart: block a fascicle, occlude a coronary
 artery or start a tachycardia, and watch the wavefront change in 3D while the 12 leads
@@ -78,9 +78,9 @@ plus `python3 tools/plot_ecg.py out.json plot.png 1600 1100`.
 Anatomy: Rodero C, Strocchi M, Marciniak M, et al. *Virtual cohort of extreme and average
 four-chamber heart meshes from statistical shape model.* Zenodo (2021),
 doi:10.5281/zenodo.4593739, licensed CC BY 4.0. The mesh was voxelized, decimated and
-re-oriented; the conduction system and electrophysiology are LiveHeart's own.
+re-oriented; the conduction system and electrophysiology are ECG Studio's own.
 
-LiveHeart is an educational model, not a diagnostic device.
+ECG Studio is an educational model, not a diagnostic device.
 
 ## Licence
 

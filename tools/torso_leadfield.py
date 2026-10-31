@@ -7,7 +7,7 @@ voltage is V_ab = (1/sigma) * integral(L . J_i) dV. Its local direction and
 length are the "lead vector" at each point of the heart. Burger's triangle is
 the heart-averaged version of these vectors.
 
-Torso: elliptic cylinder in the LiveHeart torso frame (mm; X left, Y up,
+Torso: elliptic cylinder in the ECG Studio torso frame (mm; X left, Y up,
 Z anterior), half-width 160, half-depth 110, from y=-360 (groin) to y=+220
 (shoulders). Limb leads attach at the right/left shoulder and the left groin.
 

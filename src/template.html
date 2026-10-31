@@ -1,8 +1,10 @@
 <meta charset="utf-8">
 <meta name="author" content="{{AUTHOR}}">
-<title>LiveHeart · Interactive ECG Simulator</title>
-<meta name="description" content="LiveHeart: a 3D beating heart that computes the 12-lead ECG from its own electrical activity. Explore rhythms, conduction blocks, ischemia and infarction, hypertrophy, WPW, pericarditis and Brugada in real time.">
-<meta property="og:title" content="LiveHeart · Interactive ECG Simulator">
+<title>ECG Studio · 3D Heart and 12-Lead ECG Simulator</title>
+<meta name="description" content="ECG Studio: a 3D beating heart that computes the 12-lead ECG from its own electrical activity. Explore rhythms, conduction blocks, ischemia and infarction, hypertrophy, WPW, pericarditis and Brugada in real time.">
+<meta property="og:title" content="ECG Studio · 3D Heart and 12-Lead ECG Simulator">
+<meta property="og:url" content="https://ecgstudio.app/">
+<link rel="canonical" href="https://ecgstudio.app/">
 <meta property="og:description" content="A 3D heart that computes its own 12-lead ECG. Rhythms, blocks, ischemia, infarction and more, in real time.">
 <meta name="theme-color" content="#121b26">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28S3 20 3 11a6.5 6.5 0 0 1 13-1 6.5 6.5 0 0 1 13 1c0 9-13 17-13 17z' fill='%23c2304f'/%3E%3Cpath d='M5 15h6l2-4 3 9 2-5h9' stroke='%23fff' stroke-width='2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -306,10 +308,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 }
 </style>
 
-<div class="rotate" id="rotate" role="alert"><div><i aria-hidden="true">⟳</i><b>Turn your phone sideways</b>LiveHeart on a phone works in landscape, which gives the ECG a usable width.</div></div>
+<div class="rotate" id="rotate" role="alert"><div><i aria-hidden="true">⟳</i><b>Turn your phone sideways</b>ECG Studio on a phone works in landscape, which gives the ECG a usable width.</div></div>
 <div id="app">
   <header class="top">
-    <div class="brand"><h1>Live<b>Heart</b></h1><span>Interactive 3D heart and 12-lead ECG simulator</span></div>
+    <div class="brand"><h1>ECG <b>Studio</b></h1><span>Interactive 3D heart and 12-lead ECG simulator</span></div>
     <div class="viewsw" id="viewsw" role="tablist" aria-label="Show">
       <button type="button" role="tab" data-pane="heart" aria-selected="true">Heart</button><button type="button" role="tab" data-pane="ecg" aria-selected="false">ECG</button>
     </div>
@@ -477,7 +479,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     </nav>
     <section class="hpage" data-page="start">
       <h3>Getting started</h3>
-      <p>LiveHeart computes the ECG forward from a beating heart. Activation spreads through about 37,000 tissue cells, each with its own action potential, and the twelve leads are calculated from the electrical field those cells produce. Every wave on the paper comes from the simulated tissue.</p>
+      <p>ECG Studio computes the ECG forward from a beating heart. Activation spreads through about 37,000 tissue cells, each with its own action potential, and the twelve leads are calculated from the electrical field those cells produce. Every wave on the paper comes from the simulated tissue.</p>
       <ul>
         <li><b>Left:</b> 3D electrophysiologically animated model of the heart.</li>
         <li><b>Right:</b> a standard 12-lead layout with up to three 10-s rhythm strips, written by a sweeping cursor.</li>
@@ -520,7 +522,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Electrophysiology:</b> an event-driven cellular automaton with fibre-dependent conduction, AV-node decrement, restitution, transmural and apicobasal repolarization gradients, and a conduction system (SA node, AV node with dual pathways, His bundle, bundle branches, two left fascicles, Purkinje networks).</li>
       <li><b>ECG:</b> limb leads blend the lead field of a computed insulated torso with Einthoven's equilateral triangle; chest leads blend the heart-vector projection with the near-field potential at each electrode.</li>
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
-      <li><b>Not a medical device:</b> LiveHeart is for education only and must not be used for diagnosis or treatment.</li>
+      <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p class="credit">Created by {{AUTHOR}}{{CONTACT}}. © {{YEAR}} {{AUTHOR}}. All rights reserved. Version {{VERSION}}.</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>

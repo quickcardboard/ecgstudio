@@ -1,5 +1,5 @@
 """
-Build the embedded anatomy for LiveHeart from the Rodero et al. (2021) average
+Build the embedded anatomy for ECG Studio from the Rodero et al. (2021) average
 four-chamber heart mesh (Zenodo 10.5281/zenodo.4593739, CC BY 4.0).
 
 Outputs (to the given directory):
@@ -7,7 +7,7 @@ Outputs (to the given directory):
                   arrays base64-encoded, ready to be inlined in index.html.
   preview_*.png - orthographic previews for sanity checks.
 
-Body frame used everywhere in LiveHeart (millimetres):
+Body frame used everywhere in ECG Studio (millimetres):
   +X = patient left, +Y = superior (Three.js "up"), +Z = anterior (toward viewer)
 The source mesh is DICOM LPS (+x left, +y posterior, +z superior), so
   X = x, Y = z, Z = -y.
@@ -17,7 +17,7 @@ import pyfqmr
 
 H = float(sys.argv[3]) if len(sys.argv) > 3 else 2.0   # voxel edge (mm)
 
-# Source label -> LiveHeart tissue label
+# Source label -> ECG Studio tissue label
 #  1 LV, 2 RV, 3 LA, 4 RA  (excitable myocardium)
 #  5 aorta, 6 pulmonary artery, 7 mitral, 8 tricuspid, 9 aortic valve,
 #  10 pulmonic valve, 11 veins (SVC/IVC/pulmonary veins/LAA cap)

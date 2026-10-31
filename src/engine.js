@@ -1,12 +1,12 @@
 /* =============================================================================
- * LiveHeart engine — forward cardiac electrophysiology + 12-lead ECG
+ * ECG Studio engine — forward cardiac electrophysiology + 12-lead ECG
  *
  * Pipeline (all forward, nothing scripted on the ECG side):
  *   anatomy voxels ─► tissue graph (CSR) ─► event-driven cellular automaton
  *   ─► per-cell transmembrane potential Vm(t) ─► dipole sources (−σ∇Vm)
  *   ─► electrode potentials via precomputed lead weights ─► 12 leads
  *
- * Runs unchanged in the browser (window.LiveHeart) and in Node (module.exports)
+ * Runs unchanged in the browser (window.ECGStudio) and in Node (module.exports)
  * so ECGs can be generated headlessly for validation and future quiz use.
  *
  * Units: mm, ms, mV.  Note 1 m/s == 1 mm/ms, so conduction velocities below
@@ -2347,5 +2347,5 @@
 
   const api = { hypertrophyOptions, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, lvThickenWeight, rvThickenWeight };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  else root.LiveHeart = api;
+  else root.ECGStudio = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,9 +1,9 @@
 /* =============================================================================
- * LiveHeart app — Three.js heart view, ECG paper, interpretation, controls
+ * ECG Studio app — Three.js heart view, ECG paper, interpretation, controls
  * ========================================================================== */
 (function () {
   'use strict';
-  const LH = window.LiveHeart;
+  const LH = window.ECGStudio;
   const $ = (id) => document.getElementById(id);
   const PHONE = '(max-width: 743px), (max-height: 500px)';   // one pane at a time below an iPad mini
 
@@ -47,7 +47,7 @@
     if (scen) applyScenario(scen);
     $('loading').hidden = true;
     // handle for automation (tests, future quiz mode): simulator, model and a projector
-    window.LiveHeartApp = {
+    window.ECGStudioApp = {
       get sim() { return S; }, model: M, perf, quality: Q,
       ischemia: {
         occlude(node) { captureRef(); const id = S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
@@ -1882,16 +1882,16 @@
     const g = cv.getContext('2d');
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, cv.width, cv.height);
     g.fillStyle = '#121b26'; g.font = `600 ${15 * dpr}px "IBM Plex Sans", system-ui, sans-serif`; g.textBaseline = 'top';
-    g.fillText('LiveHeart · simulated 12-lead ECG · 25 mm/s · 10 mm/mV', 10 * dpr, 8 * dpr);
+    g.fillText('ECG Studio · simulated 12-lead ECG · 25 mm/s · 10 mm/mV', 10 * dpr, 8 * dpr);
     g.font = `${12.5 * dpr}px "IBM Plex Sans", system-ui, sans-serif`;
     lines.forEach((t, i) => { g.fillStyle = i ? '#3c4a57' : '#121b26'; g.fillText(t, 10 * dpr, 8 * dpr + 22 * dpr + i * lh, W - 20 * dpr); });
     g.drawImage(src, 0, head);
     g.fillStyle = '#6b7a87'; g.font = `${11 * dpr}px "IBM Plex Sans", system-ui, sans-serif`;
-    g.fillText(`Simulated by LiveHeart for education; not a patient record. ${new Date().toLocaleString()}`, 10 * dpr, head + src.height + 6 * dpr);
+    g.fillText(`Simulated by ECG Studio for education; not a patient record. ${new Date().toLocaleString()}`, 10 * dpr, head + src.height + 6 * dpr);
     cv.toBlob((blob) => {
       const a = document.createElement('a'), d = new Date(), z = (n) => String(n).padStart(2, '0');
       a.href = URL.createObjectURL(blob);
-      a.download = `liveheart-ecg-${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.png`;
+      a.download = `ecgstudio-ecg-${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.png`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     }, 'image/png');

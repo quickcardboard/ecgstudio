@@ -1,4 +1,4 @@
-// Headless LiveHeart run: node tools/sim.js [ms] [bpm] [out.json]
+// Headless ECG Studio run: node tools/sim.js [ms] [bpm] [out.json]
 const fs = require('fs');
 const LH = require('../src/engine.js');
 const ms = +(process.argv[2] || 3000), bpm = +(process.argv[3] || 72), out = process.argv[4];

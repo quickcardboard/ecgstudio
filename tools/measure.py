@@ -1,4 +1,4 @@
-"""Quick amplitude/morphology table for one beat of a LiveHeart ECG dump."""
+"""Quick amplitude/morphology table for one beat of a ECG Studio ECG dump."""
 import sys, json, numpy as np
 d = json.load(open(sys.argv[1])); L = dict(zip(d['leads'], [np.array(x) for x in d['data']]))
 a0, q0, q1, t1 = [int(x) for x in sys.argv[2:6]]   # P onset, QRS onset, QRS end, T end (ms)

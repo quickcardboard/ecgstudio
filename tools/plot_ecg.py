@@ -1,4 +1,4 @@
-"""Plot a LiveHeart ECG dump (from tools/sim.js) on standard ECG paper."""
+"""Plot a ECG Studio ECG dump (from tools/sim.js) on standard ECG paper."""
 import sys, json, numpy as np
 import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 d = json.load(open(sys.argv[1])); out = sys.argv[2]

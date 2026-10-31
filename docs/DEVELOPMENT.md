@@ -1,4 +1,4 @@
-# LiveHeart development notes
+# ECG Studio development notes
 
 Model choices, validation results and per-round revision notes.
 
