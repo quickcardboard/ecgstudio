@@ -63,7 +63,7 @@ header.top { display: flex; align-items: center; gap: 14px; min-height: 36px; }
 .top .spacer { flex: 1; }
 .simctl { display: flex; align-items: center; gap: 8px; }
 .simctl .tsrow { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
-.simctl input { width: 110px; accent-color: var(--accent); }
+.simctl input[type=range] { width: 160px; accent-color: var(--accent); }
 .simctl .val { font: 500 12.5px/1 var(--font-data); min-width: 3.2em; color: var(--fg); }
 button, .seg label {
   font: 500 13px/1 var(--font-ui); color: inherit; background: var(--surface); border: 1px solid var(--line);
@@ -149,6 +149,25 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .bchip { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; padding: 5px 6px 5px 9px; border-radius: 6px; background: rgba(224,48,63,0.16); border: 1px solid rgba(224,48,63,0.5); }
 .bchip.isch { background: rgba(143,92,204,0.18); border-color: rgba(143,92,204,0.6); }
 .bchip.partial { background: rgba(255,138,31,0.14); border-color: rgba(255,138,31,0.5); }
+.bchip.cond { background: rgba(255,255,255,0.07); border-color: var(--panel-line); }
+.addcond { width: 100%; }
+.rchips { display: flex; flex-wrap: wrap; gap: 5px; }
+#controls .rchips button { padding: 4px 8px; font-size: 12px; border-radius: 999px; }
+#condSearch { font: 500 12.5px/1.2 var(--font-ui); color: var(--viewport-fg); background: rgba(255,255,255,0.06); border: 1px solid var(--panel-line); border-radius: 6px; padding: 7px 9px; width: 100%; box-sizing: border-box; }
+#condSearch::placeholder { color: var(--panel-muted); }
+.catalog { display: flex; flex-direction: column; gap: 5px; }
+.catalog h4 { margin: 8px 0 1px; font: 600 11px/1.2 var(--font-display); letter-spacing: 0.07em; text-transform: uppercase; color: var(--panel-muted); }
+.catalog h4:first-child { margin-top: 0; }
+.crow { display: flex; flex-direction: column; align-items: stretch; gap: 3px; text-align: left; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--panel-line); background: rgba(255,255,255,0.06); }
+#controls button.crow { text-align: left; }
+.crow b { font-weight: 600; font-size: 12.5px; }
+#controls .crow[aria-pressed="true"], .crow.on { border-color: var(--accent); background: rgba(224,48,63,0.14); }
+.copts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+#controls .copts button { padding: 4px 8px; font-size: 12px; }
+#controls .copts button i { font-style: normal; color: var(--panel-muted); margin-left: 4px; }
+#controls .copts button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+#controls .copts button[aria-pressed="true"] i { color: inherit; }
+.crow[aria-disabled="true"], .crow:disabled { opacity: 0.55; }
 .bchip button { padding: 2px 7px; font-size: 12px; line-height: 1.2; }
 .popover { position: absolute; z-index: 5; min-width: 230px; max-width: 280px; background: var(--panel); border: 1px solid var(--panel-line); border-radius: 10px; padding: 10px; color: var(--viewport-fg); backdrop-filter: blur(6px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
 .pop-title { font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); margin-bottom: 8px; }
@@ -275,7 +294,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   .viewsw { display: flex; }
   #btnHelp, #btnShare, .simctl button { padding: 6px 9px; font-size: 12px; }
   .simctl .lab { display: none; }
-  .simctl input { width: 70px; }
+  .simctl input[type=range] { width: 70px; }
   #divider, #focus3d, #focusEcg { display: none; }
   #pane3d, #paneEcg { flex: 1 1 auto; }
   body:not(.show-ecg) #paneEcg, body.show-ecg #pane3d { display: none; }
@@ -337,7 +356,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           <button type="button" role="tab" data-tab="rhythm" aria-selected="true">Rhythm</button>
           <button type="button" role="tab" data-tab="blocks" aria-selected="false">Blocks</button>
           <button type="button" role="tab" data-tab="ischemia" aria-selected="false">Ischemia</button>
-          <button type="button" role="tab" data-tab="structure" aria-selected="false">Structure</button>
+          <button type="button" role="tab" data-tab="conditions" aria-selected="false">Conditions</button>
           <button type="button" role="tab" data-tab="learn" aria-selected="false">Learn</button>
         </div>
         <span class="spacer"></span>
@@ -381,28 +400,25 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
               <input id="ischTime" type="range" min="0" max="6" step="1" value="0" aria-label="Time since onset of ischemia">
               <div class="note" id="ischStage"></div>
               <div class="blocklist" id="ischList"></div>
-              <button type="button" id="btnClearIsch">Clear ischemia</button>
             </div>
           </section>
 
-          <section class="tabpanel" data-panel="structure" hidden>
-            <div class="ctl">
-              <div class="toggles">
-                <label class="tog" for="stRAE" title="Right atrial enlargement"><input type="checkbox" id="stRAE"><span>RAE</span></label>
-                <label class="tog" for="stLAE" title="Left atrial enlargement"><input type="checkbox" id="stLAE"><span>LAE</span></label>
-                <label class="tog" for="stLVH" title="Left ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stLVH"><span>LVH</span></label>
-                <label class="tog" for="stRVH" title="Right ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stRVH"><span>RVH</span></label>
-                <label class="tog" for="stPeri" title="Acute pericarditis"><input type="checkbox" id="stPeri"><span>Pericarditis</span></label>
-                <label class="tog" for="stBrugada" title="Brugada syndrome, type 1 pattern"><input type="checkbox" id="stBrugada"><span>Brugada</span></label>
+          <section class="tabpanel" data-panel="conditions" hidden>
+            <div class="ctl" id="condHome">
+              <span class="lab">Active conditions</span>
+              <div class="blocklist" id="condActive"></div>
+              <div class="note" id="noCond">None.</div>
+              <button type="button" id="btnAddCond" class="addcond">+ Add condition</button>
+              <div class="ctl" id="condRecent" hidden>
+                <span class="lab">Recently used</span>
+                <div class="rchips" id="condRecentList"></div>
               </div>
             </div>
-            <div class="ctl">
-              <label class="lab" for="stAP">Accessory pathway (WPW)</label>
-              <select id="stAP">
-                <option value="">None</option>
-                <option value="left-lateral">Left lateral (~55%)</option>
-                <option value="posteroseptal">Posteroseptal (~25%)</option>
-              </select>
+            <div class="ctl" id="condCatalog" hidden>
+              <div class="row"><span class="lab">Add a condition</span><button type="button" id="btnCondDone">Done</button></div>
+              <input type="search" id="condSearch" placeholder="Search conditions" aria-label="Search conditions" autocomplete="off" spellcheck="false">
+              <div class="catalog" id="condList"></div>
+              <div class="note" id="condNone" hidden>No matching condition.</div>
             </div>
           </section>
 
@@ -511,7 +527,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         <li><b>Rhythm:</b> adjust the heart rate and toggle persistent arrhythmias. Click on the heart to stimulate an ectopic beat.</li>
         <li><b>Blocks:</b> only useful during a cutaway view. Click on the conduction system to start a block.</li>
         <li><b>Ischemia:</b> click a coronary artery to occlude it there, or (with the heart cut) click the cut face or the inner wall of a ventricle for a subendocardial patch. Use the time slider to see progression of the injury.</li>
-        <li><b>Structure:</b> add structural abnormalities with the toggles.</li>
+        <li><b>Conditions:</b> add conditions such as chamber enlargement, WPW or pericarditis from the searchable list; remove them from the active list.</li>
         <li><b>Learn:</b> a review of the key features of this ECG and common pitfalls.</li>
       </ul>
     </section>
@@ -524,7 +540,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-10-31 (7ed1dd3).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-10-31 (757952d).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -4050,7 +4066,7 @@ THE SOFTWARE.
   // once built, so switching back to it is immediate.
   const heartCache = new Map();
   const G3_FIXED = new Set(['renderer', 'scene', 'camera', 'outer', 'inner', 'controls', 'planeDirty']);
-  const heartKey = () => `${+ui.struct.lvh}${+ui.struct.rvh}`;
+  const heartKey = () => CONDITIONS.filter((c) => c.rebuild).map((c) => +!!ui.struct[c.id]).join('');
   function storeHeart(key) {
     if (heartCache.has(key)) return;
     const fields = {}; for (const k of Object.keys(g3)) if (!G3_FIXED.has(k)) fields[k] = g3[k];
@@ -4082,11 +4098,8 @@ THE SOFTWARE.
     if (keepEcg && S) ecg.t0 = (ecg.t0 + S.t) % PAGE; else ecg.t0 = 0;
     S = new LH.Sim(M, { seed: 1 });
     S.setRate(ui.rate);
-    S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae });
-    S.setAccessoryPathway(ui.struct.ap || null);
     S.setDualAVN(ui.struct.dual);
-    if (ui.struct.peri) S.setPericarditis(true);
-    if (ui.struct.brugada) S.setBrugada(true);
+    for (const c of CONDITIONS) if (c.apply && ui.struct[c.id]) c.apply(ui.struct[c.id]);
     if (!keepEcg) for (const b of ecg.buf) b.fill(NaN);
     ecg.full = true;
     if (g3.apMark) placeAPMarker();
@@ -5013,6 +5026,14 @@ THE SOFTWARE.
     if (hit.object === g3.sanPick) { showBlockMenu('SAN', 'sa-exit', x, y); return; }
     const id = hit.object.userData.map[hit.face.a], site = SEG_SITE[M.seg[id]];
     if (!site) return;
+    // a single choice (bundle branches, fascicles) needs no menu
+    if (BLOCK_MENU[site].length === 1) {
+      if (S.blocks[site]) { flash(x, y, 'Already blocked: remove it with ×'); return; }
+      const [type, label, opts] = BLOCK_MENU[site][0];
+      S.setBlock(site, type, opts || {}); renderBlockList(); interpret(true);
+      flash(x, y, label);
+      return;
+    }
     let def = BLOCK_MENU[site][0][0];
     if (site === 'AVN') def = M.avn.indexOf(id) <= 1 ? 'first' : 'wenckebach';   // proximal node: 1st degree; distal: Wenckebach
     showBlockMenu(site, def, x, y);
@@ -5097,7 +5118,7 @@ THE SOFTWARE.
     $('ischWrap').hidden = !list.length;
     $('ischList').innerHTML = list.map((v) => `<div class="bchip isch"><span>${insultLabel(v)}</span><button type="button" data-id="${v.id}" aria-label="Remove">×</button></div>`).join('');
     for (const b of $('ischList').querySelectorAll('button')) b.addEventListener('click', () => {
-      S.removeInsult(+b.dataset.id); if (!S.insults.length) setIschTime(0); recolorIschemia(); renderIschList(); interpret(true);
+      S.removeInsult(+b.dataset.id); if (!S.insults.length) setIschTime(0);   // the clock restarts, so the next insult begins at 1 h, not at a late stop recolorIschemia(); renderIschList(); interpret(true);
     });
     $('ischStage').textContent = ischStage(ui.ischH);
   }
@@ -5148,7 +5169,7 @@ THE SOFTWARE.
     if (fromClick && t === ui.tab && !collapsed) { toggleControls(false); return; }
     ui.tab = t; ui.action = t === 'blocks' ? 'block' : t === 'ischemia' ? 'ischemia' : t === 'rhythm' ? 'stimulate' : 'none';
     for (const p of document.querySelectorAll('#controls .tabpanel')) p.hidden = p.dataset.panel !== t;
-    $('controls').classList.toggle('wide', t === 'learn');
+    $('controls').classList.toggle('wide', t === 'learn' || (t === 'conditions' && !$('condCatalog').hidden));
     toggleControls(true);
     if (t === 'learn') renderLearn();
     updateActionNote(); hideBlockMenu();
@@ -5208,13 +5229,13 @@ THE SOFTWARE.
   function startRhythm(type) {
     ui.avnrt = null;
     if (type === 'avnrt') {
-      if (S.ap) { ui.struct.ap = ''; $('stAP').value = ''; S.setAccessoryPathway(null); placeAPMarker(); }
+      if (S.ap) setCondition('ap', '');
       S.stopArrhythmia();
       avnrtTrial(280);
       return;
     }
     if (type === 'avrt') {
-      if (!S.ap || S.apLocation !== 'left-lateral') { ui.struct.ap = 'left-lateral'; $('stAP').value = 'left-lateral'; S.setAccessoryPathway('left-lateral'); placeAPMarker(); }
+      if (!S.ap || S.apLocation !== 'left-lateral') setCondition('ap', 'left-lateral');
       S.stopArrhythmia();
       S.stimulateAt(A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === 3), S.nextSinus() + 270);
       return;
@@ -5782,12 +5803,103 @@ THE SOFTWARE.
   // Controls, focus and divider
   // ---------------------------------------------------------------------------
   // ---------------------------------------------------------------------------
+  // Conditions tab. Each condition is one entry here; the tab (active list,
+  // searchable catalogue, recently used), Reset, share links and the heart
+  // rebuild all read this list. A condition is on/off (ui.struct[id] true/false)
+  // or, with options, holds the chosen option ('' when off). apply(value) sets
+  // the simulation; rebuild: true conditions rebuild the heart instead.
+  // ---------------------------------------------------------------------------
+  const atrialSize = () => S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae });
+  const CONDITIONS = [
+    { id: 'rae', cat: 'Chambers', label: 'RAE', name: 'Right atrial enlargement', also: 'RAE P pulmonale atrium peaked P', apply: atrialSize },
+    { id: 'lae', cat: 'Chambers', label: 'LAE', name: 'Left atrial enlargement', also: 'LAE P mitrale atrium notched P', apply: atrialSize },
+    { id: 'lvh', cat: 'Chambers', label: 'LVH', name: 'Left ventricular hypertrophy', also: 'LVH ventricle voltage strain', rebuild: true },
+    { id: 'rvh', cat: 'Chambers', label: 'RVH', name: 'Right ventricular hypertrophy', also: 'RVH ventricle right axis deviation', rebuild: true },
+    { id: 'ap', cat: 'Accessory pathways', label: 'WPW', name: 'Accessory pathway (WPW)', also: 'Wolff-Parkinson-White pre-excitation bypass tract delta wave short PR',
+      options: [['left-lateral', 'Left lateral', '~55%'], ['posteroseptal', 'Posteroseptal', '~25%']], apply: (v) => S.setAccessoryPathway(v || null) },
+    { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
+    { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
+  ];
+  const COND = Object.fromEntries(CONDITIONS.map((c) => [c.id, c]));
+  const RECENT_KEY = 'ecgstudio.recentConditions';
+
+  async function setCondition(id, v) {
+    const c = COND[id];
+    v = c.options ? (c.options.some((o) => o[0] === v) ? v : '') : !!v;
+    if (ui.struct[id] === v || ui.rebuilding) return;
+    const prev = heartKey();
+    ui.struct[id] = v;
+    if (c.rebuild) {
+      ui.rebuilding = true; renderConditions();
+      try { await rebuildHeart(prev); } finally { ui.rebuilding = false; }
+    } else {
+      c.apply(v); placeAPMarker(); interpret();
+    }
+    renderConditions();
+  }
+  const condText = (c, v = ui.struct[c.id]) => c.options ? `${c.name}: ${c.options.find((o) => o[0] === v)[1].toLowerCase()}` : c.name;
+  const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+
+  // recently used (this browser only): 'peri' or 'ap:left-lateral'
+  function readRecent() { try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; } catch (e) { return []; } }
+  function noteRecent(id, v) {
+    const key = COND[id].options ? `${id}:${v}` : id;
+    const list = [key].concat(readRecent().filter((k) => k !== key && !k.startsWith(`${id}:`))).slice(0, 4);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) { /* storage unavailable */ }
+  }
+  function choose(id, v) { if (v) noteRecent(id, v); setCondition(id, v); }
+
+  function renderConditions() {
+    const busy = !!ui.rebuilding, on = CONDITIONS.filter((c) => ui.struct[c.id]);
+    $('noCond').hidden = !!on.length;
+    $('condActive').innerHTML = on.map((c) => `<div class="bchip cond"><span>${esc(condText(c))}</span><button type="button" data-id="${c.id}" aria-label="Remove ${esc(c.name)}"${busy && c.rebuild ? ' disabled' : ''}>×</button></div>`).join('');
+    const recent = readRecent().map((k) => k.split(':')).filter(([id, v]) => COND[id] && (COND[id].options ? COND[id].options.some((o) => o[0] === v) && ui.struct[id] !== v : !ui.struct[id]));
+    $('condRecent').hidden = !recent.length;
+    $('condRecentList').innerHTML = recent.map(([id, v]) => `<button type="button" data-id="${id}" data-v="${v || ''}"${busy && COND[id].rebuild ? ' disabled' : ''}>${esc(COND[id].options ? `${COND[id].label}, ${COND[id].options.find((o) => o[0] === v)[1].toLowerCase()}` : COND[id].label)}</button>`).join('');
+    const q = $('condSearch').value.trim().toLowerCase();
+    const match = (c) => !q || [c.name, c.label, c.cat, c.also || ''].concat((c.options || []).map((o) => o[1])).join(' ').toLowerCase().includes(q);
+    let html = '', cat = '';
+    for (const c of CONDITIONS.filter(match)) {
+      if (c.cat !== cat) { cat = c.cat; html += `<h4>${esc(cat)}</h4>`; }
+      const dis = busy && c.rebuild ? ' disabled' : '';
+      if (c.options) {
+        html += `<div class="crow${ui.struct[c.id] ? ' on' : ''}"><b>${esc(c.name)}</b><div class="copts" role="group" aria-label="${esc(c.name)}">` +
+          c.options.map(([v, lab, note]) => `<button type="button" data-id="${c.id}" data-v="${v}" aria-pressed="${ui.struct[c.id] === v}"${dis}>${esc(lab)}${note ? `<i>${esc(note)}</i>` : ''}</button>`).join('') + '</div></div>';
+      } else {
+        html += `<button type="button" class="crow" data-id="${c.id}" aria-pressed="${!!ui.struct[c.id]}"${dis}><b>${esc(c.name)}</b></button>`;
+      }
+    }
+    $('condList').innerHTML = html;
+    $('condNone').hidden = !!html;
+  }
+  function showCatalog(open) {
+    $('condCatalog').hidden = !open; $('condHome').hidden = open;
+    $('controls').classList.toggle('wide', ui.tab === 'learn' || (ui.tab === 'conditions' && open));
+    if (open) { $('condSearch').value = ''; renderConditions(); if (!matchMedia('(pointer: coarse)').matches) $('condSearch').focus(); }
+    else renderConditions();
+  }
+  function initConditions() {
+    $('condActive').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) setCondition(b.dataset.id, COND[b.dataset.id].options ? '' : false); });
+    $('condRecentList').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) choose(b.dataset.id, b.dataset.v || true); });
+    $('condList').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-id]'); if (!b) return;
+      const c = COND[b.dataset.id];
+      if (c.options) choose(c.id, ui.struct[c.id] === b.dataset.v ? '' : b.dataset.v);
+      else choose(c.id, !ui.struct[c.id]);
+    });
+    $('btnAddCond').addEventListener('click', () => showCatalog(true));
+    $('btnCondDone').addEventListener('click', () => { showCatalog(false); $('btnAddCond').focus(); });
+    $('condSearch').addEventListener('input', renderConditions);
+    $('condSearch').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); showCatalog(false); $('btnAddCond').focus(); } });
+    renderConditions();
+  }
+
+  // ---------------------------------------------------------------------------
   // Shareable scenario links (#r=72&a=af&b=LAF.complete&o=812&h=12&s=lvh,peri…)
   // and ECG export. The link holds settings, not the simulation, so a shared
   // scenario re-runs from the same starting point.
   // ---------------------------------------------------------------------------
-  const STRUCT_KEYS = ['rae', 'lae', 'lvh', 'rvh', 'peri', 'brugada'];
-  const STRUCT_BOX = { rae: 'stRAE', lae: 'stLAE', lvh: 'stLVH', rvh: 'stRVH', peri: 'stPeri', brugada: 'stBrugada' };
+  const STRUCT_KEYS = CONDITIONS.filter((c) => !c.options).map((c) => c.id);
   const ARR_TYPES = ['af', 'flutter', 'ectopic', 'mat', 'avnrt', 'avrt', 'vt', 'vf'];
   function scenarioLink() {
     const q = new URLSearchParams();
@@ -5804,7 +5916,7 @@ THE SOFTWARE.
     if (S.insults.length) q.set('h', ui.ischH);
     const st = STRUCT_KEYS.filter((k) => ui.struct[k]);
     if (st.length) q.set('s', st.join(','));
-    if (ui.struct.ap) q.set('ap', ui.struct.ap);
+    for (const c of CONDITIONS) if (c.options && ui.struct[c.id]) q.set(c.id, ui.struct[c.id]);
     return `${location.origin}${location.pathname}#${q.toString()}`;
   }
   // Parse (and validate: links come from anywhere) the scenario in the address,
@@ -5814,9 +5926,8 @@ THE SOFTWARE.
     const q = new URLSearchParams(location.hash.slice(1)), ints = (k) => (q.get(k) || '').split(',').filter((x) => /^\d+$/.test(x)).map(Number);
     const r = +q.get('r');
     if (r >= 30 && r <= 180) { ui.rate = Math.round(r); $('rate').value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`; }
-    for (const k of (q.get('s') || '').split(',')) if (STRUCT_KEYS.includes(k)) { ui.struct[k] = true; $(STRUCT_BOX[k]).checked = true; }
-    const ap = q.get('ap');
-    if (ap && [...$('stAP').options].some((o) => o.value === ap)) { ui.struct.ap = ap; $('stAP').value = ap; }
+    for (const k of (q.get('s') || '').split(',')) if (STRUCT_KEYS.includes(k)) ui.struct[k] = true;
+    for (const c of CONDITIONS) { const v = q.get(c.id); if (c.options && c.options.some((o) => o[0] === v)) ui.struct[c.id] = v; }
     const a = q.get('a'), v = +q.get('v'), h = +q.get('h');
     return {
       arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null,
@@ -5852,7 +5963,7 @@ THE SOFTWARE.
   async function shareScenario() {
     const url = scenarioLink();
     history.replaceState(null, '', url);
-    try { await navigator.clipboard.writeText(url); toast('Link copied: it reopens this scenario (rhythm, blocks, ischemia and structure).'); }
+    try { await navigator.clipboard.writeText(url); toast('Link copied: it reopens this scenario (rhythm, blocks, ischemia and conditions).'); }
     catch (e) {                                                   // no clipboard access (http, some browsers): show the link to copy by hand
       toast('Copy this link to share the scenario:<input readonly>', 12000);
       const inp = $('toast').querySelector('input'); inp.value = url; inp.focus(); inp.select();
@@ -5910,10 +6021,9 @@ THE SOFTWARE.
     $('btnReset').addEventListener('click', async () => {
       ui.avnrt = null; ui.preAtrRate = null; ui.vRate = null;
       ui.rate = 72; $('rate').value = 72;
-      const prev = heartKey(), rebuild = ui.struct.lvh || ui.struct.rvh;
-      Object.assign(ui.struct, { rae: false, lae: false, lvh: false, rvh: false, ap: '', peri: false, brugada: false });
-      for (const id of ['stRAE', 'stLAE', 'stLVH', 'stRVH', 'stPeri', 'stBrugada']) $(id).checked = false;
-      $('stAP').value = ''; placeAPMarker();
+      const prev = heartKey(), rebuild = CONDITIONS.some((c) => c.rebuild && ui.struct[c.id]);
+      for (const c of CONDITIONS) ui.struct[c.id] = c.options ? '' : false;
+      placeAPMarker(); showCatalog(false); renderConditions();
       if (rebuild) await rebuildHeart(prev); else newSim();
       renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); ui.rateMode = ''; syncRate();
     });
@@ -5921,24 +6031,10 @@ THE SOFTWARE.
       ui.ischH = ISCH_STOPS[+e.target.value][0]; $('ischVal').textContent = fmtHours(ui.ischH); $('ischStage').textContent = ischStage(ui.ischH);
       ui.ischPending = ui.ischH;                                  // applied once per frame
     });
-    for (const [id, key] of [['stRAE', 'rae'], ['stLAE', 'lae']]) $(id).addEventListener('change', (e) => {
-      ui.struct[key] = e.target.checked; S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae }); interpret();
-    });
-    for (const [id, key] of [['stLVH', 'lvh'], ['stRVH', 'rvh']]) $(id).addEventListener('change', async (e) => {
-      const prev = heartKey();
-      ui.struct[key] = e.target.checked;
-      for (const x of ['stLVH', 'stRVH']) $(x).disabled = true;
-      await rebuildHeart(prev);
-      for (const x of ['stLVH', 'stRVH']) $(x).disabled = false;
-    });
     for (const b of $('arrButtons').querySelectorAll('button')) b.addEventListener('click', () => { startRhythm(b.dataset.arr); syncRate(); interpret(); });
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); });
     $('btnShock').addEventListener('click', () => { ui.avnrt = null; S.shock(); syncRate(); interpret(); });
-    $('stPeri').addEventListener('change', (e) => { ui.struct.peri = e.target.checked; S.setPericarditis(ui.struct.peri); interpret(); });
-    $('stBrugada').addEventListener('change', (e) => { ui.struct.brugada = e.target.checked; S.setBrugada(ui.struct.brugada); interpret(); });
-    $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
-    // with no ischemia left the clock restarts, so the next insult begins at 1 h, not at a late stop
-    $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); setIschTime(0); recolorIschemia(); renderIschList(); interpret(true); });
+    initConditions();
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
     initPicking(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));

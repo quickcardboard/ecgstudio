@@ -63,7 +63,7 @@ header.top { display: flex; align-items: center; gap: 14px; min-height: 36px; }
 .top .spacer { flex: 1; }
 .simctl { display: flex; align-items: center; gap: 8px; }
 .simctl .tsrow { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
-.simctl input { width: 110px; accent-color: var(--accent); }
+.simctl input[type=range] { width: 160px; accent-color: var(--accent); }
 .simctl .val { font: 500 12.5px/1 var(--font-data); min-width: 3.2em; color: var(--fg); }
 button, .seg label {
   font: 500 13px/1 var(--font-ui); color: inherit; background: var(--surface); border: 1px solid var(--line);
@@ -149,6 +149,25 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .bchip { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; padding: 5px 6px 5px 9px; border-radius: 6px; background: rgba(224,48,63,0.16); border: 1px solid rgba(224,48,63,0.5); }
 .bchip.isch { background: rgba(143,92,204,0.18); border-color: rgba(143,92,204,0.6); }
 .bchip.partial { background: rgba(255,138,31,0.14); border-color: rgba(255,138,31,0.5); }
+.bchip.cond { background: rgba(255,255,255,0.07); border-color: var(--panel-line); }
+.addcond { width: 100%; }
+.rchips { display: flex; flex-wrap: wrap; gap: 5px; }
+#controls .rchips button { padding: 4px 8px; font-size: 12px; border-radius: 999px; }
+#condSearch { font: 500 12.5px/1.2 var(--font-ui); color: var(--viewport-fg); background: rgba(255,255,255,0.06); border: 1px solid var(--panel-line); border-radius: 6px; padding: 7px 9px; width: 100%; box-sizing: border-box; }
+#condSearch::placeholder { color: var(--panel-muted); }
+.catalog { display: flex; flex-direction: column; gap: 5px; }
+.catalog h4 { margin: 8px 0 1px; font: 600 11px/1.2 var(--font-display); letter-spacing: 0.07em; text-transform: uppercase; color: var(--panel-muted); }
+.catalog h4:first-child { margin-top: 0; }
+.crow { display: flex; flex-direction: column; align-items: stretch; gap: 3px; text-align: left; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--panel-line); background: rgba(255,255,255,0.06); }
+#controls button.crow { text-align: left; }
+.crow b { font-weight: 600; font-size: 12.5px; }
+#controls .crow[aria-pressed="true"], .crow.on { border-color: var(--accent); background: rgba(224,48,63,0.14); }
+.copts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+#controls .copts button { padding: 4px 8px; font-size: 12px; }
+#controls .copts button i { font-style: normal; color: var(--panel-muted); margin-left: 4px; }
+#controls .copts button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+#controls .copts button[aria-pressed="true"] i { color: inherit; }
+.crow[aria-disabled="true"], .crow:disabled { opacity: 0.55; }
 .bchip button { padding: 2px 7px; font-size: 12px; line-height: 1.2; }
 .popover { position: absolute; z-index: 5; min-width: 230px; max-width: 280px; background: var(--panel); border: 1px solid var(--panel-line); border-radius: 10px; padding: 10px; color: var(--viewport-fg); backdrop-filter: blur(6px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
 .pop-title { font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); margin-bottom: 8px; }
@@ -275,7 +294,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   .viewsw { display: flex; }
   #btnHelp, #btnShare, .simctl button { padding: 6px 9px; font-size: 12px; }
   .simctl .lab { display: none; }
-  .simctl input { width: 70px; }
+  .simctl input[type=range] { width: 70px; }
   #divider, #focus3d, #focusEcg { display: none; }
   #pane3d, #paneEcg { flex: 1 1 auto; }
   body:not(.show-ecg) #paneEcg, body.show-ecg #pane3d { display: none; }
@@ -337,7 +356,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           <button type="button" role="tab" data-tab="rhythm" aria-selected="true">Rhythm</button>
           <button type="button" role="tab" data-tab="blocks" aria-selected="false">Blocks</button>
           <button type="button" role="tab" data-tab="ischemia" aria-selected="false">Ischemia</button>
-          <button type="button" role="tab" data-tab="structure" aria-selected="false">Structure</button>
+          <button type="button" role="tab" data-tab="conditions" aria-selected="false">Conditions</button>
           <button type="button" role="tab" data-tab="learn" aria-selected="false">Learn</button>
         </div>
         <span class="spacer"></span>
@@ -381,28 +400,25 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
               <input id="ischTime" type="range" min="0" max="6" step="1" value="0" aria-label="Time since onset of ischemia">
               <div class="note" id="ischStage"></div>
               <div class="blocklist" id="ischList"></div>
-              <button type="button" id="btnClearIsch">Clear ischemia</button>
             </div>
           </section>
 
-          <section class="tabpanel" data-panel="structure" hidden>
-            <div class="ctl">
-              <div class="toggles">
-                <label class="tog" for="stRAE" title="Right atrial enlargement"><input type="checkbox" id="stRAE"><span>RAE</span></label>
-                <label class="tog" for="stLAE" title="Left atrial enlargement"><input type="checkbox" id="stLAE"><span>LAE</span></label>
-                <label class="tog" for="stLVH" title="Left ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stLVH"><span>LVH</span></label>
-                <label class="tog" for="stRVH" title="Right ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stRVH"><span>RVH</span></label>
-                <label class="tog" for="stPeri" title="Acute pericarditis"><input type="checkbox" id="stPeri"><span>Pericarditis</span></label>
-                <label class="tog" for="stBrugada" title="Brugada syndrome, type 1 pattern"><input type="checkbox" id="stBrugada"><span>Brugada</span></label>
+          <section class="tabpanel" data-panel="conditions" hidden>
+            <div class="ctl" id="condHome">
+              <span class="lab">Active conditions</span>
+              <div class="blocklist" id="condActive"></div>
+              <div class="note" id="noCond">None.</div>
+              <button type="button" id="btnAddCond" class="addcond">+ Add condition</button>
+              <div class="ctl" id="condRecent" hidden>
+                <span class="lab">Recently used</span>
+                <div class="rchips" id="condRecentList"></div>
               </div>
             </div>
-            <div class="ctl">
-              <label class="lab" for="stAP">Accessory pathway (WPW)</label>
-              <select id="stAP">
-                <option value="">None</option>
-                <option value="left-lateral">Left lateral (~55%)</option>
-                <option value="posteroseptal">Posteroseptal (~25%)</option>
-              </select>
+            <div class="ctl" id="condCatalog" hidden>
+              <div class="row"><span class="lab">Add a condition</span><button type="button" id="btnCondDone">Done</button></div>
+              <input type="search" id="condSearch" placeholder="Search conditions" aria-label="Search conditions" autocomplete="off" spellcheck="false">
+              <div class="catalog" id="condList"></div>
+              <div class="note" id="condNone" hidden>No matching condition.</div>
             </div>
           </section>
 
@@ -511,7 +527,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         <li><b>Rhythm:</b> adjust the heart rate and toggle persistent arrhythmias. Click on the heart to stimulate an ectopic beat.</li>
         <li><b>Blocks:</b> only useful during a cutaway view. Click on the conduction system to start a block.</li>
         <li><b>Ischemia:</b> click a coronary artery to occlude it there, or (with the heart cut) click the cut face or the inner wall of a ventricle for a subendocardial patch. Use the time slider to see progression of the injury.</li>
-        <li><b>Structure:</b> add structural abnormalities with the toggles.</li>
+        <li><b>Conditions:</b> add conditions such as chamber enlargement, WPW or pericarditis from the searchable list; remove them from the active list.</li>
         <li><b>Learn:</b> a review of the key features of this ECG and common pitfalls.</li>
       </ul>
     </section>

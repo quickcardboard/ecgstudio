@@ -81,7 +81,7 @@
   // once built, so switching back to it is immediate.
   const heartCache = new Map();
   const G3_FIXED = new Set(['renderer', 'scene', 'camera', 'outer', 'inner', 'controls', 'planeDirty']);
-  const heartKey = () => `${+ui.struct.lvh}${+ui.struct.rvh}`;
+  const heartKey = () => CONDITIONS.filter((c) => c.rebuild).map((c) => +!!ui.struct[c.id]).join('');
   function storeHeart(key) {
     if (heartCache.has(key)) return;
     const fields = {}; for (const k of Object.keys(g3)) if (!G3_FIXED.has(k)) fields[k] = g3[k];
@@ -113,11 +113,8 @@
     if (keepEcg && S) ecg.t0 = (ecg.t0 + S.t) % PAGE; else ecg.t0 = 0;
     S = new LH.Sim(M, { seed: 1 });
     S.setRate(ui.rate);
-    S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae });
-    S.setAccessoryPathway(ui.struct.ap || null);
     S.setDualAVN(ui.struct.dual);
-    if (ui.struct.peri) S.setPericarditis(true);
-    if (ui.struct.brugada) S.setBrugada(true);
+    for (const c of CONDITIONS) if (c.apply && ui.struct[c.id]) c.apply(ui.struct[c.id]);
     if (!keepEcg) for (const b of ecg.buf) b.fill(NaN);
     ecg.full = true;
     if (g3.apMark) placeAPMarker();
@@ -1044,6 +1041,14 @@
     if (hit.object === g3.sanPick) { showBlockMenu('SAN', 'sa-exit', x, y); return; }
     const id = hit.object.userData.map[hit.face.a], site = SEG_SITE[M.seg[id]];
     if (!site) return;
+    // a single choice (bundle branches, fascicles) needs no menu
+    if (BLOCK_MENU[site].length === 1) {
+      if (S.blocks[site]) { flash(x, y, 'Already blocked: remove it with ×'); return; }
+      const [type, label, opts] = BLOCK_MENU[site][0];
+      S.setBlock(site, type, opts || {}); renderBlockList(); interpret(true);
+      flash(x, y, label);
+      return;
+    }
     let def = BLOCK_MENU[site][0][0];
     if (site === 'AVN') def = M.avn.indexOf(id) <= 1 ? 'first' : 'wenckebach';   // proximal node: 1st degree; distal: Wenckebach
     showBlockMenu(site, def, x, y);
@@ -1128,7 +1133,7 @@
     $('ischWrap').hidden = !list.length;
     $('ischList').innerHTML = list.map((v) => `<div class="bchip isch"><span>${insultLabel(v)}</span><button type="button" data-id="${v.id}" aria-label="Remove">×</button></div>`).join('');
     for (const b of $('ischList').querySelectorAll('button')) b.addEventListener('click', () => {
-      S.removeInsult(+b.dataset.id); if (!S.insults.length) setIschTime(0); recolorIschemia(); renderIschList(); interpret(true);
+      S.removeInsult(+b.dataset.id); if (!S.insults.length) setIschTime(0);   // the clock restarts, so the next insult begins at 1 h, not at a late stop recolorIschemia(); renderIschList(); interpret(true);
     });
     $('ischStage').textContent = ischStage(ui.ischH);
   }
@@ -1179,7 +1184,7 @@
     if (fromClick && t === ui.tab && !collapsed) { toggleControls(false); return; }
     ui.tab = t; ui.action = t === 'blocks' ? 'block' : t === 'ischemia' ? 'ischemia' : t === 'rhythm' ? 'stimulate' : 'none';
     for (const p of document.querySelectorAll('#controls .tabpanel')) p.hidden = p.dataset.panel !== t;
-    $('controls').classList.toggle('wide', t === 'learn');
+    $('controls').classList.toggle('wide', t === 'learn' || (t === 'conditions' && !$('condCatalog').hidden));
     toggleControls(true);
     if (t === 'learn') renderLearn();
     updateActionNote(); hideBlockMenu();
@@ -1239,13 +1244,13 @@
   function startRhythm(type) {
     ui.avnrt = null;
     if (type === 'avnrt') {
-      if (S.ap) { ui.struct.ap = ''; $('stAP').value = ''; S.setAccessoryPathway(null); placeAPMarker(); }
+      if (S.ap) setCondition('ap', '');
       S.stopArrhythmia();
       avnrtTrial(280);
       return;
     }
     if (type === 'avrt') {
-      if (!S.ap || S.apLocation !== 'left-lateral') { ui.struct.ap = 'left-lateral'; $('stAP').value = 'left-lateral'; S.setAccessoryPathway('left-lateral'); placeAPMarker(); }
+      if (!S.ap || S.apLocation !== 'left-lateral') setCondition('ap', 'left-lateral');
       S.stopArrhythmia();
       S.stimulateAt(A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === 3), S.nextSinus() + 270);
       return;
@@ -1813,12 +1818,103 @@
   // Controls, focus and divider
   // ---------------------------------------------------------------------------
   // ---------------------------------------------------------------------------
+  // Conditions tab. Each condition is one entry here; the tab (active list,
+  // searchable catalogue, recently used), Reset, share links and the heart
+  // rebuild all read this list. A condition is on/off (ui.struct[id] true/false)
+  // or, with options, holds the chosen option ('' when off). apply(value) sets
+  // the simulation; rebuild: true conditions rebuild the heart instead.
+  // ---------------------------------------------------------------------------
+  const atrialSize = () => S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae });
+  const CONDITIONS = [
+    { id: 'rae', cat: 'Chambers', label: 'RAE', name: 'Right atrial enlargement', also: 'RAE P pulmonale atrium peaked P', apply: atrialSize },
+    { id: 'lae', cat: 'Chambers', label: 'LAE', name: 'Left atrial enlargement', also: 'LAE P mitrale atrium notched P', apply: atrialSize },
+    { id: 'lvh', cat: 'Chambers', label: 'LVH', name: 'Left ventricular hypertrophy', also: 'LVH ventricle voltage strain', rebuild: true },
+    { id: 'rvh', cat: 'Chambers', label: 'RVH', name: 'Right ventricular hypertrophy', also: 'RVH ventricle right axis deviation', rebuild: true },
+    { id: 'ap', cat: 'Accessory pathways', label: 'WPW', name: 'Accessory pathway (WPW)', also: 'Wolff-Parkinson-White pre-excitation bypass tract delta wave short PR',
+      options: [['left-lateral', 'Left lateral', '~55%'], ['posteroseptal', 'Posteroseptal', '~25%']], apply: (v) => S.setAccessoryPathway(v || null) },
+    { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
+    { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
+  ];
+  const COND = Object.fromEntries(CONDITIONS.map((c) => [c.id, c]));
+  const RECENT_KEY = 'ecgstudio.recentConditions';
+
+  async function setCondition(id, v) {
+    const c = COND[id];
+    v = c.options ? (c.options.some((o) => o[0] === v) ? v : '') : !!v;
+    if (ui.struct[id] === v || ui.rebuilding) return;
+    const prev = heartKey();
+    ui.struct[id] = v;
+    if (c.rebuild) {
+      ui.rebuilding = true; renderConditions();
+      try { await rebuildHeart(prev); } finally { ui.rebuilding = false; }
+    } else {
+      c.apply(v); placeAPMarker(); interpret();
+    }
+    renderConditions();
+  }
+  const condText = (c, v = ui.struct[c.id]) => c.options ? `${c.name}: ${c.options.find((o) => o[0] === v)[1].toLowerCase()}` : c.name;
+  const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+
+  // recently used (this browser only): 'peri' or 'ap:left-lateral'
+  function readRecent() { try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; } catch (e) { return []; } }
+  function noteRecent(id, v) {
+    const key = COND[id].options ? `${id}:${v}` : id;
+    const list = [key].concat(readRecent().filter((k) => k !== key && !k.startsWith(`${id}:`))).slice(0, 4);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) { /* storage unavailable */ }
+  }
+  function choose(id, v) { if (v) noteRecent(id, v); setCondition(id, v); }
+
+  function renderConditions() {
+    const busy = !!ui.rebuilding, on = CONDITIONS.filter((c) => ui.struct[c.id]);
+    $('noCond').hidden = !!on.length;
+    $('condActive').innerHTML = on.map((c) => `<div class="bchip cond"><span>${esc(condText(c))}</span><button type="button" data-id="${c.id}" aria-label="Remove ${esc(c.name)}"${busy && c.rebuild ? ' disabled' : ''}>×</button></div>`).join('');
+    const recent = readRecent().map((k) => k.split(':')).filter(([id, v]) => COND[id] && (COND[id].options ? COND[id].options.some((o) => o[0] === v) && ui.struct[id] !== v : !ui.struct[id]));
+    $('condRecent').hidden = !recent.length;
+    $('condRecentList').innerHTML = recent.map(([id, v]) => `<button type="button" data-id="${id}" data-v="${v || ''}"${busy && COND[id].rebuild ? ' disabled' : ''}>${esc(COND[id].options ? `${COND[id].label}, ${COND[id].options.find((o) => o[0] === v)[1].toLowerCase()}` : COND[id].label)}</button>`).join('');
+    const q = $('condSearch').value.trim().toLowerCase();
+    const match = (c) => !q || [c.name, c.label, c.cat, c.also || ''].concat((c.options || []).map((o) => o[1])).join(' ').toLowerCase().includes(q);
+    let html = '', cat = '';
+    for (const c of CONDITIONS.filter(match)) {
+      if (c.cat !== cat) { cat = c.cat; html += `<h4>${esc(cat)}</h4>`; }
+      const dis = busy && c.rebuild ? ' disabled' : '';
+      if (c.options) {
+        html += `<div class="crow${ui.struct[c.id] ? ' on' : ''}"><b>${esc(c.name)}</b><div class="copts" role="group" aria-label="${esc(c.name)}">` +
+          c.options.map(([v, lab, note]) => `<button type="button" data-id="${c.id}" data-v="${v}" aria-pressed="${ui.struct[c.id] === v}"${dis}>${esc(lab)}${note ? `<i>${esc(note)}</i>` : ''}</button>`).join('') + '</div></div>';
+      } else {
+        html += `<button type="button" class="crow" data-id="${c.id}" aria-pressed="${!!ui.struct[c.id]}"${dis}><b>${esc(c.name)}</b></button>`;
+      }
+    }
+    $('condList').innerHTML = html;
+    $('condNone').hidden = !!html;
+  }
+  function showCatalog(open) {
+    $('condCatalog').hidden = !open; $('condHome').hidden = open;
+    $('controls').classList.toggle('wide', ui.tab === 'learn' || (ui.tab === 'conditions' && open));
+    if (open) { $('condSearch').value = ''; renderConditions(); if (!matchMedia('(pointer: coarse)').matches) $('condSearch').focus(); }
+    else renderConditions();
+  }
+  function initConditions() {
+    $('condActive').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) setCondition(b.dataset.id, COND[b.dataset.id].options ? '' : false); });
+    $('condRecentList').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) choose(b.dataset.id, b.dataset.v || true); });
+    $('condList').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-id]'); if (!b) return;
+      const c = COND[b.dataset.id];
+      if (c.options) choose(c.id, ui.struct[c.id] === b.dataset.v ? '' : b.dataset.v);
+      else choose(c.id, !ui.struct[c.id]);
+    });
+    $('btnAddCond').addEventListener('click', () => showCatalog(true));
+    $('btnCondDone').addEventListener('click', () => { showCatalog(false); $('btnAddCond').focus(); });
+    $('condSearch').addEventListener('input', renderConditions);
+    $('condSearch').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); showCatalog(false); $('btnAddCond').focus(); } });
+    renderConditions();
+  }
+
+  // ---------------------------------------------------------------------------
   // Shareable scenario links (#r=72&a=af&b=LAF.complete&o=812&h=12&s=lvh,peri…)
   // and ECG export. The link holds settings, not the simulation, so a shared
   // scenario re-runs from the same starting point.
   // ---------------------------------------------------------------------------
-  const STRUCT_KEYS = ['rae', 'lae', 'lvh', 'rvh', 'peri', 'brugada'];
-  const STRUCT_BOX = { rae: 'stRAE', lae: 'stLAE', lvh: 'stLVH', rvh: 'stRVH', peri: 'stPeri', brugada: 'stBrugada' };
+  const STRUCT_KEYS = CONDITIONS.filter((c) => !c.options).map((c) => c.id);
   const ARR_TYPES = ['af', 'flutter', 'ectopic', 'mat', 'avnrt', 'avrt', 'vt', 'vf'];
   function scenarioLink() {
     const q = new URLSearchParams();
@@ -1835,7 +1931,7 @@
     if (S.insults.length) q.set('h', ui.ischH);
     const st = STRUCT_KEYS.filter((k) => ui.struct[k]);
     if (st.length) q.set('s', st.join(','));
-    if (ui.struct.ap) q.set('ap', ui.struct.ap);
+    for (const c of CONDITIONS) if (c.options && ui.struct[c.id]) q.set(c.id, ui.struct[c.id]);
     return `${location.origin}${location.pathname}#${q.toString()}`;
   }
   // Parse (and validate: links come from anywhere) the scenario in the address,
@@ -1845,9 +1941,8 @@
     const q = new URLSearchParams(location.hash.slice(1)), ints = (k) => (q.get(k) || '').split(',').filter((x) => /^\d+$/.test(x)).map(Number);
     const r = +q.get('r');
     if (r >= 30 && r <= 180) { ui.rate = Math.round(r); $('rate').value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`; }
-    for (const k of (q.get('s') || '').split(',')) if (STRUCT_KEYS.includes(k)) { ui.struct[k] = true; $(STRUCT_BOX[k]).checked = true; }
-    const ap = q.get('ap');
-    if (ap && [...$('stAP').options].some((o) => o.value === ap)) { ui.struct.ap = ap; $('stAP').value = ap; }
+    for (const k of (q.get('s') || '').split(',')) if (STRUCT_KEYS.includes(k)) ui.struct[k] = true;
+    for (const c of CONDITIONS) { const v = q.get(c.id); if (c.options && c.options.some((o) => o[0] === v)) ui.struct[c.id] = v; }
     const a = q.get('a'), v = +q.get('v'), h = +q.get('h');
     return {
       arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null,
@@ -1883,7 +1978,7 @@
   async function shareScenario() {
     const url = scenarioLink();
     history.replaceState(null, '', url);
-    try { await navigator.clipboard.writeText(url); toast('Link copied: it reopens this scenario (rhythm, blocks, ischemia and structure).'); }
+    try { await navigator.clipboard.writeText(url); toast('Link copied: it reopens this scenario (rhythm, blocks, ischemia and conditions).'); }
     catch (e) {                                                   // no clipboard access (http, some browsers): show the link to copy by hand
       toast('Copy this link to share the scenario:<input readonly>', 12000);
       const inp = $('toast').querySelector('input'); inp.value = url; inp.focus(); inp.select();
@@ -1941,10 +2036,9 @@
     $('btnReset').addEventListener('click', async () => {
       ui.avnrt = null; ui.preAtrRate = null; ui.vRate = null;
       ui.rate = 72; $('rate').value = 72;
-      const prev = heartKey(), rebuild = ui.struct.lvh || ui.struct.rvh;
-      Object.assign(ui.struct, { rae: false, lae: false, lvh: false, rvh: false, ap: '', peri: false, brugada: false });
-      for (const id of ['stRAE', 'stLAE', 'stLVH', 'stRVH', 'stPeri', 'stBrugada']) $(id).checked = false;
-      $('stAP').value = ''; placeAPMarker();
+      const prev = heartKey(), rebuild = CONDITIONS.some((c) => c.rebuild && ui.struct[c.id]);
+      for (const c of CONDITIONS) ui.struct[c.id] = c.options ? '' : false;
+      placeAPMarker(); showCatalog(false); renderConditions();
       if (rebuild) await rebuildHeart(prev); else newSim();
       renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); ui.rateMode = ''; syncRate();
     });
@@ -1952,24 +2046,10 @@
       ui.ischH = ISCH_STOPS[+e.target.value][0]; $('ischVal').textContent = fmtHours(ui.ischH); $('ischStage').textContent = ischStage(ui.ischH);
       ui.ischPending = ui.ischH;                                  // applied once per frame
     });
-    for (const [id, key] of [['stRAE', 'rae'], ['stLAE', 'lae']]) $(id).addEventListener('change', (e) => {
-      ui.struct[key] = e.target.checked; S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae }); interpret();
-    });
-    for (const [id, key] of [['stLVH', 'lvh'], ['stRVH', 'rvh']]) $(id).addEventListener('change', async (e) => {
-      const prev = heartKey();
-      ui.struct[key] = e.target.checked;
-      for (const x of ['stLVH', 'stRVH']) $(x).disabled = true;
-      await rebuildHeart(prev);
-      for (const x of ['stLVH', 'stRVH']) $(x).disabled = false;
-    });
     for (const b of $('arrButtons').querySelectorAll('button')) b.addEventListener('click', () => { startRhythm(b.dataset.arr); syncRate(); interpret(); });
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); });
     $('btnShock').addEventListener('click', () => { ui.avnrt = null; S.shock(); syncRate(); interpret(); });
-    $('stPeri').addEventListener('change', (e) => { ui.struct.peri = e.target.checked; S.setPericarditis(ui.struct.peri); interpret(); });
-    $('stBrugada').addEventListener('change', (e) => { ui.struct.brugada = e.target.checked; S.setBrugada(ui.struct.brugada); interpret(); });
-    $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
-    // with no ischemia left the clock restarts, so the next insult begins at 1 h, not at a late stop
-    $('btnClearIsch').addEventListener('click', () => { S.clearIschemia(); setIschTime(0); recolorIschemia(); renderIschList(); interpret(true); });
+    initConditions();
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
     initPicking(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
