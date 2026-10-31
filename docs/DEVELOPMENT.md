@@ -399,3 +399,14 @@ width ≤ 743 px, or a touch screen ≤ 500 px tall held sideways). Tablets and 
   right. The sheet is now as tall as its content (up to 42% of the screen), so the heart's angle
   and cut stay visible while adjusting them.
 - Heart pane 44% → 50% of the two-pane view (the three-lead ECG had spare room between leads).
+
+### Round 20: phone sheet over the ECG, sliding lead groups
+
+- Heart pane 60% of the two-pane view. Tab bar order: Rhythm, Blocks, View, Ischemia, Conditions.
+- The controls sheet now floats over the ECG (fixed above the tab bar, as tall as its content up
+  to the ECG pane's top, `--sheetmax` from `sizeSheet()`), so opening a menu never resizes the
+  heart. Over the full-screen heart it may cover the lower 45%. Dragging the handle up still
+  gives full height.
+- Lead groups slide: while swiping, the strip follows the finger with the neighbouring group
+  drawn beside it (`#cgroup2`); past a quarter of the width or on a quick flick it slides on
+  (0.22 s), otherwise it slides back. Tapping an adjacent page dot slides too.

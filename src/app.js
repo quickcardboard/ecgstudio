@@ -2078,7 +2078,7 @@
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
   const SECS = [2500, 5000, 10000];
   const HOLD_MS = 550, BURST_MS = 500, DOUBLE_MS = 350;
-  const ph = { group: 0, win: 5000, live: 'II', fsEcg: false, fsHeart: false, flip: false };
+  const ph = { group: 0, peek: null, win: 5000, live: 'II', fsEcg: false, fsHeart: false, flip: false };
   const buzz = (ms = 10) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
   // true the first time a tip key is seen in this browser
   function firstTime(key) {
@@ -2108,6 +2108,7 @@
     b.classList.toggle('fs-ecg', m && (ph.fsEcg || ml));
     b.classList.toggle('fs-heart', m && ph.fsHeart && !ml);
     b.classList.toggle('flip', m && ph.flip && !ml);
+    sizeSheet();
   }
 
   // back button: each open sheet, menu or full-screen view is a history entry
@@ -2128,6 +2129,12 @@
   // the controls sheet
   const sheetOpen = () => !$('controls').classList.contains('collapsed');
   function setSheetFull(f) { document.body.classList.toggle('sheet-full', f); }
+  function sizeSheet() {
+    if (!isM()) return;
+    const tabs = $('mTabs').getBoundingClientRect().top, b = document.body.classList;
+    const top = b.contains('fs-heart') ? (() => { const r = $('pane3d').getBoundingClientRect(); return r.top + 0.55 * r.height; })() : $('paneEcg').getBoundingClientRect().top;
+    document.body.style.setProperty('--sheetmax', `${Math.max(160, Math.round(tabs - top))}px`);
+  }
   function openSheet(tab) {
     const was = sheetOpen();
     setTab(tab);
@@ -2219,7 +2226,10 @@
     if (!isM()) return;
     const b = document.body.classList;
     if (b.contains('fs-heart')) drawLeads($('clive'), [ph.live], 5000, 'tap: next lead · double-tap: back');
-    else if (!b.contains('fs-ecg')) drawLeads($('cgroup'), GROUPS[ph.group], ph.win);
+    else if (!b.contains('fs-ecg')) {
+      drawLeads($('cgroup'), GROUPS[ph.group], ph.win);
+      if (ph.peek !== null) drawLeads($('cgroup2'), GROUPS[ph.peek], ph.win);
+    }
   }
   function setGroup(i) {
     ph.group = (i + GROUPS.length) % GROUPS.length;
@@ -2369,19 +2379,58 @@
     canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
   }
 
-  // ECG: swipe between lead groups, double-tap for the full 12 leads (and back)
+  // ECG: swipe between lead groups (the strip follows the finger and slides on),
+  // double-tap for the full 12 leads (and back)
+  function slideGroup(dir, from = 0) {
+    const wrap = $('ecgWrap'), a = $('cgroup'), b2 = $('cgroup2'), W = a.clientWidth;
+    ph.peek = (ph.group + dir + GROUPS.length) % GROUPS.length;
+    b2.hidden = false; drawPhone();
+    const place = (x) => { a.style.transform = `translateX(${x}px)`; b2.style.transform = `translateX(${x + dir * W}px)`; };
+    wrap.classList.remove('slide'); place(from); void a.offsetWidth;
+    wrap.classList.add('slide'); place(-dir * W);
+    clearTimeout(slideGroup.timer);
+    slideGroup.timer = setTimeout(() => finishSlide(true), 240);
+  }
+  function finishSlide(moved) {
+    const wrap = $('ecgWrap'), a = $('cgroup'), b2 = $('cgroup2');
+    if (moved && ph.peek !== null) setGroup(ph.peek);
+    ph.peek = null; drawPhone();
+    wrap.classList.remove('slide'); a.style.transform = b2.style.transform = ''; b2.hidden = true;
+  }
   function initEcgTouch() {
-    const wrap = $('ecgWrap');
+    const wrap = $('ecgWrap'), a = $('cgroup'), b2 = $('cgroup2');
     let down = null, lastTap = null;
     wrap.addEventListener('pointerdown', (e) => {
       if (!isM() || e.target.closest('button')) return;
-      down = { x: e.clientX, y: e.clientY, w: wrap.getBoundingClientRect() };
+      const r = wrap.getBoundingClientRect();
+      down = { x: e.clientX, y: e.clientY, t: e.timeStamp, edge: e.clientX - r.left < 24 || r.right - e.clientX < 24, drag: 0 };
+      try { wrap.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
+    });
+    wrap.addEventListener('pointermove', (e) => {
+      const d = down;
+      if (!d || d.edge || document.body.classList.contains('fs-ecg')) return;
+      const dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (!d.drag && Math.abs(dx) > 8 && Math.abs(dx) > 1.2 * Math.abs(dy)) d.drag = dx < 0 ? 1 : -1;
+      if (!d.drag) return;
+      const dir = dx < 0 ? 1 : -1, W = a.clientWidth;
+      if (ph.peek !== (ph.group + dir + GROUPS.length) % GROUPS.length) { ph.peek = (ph.group + dir + GROUPS.length) % GROUPS.length; b2.hidden = false; }
+      wrap.classList.remove('slide');
+      a.style.transform = `translateX(${dx}px)`; b2.style.transform = `translateX(${dx + dir * W}px)`;
     });
     wrap.addEventListener('pointerup', (e) => {
       const d = down; down = null;
       if (!d || !isM()) return;
-      const dx = e.clientX - d.x, dy = e.clientY - d.y, fs = document.body.classList.contains('fs-ecg');
-      if (!fs && Math.abs(dx) > 50 && Math.abs(dx) > 1.5 * Math.abs(dy) && d.x - d.w.left > 24 && d.w.right - d.x > 24) { setGroup(ph.group + (dx < 0 ? 1 : -1)); lastTap = null; return; }
+      const dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (d.drag) {
+        // past a quarter of the width, or a quick flick: slide on; otherwise slide back
+        const W = a.clientWidth, fast = Math.abs(dx) / Math.max(1, e.timeStamp - d.t) > 0.5 && Math.abs(dx) > 30;
+        if (Math.abs(dx) > W / 4 || fast) slideGroup(dx < 0 ? 1 : -1, dx);
+        else {
+          wrap.classList.add('slide'); a.style.transform = 'translateX(0)'; b2.style.transform = `translateX(${(dx < 0 ? 1 : -1) * W}px)`;
+          clearTimeout(slideGroup.timer); slideGroup.timer = setTimeout(() => finishSlide(false), 240);
+        }
+        lastTap = null; return;
+      }
       if (Math.hypot(dx, dy) > 10) return;
       const now = e.timeStamp;
       if (lastTap && now - lastTap.t < DOUBLE_MS && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) {
@@ -2389,7 +2438,7 @@
         if (!document.body.classList.contains('ml')) setFsEcg(!ph.fsEcg);
       } else lastTap = { x: e.clientX, y: e.clientY, t: now };
     });
-    wrap.addEventListener('pointercancel', () => { down = null; });
+    wrap.addEventListener('pointercancel', () => { if (down && down.drag) finishSlide(false); down = null; });
   }
 
   // sheet: drag the handle down to close (or back to half), up for full height;
@@ -2423,6 +2472,7 @@
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
     initTouch(); initEcgTouch(); initSheet();
+    new ResizeObserver(sizeSheet).observe($('split')); sizeSheet();
     // header: speed, pause (hold to reset), more
     $('mSpeed').addEventListener('click', () => setSpeed(ui.scaleIdx > 0 ? ui.scaleIdx - 1 : SCALES.length - 1));
     const play = $('mPlay');
@@ -2465,7 +2515,7 @@
       else { document.body.classList.add('interp-open'); openLayer('interp', () => document.body.classList.remove('interp-open')); }
     });
     $('mDots').innerHTML = GROUPS.map((g, i) => `<button type="button" role="tab" aria-label="${g.join(', ')}" aria-selected="${i === ph.group}"></button>`).join('');
-    [...$('mDots').children].forEach((d, i) => d.addEventListener('click', () => setGroup(i)));
+    [...$('mDots').children].forEach((d, i) => d.addEventListener('click', () => { if (i !== ph.group && ph.peek === null) { const f = (i - ph.group + GROUPS.length) % GROUPS.length; if (f === 1 || f === GROUPS.length - 1) slideGroup(f === 1 ? 1 : -1); else setGroup(i); } }));
     $('mSecs').addEventListener('click', () => {
       ph.win = SECS[(SECS.indexOf(ph.win) + 1) % SECS.length];
       const t = `${ph.win / 1000} s`; $('mSecs').textContent = t; $('mSecs').setAttribute('aria-label', `Seconds shown: ${t}. Tap to change`);
