@@ -523,7 +523,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-10-31 (96b9571).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-10-31 (918ad55).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -1753,6 +1753,7 @@ THE SOFTWARE.
     lbbSeptalFrac: 0,           // distal fraction of the LBB trunk giving off septal Purkinje
     lpfApexZ: 0.25,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
     lpfTerrLo: -1.54, lpfTerrHi: 0.56,  // LPF territory in rotational UVC (inferior/posterior wall)
+    apexPurkMul: 1, apexPurkZ: 0.35,   // Purkinje links below apexPurkZ (apicobasal UVC) conduct apexPurkMul× faster
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
     purkCrossSlow: 6.8,     // conduction-time factor on Purkinje links between fascicle territories
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
@@ -2576,7 +2577,9 @@ THE SOFTWARE.
             const apical = A.zuvc[c] >= 0 && A.zuvc[c] < P.purkCrossApexZ && A.zuvc[q] >= 0 && A.zuvc[q] < P.purkCrossApexZ;
             f = apical ? 1 : P.purkCrossSlow;
           }
-          this.edge(idOf.get(c), idOf.get(q), d / P.cvPurkinje * f);
+          // the apical network is the densest and best interconnected: faster effective conduction
+          const apexF = P.apexPurkMul > 1 && A.zuvc[c] >= 0 && A.zuvc[c] < P.apexPurkZ && A.zuvc[q] >= 0 && A.zuvc[q] < P.apexPurkZ ? 1 / P.apexPurkMul : 1;
+          this.edge(idOf.get(c), idOf.get(q), d / P.cvPurkinje * f * apexF);
         }
       }
       return nodes;

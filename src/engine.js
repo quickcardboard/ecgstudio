@@ -139,6 +139,7 @@
     lbbSeptalFrac: 0,           // distal fraction of the LBB trunk giving off septal Purkinje
     lpfApexZ: 0.25,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
     lpfTerrLo: -1.54, lpfTerrHi: 0.56,  // LPF territory in rotational UVC (inferior/posterior wall)
+    apexPurkMul: 1, apexPurkZ: 0.35,   // Purkinje links below apexPurkZ (apicobasal UVC) conduct apexPurkMul× faster
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
     purkCrossSlow: 6.8,     // conduction-time factor on Purkinje links between fascicle territories
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
@@ -962,7 +963,9 @@
             const apical = A.zuvc[c] >= 0 && A.zuvc[c] < P.purkCrossApexZ && A.zuvc[q] >= 0 && A.zuvc[q] < P.purkCrossApexZ;
             f = apical ? 1 : P.purkCrossSlow;
           }
-          this.edge(idOf.get(c), idOf.get(q), d / P.cvPurkinje * f);
+          // the apical network is the densest and best interconnected: faster effective conduction
+          const apexF = P.apexPurkMul > 1 && A.zuvc[c] >= 0 && A.zuvc[c] < P.apexPurkZ && A.zuvc[q] >= 0 && A.zuvc[q] < P.apexPurkZ ? 1 / P.apexPurkMul : 1;
+          this.edge(idOf.get(c), idOf.get(q), d / P.cvPurkinje * f * apexF);
         }
       }
       return nodes;
