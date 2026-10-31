@@ -84,5 +84,5 @@ LiveHeart is an educational model, not a diagnostic device.
 
 ## Licence
 
-Copyright (c) 2026 YOUR NAME. All rights reserved. See [LICENSE](LICENSE). Three.js (MIT) and the
+Copyright (c) 2026 Thomas Liou. All rights reserved. See [LICENSE](LICENSE). Three.js (MIT) and the
 anatomy (CC BY 4.0) remain under their own licences.
