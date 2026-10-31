@@ -388,3 +388,14 @@ width ≤ 743 px, or a touch screen ≤ 500 px tall held sideways). Tablets and 
   touch surfaces.
 - `ECGStudioApp.touchTarget(x, y)` reports what a tap at a page point would act on (tests).
 - Help guide text is unchanged (written for the desktop); the phone tab notes describe the gestures.
+
+### Round 19: phone layout feedback
+
+- Full-screen heart keeps the tab bar and the controls sheet (ischemia, conditions… stay reachable);
+  a double-tap on its live lead returns to the two-pane view (a single tap still changes lead,
+  after a short wait).
+- View controls (cut slider, Anterior/Lateral/Apex, labels, leads, legend) moved from a popover
+  over the heart into a **View** tab in the tab bar; Learn moved to the button at the heart's top
+  right. The sheet is now as tall as its content (up to 42% of the screen), so the heart's angle
+  and cut stay visible while adjusting them.
+- Heart pane 44% → 50% of the two-pane view (the three-lead ECG had spare room between leads).

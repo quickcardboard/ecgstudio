@@ -1210,7 +1210,8 @@
   function toggleControls(show) {
     const c = $('controls').classList.toggle('collapsed', show === undefined ? undefined : !show);
     for (const b of document.querySelectorAll('#tabs button, #mTabs button')) b.setAttribute('aria-selected', String(!c && b.dataset.tab === ui.tab));
-    const tb = document.querySelector(`#mTabs [data-tab="${ui.tab}"] span`); $('stitle').textContent = tb ? tb.textContent : '';
+    const tb = document.querySelector(`#mTabs [data-tab="${ui.tab}"] span`); $('stitle').textContent = tb ? tb.textContent : ui.tab === 'learn' ? 'Learn' : '';
+    $('mLearn').setAttribute('aria-pressed', String(!c && ui.tab === 'learn'));
     resize3D();
   }
   // tabs (top row of the heart view): the open tab also sets what a click on
@@ -2091,10 +2092,13 @@
     const ctl = $('controls');
     if (m && ctl.parentNode !== $('app')) $('app').insertBefore(ctl, $('mTabs'));
     if (!m && ctl.parentNode !== $('pane3d')) $('pane3d').insertBefore(ctl, $('blockMenu'));
+    const vb = document.querySelector('.viewbar');
+    if (m && vb.parentNode !== $('viewSlot')) $('viewSlot').appendChild(vb);
+    if (!m && vb.parentNode !== $('pane3d')) $('pane3d').insertBefore(vb, $('rebuildNote'));
     if (m && !was) { ui.strips = ['II']; if (g3.renderer) toggleControls(false); }
     if (!m && was) {
       layers.length = 0; ph.fsEcg = ph.fsHeart = false;
-      for (const k of ['view-open', 'interp-open', 'sheet-full']) b.classList.remove(k);
+      for (const k of ['interp-open', 'sheet-full']) b.classList.remove(k);
       $('mMenu').hidden = true;
     }
     fsClass(); updateActionNote();
@@ -2214,7 +2218,7 @@
   function drawPhone() {
     if (!isM()) return;
     const b = document.body.classList;
-    if (b.contains('fs-heart')) drawLeads($('clive'), [ph.live], 5000, 'tap to change lead');
+    if (b.contains('fs-heart')) drawLeads($('clive'), [ph.live], 5000, 'tap: next lead · double-tap: back');
     else if (!b.contains('fs-ecg')) drawLeads($('cgroup'), GROUPS[ph.group], ph.win);
   }
   function setGroup(i) {
@@ -2329,7 +2333,7 @@
   function mobileHold(x, y) {
     const n = S.insults.length;
     pickIschemia(rayAt(x, y), x, y);
-    if (S.insults.length > n && !document.body.classList.contains('fs-heart')) openSheet('ischemia');
+    if (S.insults.length > n) openSheet('ischemia');
   }
   function initTouch() {
     const canvas = $('c3d'), ring = $('press');
@@ -2339,7 +2343,6 @@
     canvas.addEventListener('contextmenu', (e) => { if (isM()) e.preventDefault(); });
     canvas.addEventListener('pointerdown', (e) => {
       if (!isM()) return;
-      if (hasLayer('view')) closeLayer('view');
       if (++pointers > 1) { down = null; stop(); return; }           // pinch
       const p = at(e), t0 = performance.now();
       down = { x: p.x, y: p.y, held: false };
@@ -2447,14 +2450,14 @@
     $('mPng').addEventListener('click', () => { closeLayer('menu'); saveEcgPng(); });
     $('mHelp').addEventListener('click', () => { closeLayer('menu'); $('guide').hidden = false; openLayer('help', () => { $('guide').hidden = true; }); });
     // heart: view options, floating actions, live lead
-    $('mView').addEventListener('click', () => {
-      if (hasLayer('view')) { closeLayer('view'); return; }
-      document.body.classList.add('view-open'); $('mView').setAttribute('aria-expanded', 'true');
-      openLayer('view', () => { document.body.classList.remove('view-open'); $('mView').setAttribute('aria-expanded', 'false'); });
-    });
+    $('mLearn').addEventListener('click', () => { if (sheetOpen() && ui.tab === 'learn') closeLayer('sheet'); else openSheet('learn'); });
     $('mShock').addEventListener('click', () => { buzz(40); $('btnShock').click(); updateFloat(); });
     $('mAdeno').addEventListener('click', () => { buzz(); $('btnAdeno').click(); });
-    $('liveWrap').addEventListener('click', () => { ph.live = LH.LEADS[(LH.LEADS.indexOf(ph.live) + 1) % LH.LEADS.length]; buzz(); });
+    let liveTap = null;
+    $('liveWrap').addEventListener('click', (e) => {
+      if (liveTap && e.timeStamp - liveTap.t < DOUBLE_MS) { clearTimeout(liveTap.timer); liveTap = null; toggleFsHeart(); return; }
+      liveTap = { t: e.timeStamp, timer: setTimeout(() => { liveTap = null; ph.live = LH.LEADS[(LH.LEADS.indexOf(ph.live) + 1) % LH.LEADS.length]; buzz(); }, DOUBLE_MS) };
+    });
     // ECG: interpretation bar, lead groups, seconds, full-screen controls
     $('interp').addEventListener('click', (e) => {
       if (!isM() || document.body.classList.contains('fs-ecg') || e.target.closest('button')) return;

@@ -283,7 +283,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
    shows that view upright. A double-tap beside the heart fills the screen with
    it (body.fs-heart) above one live lead. */
 :root { --tabh: 56px; }
-.mctl, .mtabs, .mmenu, .mview, .mfloat, .gbar, .fsbar, #cgroup, .shead, .press, .live { display: none; }
+.mctl, .mtabs, .mmenu, .mlearn, .mfloat, .gbar, .fsbar, #cgroup, .shead, .press, .live { display: none; }
 body.m { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 body.m button { touch-action: manipulation; }
 body.m #c3d, body.m #ecgWrap, body.m .live, body.m #shead { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -304,17 +304,19 @@ body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index:
 .mmenu button { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
 
 body.m #split { flex-direction: column; gap: 6px; padding: 0 8px 6px; }
-body.m #pane3d { flex: 0 0 44%; --vb: 0px; }
+body.m #pane3d { flex: 0 0 50%; --vb: 0px; }
 body.m #paneEcg { flex: 1 1 0; }
 body.m #divider, body.m .pane-head, body.m .hint, body.m .clock, body.m .strips, body.m .calnote, body.m #cecg { display: none; }
 body.m .vinfo { left: 8px; bottom: 8px; max-width: calc(100% - 140px); }
 body.m .vtitle { font-size: 10.5px; padding: 4px 7px; }
 body.m .legend { font-size: 11px; gap: 8px; padding: 5px 8px; }
-body.m .mview { display: block; position: absolute; z-index: 3; top: 8px; right: 8px; padding: 8px 13px; font-size: 13px; background: var(--panel); color: var(--viewport-fg); border-color: var(--panel-line); border-radius: 17px; }
-body.m .viewbar { display: none; }
-body.m.view-open .viewbar { display: flex; flex-wrap: wrap; position: absolute; z-index: 4; top: 48px; left: 8px; right: 8px; bottom: auto; height: auto; padding: 10px; gap: 8px; border: 1px solid var(--panel-line); border-radius: 12px; overflow: visible; }
-body.m.view-open .viewbar .vcut { flex: 1 1 100%; max-width: none; }
-body.m.view-open .viewbar button, body.m.view-open .viewbar .tog { padding: 9px 11px; font-size: 13px; }
+body.m .mlearn { display: block; position: absolute; z-index: 3; top: 8px; right: 8px; padding: 8px 13px; font-size: 13px; background: var(--panel); color: var(--viewport-fg); border-color: var(--panel-line); border-radius: 17px; }
+body.m .mlearn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+body.m #controls .viewbar { position: static; display: flex; flex-wrap: wrap; height: auto; padding: 0; gap: 10px; background: none; border: 0; backdrop-filter: none; overflow: visible; }
+body.m #controls .viewbar .vcut { flex: 1 1 100%; max-width: none; }
+body.m #controls .viewbar .vgroup { flex: 1 1 100%; }
+body.m #controls .viewbar .vgroup > * { flex: 1; text-align: center; }
+body.m #controls .viewbar button, body.m #controls .viewbar .tog { padding: 10px 11px; font-size: 13px; }
 body.m .mfloat { display: flex; gap: 8px; position: absolute; z-index: 3; right: 8px; bottom: 8px; }
 .mfloat button { padding: 11px 15px; font: 600 14px/1 var(--font-ui); border-radius: 21px; border: 0; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
 .mfloat .shock { background: #ffcc33; color: #1a1300; }
@@ -348,9 +350,9 @@ body.m.interp-open .chips { flex-wrap: wrap; }
 body.m.interp-open .findings { display: flex; font-size: 13px; }
 
 /* controls: bottom sheet above the tab bar (half height, or full) */
-body.m #controls { position: relative; left: auto; top: auto; width: auto; max-height: none; flex: none; height: 42vh; height: 42dvh; margin: 0 8px; border-radius: 14px 14px 0 0; border-bottom: 0; background: var(--viewport); backdrop-filter: none; }
+body.m #controls { position: relative; left: auto; top: auto; width: auto; max-height: none; flex: none; height: auto; max-height: 42vh; max-height: 42dvh; margin: 0 8px; border-radius: 14px 14px 0 0; border-bottom: 0; background: var(--viewport); backdrop-filter: none; }
 body.m #controls.wide { width: auto; }
-body.m.sheet-full #controls { position: fixed; z-index: 12; left: 0; right: 0; margin: 0; top: calc(env(safe-area-inset-top, 0px) + 50px); bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); height: auto; }
+body.m.sheet-full #controls { position: fixed; z-index: 12; left: 0; right: 0; margin: 0; max-height: none; top: calc(env(safe-area-inset-top, 0px) + 50px); bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); height: auto; }
 body.m #controls .shead { display: flex; align-items: center; gap: 8px; padding: 14px 10px 4px 14px; position: sticky; top: 0; z-index: 1; background: var(--viewport); touch-action: none; }
 .shead .grab { position: absolute; left: 50%; top: 6px; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px; background: rgba(255,255,255,0.28); }
 .stitle { flex: 1; font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); }
@@ -365,10 +367,10 @@ body.m .mtabs { display: flex; flex: none; background: var(--surface); border-to
 .mtabs button[aria-selected="true"] { color: var(--accent); }
 
 /* full-screen heart with one live lead */
-body.m.fs-heart #paneEcg, body.m.fs-heart .mtabs, body.m.fs-heart #controls { display: none; }
+body.m.fs-heart #paneEcg { display: none; }
 body.m.fs-heart #pane3d { flex: 1 1 auto; }
-body.m.fs-heart #split { padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)); }
 body.m.fs-heart .live { display: block; position: absolute; z-index: 3; left: 8px; right: 8px; bottom: 8px; height: 96px; border-radius: 8px; overflow: hidden; background: var(--paper); cursor: pointer; }
+.live { touch-action: manipulation; }
 .live canvas { display: block; width: 100%; height: 100%; }
 body.m.fs-heart .vinfo, body.m.fs-heart .mfloat { bottom: 112px; }
 
@@ -502,6 +504,8 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
             </div>
           </section>
 
+          <section class="tabpanel" data-panel="view" hidden><div id="viewSlot"></div></section>
+
           <section class="tabpanel" data-panel="learn" hidden>
             <div class="learn" id="learn"><p class="note">Reading the ECG…</p></div>
           </section>
@@ -544,7 +548,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         </div>
       </div>
       <div class="rebuild" id="rebuildNote" hidden>Building the heart…</div>
-      <button type="button" class="mview" id="mView" aria-expanded="false">View</button>
+      <button type="button" class="mlearn" id="mLearn" aria-pressed="false">Learn</button>
       <div class="mfloat" id="mFloat">
         <button type="button" id="mShock" class="shock" hidden>⚡ Shock</button>
         <button type="button" id="mAdeno" class="adeno" hidden>Adenosine</button>
@@ -574,7 +578,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       </div>
     </section>
   </main>
-  <nav class="mtabs" id="mTabs" role="tablist" aria-label="Controls"><button type="button" role="tab" data-tab="rhythm" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12h4l2-6 4 12 3-9 2 3h5"/></svg><span>Rhythm</span></button><button type="button" role="tab" data-tab="blocks" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v6M12 15v6M6 21l6-6 6 6"/><path d="M8 9h8M8 15h8"/></svg><span>Blocks</span></button><button type="button" role="tab" data-tab="ischemia" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c3 4.5 6 8 6 11a6 6 0 0 1-12 0c0-3 3-6.5 6-11z"/></svg><span>Ischemia</span></button><button type="button" role="tab" data-tab="conditions" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Conditions</span></button><button type="button" role="tab" data-tab="learn" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h6a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4zM20 5h-6a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h6z"/></svg><span>Learn</span></button></nav>
+  <nav class="mtabs" id="mTabs" role="tablist" aria-label="Controls"><button type="button" role="tab" data-tab="rhythm" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12h4l2-6 4 12 3-9 2 3h5"/></svg><span>Rhythm</span></button><button type="button" role="tab" data-tab="blocks" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v6M12 15v6M6 21l6-6 6 6"/><path d="M8 9h8M8 15h8"/></svg><span>Blocks</span></button><button type="button" role="tab" data-tab="ischemia" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c3 4.5 6 8 6 11a6 6 0 0 1-12 0c0-3 3-6.5 6-11z"/></svg><span>Ischemia</span></button><button type="button" role="tab" data-tab="conditions" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Conditions</span></button><button type="button" role="tab" data-tab="view" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>View</span></button></nav>
 </div>
 
 <div class="overlay" id="guide" hidden>
