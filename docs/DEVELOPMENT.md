@@ -334,6 +334,7 @@ Model fixes for subendocardial ischemia:
 - `site.json` holds the author, contact and year shown in Help → About and the page metadata;
   the build stamps the version (date + commit). `LICENSE`: all rights reserved.
 
+<<<<<<< HEAD
 ### Round 17: Conditions tab (milestone-2)
 
 - The Structure tab is now **Conditions**: a list of active conditions (each removable with ×),
@@ -417,3 +418,35 @@ width ≤ 743 px, or a touch screen ≤ 500 px tall held sideways). Tablets and 
   smaller page dots (centred) and the one-time double-tap hint float over the grid.
 - Full-screen heart: the live lead's label is a button that opens a 12-lead menu (closes with the
   back button or a tap outside); a double-tap on the strip still returns to the two-pane view.
+=======
+### Round 17: old-infarct Q waves (scar as an electrical window)
+
+Old LAD infarcts left a small early r (0.05–0.2 mV) in V1–V4, so the tracing read as poor R
+progression rather than Q/QS, and V4 never qualified. Cause: with the anterior septum dead, the
+surviving RV free wall (moderator band, ~20 ms) and the PDA-supplied inferior septum still push
+the anterior leads positive before the posterior LV forces arrive. Near-field weighting,
+anisotropy and the Brody effect all scale normal R and infarct r together; moving the
+conduction system (LAF toward the apex, faster Purkinje) helps but disturbs the normal axis.
+
+Fix that leaves every non-infarct ECG untouched (`scarWindow` 0.5): a transmural scar acts as
+the classic "window". Dead cells are activated as phantoms (from living muscle, Purkinje and each
+other, never back into living tissue, `scarRefractory` 200 ms) and add −scarWindow × vAmp × their
+pair sources, using only pairs inside the scar, so a fully activated scar sums to exactly zero:
+no ST/T contribution and no step when it resets (measured 0.000 mV). Subendocardial scars are
+excluded (covered by living muscle).
+
+| Site, 1 month | Q before | Q with scarWindow 0.5 |
+|---|---|---|
+| LM | I aVL V2 V3 V5 V6 | I aVL V2–V6 |
+| pLAD | I aVL V1–V3 V5 | I aVL V1–V5 (clean QS, r ≤ 0.02 mV) |
+| mLAD | aVL V1–V3 | aVL V1–V5 |
+| dLAD | III aVF | II III aVF |
+| pLCx / dLCx | I aVL V6 / none | I aVL V6 / V6 |
+| RCA, PDA | II III aVF | II III aVF (II from 12 h) |
+
+Unchanged: normal ECG (identical), blocks, ST/T course of every site, subendocardial patches.
+Reciprocal R grows somewhat (proximal RCA: R in I 1.1 → 1.5 mV). Remaining: an apical (distal
+LAD) infarct keeps R in V3–V4, because the apex is activated late (20–27 ms) by the Purkinje
+network; fixing that needs the conduction-system retune described above. `ladRvMm` (LAD supply of
+the anterior RV strip) stays off.
+>>>>>>> origin/milestone-1
