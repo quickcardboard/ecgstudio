@@ -364,3 +364,25 @@ Reciprocal R grows somewhat (proximal RCA: R in I 1.1 → 1.5 mV). Remaining: an
 LAD) infarct keeps R in V3–V4, because the apex is activated late (20–27 ms) by the Purkinje
 network; fixing that needs the conduction-system retune described above. `ladRvMm` (LAD supply of
 the anterior RV strip) stays off.
+
+### Round 18 (branch cs-tune): conduction-system retune and diagnostics
+
+Tools: `tools/cstune.js` (ECG + activation score: normal axis/septal q/R progression,
+LAFB/LPFB/LBBB/RBBB, PR/HV/apex/total activation, LAD/RCA/LCx infarct leads, P axis, LVH, RVH),
+`tools/acttune.js` (activation only, against Durrer 1970), `tools/es_tune.js` (diagonal CMA-style
+optimiser). New engine options, all off or unchanged by default on milestone-1: `apexPurkMul/Z`,
+`mbZ`, `ladRvMm`; the septal fascicle already existed.
+
+Findings:
+- With the septal fascicle on, a faster apical Purkinje network, a re-oriented heart and adjusted
+  torso limb-lead settings, the optimiser reached a set meeting nearly every ECG target at once
+  (score 4.07 vs 15.0 for the live model): normal +48° with septal q, R transition V3–V4, LAFB −45°,
+  LPFB +100°, apex 24 ms, total 81 ms, P +56°, LVH Sokolow 4.0, RVH +162°, lateral LCx injury,
+  distal LAD Q in V4–V5. Still off: LBBB +77°, distal LAD r 0.15–0.19 mV in V2–V3, HV 33 ms.
+- Uniform double-layer sources (sigmaRatio 1) are much worse (normal +91°, LAFB disappears,
+  distal LAD r ~1 mV): the fibre-anisotropic source model is not the hidden problem.
+- Activation alone is under-determined: many conduction set-ups match Durrer exactly (score 0).
+  Such an activation, seen through the current forward model, gives a poor ECG (normal +7°/−13°,
+  LPFB +32 to +53°, RVH axis 230–248°). The forward model (separate limb/chest physics, no lungs or
+  cavity blood, hand-set gains) is the prime suspect; a single boundary-element torso for all 12
+  leads is the candidate fix.
