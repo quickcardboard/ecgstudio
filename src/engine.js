@@ -1118,7 +1118,7 @@
       const mid = lerp(V2, V4, 0.5);
       this.electrodes = {
         RA: [-(a + 10), 170, 0], LA: [a + 10, 170, 0], LL: [60, -330, 0],
-        V1: on(-26, 28), V2: V2, V3: on(mid[0], mid[1]), V4: V4,
+        V1: on(-26, 28), V2: V2, V3: on(mid[0], mid[1] - chY), V4: V4,   // (mid is already at the shifted level)
         V5: on(0.775 * a, 0), V6: [a, chY, 0],   // anterior / mid-axillary lines scale with the chest width
       };
       this.torso = { a, b };
