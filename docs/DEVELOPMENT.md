@@ -473,3 +473,5 @@ pericardial fat 5.0). Anatomy: 2 mm voxels, RV free wall ~5.4 mm, LV wall ~14 mm
 layers, LV/RV mass 2.9. Note: the ES runs scored amplitudes at a gain calibrated on the earlier
 activation set (1.96); recalibrated on the re-fitted set it is 3.05, so the gain should be
 recalibrated inside each evaluation.
+Numerical check: chest electrodes as 8 mm gel patches and/or a 3 mm torso grid leave V2 unchanged
+(R 2.2–2.36 mV at the recalibrated gain), so the tall V2 R is not a discretisation artefact.

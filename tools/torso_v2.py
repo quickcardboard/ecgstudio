@@ -117,7 +117,8 @@ def patch(c, rad):
     return list(idx[m])
 E = {}
 for k, v in d['electrodes'].items():
-    E[k] = patch(LIMB[k]['c'], LIMB[k]['r']) if k in LIMB else [node_near(v)]
+    CP = float(os.environ.get('CHESTPATCH', 0) or 0)   # chest electrode radius (mm): gel contact patch instead of a point
+    E[k] = patch(LIMB[k]['c'], LIMB[k]['r']) if k in LIMB else (patch(v, CP) if CP > 0 else [node_near(v)])
 ref = E['RA'][0]
 keep = np.ones(N, bool); keep[ref] = False
 Kr = K[keep][:, keep].tocsr()
