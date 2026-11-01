@@ -249,6 +249,7 @@
     atrialTorsoII: 0.92,        // torso lead II for atrial sources (keeps the P-wave calibration made at torsoBlend 0.6)
     atriaAnchored: false, atriaRotation: 14, atriaPitch: -10, atriaYaw: 8,   // atria keep their own (base-anchored) orientation
     chestLeadY: 0,          // chest electrode level offset (mm, + up)
+    v12Y: 0,                // V1/V2 raised this much (mm) relative to V4-V6 (heart lower under V1/V2)
     torsoHalfWidth: 160, torsoHalfDepth: 110,   // chest cross-section (mm); adult range roughly 140-175 × 95-120
     forward: 1,                 // 1: blended dipole/near-field leads (calibrated); 2: inhomogeneous torso volume conductor for all leads (tools/torso_v2.py)
     forwardGain: 1,             // overall ECG gain of forward model 2
@@ -1114,11 +1115,14 @@
       // 5th intercostal space; V1/V2 one space higher, in the 4th.
       const chY = P.chestLeadY || 0;
       const on = (x, y) => [x, y + chY, surfZ(x) - 1];
-      const V2 = on(26, 28), V4 = on(78, 0);
+      // v12Y: V1/V2 height above V4 beyond the default 28 mm (4th ICS at the sternal edge vs
+      // 5th ICS in the mid-clavicular line; the ribs slope down laterally)
+      const v12 = 28 + (P.v12Y || 0);
+      const V2 = on(26, v12), V4 = on(78, 0);
       const mid = lerp(V2, V4, 0.5);
       this.electrodes = {
         RA: [-(a + 10), 170, 0], LA: [a + 10, 170, 0], LL: [60, -330, 0],
-        V1: on(-26, 28), V2: V2, V3: on(mid[0], mid[1] - chY), V4: V4,   // (mid is already at the shifted level)
+        V1: on(-26, v12), V2: V2, V3: on(mid[0], mid[1] - chY), V4: V4,   // (mid is already at the shifted level)
         V5: on(0.775 * a, 0), V6: [a, chY, 0],   // anterior / mid-axillary lines scale with the chest width
       };
       this.torso = { a, b };
