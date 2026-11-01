@@ -28,7 +28,7 @@ const def = { atrialFrontalRot: 30, septalTerrHalf: 0.15, lsfZ: 0.3, lsfPhi: 0.0
 const toU = (k, v) => (v - R[k][0]) / (R[k][1] - R[k][0]), fromU = (k, u) => R[k][0] + Math.min(1, Math.max(0, u)) * (R[k][1] - R[k][0]);
 let mean = K.map((k) => toU(k, start[k] !== undefined ? start[k] : def[k] !== undefined ? def[k] : (R[k][0] + R[k][1]) / 2));
 const sd = new Array(D).fill(1); let sigma = 0.08;
-const fixed = { septalFascicle: true, lv: start.lv !== undefined ? start.lv : 2, rv: 0 };
+const fixed = { septalFascicle: true, lv: start.lv !== undefined ? start.lv : 2, rv: 0, ...(process.env.FIXED ? JSON.parse(process.env.FIXED) : {}) };   // FIXED: extra parameters held constant
 const build = (u) => { const p = { ...fixed }; K.forEach((k, i) => { p[k] = +fromU(k, u[i]).toFixed(4); }); p.avnSegDelay = +(17 - (p.pmjAntero - 2) / 5).toFixed(2); return p; };
 let seed = 12345; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
 const gauss = () => { let u = 0; while (!u) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd()); };

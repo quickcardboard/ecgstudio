@@ -86,9 +86,9 @@ keep = np.ones(N, bool); keep[ref] = False
 Kr = K[keep][:, keep].tocsr()
 t = time.time(); ml = pyamg.smoothed_aggregation_solver(Kr, symmetry='symmetric'); print('AMG setup %.1fs' % (time.time() - t))
 
-# heart box (8 mm margin) for the output
+# heart box (20 mm margin, covers hypertrophy) for the output
 hp = np.vstack([np.asarray(d['tissue'], float).reshape(-1, 3), np.asarray(d['blood'], float).reshape(-1, 3)])
-lo = np.floor((hp.min(0) - 8) / H) * H; hi = np.ceil((hp.max(0) + 8) / H) * H
+lo = np.floor((hp.min(0) - 20) / H) * H; hi = np.ceil((hp.max(0) + 20) / H) * H   # 20 mm: room for hypertrophied walls
 bi = [(np.abs(xs - lo[0]).argmin(), np.abs(xs - hi[0]).argmin() + 1), (np.abs(ys - lo[1]).argmin(), np.abs(ys - hi[1]).argmin() + 1), (np.abs(zs - lo[2]).argmin(), np.abs(zs - hi[2]).argmin() + 1)]
 res = {'version': 2, 'h': H, 'origin': [float(xs[bi[0][0]]), float(ys[bi[1][0]]), float(zs[bi[2][0]])],
        'dims': [int(bi[0][1] - bi[0][0]), int(bi[1][1] - bi[1][0]), int(bi[2][1] - bi[2][0])], 'ref': 'RA', 'sigma': SIG, 'psi': {}, 'scale': {}}
