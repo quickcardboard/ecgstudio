@@ -43,7 +43,7 @@ function evaluate(p) {
   const mlad = record(M, occl(br.LAD[Math.round(br.LAD.length * 0.3)]));
   const prca = record(M, occl(br.RCA[0]));
   const plcx = record(M, (S) => { S.addOcclusion(br.LCx[0]); S.setIschemiaTime(1); });   // acute circumflex: lateral, not inferior
-  const hyp = (opt, P) => { const H = LH.hypertrophyOptions(opt); const AH = new LH.Anatomy(JSONA, { lvWallLayers: lv + (opt.lvh ? 3 : 0), rvWallLayers: opt.rvh ? 5 : rv }); return record(new LH.Model(AH, { ...mp, ...H.params }), () => {}); };
+  const hyp = (opt, P) => { const H = LH.hypertrophyOptions(opt, mp.forward !== undefined ? mp.forward : LH.DEFAULTS.forward); const AH = new LH.Anatomy(JSONA, { lvWallLayers: lv + (opt.lvh ? 3 : 0), rvWallLayers: opt.rvh ? 5 : rv }); return record(new LH.Model(AH, { ...mp, ...H.params }), () => {}); };
   const lvh = hyp({ lvh: true }), rvh = hyp({ rvh: true });
   // activation: apex endocardium, total time, HV
   const S = new LH.Sim(M, { seed: 1 }); S.run(1700);   // activation times of the last complete beat
@@ -74,8 +74,8 @@ function evaluate(p) {
   let s = 0;
   s += pen(N.axis, 35, 70) / 8 + pen(N.net, 30, 70) / 8;
   s += pen(m.LAF.net, -80, -45) / 4 + pen(m.LAF.axis, -85, -40) / 8;
-  s += pen(m.LPF.net, 100, 150) / 4 + pen(m.LPF.axis, 95, 150) / 8;
-  s += pen(m.LBB.axis, -30, 60) / 12 + pen(m.LBB.qrs, 130, 170) / 10 + pen(m.RBB.qrs, 115, 160) / 10;
+  s += pen(m.LPF.net, 100, 150) / 3 + pen(m.LPF.axis, 95, 150) / 5;
+  s += pen(m.LBB.axis, -30, 60) / 4 + pen(m.LBB.qrs, 130, 170) / 10 + pen(m.RBB.qrs, 115, 160) / 10;
   s += pen(N.qrs, 80, 100) / 5 + pen(m.LAF.qrs, 85, 118) / 3 + pen(m.LPF.qrs, 85, 118) / 3;   // isolated fascicular block: QRS < 120 ms
   s += pen(N.qI, -0.25, -0.04) * 20 + pen(pr[4][0], 0.5, 2.5) * 4 + pen(pr[5][0], 0.5, 2.5) * 4 + pen(N.qV6, -0.25, -0.04) * 10 + pen(N.rV1, 0.04, 0.3) * 10;
   s += pen(N.I[0], 0.4, 1.5) * 4 + pen(N.II[0], 0.7, 1.8) * 4;

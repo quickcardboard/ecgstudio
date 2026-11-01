@@ -2500,10 +2500,16 @@
   // Ventricular hypertrophy presets: thicker free wall (anatomy), stronger
   // sources (lead fields) and a reversed transmural repolarisation gradient
   // (strain). Validated with tools/hyper.js.
-  function hypertrophyOptions({ lvh = false, rvh = false } = {}) {
+  // Hypertrophy: thicker wall (more myocardium), strain repolarization and, for
+  // forward model 1, a source gain that stood in for the missing volume effect.
+  // Forward model 2 (torso volume conductor) gets LVH voltage from the wall mass
+  // alone (lvSourceGain 1: Sokolow ~5 mV, Cornell ~2.7 mV at 5 layers); RVH keeps
+  // a smaller RV gain (1.3) for right axis deviation and a dominant R in V1.
+  function hypertrophyOptions({ lvh = false, rvh = false } = {}, forward = DEFAULTS.forward) {
+    const f2 = forward === 2;
     return {
       anatomy: { lvWallLayers: lvh ? 5 : 2, rvWallLayers: rvh ? 5 : 0 },
-      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1 },
+      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? (f2 ? 1 : 1.5) : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? (f2 ? 1.3 : 1.8) : 1 },
     };
   }
 
