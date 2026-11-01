@@ -497,3 +497,13 @@ Normal R/S V1–V6: 0.17/1.10, 0.38/1.48, 0.46/1.56, 0.59/0.62, 0.84/0.03, 0.84/
 blocks and fascicular blocks unchanged; ischaemia audit: LM adds V3 STE, distal LAD at 1 h adds V1,
 old distal LAD adds a Q in V6, proximal RCA adds V3 to its reciprocal depression; anterior STE and
 old anterior QS kept.
+
+### Round 25: true anterior view; the old "Anterior" preset is now "4-chamber"
+
+The default camera preset looks along the four-chamber plane, which is tilted well away from the
+chest. It is now labelled **4-chamber** (still the default, and still used for block clicks on the
+phone), and a new **Anterior** preset looks from the front of the chest: camera on the torso's
+anterior axis, head up, patient's left on the viewer's right. The 3D scene is already in the torso
+frame the lead fields use, so in this view the limb-lead vectors lie in the screen plane, V2 points
+almost straight at the viewer and V1–V6 fan from the viewer's left to right; a cut from here is a
+coronal (frontal) section. Help → View controls lists the four presets.

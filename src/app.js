@@ -546,6 +546,7 @@
     g3.lax = lax.clone().normalize();
     g3.cutPresets = {
       anterior: { n: nrm, p: p0, up: [0, 1, 0], dist: 395 },
+      chest: { world: [0, 0, 1], p: g3.lvCenter, up: [0, 1, 0], dist: 395 },          // true anterior: from the front of the chest, head up (frontal plane faces the viewer)
       lateral: { world: [1, 0.05, 0.1], p: g3.lvCenter, up: [0, 1, 0], dist: 375 },   // from the patient's left
       short: { n: saN, p: saP, up: [0, 0, 1], dist: 330 },
     };
@@ -657,7 +658,7 @@
   function cutViewName(dir, nL) {
     const ax = Math.abs(nL.dot(g3.lax));
     if (ax > 0.85) return nL.dot(g3.lax) > 0 ? 'short axis (from the apex)' : 'short axis (from the base)';
-    if (nL.dot(g3.cutPresets.anterior.n) > 0.93) return 'anterior (four-chamber)';
+    if (nL.dot(g3.cutPresets.anterior.n) > 0.93) return 'four-chamber';
     const parts = [[dir.z, 'anterior', 'posterior'], [dir.x, 'left lateral', 'right lateral'], [dir.y, 'superior', 'inferior']]
       .map(([v, pos, neg]) => ({ w: Math.abs(v), name: v > 0 ? pos : neg })).sort((a, b) => b.w - a.w);
     if (parts[1].w > 0.45 * parts[0].w + 0.15) {
@@ -912,9 +913,9 @@
     if (v !== ui.view) setView(v);
     g3.planeDirty = true;
   }
-  // camera presets (Anterior = the four-chamber direction, Lateral, Apex = short axis)
+  // camera presets: Anterior (from the chest), 4-chamber, Lateral, Apex (short axis)
   function cameraPreset(name) {
-    cutPreset(name === 'short' ? 'short' : name === 'left' ? 'lateral' : 'anterior');
+    cutPreset(name === 'short' ? 'short' : name === 'left' ? 'lateral' : name === 'chest' ? 'chest' : 'anterior');
   }
 
   // colour of a cell from its action-potential phase
