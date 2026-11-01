@@ -475,3 +475,16 @@ activation set (1.96); recalibrated on the re-fitted set it is 3.05, so the gain
 recalibrated inside each evaluation.
 Numerical check: chest electrodes as 8 mm gel patches and/or a 3 mm torso grid leave V2 unchanged
 (R 2.2–2.36 mV at the recalibrated gain), so the tall V2 R is not a discretisation artefact.
+
+*Before/after review* (`tools/compare.js` records one beat of 15 teaching scenarios for any engine
+version and parameter set; plotted side by side at 25 mm/s, 10 mm/mV). Live (milestone-1,
+forward model 1) vs the round-21 physiological set (forward model 2, CT orientation, source ratio
+3, lungs/liver/spine torso, gain recalibrated on the Kors heart vector):
+better in the new set — LBBB axis (+77 → +8°), proximal LCx lateral ST (I, aVL, V5–V6, reciprocal
+inferior and V1–V4), proximal RCA with right-sided V1–V2 ST elevation, old inferior MI QS in III;
+worse — chest-lead voltage (normal V2 R/S 2.2/3.7 mV, LVH V2 S 5.8, RVH V1 R 5.5), R peaking in
+V2–V3, LPFB +52°, LVH axis +18° without QRS widening, and above all proximal LAD at 1 h: ST
+elevation only in V4 (+0.94) with V1–V3 ≤ 0.23 and none in I/aVL (live: V2–V5 +0.5–0.8, aVL
++0.9, inferior reciprocal). The old forward-model-2 set (tilted heart, ratio 10) had the same weak
+anterior ST, so this belongs to forward model 2 itself; ischaemia was not in its scoring. Not ready
+for the live site.
