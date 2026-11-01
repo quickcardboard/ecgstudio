@@ -19,7 +19,7 @@ function record(M, setup) {
   const y = (n) => rec.slice(q0, q1).map((r) => r[LEAD(n)] - base[LEAD(n)]);
   const st = (n) => rec[q1 + 40][LEAD(n)] - base[LEAD(n)];   // ST at J + 40 ms
   // P-wave frontal axis from the P area in I and aVF
-  const a = S.log.atrial.filter((x) => x.on < vb.on).pop(), a0 = Math.floor(a.on), pb = rec[a0 - 10];
+  const a = S.log.atrial.filter((x) => x.on < vb.on).pop() || { on: vb.on - 160 }, a0 = Math.max(10, Math.floor(a.on)), pb = rec[a0 - 10];
   const parea = (n) => rec.slice(a0, a0 + 100).reduce((acc, r) => acc + r[LEAD(n)] - pb[LEAD(n)], 0);
   const paxis = Math.atan2(parea('aVF'), parea('I')) * 180 / Math.PI;
   return { S, vb, q0, qrs: q1 - q0, y, st, paxis };
@@ -76,7 +76,7 @@ function evaluate(p) {
   s += pen(m.LAF.net, -80, -45) / 4 + pen(m.LAF.axis, -85, -40) / 8;
   s += pen(m.LPF.net, 100, 150) / 4 + pen(m.LPF.axis, 95, 150) / 8;
   s += pen(m.LBB.axis, -30, 60) / 12 + pen(m.LBB.qrs, 130, 170) / 10 + pen(m.RBB.qrs, 115, 160) / 10;
-  s += pen(N.qrs, 80, 100) / 5 + pen(m.LAF.qrs, 85, 115) / 10 + pen(m.LPF.qrs, 85, 115) / 10;
+  s += pen(N.qrs, 80, 100) / 5 + pen(m.LAF.qrs, 85, 118) / 3 + pen(m.LPF.qrs, 85, 118) / 3;   // isolated fascicular block: QRS < 120 ms
   s += pen(N.qI, -0.25, -0.04) * 20 + pen(pr[4][0], 0.5, 2.5) * 4 + pen(pr[5][0], 0.5, 2.5) * 4 + pen(N.qV6, -0.25, -0.04) * 10 + pen(N.rV1, 0.04, 0.3) * 10;
   s += pen(N.I[0], 0.4, 1.5) * 4 + pen(N.II[0], 0.7, 1.8) * 4;
   for (let i = 0; i < 4; i++) s += Math.max(0, pr[i][0] - pr[i + 1][0]) * 3;           // R grows V1→V4

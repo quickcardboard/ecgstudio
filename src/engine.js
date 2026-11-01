@@ -128,6 +128,7 @@
     // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
     wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
     avnToneExp: 0.45,      // AV-nodal delay ∝ (72/rate)^exp (autonomic coupling)
+    fascBlockPurkSlow: 1,  // with LAF/LPF block: that territory's Purkinje network conducts this many times slower (diseased distal branches; 1 = off)
     mbZ: 0.4684,             // moderator band insertion on the RV free wall (apicobasal UVC)
     rbbSeptalFrac: 0,   // distal fraction of septal RBB giving off RV septal Purkinje
     rbbSeptalDelay: 20.31,    // ms extra delay into the RV septal Purkinje
@@ -1511,6 +1512,7 @@
       if (site === 'AVN') { this.avnBlockMul = 1; for (const c of M.avn) { this.erpExtra[c] = P.avnErpExtra; this.cvK[c] = P.avnCvRestK; this.cvTau[c] = P.avnCvRestTau; } }
       delete this.blocks[site];
       if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = 0;
+      if (site === 'LAF' || site === 'LPF') this._fascTerritorySlow(site, 1);
       if (!type) { this._applyAvn(); return; }
       this.blocks[site] = { type, ...opts };
       const gate = (cell, mode, n) => this.gates.set(cell, { mode, n, count: 0, site });
@@ -1533,9 +1535,20 @@
         else if (type === 'complete') for (const c of cs.HIS) this.blocked[c] = 1;
       } else if (type === 'complete') for (const c of cells) this.blocked[c] = 1;
       if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = this.blocks[site] && this.blocks[site].type === 'complete' ? 1 : 0;   // septal fibres go with their parent division
+      // The disease that blocks a fascicle (fibrosis, scar, ischaemia) usually
+      // involves its distal Purkinje branches too: with the block, that
+      // territory's Purkinje network conducts fascBlockPurkSlow times slower.
+      if ((site === 'LAF' || site === 'LPF') && type === 'complete') this._fascTerritorySlow(site, P.fascBlockPurkSlow);
       this._applyAvn();
     }
     clearBlocks() { for (const s of Object.keys(this.blocks)) this.setBlock(s, null); }
+    // conduction-time factor on the Purkinje nodes of a fascicle's territory
+    // (and the tied septal territory with its parent division)
+    _fascTerritorySlow(site, f) {
+      const M = this.M, terr = M.purkTerritory; if (!terr) return;
+      const k = site === 'LAF' ? 0 : 1, withSept = M.lsfTie === site;
+      for (const [id, t] of terr) if (t === k || (withSept && t === 2)) this.cvMul[id] = f;
+    }
     _applyAvn() {
       const tone = this._avnTone || 1;
       for (const c of this.M.avn) {
