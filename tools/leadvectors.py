@@ -13,6 +13,7 @@ def lead_vectors(ht, tv, sel=None):
     o = np.array(tv['origin']); H = tv['h']; dims = tv['dims']
     pts = np.asarray(ht['tissue'], float).reshape(-1, 3)
     ii = np.clip(np.rint((pts - o) / H).astype(int), 1, np.array(dims) - 2)
+    if sel is None and 'tlab' in ht: sel = np.asarray(ht['tlab']) <= 2       # ventricles (the QRS sources)
     if sel is not None: ii = ii[sel]
     G = {}
     for k in tv['psi']:
