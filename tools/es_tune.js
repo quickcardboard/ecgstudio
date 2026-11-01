@@ -50,7 +50,7 @@ const log = (s) => { fs.appendFileSync(path.join(outDir, 'log.txt'), s + '\n'); 
     mean = mean.map((_, d) => sel.reduce((a, i, j) => a + w[j] * us[i][d], 0) / ws);
     for (let d = 0; d < D; d++) { const e = sel.reduce((a, i, j) => a + w[j] * zs[i][d] * zs[i][d], 0) / ws; sd[d] = Math.min(3, Math.max(0.2, sd[d] * Math.exp(0.15 * (e - 1)))); }
     const gb = res[order[0][1]];
-    if (gb.score < best.score) { best = gb; sigma = Math.min(0.3, sigma * 1.08); fs.writeFileSync(path.join(outDir, 'best.json'), JSON.stringify(best)); } else sigma = Math.max(0.01, sigma * 0.93);
+    if (gb.score < best.score) { best = gb; sigma = Math.min(0.3, sigma * 1.08); fs.writeFileSync(path.join(outDir, 'best.json'), JSON.stringify(best)); } else sigma = Math.max(0.025, sigma * 0.93);
     const m = best.m;
     log(`g ${g} genBest ${order[0][0]} best ${best.score} sigma ${sigma.toFixed(3)} | N ${m.N.axis}/${m.N.net} qI ${m.N.qI} LAF ${m.LAF.net} LPF ${m.LPF.net} LBB ${m.LBB.axis} apex ${m.act.apexMed} V4 ${m.N.prog[3]} V5 ${m.N.prog[4]} dLAD ${m.dLAD.slice(0, 4)}`);
   }
