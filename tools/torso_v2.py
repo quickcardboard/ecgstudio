@@ -26,9 +26,19 @@ d = json.load(open(src))
 A, B, Y0, Y1 = 160.0, 110.0, -360.0, 220.0
 SIG = dict(torso=0.22, lung=0.05, blood=0.65, heart=0.20)
 
-xs = np.arange(-A, A + H / 2, H); ys = np.arange(Y0, Y1 + H / 2, H); zs = np.arange(-B, B + H / 2, H)
+# LIMBS=1: add arms hanging at the sides (joined to the trunk only at the
+# shoulder/axilla) and legs below the pelvis, with RA/LA on the wrists and LL on
+# the left foot, instead of contact patches on the trunk.
+LIMBS = bool(os.environ.get('LIMBS'))
+XA, YB = (265.0, -1100.0) if LIMBS else (A, Y0)
+xs = np.arange(-XA, XA + H / 2, H); ys = np.arange(YB, Y1 + H / 2, H); zs = np.arange(-B, B + H / 2, H)
 X, Yg, Z = np.meshgrid(xs, ys, zs, indexing='ij')
-inside = (X / A) ** 2 + (Z / B) ** 2 <= 1.0
+inside = ((X / A) ** 2 + (Z / B) ** 2 <= 1.0) & (Yg >= Y0)
+if LIMBS:
+    for sx in (-1, 1):
+        inside |= ((X - sx * 215) ** 2 + Z ** 2 <= 40 ** 2) & (Yg >= -320) & (Yg <= 185)                      # arm
+        inside |= ((X - sx * 185) / 50) ** 2 + ((Yg - 160) / 45) ** 2 + (Z / 50) ** 2 <= 1.0                  # shoulder/axilla
+        inside |= ((X - sx * 85) ** 2 + Z ** 2 <= 70 ** 2) & (Yg <= Y0 + 20)                                   # leg
 sig = np.full(X.shape, SIG['torso'])
 
 def ellipsoid(c, r):
@@ -38,7 +48,7 @@ sig[lungs] = SIG['lung']
 
 def rasterise(pts, value):
     p = np.asarray(pts, float).reshape(-1, 3)
-    i = np.rint((p[:, 0] + A) / H).astype(int); j = np.rint((p[:, 1] - Y0) / H).astype(int); k = np.rint((p[:, 2] + B) / H).astype(int)
+    i = np.rint((p[:, 0] - xs[0]) / H).astype(int); j = np.rint((p[:, 1] - ys[0]) / H).astype(int); k = np.rint((p[:, 2] - zs[0]) / H).astype(int)
     ok = (i >= 0) & (i < len(xs)) & (j >= 0) & (j < len(ys)) & (k >= 0) & (k < len(zs))
     m = np.zeros(X.shape, bool); m[i[ok], j[ok], k[ok]] = True
     sig[m] = value
@@ -69,10 +79,11 @@ import os
 # Limb electrodes: the arm joins the torso over the shoulder girdle and axilla,
 # the leg over the hip; model each as a surface contact patch (current spread
 # over the patch), the chest electrodes as points.
-LIMB = json.loads(os.environ.get('LIMB', 'null') or 'null') or {
+LIMB = {'RA': {'c': [-215, -320, 0], 'r': 25}, 'LA': {'c': [215, -320, 0], 'r': 25}, 'LL': {'c': [85, -1100, 0], 'r': 30}} if LIMBS else \
+    json.loads(os.environ.get('LIMB', 'null') or 'null') or {
     'RA': {'c': [-160, 100, -20], 'r': 70}, 'LA': {'c': [160, 100, -20], 'r': 70}, 'LL': {'c': [100, -300, 0], 'r': 70}}
 surf = inside & ~np.roll(inside, 1, 0) | inside & ~np.roll(inside, -1, 0) | inside & ~np.roll(inside, 1, 2) | inside & ~np.roll(inside, -1, 2)
-surf |= inside & ((Yg <= Y0 + H / 2) | (Yg >= Y1 - H / 2))
+surf |= inside & (~np.roll(inside, 1, 1) | ~np.roll(inside, -1, 1) | (Yg <= YB + H / 2) | (Yg >= Y1 - H / 2))
 def patch(c, rad):
     dd = (X - c[0]) ** 2 + (Yg - c[1]) ** 2 + (Z - c[2]) ** 2
     m = surf & (dd <= rad * rad)
