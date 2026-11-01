@@ -35,7 +35,7 @@ function evaluate(p) {
   const A = anatomy(lv, rv), M = new LH.Model(A, mp);
   const cs = M.csSegments, br = M.coronary.branches;
   const n = record(M, () => {});
-  const blk = (seg) => (S) => { for (const c of cs[seg].slice(0, 3)) S.blocked[c] = 1; };
+  const blk = (seg) => (S) => S.setBlock(seg, 'complete');   // (the app's own block, incl. any tied septal fibres)
   const laf = record(M, blk('LAF')), lpf = record(M, blk('LPF')), lbb = record(M, blk('LBB')), rbb = record(M, blk('RBB'));
   const occl = (node) => (S) => { S.addOcclusion(node); S.setIschemiaTime(720); };
   const dlad = record(M, occl(br.LAD[Math.round(br.LAD.length * 0.7)]));

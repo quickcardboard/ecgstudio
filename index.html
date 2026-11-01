@@ -523,7 +523,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-01 (82fedab).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-01 (931b832).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -2338,6 +2338,12 @@ THE SOFTWARE.
       this.csSegments = {
         AVN: avn, HIS: his, LBB: lbb, LAF: this.laf, LPF: this.lpf, LSF: this.lsf, RBB: this.rbb,
       };
+      // the septal fibres arise from one of the two main divisions: a block of
+      // that division takes them too (so RBB + LAF + LPF stays a complete block)
+      if (this.lsf.length) {
+        const end = (f) => this.pt(f[f.length - 1]), e = end(this.lsf);
+        this.lsfTie = len(sub(e, end(this.laf))) <= len(sub(e, end(this.lpf))) ? 'LAF' : 'LPF';
+      }
     }
 
     // ---- Coronary arteries (right-dominant) and perfusion territories ----
@@ -3062,6 +3068,7 @@ THE SOFTWARE.
       if (site === 'SAN') { this.saExit = null; this.sinusArrest = false; this.sinusPauseUntil = -1; }
       if (site === 'AVN') { this.avnBlockMul = 1; for (const c of M.avn) { this.erpExtra[c] = P.avnErpExtra; this.cvK[c] = P.avnCvRestK; this.cvTau[c] = P.avnCvRestTau; } }
       delete this.blocks[site];
+      if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = 0;
       if (!type) { this._applyAvn(); return; }
       this.blocks[site] = { type, ...opts };
       const gate = (cell, mode, n) => this.gates.set(cell, { mode, n, count: 0, site });
@@ -3083,6 +3090,7 @@ THE SOFTWARE.
         if (type === 'mobitz2') gate(cs.HIS[1], 'drop-1-of', opts.n || 4);
         else if (type === 'complete') for (const c of cs.HIS) this.blocked[c] = 1;
       } else if (type === 'complete') for (const c of cells) this.blocked[c] = 1;
+      if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = this.blocks[site] && this.blocks[site].type === 'complete' ? 1 : 0;   // septal fibres go with their parent division
       this._applyAvn();
     }
     clearBlocks() { for (const s of Object.keys(this.blocks)) this.setBlock(s, null); }
