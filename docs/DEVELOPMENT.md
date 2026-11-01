@@ -386,3 +386,9 @@ Findings:
   LPFB +32 to +53°, RVH axis 230–248°). The forward model (separate limb/chest physics, no lungs or
   cavity blood, hand-set gains) is the prime suspect; a single boundary-element torso for all 12
   leads is the candidate fix.
+
+Full regression of the pass-3 optimiser set (current cs-tune defaults; NOT for release):
+improved normal QRS (septal q, R transition V3–V4) and distal LAD Q in V4–V5, but normal T axis
++72° (tall inferior T, T inverted in aVL), trifascicular block (RBB+LAF+LPF) conducts 1:1 through
+the septal fascicle, mid-LAD gives ST elevation in III/aVF at 1 h, and circumflex occlusions give
+inferior ST elevation with loss of the distal LCx V6 Q.

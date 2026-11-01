@@ -120,47 +120,47 @@
     cvHis: 1.50,
     cvBundle: 3.03,        // bundle branches and fascicles
     // Spec: conduction system ~3x faster than ventricular myocardium
-    cvPurkinje: 1.7369,
-    avnSegDelay: 15.54,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
+    cvPurkinje: 2.1886,
+    avnSegDelay: 14.66,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
     avnSegments: 5,
     slowPathSegments: 4, slowPathSegDelay: 50, slowPathErpExtra: 20, slowPathCvK: 1,   // dual AV-node pathways (AVNRT)
     avnFirstDegreeMul: 2.6, // AV-nodal delay factor for 1st-degree block
     // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
     wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
     avnToneExp: 0.45,      // AV-nodal delay ∝ (72/rate)^exp (autonomic coupling)
-    mbZ: 0.48,             // moderator band insertion on the RV free wall (apicobasal UVC)
-    rbbSeptalFrac: 0.0604,   // distal fraction of septal RBB giving off RV septal Purkinje
+    mbZ: 0.4684,             // moderator band insertion on the RV free wall (apicobasal UVC)
+    rbbSeptalFrac: 0,   // distal fraction of septal RBB giving off RV septal Purkinje
     rbbSeptalDelay: 20.31,    // ms extra delay into the RV septal Purkinje
 
-    lafPhi: 2.6713, lafZ: 0.4436, lpfPhi: -1.6416, lpfZ: 0.1847, lsfPhi: 0.1249, lsfZ: 0.3118,
+    lafPhi: 2.5306, lafZ: 0.3236, lpfPhi: -1.6029, lpfZ: 0.1607, lsfPhi: -0.081, lsfZ: 0.1788,
     septalFascicle: true,  // optional left septal fascicle (anatomically debated; off)
-    fascConnectFrac: 0.6278,  // distal fraction of LAF/LPF giving off Purkinje branches
-    lbbSplitZ: 0.8562, lbbSplitPhi: -0.032,  // where the LBB divides (apicobasal / rotational UVC)
-    septalTerrHalf: 0.1352,    // half-width (rad) of the mid-septal Purkinje territory
+    fascConnectFrac: 0.659,  // distal fraction of LAF/LPF giving off Purkinje branches
+    lbbSplitZ: 0.8646, lbbSplitPhi: 0.0905,  // where the LBB divides (apicobasal / rotational UVC)
+    septalTerrHalf: 0.1156,    // half-width (rad) of the mid-septal Purkinje territory
     lbbSeptalFrac: 0,           // distal fraction of the LBB trunk giving off septal Purkinje
-    lpfApexZ: 0.0913,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
-    lpfTerrLo: -2.2718, lpfTerrHi: 0.0203,  // LPF territory in rotational UVC (inferior/posterior wall)
-    apexPurkMul: 2.1431, apexPurkZ: 0.2822,   // Purkinje links below apexPurkZ (apicobasal UVC) conduct apexPurkMul× faster
+    lpfApexZ: 0,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
+    lpfTerrLo: -2.0539, lpfTerrHi: -0.0754,  // LPF territory in rotational UVC (inferior/posterior wall)
+    apexPurkMul: 1.8682, apexPurkZ: 0.3012,   // Purkinje links below apexPurkZ (apicobasal UVC) conduct apexPurkMul× faster
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
-    purkCrossSlow: 2.4292,     // conduction-time factor on Purkinje links between fascicle territories
+    purkCrossSlow: 6.1791,     // conduction-time factor on Purkinje links between fascicle territories
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
     precordialGain: 0.52,        // overall chest-lead gain
-    sigmaRatio: 9.4534,          // intracellular conductivity along:across fibres (1 = isotropic sources)
+    sigmaRatio: 7.4066,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
-    heartPitch: -26.8651,          // degrees about the left–right axis (+ tips the anterior wall upward)
-    heartYaw: -1.7388,           // degrees about the vertical axis (+ = apex swung from anterior toward the left)
-    heartRotation: 29.3372,    // degrees about the AP axis (+ = more vertical heart)
-    apexX: 69.1538, apexY: -26.2674,  // apex position in the chest (mm from midline / from V4 level)
-    chestGap: 21.853,          // closest heart–anterior chest wall distance (mm)
-    purkLinkR: 4.0631,        // Purkinje node link radius (× node spacing)
-    purkZmaxLV: 0.9327, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)
-    pmjAntero: 9.2842,          // Purkinje -> muscle junction delay (ms)
+    heartPitch: -5.2831,          // degrees about the left–right axis (+ tips the anterior wall upward)
+    heartYaw: 0.6132,           // degrees about the vertical axis (+ = apex swung from anterior toward the left)
+    heartRotation: 26.7363,    // degrees about the AP axis (+ = more vertical heart)
+    apexX: 68.0558, apexY: -22,  // apex position in the chest (mm from midline / from V4 level)
+    chestGap: 18.8935,          // closest heart–anterior chest wall distance (mm)
+    purkLinkR: 4.3931,        // Purkinje node link radius (× node spacing)
+    purkZmaxLV: 0.9317, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)
+    pmjAntero: 13.7018,          // Purkinje -> muscle junction delay (ms)
     pmjRetro: 20,          // muscle -> Purkinje (retrograde) junction delay (ms)
     pmjRetroRV: 35,        // retrograde PMJ delay in the RV (thin wall, sparse junctions)
 
     // Action potential durations (ms) at long diastolic interval
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
-    atrialFrontalRot: 30,   // degrees the atrial sources are turned back (frontal plane) against the ventricular rotation
+    atrialFrontalRot: 58.1538,   // degrees the atrial sources are turned back (frontal plane) against the ventricular rotation
     atrialSourceGain: 0.31, // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
@@ -242,10 +242,10 @@
     ecgHighpass: 0.05,          // Hz, diagnostic-ECG high-pass (baseline restoration)
     ecgLowpass: 40,             // Hz, ECG machine low-pass (0 = off; diagnostic carts use up to 150)
     torsoUniform: 0,            // share of the heart-averaged torso lead vector in place of the per-cell field
-    limbRotation: 0.3066,            // extra frontal rotation of the heart as seen by the limb leads (degrees, + = more vertical)
-    torsoIIGain: 0.6743,           // lead II length of the torso (Burger) triangle relative to its computed value
+    limbRotation: 1.1298,            // extra frontal rotation of the heart as seen by the limb leads (degrees, + = more vertical)
+    torsoIIGain: 0.8457,           // lead II length of the torso (Burger) triangle relative to its computed value
     atrialTorsoII: 0.92,        // torso lead II for atrial sources (keeps the P-wave calibration made at torsoBlend 0.6)
-    torsoBlend: 0.8421,            // limb leads: share of the bounded-torso lead field (rest: Einthoven projection)
+    torsoBlend: 0.8466,            // limb leads: share of the bounded-torso lead field (rest: Einthoven projection)
     dipoleGain: 3.0,            // heart-vector scale for the limb leads (mV per unit dipole)
   };
 
