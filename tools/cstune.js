@@ -79,6 +79,8 @@ function evaluate(p) {
   s += pen(N.qrs, 80, 100) / 5 + pen(m.LAF.qrs, 85, 118) / 3 + pen(m.LPF.qrs, 85, 118) / 3;   // isolated fascicular block: QRS < 120 ms
   s += pen(N.qI, -0.25, -0.04) * 20 + pen(pr[4][0], 0.5, 2.5) * 4 + pen(pr[5][0], 0.5, 2.5) * 4 + pen(N.qV6, -0.25, -0.04) * 10 + pen(N.rV1, 0.04, 0.3) * 10;
   s += pen(N.I[0], 0.4, 1.5) * 4 + pen(N.II[0], 0.7, 1.8) * 4;
+  s += pen(N.II[0] / Math.max(pr[4][0], pr[5][0]), 0.45, 1.2) * 8;                       // limb vs chest size (II R ~0.5-0.7 × V5/V6 R)
+  s += pen(pr[0][1], 0.7, 2.0) * 4 + pen(pr[0][0] / Math.max(0.01, pr[0][1]), 0, 0.5) * 3;   // normal V1: rS with a real S
   for (let i = 0; i < 4; i++) s += Math.max(0, pr[i][0] - pr[i + 1][0]) * 3;           // R grows V1→V4
   s += Math.max(0, pr[3][1] - pr[3][0] - 0.5) * 2 + Math.max(0, pr[0][0] - pr[0][1]) * 3; // transition by V4, rS in V1
   s += pen(m.act.PR, 130, 170) / 5 + pen(m.act.total, 60, 85) / 5 + pen(m.act.apexMed, 0, 22) / 3 + pen(m.act.HV, 30, 55) / 5;
