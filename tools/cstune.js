@@ -7,6 +7,7 @@ const fs = require('fs'); const LH = require('../src/engine.js');
 const JSONA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 const anat = new Map();
 const anatomy = (lv, rv) => { const k = lv + '/' + rv; if (!anat.has(k)) anat.set(k, new LH.Anatomy(JSONA, { lvWallLayers: lv, rvWallLayers: rv })); return anat.get(k); };
+if (process.env.TV2) LH.setDefaultTorso2(require(require('path').resolve(process.env.TV2)));   // forward model 2 field to use
 const LEAD = (n) => LH.LEADS.indexOf(n);
 
 function record(M, setup) {

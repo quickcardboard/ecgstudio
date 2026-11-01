@@ -523,7 +523,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-01 (931b832).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-01 (ed4cb87).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -1859,6 +1859,8 @@ THE SOFTWARE.
     limbRotation: 1.1298,            // extra frontal rotation of the heart as seen by the limb leads (degrees, + = more vertical)
     torsoIIGain: 0.8457,           // lead II length of the torso (Burger) triangle relative to its computed value
     atrialTorsoII: 0.92,        // torso lead II for atrial sources (keeps the P-wave calibration made at torsoBlend 0.6)
+    forward: 1,                 // 1: blended dipole/near-field leads (calibrated); 2: inhomogeneous torso volume conductor for all leads (tools/torso_v2.py)
+    forwardGain: 1,             // overall ECG gain of forward model 2
     torsoBlend: 0.8466,            // limb leads: share of the bounded-torso lead field (rest: Einthoven projection)
     dipoleGain: 3.0,            // heart-vector scale for the limb leads (mV per unit dipole)
   };
@@ -2794,7 +2796,33 @@ THE SOFTWARE.
         const f = [fb[3 * c], fb[3 * c + 1], fb[3 * c + 2]], fl = Math.hypot(f[0], f[1], f[2]) || 1;
         for (let d = 0; d < 3; d++) fwd[3 * c + d] = (R[3 * d] * f[0] + R[3 * d + 1] * f[1] + R[3 * d + 2] * f[2]) / fl;   // torso frame
       }
-      this._lw = { TF, tfSample, tfScale, tfMean, E, axes, B, rhat, aniso, anorm, fwd, NE };
+      // forward model 2: reciprocity potentials psi_e (current in at e, out at RA)
+      // of an inhomogeneous torso (lungs, cavity blood); the lead field is grad psi_e
+      let tv2 = null;
+      const T2 = this.P.forward === 2 ? (this.P.torsoV2 || DEFAULT_TORSO2) : null;
+      this.fwd2 = !!T2;
+      if (T2) {
+        const [nx, ny, nz] = T2.dims, o = T2.origin, th = T2.h;
+        const psi = names.map((k) => { if (k === T2.ref) return null; const a = decode(T2.psi[k], Int16Array), f = new Float32Array(a.length), s = T2.scale[k]; for (let i = 0; i < a.length; i++) f[i] = a[i] * s; return f; });
+        // gradient of the trilinear interpolant
+        const grad = (e, p) => {
+          const F = psi[e]; if (!F) return [0, 0, 0];
+          const fx = (p[0] - o[0]) / th, fy = (p[1] - o[1]) / th, fz = (p[2] - o[2]) / th;
+          const i0 = Math.max(0, Math.min(nx - 2, Math.floor(fx))), j0 = Math.max(0, Math.min(ny - 2, Math.floor(fy))), k0 = Math.max(0, Math.min(nz - 2, Math.floor(fz)));
+          const tx = Math.min(1, Math.max(0, fx - i0)), ty = Math.min(1, Math.max(0, fy - j0)), tz = Math.min(1, Math.max(0, fz - k0));
+          const v = (a, b, c) => F[((i0 + a) * ny + (j0 + b)) * nz + (k0 + c)];
+          let gx = 0, gy = 0, gz = 0;
+          for (let b = 0; b < 2; b++) for (let c = 0; c < 2; c++) gx += (v(1, b, c) - v(0, b, c)) * (b ? ty : 1 - ty) * (c ? tz : 1 - tz);
+          for (let a = 0; a < 2; a++) for (let c = 0; c < 2; c++) gy += (v(a, 1, c) - v(a, 0, c)) * (a ? tx : 1 - tx) * (c ? tz : 1 - tz);
+          for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) gz += (v(a, b, 1) - v(a, b, 0)) * (a ? tx : 1 - tx) * (b ? ty : 1 - ty);
+          return [gx / th, gy / th, gz / th];
+        };
+        // scale: mean |grad psi_V2| over the ventricles matches the 1/r² near field of model 1 (keeps ecgGain meaningful)
+        let gs = 0, rs = 0, cnt = 0; const eV2 = names.indexOf('V2');
+        for (let c = 0; c < n; c += 5) { if (this.kind[c] !== KIND.VENT) continue; const m = this.toTorso(A.p(c)); const gv = grad(eV2, m); gs += Math.hypot(gv[0], gv[1], gv[2]); const r = sub(E[eV2], m); rs += 1 / dot(r, r); cnt++; }
+        tv2 = { grad, scale: rs / gs };
+      }
+      this._lw = { TF, tfSample, tfScale, tfMean, E, axes, B, rhat, aniso, anorm, fwd, NE, tv2 };
       const cc = new Float64Array(NE);
       for (let c = 0; c < n; c++) {
         const kc = this.kind[c]; if (!kc) continue;
@@ -2813,7 +2841,7 @@ THE SOFTWARE.
     // adds out[e]·(Vm_w − Vm_c) to lead e (summation by parts of −σi∇Vm·∇L).
     pairCoef(c, w, a, out) {
       const A = this.A, h = A.h, kc = this.kind[c];
-      const { TF, tfSample, tfScale, tfMean, E, axes, B, rhat, aniso, anorm, fwd } = this._lw;
+      const { TF, tfSample, tfScale, tfMean, E, axes, B, rhat, aniso, anorm, fwd, tv2 } = this._lw;
       let sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : this.P.atrialSourceGain;
       // hypertrophied myocytes carry more intracellular current (source
       // strength ∝ conductance); scaling the pair keeps uniform plateaus silent
@@ -2861,6 +2889,13 @@ THE SOFTWARE.
         if (q && kc !== KIND.VENT) Lv = Lv.map((x) => x * this.P.atrialTorsoII / this.P.torsoIIGain);   // torsoIIGain shortens lead II for ventricular sources only
         const cc = tfScale * h * h * sc * ((Lv[0] * lex[0] + Lv[1] * lex[1] + Lv[2] * lex[2]) + re * (Lv[0] * lrr[0] + Lv[1] * lrr[1] + Lv[2] * lrr[2]) + fe * (Lv[0] * lff[0] + Lv[1] * lff[1] + Lv[2] * lff[2]));
         out[12 + q] = cc;
+      }
+      if (tv2) {                                              // forward model 2: torso lead fields
+        for (let e = 0; e < 9; e++) {
+          const G = tv2.grad(e, m);
+          out[e] = tv2.scale * h * h * sc * ((G[0] * ex[0] + G[1] * ex[1] + G[2] * ex[2]) + re * (G[0] * rr[0] + G[1] * rr[1] + G[2] * rr[2]) + fe * (G[0] * ff[0] + G[1] * ff[1] + G[2] * ff[2]));
+        }
+        return;
       }
       for (let e = 0; e < 9; e++) {
         const rx = E[e][0] - m[0], ry = E[e][1] - m[1], rz = E[e][2] - m[2];
@@ -3945,6 +3980,13 @@ THE SOFTWARE.
       // lead axes (I 0°, II +60°, III +120°; +angles are inferior), then
       // Goldberger's augmented leads — the limb electrodes are far-field.
       const L = this.leadsLatest, c60 = 0.5, s60 = 0.8660254;
+      if (this.M.fwd2) {
+        // forward model 2: electrode potentials from one torso; standard lead definitions
+        const k2 = this.P.forwardGain, ra = v(0), la = v(1), ll = v(2), wct2 = (ra + la + ll) / 3;
+        L[0] = k2 * (la - ra); L[1] = k2 * (ll - ra); L[2] = k2 * (ll - la);
+        L[3] = -(L[0] + L[1]) / 2; L[4] = (L[0] - L[2]) / 2; L[5] = (L[1] + L[2]) / 2;
+        for (let k = 0; k < 6; k++) L[6 + k] = k2 * (v(3 + k) - wct2);
+      } else {
       if (this.M.torsoLimb) {
         // bounded-torso lead fields (a computed Burger triangle), optionally
         // blended with the Einthoven projection (torsoBlend = torso share)
@@ -3967,6 +4009,7 @@ THE SOFTWARE.
       for (let k = 0; k < 6; k++) {
         const u = dir[k], proj = D[0] * u[0] + D[1] * u[1] + D[2] * u[2];
         L[6 + k] = P.precordialGain * (P.precordialDipoleW * P.precordialDipoleGain * proj + (1 - P.precordialDipoleW) * (v(3 + k) - wct));
+      }
       }
       // recording chain: 2nd-order Butterworth low-pass per lead (ECG machine filter)
       if (this.P.ecgLowpass > 0) {
@@ -4019,6 +4062,12 @@ THE SOFTWARE.
     try { DEFAULT_TORSO = require(__dirname + '/torso_leadfield.json'); } catch (e) { DEFAULT_TORSO = null; }
   }
   const setDefaultTorso = (tf) => { DEFAULT_TORSO = tf; };
+  // torso volume conductor for forward model 2 (tools/torso_v2.py)
+  let DEFAULT_TORSO2 = null;
+  if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+    try { DEFAULT_TORSO2 = require(__dirname + '/torso_v2.json'); } catch (e) { DEFAULT_TORSO2 = null; }
+  }
+  const setDefaultTorso2 = (tf) => { DEFAULT_TORSO2 = tf; };
 
   // Ventricular hypertrophy presets: thicker free wall (anatomy), stronger
   // sources (lead fields) and a reversed transmural repolarisation gradient
@@ -4030,7 +4079,7 @@ THE SOFTWARE.
     };
   }
 
-  const api = { hypertrophyOptions, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, lvThickenWeight, rvThickenWeight };
+  const api = { hypertrophyOptions, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, setDefaultTorso2, lvThickenWeight, rvThickenWeight };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ECGStudio = api;
 })(typeof window !== 'undefined' ? window : globalThis);
