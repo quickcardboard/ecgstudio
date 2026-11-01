@@ -488,3 +488,10 @@ elevation only in V4 (+0.94) with V1–V3 ≤ 0.23 and none in I/aVL (live: V2�
 +0.9, inferior reciprocal). The old forward-model-2 set (tilted heart, ratio 10) had the same weak
 anterior ST, so this belongs to forward model 2 itself; ischaemia was not in its scoring. Not ready
 for the live site.
+
+*Heart lower under V1/V2* (`v12Y`: V1/V2 raised relative to V4–V6, V4 kept over the apex).
+Live model (forward 1): V2 R/S 0.36/1.85 → 0.33/1.63 (+12 mm) → 0.29/1.41 (+24 mm), V2 R now
+below V3; proximal LAD ST V1–V4 and old anterior QS kept; blocks/hypertrophy change < 0.2 mV.
+Forward model 2 (round-21 set, V3 fix applied): V2 R 2.17 → 1.93 at +24 mm but V3 R 2.6–2.7, the
+distal-LAD QS in V3 lost (early r 0.48 → 1.14) and the Dower angle error grows 18.7° → 22.3°: no help
+there. (A bug had put V3 20 mm low whenever `chestLeadY` was set; fixed.)
