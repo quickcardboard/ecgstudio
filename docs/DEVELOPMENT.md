@@ -483,3 +483,17 @@ width ≤ 743 px, or a touch screen ≤ 500 px tall held sideways). Tablets and 
   discrete stops as the Ischemia tab's slider (Onset … 1 month) and stays in step with it in both
   directions, so time can be scrubbed while the ECG stays visible. Floating Shock/Adenosine move
   up above it; it disappears when the last occlusion or patch is removed. Phones only.
+
+### Round 24: chest-lead directions toward Dower; V1/V2 one space higher
+
+The chest leads' dipole directions (heart centre → electrode) pointed 30–35° too far to the
+patient's right for V1–V4 compared with Dower's measured lead vectors (V2 at 109° vs 88° in the
+transverse plane); I and V6 already matched within ~5°. `dowerChest: 0.5` blends each direction half
+way to Dower's (Frank torso; a blend because that torso is not this heart's), and `v12Y: 24` puts
+V1/V2 24 mm higher above V4–V6 (4th intercostal space at the sternal edge; the ribs slope down to V4
+in the mid-clavicular line). The Leads view draws the chest arrows along these directions.
+Normal R/S V1–V6: 0.17/1.10, 0.38/1.48, 0.46/1.56, 0.59/0.62, 0.84/0.03, 0.84/0.06 (was 0.14/1.13,
+0.36/1.84, 0.42/2.05, 0.62/1.24, 0.60/0.02, 0.81/0.06): R grows to V5, transition at V4. Limb leads,
+blocks and fascicular blocks unchanged; ischaemia audit: LM adds V3 STE, distal LAD at 1 h adds V1,
+old distal LAD adds a Q in V6, proximal RCA adds V3 to its reciprocal depression; anterior STE and
+old anterior QS kept.

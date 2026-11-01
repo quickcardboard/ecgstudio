@@ -767,12 +767,14 @@
       arrow(d, Rk, 0xf0b429);
       leadTag(name, d.clone().multiplyScalar(Rk + 9), 'lead limb');
     }
-    for (const k of ['V1', 'V2', 'V3', 'V4', 'V5', 'V6']) {
-      const e = M.electrodes[k], q = new THREE.Vector3(e[0] - hc[0], e[1] - hc[1], e[2] - hc[2]);
+    ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].forEach((k, i) => {
+      // drawn along the lead direction the model uses (electrode distance, Dower-blended direction)
+      const e = M.electrodes[k], dist = Math.hypot(e[0] - hc[0], e[1] - hc[1], e[2] - hc[2]), u = M.leadDir[i];
+      const q = new THREE.Vector3(u[0], u[1], u[2]).normalize().multiplyScalar(dist);
       arrow(q, q.length() - 3, 0x38c6e8, 6);
       const dot = new THREE.Mesh(new THREE.SphereGeometry(3.2, 14, 10), arrowMat(0x38c6e8)); dot.position.copy(q); dot.renderOrder = 11; grp.add(dot);
       leadTag(k, q.clone().multiplyScalar(1.07), 'lead chest');
-    }
+    });
     g3.heartVec = arrow(new THREE.Vector3(1, 0, 0), 10, 0xffffff, 9);
     g3.heartVecTag = leadTag('Heart vector', new THREE.Vector3(), 'lead hv');
   }

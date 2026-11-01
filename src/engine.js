@@ -238,6 +238,8 @@
     precordialDipoleW: 0.7,     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
+    dowerChest: 0.5,            // chest dipole directions blended this far toward Dower's measured lead vectors (Frank torso)
+    v12Y: 24,                   // V1/V2 this much (mm) higher above V4-V6 (4th ICS at the sternal edge; ribs slope down laterally)
     ecgHighpass: 0.05,          // Hz, diagnostic-ECG high-pass (baseline restoration)
     ecgLowpass: 40,             // Hz, ECG machine low-pass (0 = off; diagnostic carts use up to 150)
     torsoUniform: 0,            // share of the heart-averaged torso lead vector in place of the per-cell field
@@ -1087,11 +1089,12 @@
       this.toTorso = (p) => add(rotP(p), this.offset);
       this.apex = apex;
       const on = (x, y) => [x, y, surfZ(x) - 1];
-      const V2 = on(26, 28), V4 = on(78, 0);
+      const v12 = 28 + (P.v12Y || 0);
+      const V2 = on(26, v12), V4 = on(78, 0);
       const mid = lerp(V2, V4, 0.5);
       this.electrodes = {
         RA: [-170, 170, 0], LA: [170, 170, 0], LL: [60, -330, 0],
-        V1: on(-26, 28), V2: V2, V3: on(mid[0], mid[1]), V4: V4,
+        V1: on(-26, v12), V2: V2, V3: on(mid[0], mid[1]), V4: V4,
         V5: on(124, 0), V6: [160, 0, 0],
       };
       this.torso = { a, b };
@@ -1103,6 +1106,14 @@
       const dist = ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k) => len(sub(this.electrodes[k], hc)));
       const ref = dist.reduce((a, b) => a + b, 0) / dist.length;
       this.leadDir = ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k, i) => mul(norm(sub(this.electrodes[k], hc)), Math.pow(ref / dist[i], P.leadDistExp)));
+      // The heart centre -> electrode direction is only a geometric guess at each
+      // chest lead's lead vector; blend it toward Dower's measured lead vectors
+      // (Frank torso model; X left, Y inferior, Z posterior), which this geometry
+      // otherwise turns 30-35 degrees too far right for V1-V4.
+      if (P.dowerChest) {
+        const DW = [[-0.515, 0.157, -0.917], [0.044, 0.164, -1.387], [0.882, 0.098, -1.277], [1.213, 0.127, -0.601], [1.125, 0.127, -0.086], [0.831, 0.076, 0.230]];
+        this.leadDir = this.leadDir.map((v, i) => { const d = norm([DW[i][0], -DW[i][1], -DW[i][2]]), w = P.dowerChest; return mul(norm(add(mul(norm(v), 1 - w), mul(d, w))), len(v)); });
+      }
     }
 
     // ---- Lead weights.  Infinite homogeneous volume conductor:
