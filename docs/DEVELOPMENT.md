@@ -460,3 +460,16 @@ Widening it alone barely moves LPFB (+54°) because the two networks were linked
 (purkCrossSlow 1.2): a blocked territory refilled within ~8 ms. Next re-fit: territories and the
 LPF landing site held to anatomy, cross-links free only at the apex (`purkCrossApexZ`), R-wave
 progression and distal-LAD QS weighted more.
+
+*Second re-fit* (anatomical territories: LPF −0.5 … −2.4/−3.0 with its landing inside;
+cross-links free only near the apex): activation score 0; normal +36°, LBBB +8°, LAFB −39°; LPFB
+stays +38/52° (QRS 94) and V2 R stays ~1.8 mV. The optimiser drove the cross-link slowing to its
+lower bound (2). Conduction-system changes within the mapping limits do not move these two.
+
+*V2 decomposition* (`forward 2`, R peak at 24 ms): RV endocardial side +3.8 mV, RV epicardium
+−2.8 mV, every LV region < 0.4 mV: the tall V2 R is the RV free wall's near field. Chest-wall
+options in `torso_v2.py` (STERNUM, RIBS, FAT) make it larger, not smaller (sternum V2 R 2.2 → 3.0;
+pericardial fat 5.0). Anatomy: 2 mm voxels, RV free wall ~5.4 mm, LV wall ~14 mm with the 2 added
+layers, LV/RV mass 2.9. Note: the ES runs scored amplitudes at a gain calibrated on the earlier
+activation set (1.96); recalibrated on the re-fitted set it is 3.05, so the gain should be
+recalibrated inside each evaluation.

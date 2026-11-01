@@ -67,6 +67,23 @@ if os.environ.get('NOHEART'):          # homogeneous heart region (no cavity blo
 else:
     blood = rasterise(d['blood'], SIG['blood'])
     heart = rasterise(d['tissue'], SIG['heart'])
+# Chest wall and pericardium (optional): STERNUM=1 sternum/costal cartilage in front of the heart
+# (bone 0.02 S/m); RIBS=1 rib-cage shell (bone and intercostal muscle, effective ~0.1 S/m);
+# FAT=1 pericardial/epicardial fat (0.04 S/m) as a shell round the heart.
+front = B * np.sqrt(np.clip(1 - (X / A) ** 2, 0, 1))
+if os.environ.get('RIBS'):
+    SIG.setdefault('chestwall', 0.1)
+    rim = ((X / A) ** 2 + (Z / B) ** 2 <= 1.0) & ((X / (A - 14)) ** 2 + (Z / (B - 14)) ** 2 > 1.0) & (Yg >= -250) & (Yg <= 200)
+    sig[rim & ~heart & ~blood] = SIG['chestwall']
+if os.environ.get('STERNUM'):
+    SIG.setdefault('bone', 0.02)
+    sig[(np.abs(X) < 22) & (Z > front - 14) & (Yg >= -110) & (Yg <= 200)] = SIG['bone']
+if os.environ.get('FAT'):
+    from scipy.ndimage import binary_dilation
+    SIG.setdefault('fat', 0.04)
+    hb = heart | blood
+    shell = binary_dilation(hb, iterations=max(1, int(round(4 / H)))) & ~hb
+    sig[shell] = SIG['fat']
 print('nodes inside', int(inside.sum()), 'lung', int((lungs & inside & ~heart & ~blood).sum()), 'heart', int(heart.sum()), 'blood', int(blood.sum()))
 
 idx = -np.ones(X.shape, np.int64); idx[inside] = np.arange(inside.sum()); N = int(inside.sum())
