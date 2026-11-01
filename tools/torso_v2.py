@@ -23,7 +23,7 @@ import scipy.sparse as sp, pyamg
 src, out = sys.argv[1], sys.argv[2]
 H = float(sys.argv[3]) if len(sys.argv) > 3 else 4.0
 d = json.load(open(src))
-A, B, Y0, Y1 = 160.0, 110.0, -360.0, 220.0
+A, B, Y0, Y1 = float(d['torso']['a']), float(d['torso']['b']), -360.0, 220.0   # chest cross-section from the engine
 SIG = dict(torso=0.22, lung=0.05, blood=0.65, heart=0.20)
 
 # LIMBS=1: add arms hanging at the sides (joined to the trunk only at the
@@ -81,7 +81,7 @@ import os
 # over the patch), the chest electrodes as points.
 LIMB = {'RA': {'c': [-215, -320, 0], 'r': 25}, 'LA': {'c': [215, -320, 0], 'r': 25}, 'LL': {'c': [85, -1100, 0], 'r': 30}} if LIMBS else \
     json.loads(os.environ.get('LIMB', 'null') or 'null') or {
-    'RA': {'c': [-160, 100, -20], 'r': 70}, 'LA': {'c': [160, 100, -20], 'r': 70}, 'LL': {'c': [100, -300, 0], 'r': 70}}
+    'RA': {'c': [-A, 100, -20], 'r': 70}, 'LA': {'c': [A, 100, -20], 'r': 70}, 'LL': {'c': [100, -300, 0], 'r': 70}}
 surf = inside & ~np.roll(inside, 1, 0) | inside & ~np.roll(inside, -1, 0) | inside & ~np.roll(inside, 1, 2) | inside & ~np.roll(inside, -1, 2)
 surf |= inside & (~np.roll(inside, 1, 1) | ~np.roll(inside, -1, 1) | (Yg <= YB + H / 2) | (Yg >= Y1 - H / 2))
 def patch(c, rad):

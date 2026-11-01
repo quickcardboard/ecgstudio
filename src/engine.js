@@ -248,6 +248,7 @@
     torsoIIGain: 0.8457,           // lead II length of the torso (Burger) triangle relative to its computed value
     atrialTorsoII: 0.92,        // torso lead II for atrial sources (keeps the P-wave calibration made at torsoBlend 0.6)
     atriaAnchored: false, atriaRotation: 14, atriaPitch: -10, atriaYaw: 8,   // atria keep their own (base-anchored) orientation
+    torsoHalfWidth: 160, torsoHalfDepth: 110,   // chest cross-section (mm); adult range roughly 140-175 × 95-120
     forward: 1,                 // 1: blended dipole/near-field leads (calibrated); 2: inhomogeneous torso volume conductor for all leads (tools/torso_v2.py)
     forwardGain: 1,             // overall ECG gain of forward model 2
     torsoBlend: 0.8466,            // limb leads: share of the bounded-torso lead field (rest: Einthoven projection)
@@ -1052,7 +1053,7 @@
     // the 5th intercostal space in the mid-clavicular line, with the RV ~15 mm
     // behind the anterior chest wall.
     _placeInTorso() {
-      const A = this.A, P = this.P, a = 160, b = 110;
+      const A = this.A, P = this.P, a = P.torsoHalfWidth, b = P.torsoHalfDepth;   // chest cross-section (ellipse)
       const surfZ = (x) => b * Math.sqrt(Math.max(0, 1 - (x / a) * (x / a)));
       // Heart position in the chest: rotation about the antero-posterior axis
       // through the ventricular centroid (positive = apex swung inferiorly,
@@ -1112,9 +1113,9 @@
       const V2 = on(26, 28), V4 = on(78, 0);
       const mid = lerp(V2, V4, 0.5);
       this.electrodes = {
-        RA: [-170, 170, 0], LA: [170, 170, 0], LL: [60, -330, 0],
+        RA: [-(a + 10), 170, 0], LA: [a + 10, 170, 0], LL: [60, -330, 0],
         V1: on(-26, 28), V2: V2, V3: on(mid[0], mid[1]), V4: V4,
-        V5: on(124, 0), V6: [160, 0, 0],
+        V5: on(0.775 * a, 0), V6: [a, 0, 0],   // anterior / mid-axillary lines scale with the chest width
       };
       this.torso = { a, b };
       // precordial lead directions (unit vectors heart centre -> electrode), torso frame
