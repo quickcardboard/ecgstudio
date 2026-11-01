@@ -59,8 +59,8 @@ function evaluate(p) {
   const N = m.N, pr = N.prog;
   let s = 0;
   s += pen(N.axis, 35, 70) / 8 + pen(N.net, 30, 70) / 8;
-  s += pen(m.LAF.net, -80, -45) / 8 + pen(m.LAF.axis, -85, -40) / 15;
-  s += pen(m.LPF.net, 100, 150) / 8 + pen(m.LPF.axis, 95, 150) / 15;
+  s += pen(m.LAF.net, -80, -45) / 4 + pen(m.LAF.axis, -85, -40) / 8;
+  s += pen(m.LPF.net, 100, 150) / 4 + pen(m.LPF.axis, 95, 150) / 8;
   s += pen(m.LBB.axis, -30, 60) / 12 + pen(m.LBB.qrs, 130, 170) / 10 + pen(m.RBB.qrs, 115, 160) / 10;
   s += pen(N.qrs, 80, 100) / 5 + pen(m.LAF.qrs, 85, 115) / 10 + pen(m.LPF.qrs, 85, 115) / 10;
   s += pen(N.qI, -0.25, -0.04) * 10 + pen(N.qV6, -0.25, -0.04) * 10 + pen(N.rV1, 0.04, 0.3) * 10;
