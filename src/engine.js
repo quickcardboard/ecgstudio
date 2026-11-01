@@ -217,6 +217,7 @@
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
     scarWindow: 0.5,       // old scar as an electrical window: its would-be activation counted inverted (0 = silent scar)
     scarRefractory: 200,   // ms between phantom activations of a scar cell
+    ladProxFreeWallPhi: 2.0,  // proximal-LAD nodes lateral of this (rotational UVC) supply no free wall
     ladRvMm: 0,            // RV muscle within this distance (mm) of the LAD is supplied by it (RV branches)
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
@@ -773,10 +774,11 @@
       const lmStart = A.nearest(add(ao, [12, -4, -6]), epiV), split = lvEpi(1.55, 0.95);
       const LM = addBranch('LM', -1, [lmStart, split]);
       const LAD = addBranch('LAD', LM[LM.length - 1], [lvEpi(1.6, 0.75), lvEpi(1.65, 0.5), lvEpi(1.6, 0.25), lvEpi(1.0, 0.06), lvEpi(-0.4, 0.1)]);
-      addBranch('D1', along(LAD, 0.18), [lvEpi(2.1, 0.62), lvEpi(2.4, 0.4)]);
-      addBranch('D2', along(LAD, 0.42), [lvEpi(2.0, 0.35), lvEpi(2.2, 0.15)]);
+      // diagonals: the anterior–anterolateral junction (the anterolateral free wall is mainly marginal territory)
+      addBranch('D1', along(LAD, 0.18), [lvEpi(1.8, 0.62), lvEpi(1.9, 0.4)]);
+      addBranch('D2', along(LAD, 0.42), [lvEpi(1.75, 0.35), lvEpi(1.85, 0.15)]);
       const LCX = addBranch('LCx', LM[LM.length - 1], [lvEpi(2.2, 0.93), lvEpi(2.8, 0.9), lvEpi(-2.9, 0.88), lvEpi(-2.3, 0.88)]);
-      addBranch('OM1', along(LCX, 0.45), [lvEpi(2.9, 0.55), lvEpi(3.0, 0.25)]);
+      addBranch('OM1', along(LCX, 0.25), [lvEpi(2.3, 0.8), lvEpi(2.35, 0.55), lvEpi(2.4, 0.3)]);   // first obtuse marginal: down the anterolateral–lateral wall
       addBranch('OM2', along(LCX, 0.85), [lvEpi(-2.6, 0.5), lvEpi(-2.5, 0.25)]);
       // RCA round the tricuspid annulus: right-anterior sinus -> acute margin -> crux
       const tv = lm.TV; let tn = norm(tv.n); if (dot(tn, sub(lm.SVC.c, tv.c)) < 0) tn = mul(tn, -1);
@@ -796,7 +798,10 @@
       // node UVC (for LV territory assignment)
       for (const n of nodes) { const c = n.vox; n.phi = A.phi[c]; n.zz = A.zuvc[c]; n.lv = A.label[c] === LAB.LV; }
       // ---- territories
-      const lvSurface = ['LAD', 'D1', 'D2', 'LCx', 'OM1', 'OM2', 'PDA', 'PLV'].flatMap((b) => branches[b]);
+      // (the proximal LAD, curving from the left main round the pulmonary trunk to
+      // the anterior groove, gives no free-wall branches on that stretch)
+      const lvSurface = ['LAD', 'D1', 'D2', 'LCx', 'OM1', 'OM2', 'PDA', 'PLV'].flatMap((b) => branches[b])
+        .filter((id) => !(nodes[id].branch === 'LAD' && Math.abs(nodes[id].phi) > P.ladProxFreeWallPhi && nodes[id].zz > 0.5));
       const rvNodes = branches.RCA.concat(branches.AM);
       const uvcDist = (c, id) => { let dp = Math.abs(A.phi[c] - nodes[id].phi); if (dp > Math.PI) dp = 2 * Math.PI - dp; return dp * 25 + Math.abs(A.zuvc[c] - nodes[id].zz) * 80; };
       const nearestOf = (list, c, metric) => { let b = -1, bd = Infinity; for (const id of list) { const d = metric(c, id); if (d < bd) { bd = d; b = id; } } return b; };

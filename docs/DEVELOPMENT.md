@@ -392,3 +392,19 @@ improved normal QRS (septal q, R transition V3–V4) and distal LAD Q in V4–V5
 +72° (tall inferior T, T inverted in aVL), trifascicular block (RBB+LAF+LPF) conducts 1:1 through
 the septal fascicle, mid-LAD gives ST elevation in III/aVF at 1 h, and circumflex occlusions give
 inferior ST elevation with loss of the distal LCx V6 Q.
+
+### Round 19 (cs-tune): coronary territories against the AHA 17-segment model
+
+`tools/aha_segments.js` measures which artery supplies each AHA wall. The model gave most of the
+anterolateral wall to the LAD (64–74%), where the AHA typical assignment is the circumflex. Two
+causes: the diagonals reached too far round and OM1 ran too posteriorly; and the proximal LAD,
+which curves from the left main round the pulmonary trunk to the anterior groove (anatomically
+right), was claiming the basal anterolateral wall through the nearest-node rule although it gives
+no free-wall branches on that stretch. Fixes: OM1 down the anterolateral–lateral wall, diagonals
+at the anterior–anterolateral junction, proximal-LAD nodes lateral of `ladProxFreeWallPhi` excluded
+from free-wall assignment. Agreement with AHA 81% → 88%; anterolateral wall now 78–85% circumflex.
+
+Effect (live conduction model): proximal LCx at 1 h now ST elevation in I, aVL, V5–V6 with
+reciprocal III/aVF and posterior (V1–V4) depression (was V6 only); mid LAD loses I/aVL and shows
+the wrap-around inferior pattern; distal LCx unchanged. Physical candidate: LCx injury lateral
+0.40 vs inferior 0.07 mV; distal LAD QS V3–V4 without lateral Q.
