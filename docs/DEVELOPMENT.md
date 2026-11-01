@@ -499,3 +499,16 @@ there. (A bug had put V3 20 mm low whenever `chestLeadY` was set; fixed.)
 *LAD route* (from milestone-1, round 23 there): the LAD follows the anterior interventricular
 groove (LV epicardium bordering the RV anteriorly) instead of rotational-coordinate waypoints that
 sent its first ~15 mm along the AV groove on top of the circumflex.
+
+*Chest-lead directions against Dower.* Live model (forward 1): its chest arrows/dipole directions
+(heart centre → electrode) are 30–35° too far to the patient's right for V1–V4 (V2 at 109° vs
+Dower 88° in the transverse plane); I and V6 match Dower within ~5°. Blending the directions half
+way to Dower's gives textbook progression (R V1→V5 0.17, 0.38, 0.46, 0.60, 0.84; transition V4,
+R≈S) and keeps anterior STE and old anterior QS; full Dower removes the V4 S and weakens V4 STE.
+Raising V1/V2 (`v12Y` 12–24 mm) adds a little (V2 S 1.85 → 1.49).
+Test model (forward 2): `tools/chest_search.py` maps the heart-averaged lead vector over the whole
+chest surface by reciprocity (`SURFACEMAP=` in torso_v2.py: three solves with a uniform dipole
+density over the ventricles). Dower-matching sites lie 20–40 mm left of the landmark positions
+(V1 on the midline), cutting the direction error 18.7° → 6°; with them (or with the heart 23 mm
+further right) the QRS still peaks in V2–V3 (R V1 0.9, V2 2.1–2.6): the tall early anterior R of
+forward model 2 is not a lead-direction problem.

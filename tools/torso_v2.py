@@ -124,6 +124,28 @@ keep = np.ones(N, bool); keep[ref] = False
 Kr = K[keep][:, keep].tocsr()
 t = time.time(); ml = pyamg.smoothed_aggregation_solver(Kr, symmetry='symmetric'); print('AMG setup %.1fs' % (time.time() - t))
 
+# SURFACEMAP=out.npz: by reciprocity, the heart-averaged lead vector of an electrode at any surface
+# point equals the potential there produced by a uniform dipole density over the ventricles. Three
+# solves (x, y, z) map it over the whole body surface (for choosing electrode positions).
+if os.environ.get('SURFACEMAP'):
+    tl = np.asarray(d.get('tlab') or [1] * (len(d['tissue']) // 3))
+    vp = np.asarray(d['tissue'], float).reshape(-1, 3)[tl <= 2]
+    vi = np.rint((vp - [xs[0], ys[0], zs[0]]) / H).astype(int)
+    phis = []
+    for ax in range(3):
+        f = np.zeros(N); off = np.zeros(3, int); off[ax] = 1
+        for sgn in (1, -1):
+            q = vi + sgn * off; ok = np.all((q >= 0) & (q < [len(xs), len(ys), len(zs)]), axis=1)
+            nid = idx[q[ok, 0], q[ok, 1], q[ok, 2]]; nid = nid[nid >= 0]
+            np.add.at(f, nid, sgn / (2 * H))
+        f -= f.mean()
+        x = ml.solve(f[keep], tol=1e-9, accel='cg'); ph = np.zeros(N); ph[keep] = x; phis.append(ph)
+    P3 = np.stack(phis, 1)
+    sidx = idx[surf]; spos = np.stack([X[surf], Yg[surf], Z[surf]], 1)
+    limb = {k: P3[np.asarray(E[k])].mean(0) for k in ('RA', 'LA', 'LL')}
+    np.savez(os.environ['SURFACEMAP'], pos=spos, phi=P3[sidx], RA=limb['RA'], LA=limb['LA'], LL=limb['LL'], el=json.dumps(d['electrodes']))
+    print('surface map saved', spos.shape); sys.exit(0)
+
 # heart box (20 mm margin, covers hypertrophy) for the output
 hp = np.vstack([np.asarray(d['tissue'], float).reshape(-1, 3), np.asarray(d['blood'], float).reshape(-1, 3)])
 lo = np.floor((hp.min(0) - 20) / H) * H; hi = np.ceil((hp.max(0) + 20) / H) * H   # 20 mm: room for hypertrophied walls

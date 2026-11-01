@@ -1135,6 +1135,8 @@
         V1: on(-26, v12), V2: V2, V3: on(mid[0], mid[1] - chY), V4: V4,   // (mid is already at the shifted level)
         V5: on(0.775 * a, 0), V6: [a, chY, 0],   // anterior / mid-axillary lines scale with the chest width
       };
+      // chestElectrodes: explicit chest positions {V1: [x, y], ...} on the chest surface (tests)
+      if (P.chestElectrodes) for (const [k, xy] of Object.entries(P.chestElectrodes)) this.electrodes[k] = xy.length === 3 ? xy.slice() : on(xy[0], xy[1] - chY);   // [x, y] on the front of the chest, or [x, y, z]
       this.torso = { a, b };
       // precordial lead directions (unit vectors heart centre -> electrode), torso frame
       const hc = add(C, this.offset);
