@@ -16,7 +16,12 @@ function record(M, setup) {
   const vb = S.log.vent[S.log.vent.length - 2];
   const q0 = Math.floor(vb.on), q1 = Math.ceil(vb.last) + 2, base = rec[q0 - 15];
   const y = (n) => rec.slice(q0, q1).map((r) => r[LEAD(n)] - base[LEAD(n)]);
-  return { S, vb, q0, qrs: q1 - q0, y };
+  const st = (n) => rec[q1 + 40][LEAD(n)] - base[LEAD(n)];   // ST at J + 40 ms
+  // P-wave frontal axis from the P area in I and aVF
+  const a = S.log.atrial.filter((x) => x.on < vb.on).pop(), a0 = Math.floor(a.on), pb = rec[a0 - 10];
+  const parea = (n) => rec.slice(a0, a0 + 100).reduce((acc, r) => acc + r[LEAD(n)] - pb[LEAD(n)], 0);
+  const paxis = Math.atan2(parea('aVF'), parea('I')) * 180 / Math.PI;
+  return { S, vb, q0, qrs: q1 - q0, y, st, paxis };
 }
 const axisOf = (b) => { const s = (n) => b.y(n).reduce((a, v) => a + v, 0); return Math.atan2(s('aVF'), s('I')) * 180 / Math.PI; };
 const netAxis = (b) => { const n = (l) => { const v = b.y(l); return Math.max(...v) + Math.min(...v); }; return Math.atan2(n('aVF'), n('I')) * 180 / Math.PI; };
@@ -26,7 +31,7 @@ const earlyR = (b, n) => { const v = b.y(n); let r = 0; for (let t = 0; t < Math
 const initQ = (b, n) => { const v = b.y(n).slice(0, 20); return v.reduce((a, x) => (Math.abs(x) > Math.abs(a) ? x : a), 0); };
 
 function evaluate(p) {
-  const { lv = 3, rv = 0, ...mp } = p;
+  const { lv = 2, rv = 0, ...mp } = p;
   const A = anatomy(lv, rv), M = new LH.Model(A, mp);
   const cs = M.csSegments, br = M.coronary.branches;
   const n = record(M, () => {});
@@ -36,6 +41,9 @@ function evaluate(p) {
   const dlad = record(M, occl(br.LAD[Math.round(br.LAD.length * 0.7)]));
   const mlad = record(M, occl(br.LAD[Math.round(br.LAD.length * 0.3)]));
   const prca = record(M, occl(br.RCA[0]));
+  const plcx = record(M, (S) => { S.addOcclusion(br.LCx[0]); S.setIschemiaTime(1); });   // acute circumflex: lateral, not inferior
+  const hyp = (opt, P) => { const H = LH.hypertrophyOptions(opt); const AH = new LH.Anatomy(JSONA, { lvWallLayers: lv + (opt.lvh ? 3 : 0), rvWallLayers: opt.rvh ? 5 : rv }); return record(new LH.Model(AH, { ...mp, ...H.params }), () => {}); };
+  const lvh = hyp({ lvh: true }), rvh = hyp({ rvh: true });
   // activation: apex endocardium, total time, HV
   const S = new LH.Sim(M, { seed: 1 }); S.run(1700);   // activation times of the last complete beat
   const t0 = S.log.vent[S.log.vent.length - 1].on, vlast = S.log.vent[S.log.vent.length - 1].last, apex = [];
@@ -53,6 +61,11 @@ function evaluate(p) {
     dLAD: ['V2', 'V3', 'V4', 'V5', 'V6'].map((l) => +earlyR(dlad, l).toFixed(2)),
     mLAD: ['V1', 'V2', 'V3', 'V4'].map((l) => +earlyR(mlad, l).toFixed(2)),
     pRCA: ['II', 'III', 'aVF'].map((l) => +earlyR(prca, l).toFixed(2)),
+    dLADinf: ['II', 'III', 'aVF'].map((l) => +earlyR(dlad, l).toFixed(2)),
+    pLCx: { lat: +Math.max(...['I', 'aVL', 'V5', 'V6'].map(plcx.st)).toFixed(2), inf: +Math.max(...['II', 'III', 'aVF'].map(plcx.st)).toFixed(2) },
+    P: { axis: Math.round(n.paxis) },
+    LVH: { sokolow: +(rs(lvh, 'V1')[1] + Math.max(rs(lvh, 'V5')[0], rs(lvh, 'V6')[0])).toFixed(2) },
+    RVH: { axis: Math.round((axisOf(rvh) + 360) % 360), RaVR: +rs(rvh, 'aVR')[0].toFixed(2), V1: rs(rvh, 'V1').map((x) => +x.toFixed(2)) },
   };
   // score: distance from targets (0 = all met)
   const pen = (v, lo, hi) => (v < lo ? lo - v : v > hi ? v - hi : 0);
@@ -69,6 +82,11 @@ function evaluate(p) {
   s += Math.max(0, pr[3][1] - pr[3][0] - 0.5) * 2 + Math.max(0, pr[0][0] - pr[0][1]) * 3; // transition by V4, rS in V1
   s += pen(m.act.PR, 130, 170) / 5 + pen(m.act.total, 60, 85) / 5 + pen(m.act.apexMed, 0, 22) / 3 + pen(m.act.HV, 30, 55) / 5;
   s += m.dLAD.slice(1, 4).reduce((a, x) => a + Math.max(0, x - 0.1), 0) * 8;              // apical infarct: QS/Q in V3–V5
+  s += m.dLADinf.slice(1).reduce((a, x) => a + Math.max(0, x - 0.15), 0) * 3;             // wrap-around apex: inferior Q
+  s += Math.max(0, m.pLCx.inf - m.pLCx.lat + 0.05) * 20 + pen(m.pLCx.lat, 0.1, 5) * 10;     // circumflex injury is lateral
+  s += pen(m.P.axis, 30, 75) / 5;
+  s += pen(m.LVH.sokolow, 3.5, 6) * 4;
+  s += pen(m.RVH.axis, 95, 200) / 10 + pen(m.RVH.RaVR, 0, 1.2) * 3 + (m.RVH.V1[0] < m.RVH.V1[1] ? 3 : 0);
   s += m.mLAD.reduce((a, x) => a + Math.max(0, x - 0.1), 0) * 8;
   s += m.pRCA.reduce((a, x) => a + Math.max(0, x - 0.4), 0) * 2;                          // inferior: Q before any R
   return { score: +s.toFixed(2), m };

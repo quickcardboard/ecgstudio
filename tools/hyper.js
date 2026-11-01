@@ -4,7 +4,7 @@ const fs = require('fs'); const LH = require('../src/engine.js');
 const json = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 const cfgs = JSON.parse(process.argv[2] || '[{}]');
 for (const cf of cfgs) {
-  const A = new LH.Anatomy(json, { lvWallLayers: cf.lv !== undefined ? cf.lv : 3, rvWallLayers: cf.rv || 0 });
+  const A = new LH.Anatomy(json, { lvWallLayers: cf.lv !== undefined ? cf.lv : 2, rvWallLayers: cf.rv || 0 });
   const M = new LH.Model(A, Object.assign({ ecgHighpass: 0 }, cf.P || {}));
   const S = new LH.Sim(M, { seed: 1 }); S.setRate(72);
   const rec = []; S.onSample((t, L) => rec.push(Array.from(L))); S.run(3600);

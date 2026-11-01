@@ -18,10 +18,11 @@ const R = {
   heartYaw: [-10, 20], limbRotation: [0, 20], pmjAntero: [6, 16], torsoIIGain: [0.45, 1], torsoBlend: [0.5, 0.9],
   septalTerrHalf: [0.05, 0.45], lsfZ: [0.15, 0.6], lsfPhi: [-0.4, 0.7], lbbSplitZ: [0.76, 0.92], lbbSplitPhi: [-0.2, 0.3], purkZmaxLV: [0.86, 0.96],
   mbZ: [0.34, 0.48], rbbSeptalFrac: [0, 0.25], apexX: [58, 82], apexY: [-48, -22], chestGap: [10, 25], purkLinkR: [2.6, 4.5], sigmaRatio: [6.5, 10],
+  atrialFrontalRot: [0, 70],
 };
 const K = Object.keys(R), D = K.length;
 const start = JSON.parse(fs.readFileSync(startFile, 'utf8'));
-const def = { septalTerrHalf: 0.15, lsfZ: 0.3, lsfPhi: 0.05, lbbSplitZ: 0.84, lbbSplitPhi: 0, purkZmaxLV: 0.94, mbZ: 0.4, rbbSeptalFrac: 0, apexX: 72, apexY: -34.83, chestGap: 15, purkLinkR: 3.2, sigmaRatio: 10, torsoIIGain: 0.6, torsoBlend: 0.7 };
+const def = { atrialFrontalRot: 30, septalTerrHalf: 0.15, lsfZ: 0.3, lsfPhi: 0.05, lbbSplitZ: 0.84, lbbSplitPhi: 0, purkZmaxLV: 0.94, mbZ: 0.4, rbbSeptalFrac: 0, apexX: 72, apexY: -34.83, chestGap: 15, purkLinkR: 3.2, sigmaRatio: 10, torsoIIGain: 0.6, torsoBlend: 0.7 };
 const toU = (k, v) => (v - R[k][0]) / (R[k][1] - R[k][0]), fromU = (k, u) => R[k][0] + Math.min(1, Math.max(0, u)) * (R[k][1] - R[k][0]);
 let mean = K.map((k) => toU(k, start[k] !== undefined ? start[k] : def[k] !== undefined ? def[k] : (R[k][0] + R[k][1]) / 2));
 const sd = new Array(D).fill(1); let sigma = 0.08;
