@@ -391,3 +391,95 @@ the LCx by 20–30 mm (anatomical bifurcation angle typically 70–90°), passin
 trunk straight down the groove. AHA agreement 88% → 89%. Ischaemia audit: proximal LCx old infarct
 adds Q in V5–V6; mid-LAD old infarct Q in III and V1–V3 (was III, aVF, V1–V4); distal LAD at 1 h
 ST elevation V2–V5 (was V1–V5); other sites unchanged.
+
+### mobile-1 round 1: Conditions tab
+
+- The Structure tab is now **Conditions**: a list of active conditions (each removable with ×),
+  "+ Add condition" opening a searchable catalogue grouped by category (Chambers, Accessory
+  pathways, Pericardium, Channelopathies) showing names only, and up to four recently used
+  conditions (kept in this browser's localStorage only).
+- Every condition is one entry in `CONDITIONS` (`src/app.js`): id, category, short label, name, extra
+  search words, `apply(value)` for the simulation, `options` for a choice such as the WPW pathway location,
+  and `rebuild: true` for conditions that rebuild the heart (LVH, RVH). The tab, search, Reset,
+  share links and the hypertrophy cache key all read this list. To add a condition: an entry
+  here, its engine setter, and its interpretation/Learn text.
+- Share links are unchanged (`s=` on/off conditions, `ap=` pathway), so older links still open.
+- AVNRT/AVRT set or clear the pathway through `setCondition`, so the active list stays in step.
+- Engine untouched; validation tools not affected.
+- Fix: a click on the heart surface near an artery could pick a side-branch node (D1, OM1, …),
+  which is not offered for occlusion, and throw; only the offered vessels are searched now.
+
+### mobile-1 round 2: phone layout prototype
+
+Phones get their own layout (`body.m`, set by `setMode()` from two media queries: portrait
+width ≤ 743 px, or a touch screen ≤ 500 px tall held sideways). Tablets and desktop are unchanged.
+
+- Portrait only: heart (44%) above the ECG, interpretation bar under the ECG, tab bar at the
+  bottom. The old landscape-only phone layout and "turn your phone sideways" prompt are gone;
+  a phone held sideways shows the full 12-lead ECG instead.
+- ECG: one lead group at a time (I–III, aVR–aVF, V1–V3, V4–V6), swiped or picked with the dots,
+  drawn swept at 25 mm/s and 10 mm/mV over 2.5, 5 (default) or 10 s (`drawLeads`). A double-tap
+  shows the full 12-lead sheet turned 90° (flip button for the other way), interpretation in a
+  collapsible column on the left and a fixed lead II rhythm strip; double-tap again to return.
+- Interpretation bar: rhythm and measurement chips; a tap expands it with the findings.
+- Controls: the tab bar opens the existing panel as a bottom sheet in the page flow (half
+  height, so the heart and ECG stay visible), or full height by dragging or tapping the handle.
+  Drag down or swipe down at the top of its content to close.
+- Header: speed chip (tap to step 1× → 1/50×), ⏯ (tap pause, press and hold reset), ⋯ menu
+  (share via the system share sheet, save ECG image via the share sheet or download, help).
+  The image export draws the 12-lead sheet offscreen when it is not on screen (`sheetCanvas`).
+- Heart gestures (tab-independent; `initTouch`): tap muscle = PAC/PVC; three taps within 0.5 s
+  on the right atrium = flutter, left atrium = AF, ventricles = VT, a fourth = VF (each tap still
+  stimulates, as in burst pacing). In the cut view, tap the AV node or His bundle to step
+  none → 1st degree → Wenckebach → 2:1 → Mobitz II → complete (nodal) → complete (His) → none,
+  three quick taps = AVNRT (AVRT with a pathway); tap the SA node to step SA exit block → pause →
+  arrest → none; tap a bundle branch or fascicle to toggle it. Conduction paths are drawn 1.6×
+  thicker with a wider touch target, and a tap snaps to the nearest conduction point within
+  22 px. Press and hold (0.55 s, with a filling ring) = occlusion, or subendocardial ischemia on
+  the cut face or inner wall; the Ischemia sheet then opens. Taps are timed by the touch event's
+  own timestamp, so a busy frame does not split a burst.
+- Opening the Blocks tab cuts the heart and turns to the four-chamber view (not undone on leaving).
+- Double-tap empty space beside the heart: full-screen heart with one live lead (tap to change
+  lead). Floating Shock (VT/VF) and Adenosine (AVNRT, AVRT, flutter) buttons.
+- Each sheet, menu, popover and full-screen view is a history entry, so the system back button
+  closes it first. Page pinch-zoom, text selection and long-press callouts are off on the
+  touch surfaces.
+- `ECGStudioApp.touchTarget(x, y)` reports what a tap at a page point would act on (tests).
+- Help guide text is unchanged (written for the desktop); the phone tab notes describe the gestures.
+
+### mobile-1 round 3: phone layout feedback
+
+- Full-screen heart keeps the tab bar and the controls sheet (ischemia, conditions… stay reachable);
+  a double-tap on its live lead returns to the two-pane view (a single tap still changes lead,
+  after a short wait).
+- View controls (cut slider, Anterior/Lateral/Apex, labels, leads, legend) moved from a popover
+  over the heart into a **View** tab in the tab bar; Learn moved to the button at the heart's top
+  right. The sheet is now as tall as its content (up to 42% of the screen), so the heart's angle
+  and cut stay visible while adjusting them.
+- Heart pane 44% → 50% of the two-pane view (the three-lead ECG had spare room between leads).
+
+### mobile-1 round 4: phone sheet over the ECG, sliding lead groups
+
+- Heart pane 60% of the two-pane view. Tab bar order: Rhythm, Blocks, View, Ischemia, Conditions.
+- The controls sheet now floats over the ECG (fixed above the tab bar, as tall as its content up
+  to the ECG pane's top, `--sheetmax` from `sizeSheet()`), so opening a menu never resizes the
+  heart. Over the full-screen heart it may cover the lower 45%. Dragging the handle up still
+  gives full height.
+- Lead groups slide: while swiping, the strip follows the finger with the neighbouring group
+  drawn beside it (`#cgroup2`); past a quarter of the width or on a quick flick it slides on
+  (0.22 s), otherwise it slides back. Tapping an adjacent page dot slides too.
+
+### mobile-1 round 5: phone ECG controls over the grid, live-lead menu
+
+- The strip under the lead groups is gone: the tracing fills the ECG area and the seconds button,
+  smaller page dots (centred) and the one-time double-tap hint float over the grid.
+- Full-screen heart: the live lead's label is a button that opens a 12-lead menu (closes with the
+  back button or a tap outside); a double-tap on the strip still returns to the two-pane view.
+
+### mobile-1 round 6: ischemia time scrubber on the heart
+
+- While any ischemia is present, a slim time scrubber runs along the bottom of the heart pane
+  (above the live lead on the full-screen heart), replacing the view label. It has the same seven
+  discrete stops as the Ischemia tab's slider (Onset … 1 month) and stays in step with it in both
+  directions, so time can be scrubbed while the ECG stays visible. Floating Shock/Adenosine move
+  up above it; it disappears when the last occlusion or patch is removed. Phones only.

@@ -149,6 +149,25 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .bchip { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; padding: 5px 6px 5px 9px; border-radius: 6px; background: rgba(224,48,63,0.16); border: 1px solid rgba(224,48,63,0.5); }
 .bchip.isch { background: rgba(143,92,204,0.18); border-color: rgba(143,92,204,0.6); }
 .bchip.partial { background: rgba(255,138,31,0.14); border-color: rgba(255,138,31,0.5); }
+.bchip.cond { background: rgba(255,255,255,0.07); border-color: var(--panel-line); }
+.addcond { width: 100%; }
+.rchips { display: flex; flex-wrap: wrap; gap: 5px; }
+#controls .rchips button { padding: 4px 8px; font-size: 12px; border-radius: 999px; }
+#condSearch { font: 500 12.5px/1.2 var(--font-ui); color: var(--viewport-fg); background: rgba(255,255,255,0.06); border: 1px solid var(--panel-line); border-radius: 6px; padding: 7px 9px; width: 100%; box-sizing: border-box; }
+#condSearch::placeholder { color: var(--panel-muted); }
+.catalog { display: flex; flex-direction: column; gap: 5px; }
+.catalog h4 { margin: 8px 0 1px; font: 600 11px/1.2 var(--font-display); letter-spacing: 0.07em; text-transform: uppercase; color: var(--panel-muted); }
+.catalog h4:first-child { margin-top: 0; }
+.crow { display: flex; flex-direction: column; align-items: stretch; gap: 3px; text-align: left; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--panel-line); background: rgba(255,255,255,0.06); }
+#controls button.crow { text-align: left; }
+.crow b { font-weight: 600; font-size: 12.5px; }
+#controls .crow[aria-pressed="true"], .crow.on { border-color: var(--accent); background: rgba(224,48,63,0.14); }
+.copts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+#controls .copts button { padding: 4px 8px; font-size: 12px; }
+#controls .copts button i { font-style: normal; color: var(--panel-muted); margin-left: 4px; }
+#controls .copts button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+#controls .copts button[aria-pressed="true"] i { color: inherit; }
+.crow[aria-disabled="true"], .crow:disabled { opacity: 0.55; }
 .bchip button { padding: 2px 7px; font-size: 12px; line-height: 1.2; }
 .popover { position: absolute; z-index: 5; min-width: 230px; max-width: 280px; background: var(--panel); border: 1px solid var(--panel-line); border-radius: 10px; padding: 10px; color: var(--viewport-fg); backdrop-filter: blur(6px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
 .pop-title { font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); margin-bottom: 8px; }
@@ -257,49 +276,142 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 
-/* pane switch (phones only) and the portrait prompt */
-.viewsw { display: none; gap: 2px; padding: 2px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); }
-.viewsw button { border: 0; padding: 6px 14px; background: transparent; color: var(--muted); }
-.viewsw button[aria-selected="true"] { background: var(--accent); color: var(--accent-fg); }
-.rotate { display: none; position: fixed; inset: 0; z-index: 30; place-items: center; text-align: center; padding: 24px; background: var(--bg); color: var(--fg); font-size: 16px; line-height: 1.5; }
-.rotate b { display: block; font: 600 20px/1.3 var(--font-display); margin-bottom: 6px; }
-.rotate i { display: block; font-style: normal; font-size: 44px; margin-bottom: 10px; }
+/* Phones (body.m, set by the app; portrait only): heart above, the ECG one lead
+   group at a time below it, the interpretation under the ECG, and the controls
+   in a bottom sheet opened from the tab bar. A double-tap on the ECG shows the
+   full 12-lead turned sideways (body.fs-ecg); held sideways (body.ml) the phone
+   shows that view upright. A double-tap beside the heart fills the screen with
+   it (body.fs-heart) above one live lead. */
+:root { --tabh: 56px; }
+.mctl, .mtabs, .mmenu, .leadmenu, .mscrub, .mlearn, .mfloat, .gbar, .fsbar, #cgroup, #cgroup2, .shead, .press, .live { display: none; }
+body.m { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+body.m button { touch-action: manipulation; }
+body.m #c3d, body.m #ecgWrap, body.m .live, body.m #shead { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+body.m #app { padding: env(safe-area-inset-top, 0px) 0 0; gap: 0; }
+body.m header.top { min-height: 50px; gap: 8px; padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); }
+body.m .brand h1 { font-size: 19px; }
+body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp { display: none; }
+body.m .mctl { display: flex; align-items: center; gap: 6px; }
+.mctl button { height: 38px; min-width: 42px; padding: 0 11px; border-radius: 19px; display: grid; place-items: center; }
+.mctl svg { width: 20px; height: 20px; fill: currentColor; }
+.mspeed { font: 500 13px/1 var(--font-data); }
+.mplay { position: relative; overflow: hidden; }
+.mplay .ir, .mplay.paused .ip { display: none; }
+.mplay.paused .ir { display: inline; }
+.mplay::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--accent); }
+.mplay.holding::after { width: 100%; transition: width 0.7s linear; }
+body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index: 21; right: max(10px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 50px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+.mmenu button { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
 
-/* Phones (narrower than an iPad mini, or short in landscape): one pane at a
-   time, chosen with the switch at the top; landscape only. */
-@media (max-width: 743px), (max-height: 500px) {
-  #app { gap: 6px; padding-block: 6px; padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
-  header.top { min-height: 30px; gap: 10px; }
-  .brand h1 { font-size: 17px; }
-  .brand span { display: none; }
-  .viewsw { display: flex; }
-  #btnHelp, #btnShare, .simctl button { padding: 6px 9px; font-size: 12px; }
-  .simctl .lab { display: none; }
-  .simctl input[type=range] { width: 70px; }
-  #divider, #focus3d, #focusEcg { display: none; }
-  #pane3d, #paneEcg { flex: 1 1 auto; }
-  body:not(.show-ecg) #paneEcg, body.show-ecg #pane3d { display: none; }
-  .pane-head { padding: 6px 8px; }
-  #controls { top: 34px; left: 6px; width: 236px; max-height: calc(100% - 40px - var(--vb)); }
-  #controls .body { gap: 10px; padding-bottom: 8px; }
-  .hint { display: none; }
-  .clock { display: none; }
-  .legend { font-size: 11px; gap: 8px; }
-  .vinfo { max-width: calc(100% - 20px); }
-  .vtitle { font-size: 11px; padding: 4px 7px; }
-  #pane3d .pane-head .tabs button { padding: 5px 7px; }
-  #controls.wide { width: 300px; }
-  #pane3d { --vb: 40px; }
-  .viewbar { gap: 6px; padding: 0 8px; }
-  .viewbar button, .viewbar .tog { padding: 4px 7px; font-size: 11.5px; }
-  #interp { padding: 0 8px 6px; gap: 4px 10px; max-height: 42%; overflow: auto; }
-  #rhythm { font-size: 15px; }
-  .chip { padding: 4px 6px; font-size: 11px; }
-  .findings { font-size: 12px; }
-}
-@media (max-width: 743px) and (orientation: portrait) {
-  .rotate { display: grid; }
-}
+body.m #split { flex-direction: column; gap: 6px; padding: 0 8px 6px; }
+body.m #pane3d { flex: 0 0 60%; --vb: 0px; }
+body.m #paneEcg { flex: 1 1 0; }
+body.m #divider, body.m .pane-head, body.m .hint, body.m .clock, body.m .strips, body.m .calnote, body.m #cecg { display: none; }
+body.m .vinfo { left: 8px; bottom: 8px; max-width: calc(100% - 140px); }
+body.m .vtitle { font-size: 10.5px; padding: 4px 7px; }
+body.m .legend { font-size: 11px; gap: 8px; padding: 5px 8px; }
+body.m .mlearn { display: block; position: absolute; z-index: 3; top: 8px; right: 8px; padding: 8px 13px; font-size: 13px; background: var(--panel); color: var(--viewport-fg); border-color: var(--panel-line); border-radius: 17px; }
+body.m .mlearn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+body.m #controls .viewbar { position: static; display: flex; flex-wrap: wrap; height: auto; padding: 0; gap: 10px; background: none; border: 0; backdrop-filter: none; overflow: visible; }
+body.m #controls .viewbar .vcut { flex: 1 1 100%; max-width: none; }
+body.m #controls .viewbar .vgroup { flex: 1 1 100%; }
+body.m #controls .viewbar .vgroup > * { flex: 1; text-align: center; }
+body.m #controls .viewbar button, body.m #controls .viewbar .tog { padding: 10px 11px; font-size: 13px; }
+body.m .mfloat { display: flex; gap: 8px; position: absolute; z-index: 3; right: 8px; bottom: 8px; }
+.mfloat button { padding: 11px 15px; font: 600 14px/1 var(--font-ui); border-radius: 21px; border: 0; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+.mfloat .shock { background: #ffcc33; color: #1a1300; }
+.mfloat .adeno { background: #38c6e8; color: #04222b; }
+body.m .press { display: block; position: absolute; z-index: 4; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(#b48ae8 var(--p, 0%), rgba(255,255,255,0.18) 0);
+  -webkit-mask: radial-gradient(circle, transparent 55%, #000 57%); mask: radial-gradient(circle, transparent 55%, #000 57%); }
+
+/* ECG: one lead group at a time */
+body.m #ecgWrap { order: 1; touch-action: none; }
+body.m #cgroup, body.m #cgroup2 { display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%; will-change: transform; }
+body.m #ecgWrap { overflow: hidden; }
+body.m .slide #cgroup, body.m .slide #cgroup2 { transition: transform 0.22s cubic-bezier(0.2, 0.7, 0.3, 1); }
+body.m .gbar { display: flex; align-items: center; gap: 6px; position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; padding: 0 6px 4px; pointer-events: none; }
+.gbar > * { pointer-events: auto; }
+.msecs, .fsbar button { color: #1d2a36; background: rgba(255,255,255,0.92); border-color: #d3dae1; }
+.msecs { padding: 5px 8px; font: 500 11px/1 var(--font-data); border-radius: 12px; }
+.dots { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); display: flex; padding: 0 4px; border-radius: 10px; background: rgba(255,255,255,0.8); }
+.dots button { width: 18px; height: 20px; padding: 0; border: 0; background: none; display: grid; place-items: center; }
+.dots button::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #e2b0bd; }
+.dots button[aria-selected="true"]::before { background: #c2304f; }
+.ghint { position: absolute; right: 6px; bottom: 4px; font-size: 10.5px; color: #8a5a66; background: rgba(255,255,255,0.85); padding: 3px 6px; border-radius: 4px; }
+body.m #interp { order: 2; flex: none; flex-wrap: wrap; gap: 6px; padding: 8px 32px 8px 10px; border-bottom: 0; border-top: 1px solid var(--line); cursor: pointer; position: relative; }
+body.m #interp::after { content: "▴"; position: absolute; right: 12px; top: 8px; color: var(--muted); font-size: 13px; }
+body.m #rhythm { flex: 1 1 100%; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.m .chips { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+body.m .chips::-webkit-scrollbar { display: none; }
+body.m .chip { font-size: 11px; padding: 4px 6px; }
+body.m .findings { display: none; }
+body.m.interp-open #interp { max-height: 55%; overflow-y: auto; cursor: default; }
+body.m.interp-open #interp::after { content: "▾"; }
+body.m.interp-open #rhythm { white-space: normal; }
+body.m.interp-open .chips { flex-wrap: wrap; }
+body.m.interp-open .findings { display: flex; font-size: 13px; }
+
+/* controls: bottom sheet above the tab bar (half height, or full) */
+body.m #controls { position: fixed; z-index: 12; left: 8px; right: 8px; top: auto; bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); width: auto; flex: none; height: auto; max-height: var(--sheetmax, 40vh); margin: 0; box-shadow: 0 -6px 24px rgba(0,0,0,0.3); border-radius: 14px 14px 0 0; border-bottom: 0; background: var(--viewport); backdrop-filter: none; }
+body.m #controls.wide { width: auto; }
+body.m.sheet-full #controls { position: fixed; z-index: 12; left: 0; right: 0; margin: 0; max-height: none; top: calc(env(safe-area-inset-top, 0px) + 50px); bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); height: auto; }
+body.m #controls .shead { display: flex; align-items: center; gap: 8px; padding: 14px 10px 4px 14px; position: sticky; top: 0; z-index: 1; background: var(--viewport); touch-action: none; }
+.shead .grab { position: absolute; left: 50%; top: 6px; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px; background: rgba(255,255,255,0.28); }
+.stitle { flex: 1; font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); }
+#controls .sclose { padding: 7px 11px; }
+body.m #controls .body { padding-top: 4px; }
+body.m #controls .presets button, body.m .btnrow button { padding: 10px 2px; font-size: 13px; }
+body.m .crow b { font-size: 14px; }
+body.m .crow { padding: 11px 12px; }
+body.m .mtabs { display: flex; flex: none; background: var(--surface); border-top: 1px solid var(--line); padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+.mtabs button { flex: 1; height: var(--tabh); padding: 0; border: 0; border-radius: 0; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; color: var(--muted); }
+.mtabs svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.mtabs button[aria-selected="true"] { color: var(--accent); }
+
+/* full-screen heart with one live lead */
+body.m.fs-heart #paneEcg { display: none; }
+body.m.fs-heart #pane3d { flex: 1 1 auto; }
+body.m.fs-heart .live { display: block; position: absolute; z-index: 3; left: 8px; right: 8px; bottom: 8px; height: 96px; border-radius: 8px; overflow: hidden; background: var(--paper); cursor: pointer; }
+.live { touch-action: manipulation; }
+.leadbtn { position: absolute; left: 4px; top: 4px; padding: 5px 9px; font: 600 13px/1 var(--font-data); color: #111; background: rgba(255,255,255,0.92); border-color: #d3dae1; border-radius: 6px; }
+body.m .leadmenu { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; position: absolute; z-index: 5; left: 8px; bottom: 110px; width: min(300px, calc(100% - 16px)); box-sizing: border-box; padding: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+.leadmenu button { padding: 10px 0; font: 500 14px/1 var(--font-data); color: var(--fg); background: var(--surface); border-color: var(--line); }
+.leadmenu button[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.live canvas { display: block; width: 100%; height: 100%; }
+body.m.fs-heart .vinfo, body.m.fs-heart .mfloat { bottom: 112px; }
+/* ischemia time scrubber along the bottom of the heart (while ischemia is present) */
+body.m .mscrub { display: flex; align-items: center; gap: 10px; position: absolute; z-index: 3; left: 8px; right: 8px; bottom: 8px; height: 40px; padding: 0 14px; box-sizing: border-box; background: var(--panel); border: 1px solid var(--panel-line); border-radius: 20px; color: var(--viewport-fg); }
+.mscrub .sval { font: 600 12.5px/1 var(--font-data); min-width: 4.4em; }
+.strack { position: relative; flex: 1; display: flex; align-items: center; height: 100%; }
+.strack input { position: relative; z-index: 1; width: 100%; }
+.sticks { position: absolute; left: 8px; right: 8px; top: calc(50% + 7px); display: flex; justify-content: space-between; pointer-events: none; }
+.sticks i { width: 2px; height: 5px; border-radius: 1px; background: var(--panel-muted); }
+body.m.has-isch .vtitle { display: none; }
+body.m.has-isch .vinfo, body.m.has-isch .mfloat { bottom: 56px; }
+body.m.fs-heart .mscrub { bottom: 112px; }
+body.m.fs-heart.has-isch .vinfo, body.m.fs-heart.has-isch .mfloat { bottom: 160px; }
+
+/* full 12-lead ECG, turned sideways (or upright when the phone is held sideways) */
+body.m.fs-ecg #paneEcg { position: fixed; z-index: 15; left: 50%; top: 50%; width: 100vh; width: 100dvh; height: 100vw; box-sizing: border-box;
+  transform: translate(-50%, -50%) rotate(90deg); flex-direction: row; border: 0; border-radius: 0;
+  padding: 0 env(safe-area-inset-bottom, 0px) 0 env(safe-area-inset-top, 0px); }
+body.m.fs-ecg.flip #paneEcg { transform: translate(-50%, -50%) rotate(-90deg); padding: 0 env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+body.m.fs-ecg.ml #paneEcg { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px); }
+body.m.fs-ecg #interp { order: 0; width: 172px; flex: none; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; max-height: none; overflow-y: auto; padding: 10px; border-top: 0; border-right: 1px solid var(--line); cursor: default; }
+body.m.fs-ecg #interp::after { display: none; }
+body.m.fs-ecg #rhythm { flex: none; font-size: 14px; white-space: normal; }
+body.m.fs-ecg .chips { flex: none; flex-direction: column; align-items: flex-start; overflow: visible; }
+body.m.fs-ecg .chip { white-space: normal; }
+body.m.fs-ecg .findings { display: flex; flex: none; font-size: 12px; }
+body.m.fs-ecg.fs-nointerp #interp { display: none; }
+body.m.fs-ecg #ecgWrap { flex: 1 1 0; min-width: 0; }
+body.m.fs-ecg #cecg { display: block; }
+body.m.fs-ecg #cgroup, body.m.fs-ecg .gbar { display: none; }
+body.m.fs-ecg .fsbar { display: flex; gap: 6px; position: absolute; z-index: 2; top: 6px; right: 6px; }
+.fsbar button { padding: 7px 10px; font-size: 12.5px; }
+.fsbar button[aria-pressed="true"] { border-color: #c2304f; }
+body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
 /* tablets held upright: heart above, ECG below */
 @media (min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (min-height: 501px) {
   #split { flex-direction: column; }
@@ -308,13 +420,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 }
 </style>
 
-<div class="rotate" id="rotate" role="alert"><div><i aria-hidden="true">⟳</i><b>Turn your phone sideways</b>ECG Studio on a phone works in landscape, which gives the ECG a usable width.</div></div>
 <div id="app">
   <header class="top">
     <div class="brand"><h1>ECG <b>Studio</b></h1><span>Interactive 3D heart and 12-lead ECG simulator</span></div>
-    <div class="viewsw" id="viewsw" role="tablist" aria-label="Show">
-      <button type="button" role="tab" data-pane="heart" aria-selected="true">Heart</button><button type="button" role="tab" data-pane="ecg" aria-selected="false">ECG</button>
-    </div>
     <div class="spacer"></div>
     <div class="simctl" role="group" aria-label="Simulation">
       <label class="tsrow" for="timescale"><span class="lab">Speed</span>
@@ -325,7 +433,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     </div>
     <button id="btnShare" type="button" title="Copy a link that reopens this exact scenario">Share</button>
     <button id="btnHelp" type="button">Help</button>
+    <div class="mctl" role="group" aria-label="Simulation">
+      <button type="button" id="mSpeed" class="mspeed" aria-label="Simulation speed: 1×. Tap to change">1×</button>
+      <button type="button" id="mPlay" class="mplay" aria-label="Pause. Hold to reset"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="ip" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="ir" d="M8 5l11 7-11 7z"/></svg></button>
+      <button type="button" id="mMore" class="mmore" aria-label="More" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+    </div>
   </header>
+  <div class="mmenu" id="mMenu" role="menu" hidden>
+    <button type="button" role="menuitem" id="mShare">Share this scenario</button>
+    <button type="button" role="menuitem" id="mPng">Save ECG image</button>
+    <button type="button" role="menuitem" id="mHelp">Help</button>
+  </div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <main id="split">
@@ -337,7 +455,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           <button type="button" role="tab" data-tab="rhythm" aria-selected="true">Rhythm</button>
           <button type="button" role="tab" data-tab="blocks" aria-selected="false">Blocks</button>
           <button type="button" role="tab" data-tab="ischemia" aria-selected="false">Ischemia</button>
-          <button type="button" role="tab" data-tab="structure" aria-selected="false">Structure</button>
+          <button type="button" role="tab" data-tab="conditions" aria-selected="false">Conditions</button>
           <button type="button" role="tab" data-tab="learn" aria-selected="false">Learn</button>
         </div>
         <span class="spacer"></span>
@@ -346,6 +464,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <div class="hint" id="hint">Drag to rotate · scroll to zoom</div>
 
       <div id="controls">
+        <div class="shead" id="shead"><span class="grab" aria-hidden="true"></span><span class="stitle" id="stitle"></span><button type="button" class="sclose" id="sclose" aria-label="Close controls">✕</button></div>
         <div class="body">
           <div class="note clicknote" id="actionNote">Click the atria for a PAC or the ventricles for a PVC.</div>
 
@@ -384,26 +503,26 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
             </div>
           </section>
 
-          <section class="tabpanel" data-panel="structure" hidden>
-            <div class="ctl">
-              <div class="toggles">
-                <label class="tog" for="stRAE" title="Right atrial enlargement"><input type="checkbox" id="stRAE"><span>RAE</span></label>
-                <label class="tog" for="stLAE" title="Left atrial enlargement"><input type="checkbox" id="stLAE"><span>LAE</span></label>
-                <label class="tog" for="stLVH" title="Left ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stLVH"><span>LVH</span></label>
-                <label class="tog" for="stRVH" title="Right ventricular hypertrophy (rebuilds the heart)"><input type="checkbox" id="stRVH"><span>RVH</span></label>
-                <label class="tog" for="stPeri" title="Acute pericarditis"><input type="checkbox" id="stPeri"><span>Pericarditis</span></label>
-                <label class="tog" for="stBrugada" title="Brugada syndrome, type 1 pattern"><input type="checkbox" id="stBrugada"><span>Brugada</span></label>
+          <section class="tabpanel" data-panel="conditions" hidden>
+            <div class="ctl" id="condHome">
+              <span class="lab">Active conditions</span>
+              <div class="blocklist" id="condActive"></div>
+              <div class="note" id="noCond">None.</div>
+              <button type="button" id="btnAddCond" class="addcond">+ Add condition</button>
+              <div class="ctl" id="condRecent" hidden>
+                <span class="lab">Recently used</span>
+                <div class="rchips" id="condRecentList"></div>
               </div>
             </div>
-            <div class="ctl">
-              <label class="lab" for="stAP">Accessory pathway (WPW)</label>
-              <select id="stAP">
-                <option value="">None</option>
-                <option value="left-lateral">Left lateral (~55%)</option>
-                <option value="posteroseptal">Posteroseptal (~25%)</option>
-              </select>
+            <div class="ctl" id="condCatalog" hidden>
+              <div class="row"><span class="lab">Add a condition</span><button type="button" id="btnCondDone">Done</button></div>
+              <input type="search" id="condSearch" placeholder="Search conditions" aria-label="Search conditions" autocomplete="off" spellcheck="false">
+              <div class="catalog" id="condList"></div>
+              <div class="note" id="condNone" hidden>No matching condition.</div>
             </div>
           </section>
+
+          <section class="tabpanel" data-panel="view" hidden><div id="viewSlot"></div></section>
 
           <section class="tabpanel" data-panel="learn" hidden>
             <div class="learn" id="learn"><p class="note">Reading the ECG…</p></div>
@@ -447,6 +566,18 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         </div>
       </div>
       <div class="rebuild" id="rebuildNote" hidden>Building the heart…</div>
+      <button type="button" class="mlearn" id="mLearn" aria-pressed="false">Learn</button>
+      <div class="mfloat" id="mFloat">
+        <button type="button" id="mShock" class="shock" hidden>⚡ Shock</button>
+        <button type="button" id="mAdeno" class="adeno" hidden>Adenosine</button>
+      </div>
+      <div class="mscrub" id="mScrub" hidden>
+        <span class="sval" id="mScrubVal" aria-hidden="true">1 h</span>
+        <div class="strack"><input type="range" id="mScrubR" min="0" max="6" step="1" value="2" aria-label="Time since onset of ischemia"><div class="sticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      </div>
+      <div class="press" id="press" hidden></div>
+      <div class="live" id="liveWrap"><canvas id="clive" aria-hidden="true"></canvas><button type="button" class="leadbtn" id="leadBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Live lead: II. Change lead">II ▾</button></div>
+      <div class="leadmenu" id="leadMenu" role="menu" aria-label="Live lead" hidden></div>
     </section>
 
     <div id="divider" role="separator" aria-orientation="vertical" tabindex="0" title="Drag to resize · double-click to reset"></div>
@@ -464,9 +595,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         <ul class="findings" id="findings"></ul>
         <div class="strips" id="strips" role="group" aria-label="Rhythm strip leads (up to three)"><span>Rhythm strips:</span></div>
       </div>
-      <div id="ecgWrap"><canvas id="cecg"></canvas><span class="calnote" id="calnote">II rhythm strip · 10 s</span></div>
+      <div id="ecgWrap"><canvas id="cecg"></canvas><canvas id="cgroup" aria-label="ECG lead group"></canvas><canvas id="cgroup2" aria-hidden="true" hidden></canvas><span class="calnote" id="calnote">II rhythm strip · 10 s</span>
+        <div class="gbar" id="gbar"><button type="button" id="mSecs" class="msecs" aria-label="Seconds shown: 5. Tap to change">5 s</button><div class="dots" id="mDots" role="tablist" aria-label="Lead group"></div><span class="ghint" id="ghint">Double-tap for 12 leads</span></div>
+        <div class="fsbar" id="fsbar"><button type="button" id="fsInterp" aria-pressed="true">Interpretation</button><button type="button" id="fsFlip" aria-label="Rotate the other way">⟲</button><button type="button" id="fsExit" aria-label="Close the full ECG">✕</button></div>
+      </div>
     </section>
   </main>
+  <nav class="mtabs" id="mTabs" role="tablist" aria-label="Controls"><button type="button" role="tab" data-tab="rhythm" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12h4l2-6 4 12 3-9 2 3h5"/></svg><span>Rhythm</span></button><button type="button" role="tab" data-tab="blocks" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v6M12 15v6M6 21l6-6 6 6"/><path d="M8 9h8M8 15h8"/></svg><span>Blocks</span></button><button type="button" role="tab" data-tab="view" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>View</span></button><button type="button" role="tab" data-tab="ischemia" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c3 4.5 6 8 6 11a6 6 0 0 1-12 0c0-3 3-6.5 6-11z"/></svg><span>Ischemia</span></button><button type="button" role="tab" data-tab="conditions" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Conditions</span></button></nav>
 </div>
 
 <div class="overlay" id="guide" hidden>
@@ -510,7 +645,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         <li><b>Rhythm:</b> adjust the heart rate and toggle persistent arrhythmias. Click on the heart to stimulate an ectopic beat.</li>
         <li><b>Blocks:</b> only useful during a cutaway view. Click on the conduction system to start a block.</li>
         <li><b>Ischemia:</b> click a coronary artery to occlude it there, or (with the heart cut) click the cut face or the inner wall of a ventricle for a subendocardial patch. Use the time slider to see progression of the injury.</li>
-        <li><b>Structure:</b> add structural abnormalities with the toggles.</li>
+        <li><b>Conditions:</b> add conditions such as chamber enlargement, WPW or pericarditis from the searchable list; remove them from the active list.</li>
         <li><b>Learn:</b> a review of the key features of this ECG and common pitfalls.</li>
       </ul>
     </section>

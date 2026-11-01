@@ -5,7 +5,6 @@
   'use strict';
   const LH = window.ECGStudio;
   const $ = (id) => document.getElementById(id);
-  const PHONE = '(max-width: 743px), (max-height: 500px)';   // one pane at a time below an iPad mini
 
   const PAGE = 10000;        // ms of ECG on one sheet (10 s)
   const ERASE = 140;         // ms blank gap ahead of the sweep cursor
@@ -41,6 +40,7 @@
     await tick();
     LH.setDefaultTorso(JSON.parse($('torso-data').textContent));
     const scen = readScenario();
+    setMode();
     await buildHeart();
     try { init3D(); } catch (e) { setLoading('WebGL is not available in this browser, so the 3D view cannot start.'); console.error(e); return; }
     initECG(); initUI();
@@ -62,6 +62,14 @@
         const r = $('c3d').getBoundingClientRect();
         return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
       },
+      // what a tap at page point (x, y) on the heart would act on: a block site
+      // (cut view), 'RA', 'LA', 'V', or null for empty space
+      touchTarget(x, y) {
+        const r = $('c3d').getBoundingClientRect(), lx = x - r.left, ly = y - r.top, ray = rayAt(lx, ly);
+        if (ui.view === 'cutaway') { const site = conductionAt(ray, lx, ly); if (site) return site; }
+        const c = tissueAt(ray); if (c < 0) return null;
+        return A.label[c] === LH.LAB.RA ? 'RA' : A.label[c] === LH.LAB.LA ? 'LA' : 'V';
+      },
     };
     ui.last = performance.now();
     requestAnimationFrame(loop);
@@ -81,7 +89,7 @@
   // once built, so switching back to it is immediate.
   const heartCache = new Map();
   const G3_FIXED = new Set(['renderer', 'scene', 'camera', 'outer', 'inner', 'controls', 'planeDirty']);
-  const heartKey = () => `${+ui.struct.lvh}${+ui.struct.rvh}`;
+  const heartKey = () => CONDITIONS.filter((c) => c.rebuild).map((c) => +!!ui.struct[c.id]).join('');
   function storeHeart(key) {
     if (heartCache.has(key)) return;
     const fields = {}; for (const k of Object.keys(g3)) if (!G3_FIXED.has(k)) fields[k] = g3[k];
@@ -113,11 +121,8 @@
     if (keepEcg && S) ecg.t0 = (ecg.t0 + S.t) % PAGE; else ecg.t0 = 0;
     S = new LH.Sim(M, { seed: 1 });
     S.setRate(ui.rate);
-    S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae });
-    S.setAccessoryPathway(ui.struct.ap || null);
     S.setDualAVN(ui.struct.dual);
-    if (ui.struct.peri) S.setPericarditis(true);
-    if (ui.struct.brugada) S.setBrugada(true);
+    for (const c of CONDITIONS) if (c.apply && ui.struct[c.id]) c.apply(ui.struct[c.id]);
     if (!keepEcg) for (const b of ecg.buf) b.fill(NaN);
     ecg.full = true;
     if (g3.apMark) placeAPMarker();
@@ -175,9 +180,9 @@
     const t1 = performance.now();
     if (++Q.frame % Q.every === 0 || ui.paused) update3D();
     const t2 = performance.now();
-    drawECG();
+    drawECG(); drawPhone();
     perf.t3d += t2 - t1; perf.tEcg += performance.now() - t2; perf.frames++;
-    if ((interpTimer += dt) > 300) { interpTimer = 0; syncRate(); interpret(); }
+    if ((interpTimer += dt) > 300) { interpTimer = 0; syncRate(); interpret(); updateFloat(); }
     $('clock').textContent = `t ${(S.t / 1000).toFixed(3)} s · ${SCALE_LABEL[ui.scaleIdx]}${ui.paused ? ' · paused' : ''}`;
     requestAnimationFrame(loop);
   }
@@ -222,7 +227,7 @@
 
   function resize3D() {
     const el = $('pane3d'), w = el.clientWidth, h = el.clientHeight;
-    if (!w || !h) return;
+    if (!w || !h || !g3.renderer) return;
     g3.renderer.setSize(w, h, false);
     g3.camera.aspect = w / h;
     // keep the heart clear of the floating control panel
@@ -395,14 +400,14 @@
       if (pts.length < 2) continue;
       const curve = new THREE.CatmullRomCurve3(pts);
       const tub = Math.max(4, (pts.length - 1) * 3), rad = 6;
-      const geo = new THREE.TubeGeometry(curve, tub, p.r, rad, false);
+      const geo = new THREE.TubeGeometry(curve, tub, p.r * (isM() ? 1.6 : 1), rad, false);
       const nv = geo.attributes.position.count, col = new Float32Array(nv * 3), map = new Int32Array(nv);
       for (let v = 0; v < nv; v++) { const ring = Math.floor(v / (rad + 1)); map[v] = p.ids[Math.round(ring / tub * (p.ids.length - 1))]; }
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
       const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 50, emissive: 0x222222 }));
       grp.add(mesh); g3.tubes.push({ geo, col, map });
       // invisible, thicker twin for easy clicking
-      const pgeo = new THREE.TubeGeometry(curve, tub, 3.2, rad, false);
+      const pgeo = new THREE.TubeGeometry(curve, tub, isM() ? 5 : 3.2, rad, false);
       const pick = new THREE.Mesh(pgeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
       pick.userData.map = map; grp.add(pick); g3.pickTubes.push(pick);
     }
@@ -415,6 +420,9 @@
     g3.inner.add(san);
     const sanPick = g3.sanPick = new THREE.Mesh(new THREE.SphereGeometry(6, 10, 8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     sanPick.position.copy(san.position); g3.inner.add(sanPick);
+    // conduction points for touch (the nearest one on screen within a fingertip)
+    g3.csPts = [{ site: 'SAN', p: san.position.clone() }];
+    for (const [site, ids] of Object.entries(segs)) for (const id of ids) g3.csPts.push({ site, p: new THREE.Vector3(...nodePos(id)) });
   }
 
   function placeAPMarker() {
@@ -1021,10 +1029,15 @@
   }
 
   function updateActionNote() {
-    const note = { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click on a coronary artery or the endocardium to start ischemia' }[ui.action];
+    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click on a coronary artery or the endocardium to start ischemia' }[ui.action];
     $('actionNote').hidden = !note || ui.tab === 'learn';
     $('actionNote').textContent = note || '';
   }
+  const PHONE_NOTE = {
+    rhythm: 'Tap the heart for a PAC or PVC. Three quick taps on the right atrium start flutter, on the left atrium AF; three on the ventricles start VT and four VF.',
+    blocks: 'Tap the AV node to step through the AV blocks; three quick taps start AVNRT (AVRT with an accessory pathway). Tap the SA node to cycle its blocks, a bundle branch or fascicle to block it or clear it.',
+    ischemia: 'Press and hold a coronary artery to occlude it. With the heart cut, hold the inner wall or the cut face for subendocardial ischemia.',
+  };
 
   // pointer handling on the 3D canvas: a click (not a drag) acts
   function initPicking() {
@@ -1032,6 +1045,7 @@
     let down = null;
     canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });
     canvas.addEventListener('pointerup', (e) => {
+      if (isM()) { down = null; return; }                       // phones: see initTouch
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > (e.pointerType === 'touch' ? 10 : 5)) { down = null; return; }   // (fingers wobble more than a mouse)
       down = null;
       const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
@@ -1063,19 +1077,25 @@
     showBlockMenu(site, def, x, y);
   }
 
-  function pickStimulus(ray, x, y) {
+  function tissueAt(ray) {
     const cut = ui.view !== 'external';
     const targets = g3.pickTissue.concat(cut ? [g3.slab.im] : []);
     for (const hit of ray.intersectObjects(targets, false)) {
       if (cut && hit.object !== g3.slab.im && g3.plane.distanceToPoint(hit.point) < -0.3) continue;   // clipped away
       const p = g3.inner.worldToLocal(hit.point.clone());
       const c = nearestTissue(p.x, p.y, p.z, hit.object === g3.slab.im ? 1 : 3);
-      if (c < 0) continue;
-      const rec = S.stimulate(c);
-      const refractory = S.t < S.refEnd[c];
-      flash(x, y, refractory ? 'No capture (refractory)' : rec.ronT ? 'R-on-T!' : rec.kind === 'atrial' ? 'PAC' : 'PVC');
-      return;
+      if (c >= 0) return c;
     }
+    return -1;
+  }
+  function stimulateAt(c, x, y) {
+    const rec = S.stimulate(c);
+    const refractory = S.t < S.refEnd[c];
+    flash(x, y, refractory ? 'No capture (refractory)' : rec.ronT ? 'R-on-T!' : rec.kind === 'atrial' ? 'PAC' : 'PVC');
+  }
+  function pickStimulus(ray, x, y) {
+    const c = tissueAt(ray);
+    if (c >= 0) stimulateAt(c, x, y);
   }
 
   // Which wall surface a picked point lies on: the nearest ventricular surface
@@ -1112,7 +1132,7 @@
     if (clot) { const v = S.insults.find((x) => x.id === clot.object.userData.insult); if (v) { removeIschemia(v.id); flash(x, y, 'Occlusion removed'); return; } }
     let subCell = -1;
     if (!corHit && cut && front) {
-      if (front.object === g3.slab.im) { const c = nearestTissue(p.x, p.y, p.z, 1); if (c >= 0 && (A.label[c] === 1 || A.label[c] === 2)) subCell = c; else { flash(x, y, 'Click ventricular muscle'); return; } }
+      if (front.object === g3.slab.im) { const c = nearestTissue(p.x, p.y, p.z, 1); if (c >= 0 && (A.label[c] === 1 || A.label[c] === 2)) subCell = c; else { flash(x, y, `${isM() ? 'Hold' : 'Click'} ventricular muscle`); return; } }
       else { const side = ventricularSide(p.x, p.y, p.z); if (side && side.endo) subCell = side.cell; }
     }
     if (subCell >= 0) {
@@ -1123,9 +1143,11 @@
       if (corHit) node = corHit.object.userData.map[corHit.face.a];
       else if (front) {                                         // a click on the surface near an artery counts
         let bd = 100;
-        g3.corPos.forEach((q, i) => { const d = q.distanceToSquared(p); if (d < bd) { bd = d; node = i; } });
+        const cor = M.coronary;                                   // (only the vessels offered: side-branch nodes are not)
+        g3.corPos.forEach((q, i) => { if (!cor.branches[cor.nodes[i].branch]) return; const d = q.distanceToSquared(p); if (d < bd) { bd = d; node = i; } });
       }
-      if (node < 0) { flash(x, y, cut ? 'Click an artery, the cut face or the inner wall' : 'Click a coronary artery'); return; }
+      const verb = isM() ? 'Hold' : 'Click';
+      if (node < 0) { flash(x, y, cut ? `${verb} an artery, the cut face or the inner wall` : `${verb} a coronary artery`); return; }
       const same = S.insults.find((v) => v.kind === 'occlusion' && v.node === node);
       if (same) { removeIschemia(same.id); flash(x, y, 'Occlusion removed'); return; }
       captureRef(); added = S.addOcclusion(node);
@@ -1149,6 +1171,7 @@
       removeIschemia(+b.dataset.id);
     });
     $('ischStage').textContent = ischStage(ui.ischH);
+    syncScrub();
   }
   // the time slider stops only where the ECG changes character
   const ISCH_STOPS = [
@@ -1183,11 +1206,14 @@
   function setIschTime(h) {
     ui.ischH = h; $('ischTime').value = stopOf(h); $('ischVal').textContent = fmtHours(h);
     S.setIschemiaTime(h); $('ischStage').textContent = ischStage(h);
+    syncScrub();
   }
 
   function toggleControls(show) {
     const c = $('controls').classList.toggle('collapsed', show === undefined ? undefined : !show);
-    for (const b of document.querySelectorAll('#tabs button')) b.setAttribute('aria-selected', String(!c && b.dataset.tab === ui.tab));
+    for (const b of document.querySelectorAll('#tabs button, #mTabs button')) b.setAttribute('aria-selected', String(!c && b.dataset.tab === ui.tab));
+    const tb = document.querySelector(`#mTabs [data-tab="${ui.tab}"] span`); $('stitle').textContent = tb ? tb.textContent : ui.tab === 'learn' ? 'Learn' : '';
+    $('mLearn').setAttribute('aria-pressed', String(!c && ui.tab === 'learn'));
     resize3D();
   }
   // tabs (top row of the heart view): the open tab also sets what a click on
@@ -1197,8 +1223,9 @@
     if (fromClick && t === ui.tab && !collapsed) { toggleControls(false); return; }
     ui.tab = t; ui.action = t === 'blocks' ? 'block' : t === 'ischemia' ? 'ischemia' : t === 'rhythm' ? 'stimulate' : 'none';
     for (const p of document.querySelectorAll('#controls .tabpanel')) p.hidden = p.dataset.panel !== t;
-    $('controls').classList.toggle('wide', t === 'learn');
+    $('controls').classList.toggle('wide', t === 'learn' || (t === 'conditions' && !$('condCatalog').hidden));
     toggleControls(true);
+    if (isM() && t === 'blocks' && ui.cutFrac < 100) { setCut(100); cameraPreset('front'); }   // blocks are tapped in the four-chamber cut
     if (t === 'learn') renderLearn();
     updateActionNote(); hideBlockMenu();
   }
@@ -1257,13 +1284,13 @@
   function startRhythm(type) {
     ui.avnrt = null;
     if (type === 'avnrt') {
-      if (S.ap) { ui.struct.ap = ''; $('stAP').value = ''; S.setAccessoryPathway(null); placeAPMarker(); }
+      if (S.ap) setCondition('ap', '');
       S.stopArrhythmia();
       avnrtTrial(280);
       return;
     }
     if (type === 'avrt') {
-      if (!S.ap || S.apLocation !== 'left-lateral') { ui.struct.ap = 'left-lateral'; $('stAP').value = 'left-lateral'; S.setAccessoryPathway('left-lateral'); placeAPMarker(); }
+      if (!S.ap || S.apLocation !== 'left-lateral') setCondition('ap', 'left-lateral');
       S.stopArrhythmia();
       S.stimulateAt(A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === 3), S.nextSinus() + 270);
       return;
@@ -1288,10 +1315,10 @@
     resizeECG();
   }
 
-  function resizeECG() {
-    const wrap = $('ecgWrap'), W = wrap.clientWidth, H = wrap.clientHeight;
+  function resizeECG(size) {
+    const o = size && size.w ? size : null, wrap = $('ecgWrap'), W = o ? o.w : wrap.clientWidth, H = o ? o.h : wrap.clientHeight;
     if (!W || !H) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = o ? o.dpr : Math.min(2, window.devicePixelRatio || 1);
     for (const cv of [ecg.canvas, ecg.grid]) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     // width sets the scale (25 mm/s); spare height goes to taller rows
     const NR = 3 + ui.strips.length;
@@ -1361,7 +1388,7 @@
   // row (the four 2.5-s columns run on at 25 mm/s), so one band covers them all.
   // A full redraw happens only after a resize, a strip change or a new run.
   function drawECG() {
-    if (!ecg.mm) return;
+    if (!ecg.mm || (ecg.canvas.isConnected && !ecg.canvas.offsetWidth)) return;   // (phones show it only full screen)
     const ctx = ecg.ctx, mm = ecg.mm;
     const cursor = Math.floor((S.t + ecg.t0) % PAGE);
     if (ecg.full) {
@@ -1831,12 +1858,103 @@
   // Controls, focus and divider
   // ---------------------------------------------------------------------------
   // ---------------------------------------------------------------------------
+  // Conditions tab. Each condition is one entry here; the tab (active list,
+  // searchable catalogue, recently used), Reset, share links and the heart
+  // rebuild all read this list. A condition is on/off (ui.struct[id] true/false)
+  // or, with options, holds the chosen option ('' when off). apply(value) sets
+  // the simulation; rebuild: true conditions rebuild the heart instead.
+  // ---------------------------------------------------------------------------
+  const atrialSize = () => S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae });
+  const CONDITIONS = [
+    { id: 'rae', cat: 'Chambers', label: 'RAE', name: 'Right atrial enlargement', also: 'RAE P pulmonale atrium peaked P', apply: atrialSize },
+    { id: 'lae', cat: 'Chambers', label: 'LAE', name: 'Left atrial enlargement', also: 'LAE P mitrale atrium notched P', apply: atrialSize },
+    { id: 'lvh', cat: 'Chambers', label: 'LVH', name: 'Left ventricular hypertrophy', also: 'LVH ventricle voltage strain', rebuild: true },
+    { id: 'rvh', cat: 'Chambers', label: 'RVH', name: 'Right ventricular hypertrophy', also: 'RVH ventricle right axis deviation', rebuild: true },
+    { id: 'ap', cat: 'Accessory pathways', label: 'WPW', name: 'Accessory pathway (WPW)', also: 'Wolff-Parkinson-White pre-excitation bypass tract delta wave short PR',
+      options: [['left-lateral', 'Left lateral', '~55%'], ['posteroseptal', 'Posteroseptal', '~25%']], apply: (v) => S.setAccessoryPathway(v || null) },
+    { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
+    { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
+  ];
+  const COND = Object.fromEntries(CONDITIONS.map((c) => [c.id, c]));
+  const RECENT_KEY = 'ecgstudio.recentConditions';
+
+  async function setCondition(id, v) {
+    const c = COND[id];
+    v = c.options ? (c.options.some((o) => o[0] === v) ? v : '') : !!v;
+    if (ui.struct[id] === v || ui.rebuilding) return;
+    const prev = heartKey();
+    ui.struct[id] = v;
+    if (c.rebuild) {
+      ui.rebuilding = true; renderConditions();
+      try { await rebuildHeart(prev); } finally { ui.rebuilding = false; }
+    } else {
+      c.apply(v); placeAPMarker(); interpret();
+    }
+    renderConditions();
+  }
+  const condText = (c, v = ui.struct[c.id]) => c.options ? `${c.name}: ${c.options.find((o) => o[0] === v)[1].toLowerCase()}` : c.name;
+  const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+
+  // recently used (this browser only): 'peri' or 'ap:left-lateral'
+  function readRecent() { try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; } catch (e) { return []; } }
+  function noteRecent(id, v) {
+    const key = COND[id].options ? `${id}:${v}` : id;
+    const list = [key].concat(readRecent().filter((k) => k !== key && !k.startsWith(`${id}:`))).slice(0, 4);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) { /* storage unavailable */ }
+  }
+  function choose(id, v) { if (v) noteRecent(id, v); setCondition(id, v); }
+
+  function renderConditions() {
+    const busy = !!ui.rebuilding, on = CONDITIONS.filter((c) => ui.struct[c.id]);
+    $('noCond').hidden = !!on.length;
+    $('condActive').innerHTML = on.map((c) => `<div class="bchip cond"><span>${esc(condText(c))}</span><button type="button" data-id="${c.id}" aria-label="Remove ${esc(c.name)}"${busy && c.rebuild ? ' disabled' : ''}>×</button></div>`).join('');
+    const recent = readRecent().map((k) => k.split(':')).filter(([id, v]) => COND[id] && (COND[id].options ? COND[id].options.some((o) => o[0] === v) && ui.struct[id] !== v : !ui.struct[id]));
+    $('condRecent').hidden = !recent.length;
+    $('condRecentList').innerHTML = recent.map(([id, v]) => `<button type="button" data-id="${id}" data-v="${v || ''}"${busy && COND[id].rebuild ? ' disabled' : ''}>${esc(COND[id].options ? `${COND[id].label}, ${COND[id].options.find((o) => o[0] === v)[1].toLowerCase()}` : COND[id].label)}</button>`).join('');
+    const q = $('condSearch').value.trim().toLowerCase();
+    const match = (c) => !q || [c.name, c.label, c.cat, c.also || ''].concat((c.options || []).map((o) => o[1])).join(' ').toLowerCase().includes(q);
+    let html = '', cat = '';
+    for (const c of CONDITIONS.filter(match)) {
+      if (c.cat !== cat) { cat = c.cat; html += `<h4>${esc(cat)}</h4>`; }
+      const dis = busy && c.rebuild ? ' disabled' : '';
+      if (c.options) {
+        html += `<div class="crow${ui.struct[c.id] ? ' on' : ''}"><b>${esc(c.name)}</b><div class="copts" role="group" aria-label="${esc(c.name)}">` +
+          c.options.map(([v, lab, note]) => `<button type="button" data-id="${c.id}" data-v="${v}" aria-pressed="${ui.struct[c.id] === v}"${dis}>${esc(lab)}${note ? `<i>${esc(note)}</i>` : ''}</button>`).join('') + '</div></div>';
+      } else {
+        html += `<button type="button" class="crow" data-id="${c.id}" aria-pressed="${!!ui.struct[c.id]}"${dis}><b>${esc(c.name)}</b></button>`;
+      }
+    }
+    $('condList').innerHTML = html;
+    $('condNone').hidden = !!html;
+  }
+  function showCatalog(open) {
+    $('condCatalog').hidden = !open; $('condHome').hidden = open;
+    $('controls').classList.toggle('wide', ui.tab === 'learn' || (ui.tab === 'conditions' && open));
+    if (open) { $('condSearch').value = ''; renderConditions(); if (!matchMedia('(pointer: coarse)').matches) $('condSearch').focus(); }
+    else renderConditions();
+  }
+  function initConditions() {
+    $('condActive').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) setCondition(b.dataset.id, COND[b.dataset.id].options ? '' : false); });
+    $('condRecentList').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) choose(b.dataset.id, b.dataset.v || true); });
+    $('condList').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-id]'); if (!b) return;
+      const c = COND[b.dataset.id];
+      if (c.options) choose(c.id, ui.struct[c.id] === b.dataset.v ? '' : b.dataset.v);
+      else choose(c.id, !ui.struct[c.id]);
+    });
+    $('btnAddCond').addEventListener('click', () => showCatalog(true));
+    $('btnCondDone').addEventListener('click', () => { showCatalog(false); $('btnAddCond').focus(); });
+    $('condSearch').addEventListener('input', renderConditions);
+    $('condSearch').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); showCatalog(false); $('btnAddCond').focus(); } });
+    renderConditions();
+  }
+
+  // ---------------------------------------------------------------------------
   // Shareable scenario links (#r=72&a=af&b=LAF.complete&o=812&h=12&s=lvh,peri…)
   // and ECG export. The link holds settings, not the simulation, so a shared
   // scenario re-runs from the same starting point.
   // ---------------------------------------------------------------------------
-  const STRUCT_KEYS = ['rae', 'lae', 'lvh', 'rvh', 'peri', 'brugada'];
-  const STRUCT_BOX = { rae: 'stRAE', lae: 'stLAE', lvh: 'stLVH', rvh: 'stRVH', peri: 'stPeri', brugada: 'stBrugada' };
+  const STRUCT_KEYS = CONDITIONS.filter((c) => !c.options).map((c) => c.id);
   const ARR_TYPES = ['af', 'flutter', 'ectopic', 'mat', 'avnrt', 'avrt', 'vt', 'vf'];
   function scenarioLink() {
     const q = new URLSearchParams();
@@ -1853,7 +1971,7 @@
     if (S.insults.length) q.set('h', ui.ischH);
     const st = STRUCT_KEYS.filter((k) => ui.struct[k]);
     if (st.length) q.set('s', st.join(','));
-    if (ui.struct.ap) q.set('ap', ui.struct.ap);
+    for (const c of CONDITIONS) if (c.options && ui.struct[c.id]) q.set(c.id, ui.struct[c.id]);
     return `${location.origin}${location.pathname}#${q.toString()}`;
   }
   // Parse (and validate: links come from anywhere) the scenario in the address,
@@ -1863,9 +1981,8 @@
     const q = new URLSearchParams(location.hash.slice(1)), ints = (k) => (q.get(k) || '').split(',').filter((x) => /^\d+$/.test(x)).map(Number);
     const r = +q.get('r');
     if (r >= 30 && r <= 180) { ui.rate = Math.round(r); $('rate').value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`; }
-    for (const k of (q.get('s') || '').split(',')) if (STRUCT_KEYS.includes(k)) { ui.struct[k] = true; $(STRUCT_BOX[k]).checked = true; }
-    const ap = q.get('ap');
-    if (ap && [...$('stAP').options].some((o) => o.value === ap)) { ui.struct.ap = ap; $('stAP').value = ap; }
+    for (const k of (q.get('s') || '').split(',')) if (STRUCT_KEYS.includes(k)) ui.struct[k] = true;
+    for (const c of CONDITIONS) { const v = q.get(c.id); if (c.options && c.options.some((o) => o[0] === v)) ui.struct[c.id] = v; }
     const a = q.get('a'), v = +q.get('v'), h = +q.get('h');
     return {
       arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null,
@@ -1901,15 +2018,26 @@
   async function shareScenario() {
     const url = scenarioLink();
     history.replaceState(null, '', url);
-    try { await navigator.clipboard.writeText(url); toast('Link copied: it reopens this scenario (rhythm, blocks, ischemia and structure).'); }
+    try { await navigator.clipboard.writeText(url); toast('Link copied: it reopens this scenario (rhythm, blocks, ischemia and conditions).'); }
     catch (e) {                                                   // no clipboard access (http, some browsers): show the link to copy by hand
       toast('Copy this link to share the scenario:<input readonly>', 12000);
       const inp = $('toast').querySelector('input'); inp.value = url; inp.focus(); inp.select();
     }
   }
   // The ECG as shown, with the interpretation above it and a "simulated" stamp
+  // The 12-lead sheet: the one on screen, or (phones, where it is shown only
+  // full screen) one drawn offscreen at a fixed size
+  function sheetCanvas() {
+    if (ecg.canvas.offsetWidth) return { cv: ecg.canvas, dpr: ecg.canvas.width / $('ecgWrap').clientWidth };
+    const keep = { canvas: ecg.canvas, ctx: ecg.ctx, grid: ecg.grid, mm: ecg.mm, W: ecg.W, H: ecg.H, ox: ecg.ox, oy: ecg.oy, lastCursor: ecg.lastCursor }, keepP = Object.assign({}, PAPER);
+    const cv = document.createElement('canvas');
+    Object.assign(ecg, { canvas: cv, ctx: cv.getContext('2d'), grid: document.createElement('canvas') });
+    resizeECG({ w: 1100, h: 540, dpr: 2 }); drawECG();
+    Object.assign(ecg, keep, { full: true }); Object.assign(PAPER, keepP);
+    return { cv, dpr: 2 };
+  }
   function saveEcgPng() {
-    const src = ecg.canvas, dpr = src.width / ($('ecgWrap').clientWidth || src.width), W = src.width;
+    const { cv: src, dpr } = sheetCanvas(), W = src.width;
     const lines = [$('rhythm').textContent.trim(), [...$('chips').children].map((c) => [...c.childNodes].map((n) => n.textContent.trim()).filter(Boolean).join(' ')).join('   ·   ')]
       .concat([...$('findings').querySelectorAll('li')].map((li) => '• ' + li.textContent.trim())).filter(Boolean);
     const lh = 17 * dpr, head = Math.round((26 + lines.length * 17 + 10) * dpr), foot = Math.round(24 * dpr);
@@ -1923,13 +2051,504 @@
     g.drawImage(src, 0, head);
     g.fillStyle = '#6b7a87'; g.font = `${11 * dpr}px "IBM Plex Sans", system-ui, sans-serif`;
     g.fillText(`Simulated by ECG Studio for education; not a patient record. ${new Date().toLocaleString()}`, 10 * dpr, head + src.height + 6 * dpr);
-    cv.toBlob((blob) => {
+    cv.toBlob(async (blob) => {
       const a = document.createElement('a'), d = new Date(), z = (n) => String(n).padStart(2, '0');
+      const name = `ecgstudio-ecg-${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.png`;
+      if (isM()) {                                                // phones: the share sheet (save to Photos, send…)
+        const file = new File([blob], name, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try { await navigator.share({ files: [file], title: 'ECG Studio ECG' }); return; } catch (e) { if (e.name === 'AbortError') return; }
+        }
+      }
       a.href = URL.createObjectURL(blob);
-      a.download = `ecgstudio-ecg-${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.png`;
+      a.download = name;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     }, 'image/png');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Phones (portrait). Heart above, ECG one lead group at a time below, controls
+  // in a bottom sheet opened from the tab bar. Gestures on the heart replace the
+  // tab-dependent clicks: tap = PAC/PVC (bursts start arrhythmias), tap the
+  // conduction system in the cut view = blocks, press and hold = ischemia.
+  // Sheets, menus and full-screen views close with the system back button.
+  // ---------------------------------------------------------------------------
+  const MQ_PORT = matchMedia('(max-width: 743px) and (orientation: portrait)');
+  const MQ_LAND = matchMedia('(max-height: 500px) and (orientation: landscape) and (pointer: coarse)');
+  const isM = () => document.body.classList.contains('m');
+  const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
+  const SECS = [2500, 5000, 10000];
+  const HOLD_MS = 550, BURST_MS = 500, DOUBLE_MS = 350;
+  const ph = { group: 0, peek: null, win: 5000, live: 'II', fsEcg: false, fsHeart: false, flip: false };
+  const buzz = (ms = 10) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
+  // true the first time a tip key is seen in this browser
+  function firstTime(key) {
+    try { if (localStorage.getItem(key)) return false; localStorage.setItem(key, '1'); } catch (e) { /* no storage */ }
+    return true;
+  }
+
+  function setMode() {
+    const b = document.body, was = isM(), m = MQ_PORT.matches || MQ_LAND.matches;
+    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches);
+    const ctl = $('controls');
+    if (m && ctl.parentNode !== $('app')) $('app').insertBefore(ctl, $('mTabs'));
+    if (!m && ctl.parentNode !== $('pane3d')) $('pane3d').insertBefore(ctl, $('blockMenu'));
+    const vb = document.querySelector('.viewbar');
+    if (m && vb.parentNode !== $('viewSlot')) $('viewSlot').appendChild(vb);
+    if (!m && vb.parentNode !== $('pane3d')) $('pane3d').insertBefore(vb, $('rebuildNote'));
+    if (m && !was) { ui.strips = ['II']; if (g3.renderer) toggleControls(false); }
+    if (!m && was) {
+      layers.length = 0; ph.fsEcg = ph.fsHeart = false;
+      for (const k of ['interp-open', 'sheet-full']) b.classList.remove(k);
+      $('mMenu').hidden = true;
+    }
+    fsClass(); updateActionNote(); if (S) syncScrub();
+  }
+  function fsClass() {
+    const b = document.body, m = isM(), ml = b.classList.contains('ml');
+    b.classList.toggle('fs-ecg', m && (ph.fsEcg || ml));
+    b.classList.toggle('fs-heart', m && ph.fsHeart && !ml);
+    b.classList.toggle('flip', m && ph.flip && !ml);
+    sizeSheet();
+  }
+
+  // back button: each open sheet, menu or full-screen view is a history entry
+  const layers = [];
+  function openLayer(name, close) {
+    if (layers.some((l) => l.name === name)) return;
+    layers.push({ name, close }); history.pushState({ ecgLayer: layers.length }, '');
+  }
+  function closeLayer(name) {
+    const i = layers.findIndex((l) => l.name === name);
+    if (i < 0) return;
+    if (i === layers.length - 1) history.back();                // popstate closes it
+    else layers.splice(i, 1)[0].close();
+  }
+  const hasLayer = (name) => layers.some((l) => l.name === name);
+  function hideGuide() { if (hasLayer('help')) closeLayer('help'); else $('guide').hidden = true; }
+
+  // the controls sheet
+  const sheetOpen = () => !$('controls').classList.contains('collapsed');
+  function setSheetFull(f) { document.body.classList.toggle('sheet-full', f); }
+  function sizeSheet() {
+    if (!isM()) return;
+    const tabs = $('mTabs').getBoundingClientRect().top, b = document.body.classList;
+    const top = b.contains('fs-heart') ? (() => { const r = $('pane3d').getBoundingClientRect(); return r.top + 0.55 * r.height; })() : $('paneEcg').getBoundingClientRect().top;
+    document.body.style.setProperty('--sheetmax', `${Math.max(160, Math.round(tabs - top))}px`);
+  }
+  function openSheet(tab) {
+    const was = sheetOpen();
+    setTab(tab);
+    if (!was) openLayer('sheet', () => { toggleControls(false); setSheetFull(false); });
+  }
+
+  function setPaused(p) {
+    ui.paused = p; $('btnPause').textContent = p ? 'Resume' : 'Pause';
+    $('mPlay').classList.toggle('paused', p); $('mPlay').setAttribute('aria-label', `${p ? 'Resume' : 'Pause'}. Hold to reset`);
+  }
+  function setSpeed(i) {
+    ui.scaleIdx = i; $('timescale').value = i; $('tsVal').textContent = SCALE_LABEL[i];
+    $('mSpeed').textContent = SCALE_LABEL[i]; $('mSpeed').setAttribute('aria-label', `Simulation speed: ${SCALE_LABEL[i]}. Tap to change`);
+  }
+  // phones: the ischemia time scrubber on the heart (shown while ischemia is present)
+  function syncScrub() {
+    const on = isM() && S.insults.length > 0, i = stopOf(ui.ischH);
+    document.body.classList.toggle('has-isch', on); $('mScrub').hidden = !on;
+    $('mScrubR').value = i; $('mScrubVal').textContent = ISCH_STOPS[i][1];
+  }
+  function updateFloat() {
+    if (!isM()) return;
+    const arr = S.arrhythmia && S.arrhythmia.type, s = ui.snap || {};
+    $('mShock').hidden = !(arr === 'vt' || arr === 'vf');
+    $('mAdeno').hidden = !(s.avnrt || s.avrt || arr === 'flutter');
+  }
+
+  // ECG strips for phones: a lead group (or the one live lead under the
+  // full-screen heart) swept across the width at 25 mm/s, 10 mm/mV
+  function paperGrid(w, h, mm) {
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
+    const lines = (step, colour, width) => {
+      g.beginPath(); g.strokeStyle = colour; g.lineWidth = width;
+      for (let x = 0; x <= w; x += step) { g.moveTo(Math.round(x) + 0.5, 0); g.lineTo(Math.round(x) + 0.5, h); }
+      for (let y = h; y >= 0; y -= step) { g.moveTo(0, Math.round(y) + 0.5); g.lineTo(w, Math.round(y) + 0.5); }
+      g.stroke();
+    };
+    if (mm >= 3) lines(mm, '#f7d3da', 1);
+    lines(5 * mm, '#ec8fa3', 1.2);
+    return cv;
+  }
+  function stripTrace(ctx, buf, t0, t1, x0, y0, gain, pxPerMs) {
+    let pen = false, lastY = 0;
+    const cols = Math.ceil((t1 - t0) * pxPerMs);
+    for (let px = 0; px < cols; px++) {
+      const a = t0 + Math.floor(px / pxPerMs), b = Math.max(a + 1, Math.min(t1, t0 + Math.floor((px + 1) / pxPerMs)));
+      let mn = Infinity, mx = -Infinity, first = NaN;
+      for (let s = a; s < b; s++) {
+        if (s < 0) continue;
+        const v = buf[bufIdx(s)]; if (v !== v) continue;
+        if (first !== first) first = v;
+        if (v < mn) mn = v; if (v > mx) mx = v;
+      }
+      if (mn === Infinity) { pen = false; continue; }
+      const x = x0 + px, yMin = y0 - mx * gain, yMax = y0 - mn * gain, yF = y0 - first * gain;
+      if (!pen) { ctx.moveTo(x, yF); pen = true; } else ctx.lineTo(x, yF);
+      if (Math.abs(lastY - yMin) < Math.abs(lastY - yMax)) { ctx.lineTo(x, yMin); ctx.lineTo(x, yMax); lastY = yMax; }
+      else { ctx.lineTo(x, yMax); ctx.lineTo(x, yMin); lastY = yMin; }
+    }
+  }
+  function drawLeads(cv, leads, win, note, noLabel) {
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (!W || !H) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(W * dpr), h = Math.round(H * dpr);
+    const mm = w / (win * 0.025), pxPerMs = 0.025 * mm, gain = 10 * mm, key = `${w}x${h}:${win}`;
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    if (cv.gridKey !== key) { cv.grid = paperGrid(w, h, mm); cv.gridKey = key; }
+    const ctx = cv.getContext('2d');
+    ctx.drawImage(cv.grid, 0, 0);
+    const now = Math.floor(S.t), ws = Math.floor(now / win) * win, rowH = h / leads.length;
+    ctx.strokeStyle = '#111'; ctx.lineWidth = Math.max(1.1 * dpr / 1.5, 0.3 * mm); ctx.lineJoin = 'round';
+    leads.forEach((n, i) => {
+      const buf = ecg.buf[LH.LEADS.indexOf(n)], y0 = rowH * (i + 0.6);
+      ctx.beginPath();
+      stripTrace(ctx, buf, ws, now + 1, 0, y0, gain, pxPerMs);                                   // this sweep
+      const t0 = Math.max(0, now - win + ERASE);                                                // the last one, ahead of the cursor
+      if (t0 < ws) stripTrace(ctx, buf, t0, ws, (t0 - ws + win) * pxPerMs, y0, gain, pxPerMs);
+      ctx.stroke();
+    });
+    ctx.fillStyle = 'rgba(194,48,79,0.25)'; ctx.fillRect((now - ws) * pxPerMs, 0, Math.max(2, 0.5 * mm), h);
+    ctx.font = `600 ${12 * dpr}px "IBM Plex Sans", system-ui, sans-serif`; ctx.textBaseline = 'top';
+    if (!noLabel) leads.forEach((n, i) => {
+      const y = rowH * i + 5 * dpr, tw = ctx.measureText(n).width;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(4 * dpr, y - 2 * dpr, tw + 8 * dpr, 17 * dpr);
+      ctx.fillStyle = '#111'; ctx.fillText(n, 8 * dpr, y);
+    });
+    if (note) {
+      ctx.font = `${11 * dpr}px "IBM Plex Sans", system-ui, sans-serif`; ctx.fillStyle = '#8a5a66'; ctx.textAlign = 'right';
+      ctx.fillText(note, w - 8 * dpr, 5 * dpr); ctx.textAlign = 'left';
+    }
+  }
+  function drawPhone() {
+    if (!isM()) return;
+    const b = document.body.classList;
+    if (b.contains('fs-heart')) drawLeads($('clive'), [ph.live], 5000, 'double-tap: back', true);
+    else if (!b.contains('fs-ecg')) {
+      drawLeads($('cgroup'), GROUPS[ph.group], ph.win);
+      if (ph.peek !== null) drawLeads($('cgroup2'), GROUPS[ph.peek], ph.win);
+    }
+  }
+  function setGroup(i) {
+    ph.group = (i + GROUPS.length) % GROUPS.length;
+    for (const [k, d] of [...$('mDots').children].entries()) d.setAttribute('aria-selected', String(k === ph.group));
+  }
+  function setFsEcg(on) {
+    if (on && !ph.fsEcg) {
+      ph.fsEcg = true; ui.strips = ['II']; fsClass();
+      openLayer('fs-ecg', () => { ph.fsEcg = false; fsClass(); });
+      $('ghint').hidden = true; firstTime('ecgstudio.tipFsEcg');
+    } else if (!on && ph.fsEcg) closeLayer('fs-ecg');
+  }
+  function toggleFsHeart() {
+    if (ph.fsHeart) { closeLayer('fs-heart'); return; }
+    ph.fsHeart = true; fsClass(); buzz();
+    openLayer('fs-heart', () => { ph.fsHeart = false; fsClass(); if (hasLayer('leads')) closeLayer('leads'); });
+  }
+
+  // gestures on the heart
+  const ARR_NAME = { flutter: 'Atrial flutter', af: 'Atrial fibrillation', vt: 'Ventricular tachycardia', vf: 'Ventricular fibrillation' };
+  const AV_CYCLE = [null, ['AVN', 'first'], ['AVN', 'wenckebach'], ['AVN', 'two-to-one'], ['HIS', 'mobitz2'], ['AVN', 'complete'], ['HIS', 'complete']];
+  const SA_CYCLE = [null, 'sa-exit', 'pause', 'arrest'];
+  const burst = { region: '', n: 0, t: 0 }, avTaps = { n: 0, timer: 0, last: 0, commit: null };
+  let lastEmpty = null;
+  function rayAt(x, y) {
+    const r = $('c3d').getBoundingClientRect(), ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
+    return ray;
+  }
+  // block site under a tap in the cut view: the SA node, a conduction tube, or
+  // the nearest conduction point on screen within a fingertip
+  function conductionAt(ray, x, y) {
+    if (ray.intersectObject(g3.sanPick, false).length) return 'SAN';
+    const hit = ray.intersectObjects(g3.pickTubes, false)[0];
+    if (hit) { const site = SEG_SITE[M.seg[hit.object.userData.map[hit.face.a]]]; if (site) return site; }
+    const r = $('c3d').getBoundingClientRect(), v = new THREE.Vector3();
+    let best = null, bd = 22 * 22;
+    for (const q of g3.csPts) {
+      v.copy(q.p).applyMatrix4(g3.inner.matrixWorld).project(g3.camera);
+      const d = ((v.x + 1) / 2 * r.width - x) ** 2 + ((1 - v.y) / 2 * r.height - y) ** 2;
+      if (d < bd) { bd = d; best = q.site; }
+    }
+    return best;
+  }
+  const blockText = (site, type) => (BLOCK_MENU[site].find((m) => m[0] === type) || [])[1];
+  function setBlockFrom(site, type) {
+    const m = BLOCK_MENU[site].find((x) => x[0] === type);
+    S.setBlock(site, type, (m && m[2]) || {});
+  }
+  function avStep() {
+    const a = S.blocks.AVN, h = S.blocks.HIS;
+    return Math.max(0, AV_CYCLE.findIndex((e) => e && (e[0] === 'AVN' ? a && !h && a.type === e[1] : h && !a && h.type === e[1])));
+  }
+  function setAV(i) {
+    S.setBlock('AVN', null); S.setBlock('HIS', null);
+    const e = AV_CYCLE[i]; if (e) setBlockFrom(e[0], e[1]);
+    renderBlockList(); interpret(true);
+  }
+  function conductionTap(site, x, y, now) {
+    if (site === 'AVN' || site === 'HIS') {
+      // one tap steps through the AV blocks (after a short wait), three start AVNRT/AVRT
+      clearTimeout(avTaps.timer);
+      if (avTaps.n && now - avTaps.last > DOUBLE_MS) avTaps.commit();       // a slow second tap starts a new group
+      avTaps.n++; avTaps.last = now; buzz(8);
+      avTaps.commit = () => {
+        clearTimeout(avTaps.timer);
+        const n = avTaps.n; avTaps.n = 0;
+        if (n >= 3) {
+          const t = S.ap ? 'avrt' : 'avnrt';
+          setAV(0); startRhythm(t); syncRate(); interpret(); buzz(40);
+          flash(x, y, t === 'avrt' ? 'Inducing AVRT' : 'Inducing AVNRT'); return;
+        }
+        const i = (avStep() + n) % AV_CYCLE.length, e = AV_CYCLE[i];
+        setAV(i); flash(x, y, e ? blockText(e[0], e[1]) : 'AV conduction normal');
+      };
+      avTaps.timer = setTimeout(avTaps.commit, DOUBLE_MS);
+      return;
+    }
+    if (site === 'SAN') {
+      const cur = S.blocks.SAN ? SA_CYCLE.indexOf(S.blocks.SAN.type) : 0, t = SA_CYCLE[(Math.max(0, cur) + 1) % SA_CYCLE.length];
+      if (t) setBlockFrom('SAN', t); else S.setBlock('SAN', null);
+      flash(x, y, t ? blockText('SAN', t) : 'Sinus node normal');
+    } else {
+      const on = !S.blocks[site];
+      if (on) setBlockFrom(site, 'complete'); else S.setBlock(site, null);
+      flash(x, y, on ? blockText(site, 'complete') : `${SITE_NAME[site]}: conducting`);
+    }
+    buzz(); renderBlockList(); interpret(true);
+  }
+  // taps on muscle stimulate; three quick ones on an atrium or ventricle start
+  // a tachyarrhythmia (as burst pacing does), a fourth on the ventricles VF
+  function burstTap(c, x, y, now) {
+    const lab = A.label[c], region = lab === LH.LAB.RA ? 'RA' : lab === LH.LAB.LA ? 'LA' : 'V';
+    burst.n = burst.region === region && now - burst.t < BURST_MS ? burst.n + 1 : 1;
+    burst.region = region; burst.t = now;
+    const arr = region === 'V' ? (burst.n === 3 ? 'vt' : burst.n === 4 ? 'vf' : null) : burst.n === 3 ? (region === 'RA' ? 'flutter' : 'af') : null;
+    if (arr) { startRhythm(arr); syncRate(); interpret(); updateFloat(); flash(x, y, ARR_NAME[arr]); buzz(40); return; }
+    stimulateAt(c, x, y); buzz();
+  }
+  // (now: when the finger touched, so a busy main thread does not stretch a burst)
+  function mobileTap(x, y, now) {
+    hideBlockMenu();
+    const ray = rayAt(x, y);
+    if (ui.view === 'cutaway') { const site = conductionAt(ray, x, y); if (site) { lastEmpty = null; conductionTap(site, x, y, now); return; } }
+    const c = tissueAt(ray);
+    if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }
+    // empty space: a double-tap fills the screen with the heart (and back)
+    if (lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
+    else lastEmpty = { x, y, t: now };
+  }
+  function mobileHold(x, y) {
+    const n = S.insults.length;
+    pickIschemia(rayAt(x, y), x, y);
+    if (S.insults.length > n) openSheet('ischemia');
+  }
+  function initTouch() {
+    const canvas = $('c3d'), ring = $('press');
+    let down = null, timer = 0, raf = 0, pointers = 0;
+    const at = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    const stop = () => { clearTimeout(timer); cancelAnimationFrame(raf); ring.hidden = true; };
+    canvas.addEventListener('contextmenu', (e) => { if (isM()) e.preventDefault(); });
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!isM()) return;
+      if (++pointers > 1) { down = null; stop(); return; }           // pinch
+      const p = at(e), t0 = performance.now();
+      down = { x: p.x, y: p.y, held: false };
+      timer = setTimeout(() => { if (!down) return; down.held = true; stop(); buzz(25); mobileHold(p.x, p.y); }, HOLD_MS);
+      // the ring appears after a moment and fills until the hold acts
+      const grow = () => {
+        if (!down || down.held) return;
+        const k = (performance.now() - t0 - 150) / (HOLD_MS - 150);
+        if (k > 0) { ring.hidden = false; ring.style.left = `${p.x}px`; ring.style.top = `${p.y}px`; ring.style.setProperty('--p', `${Math.min(100, k * 100)}%`); }
+        raf = requestAnimationFrame(grow);
+      };
+      raf = requestAnimationFrame(grow);
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!down) return;
+      const p = at(e); if (Math.hypot(p.x - down.x, p.y - down.y) > 10) { down = null; stop(); }   // a drag rotates
+    });
+    const end = (e) => {
+      if (!isM()) return;
+      pointers = Math.max(0, pointers - 1); stop();
+      const d = down; down = null;
+      if (d && !d.held && e.type === 'pointerup') mobileTap(d.x, d.y, e.timeStamp);
+    };
+    canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
+  }
+
+  // ECG: swipe between lead groups (the strip follows the finger and slides on),
+  // double-tap for the full 12 leads (and back)
+  function slideGroup(dir, from = 0) {
+    const wrap = $('ecgWrap'), a = $('cgroup'), b2 = $('cgroup2'), W = a.clientWidth;
+    ph.peek = (ph.group + dir + GROUPS.length) % GROUPS.length;
+    b2.hidden = false; drawPhone();
+    const place = (x) => { a.style.transform = `translateX(${x}px)`; b2.style.transform = `translateX(${x + dir * W}px)`; };
+    wrap.classList.remove('slide'); place(from); void a.offsetWidth;
+    wrap.classList.add('slide'); place(-dir * W);
+    clearTimeout(slideGroup.timer);
+    slideGroup.timer = setTimeout(() => finishSlide(true), 240);
+  }
+  function finishSlide(moved) {
+    const wrap = $('ecgWrap'), a = $('cgroup'), b2 = $('cgroup2');
+    if (moved && ph.peek !== null) setGroup(ph.peek);
+    ph.peek = null; drawPhone();
+    wrap.classList.remove('slide'); a.style.transform = b2.style.transform = ''; b2.hidden = true;
+  }
+  function initEcgTouch() {
+    const wrap = $('ecgWrap'), a = $('cgroup'), b2 = $('cgroup2');
+    let down = null, lastTap = null;
+    wrap.addEventListener('pointerdown', (e) => {
+      if (!isM() || e.target.closest('button')) return;
+      const r = wrap.getBoundingClientRect();
+      down = { x: e.clientX, y: e.clientY, t: e.timeStamp, edge: e.clientX - r.left < 24 || r.right - e.clientX < 24, drag: 0 };
+      try { wrap.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
+    });
+    wrap.addEventListener('pointermove', (e) => {
+      const d = down;
+      if (!d || d.edge || document.body.classList.contains('fs-ecg')) return;
+      const dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (!d.drag && Math.abs(dx) > 8 && Math.abs(dx) > 1.2 * Math.abs(dy)) d.drag = dx < 0 ? 1 : -1;
+      if (!d.drag) return;
+      const dir = dx < 0 ? 1 : -1, W = a.clientWidth;
+      if (ph.peek !== (ph.group + dir + GROUPS.length) % GROUPS.length) { ph.peek = (ph.group + dir + GROUPS.length) % GROUPS.length; b2.hidden = false; }
+      wrap.classList.remove('slide');
+      a.style.transform = `translateX(${dx}px)`; b2.style.transform = `translateX(${dx + dir * W}px)`;
+    });
+    wrap.addEventListener('pointerup', (e) => {
+      const d = down; down = null;
+      if (!d || !isM()) return;
+      const dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (d.drag) {
+        // past a quarter of the width, or a quick flick: slide on; otherwise slide back
+        const W = a.clientWidth, fast = Math.abs(dx) / Math.max(1, e.timeStamp - d.t) > 0.5 && Math.abs(dx) > 30;
+        if (Math.abs(dx) > W / 4 || fast) slideGroup(dx < 0 ? 1 : -1, dx);
+        else {
+          wrap.classList.add('slide'); a.style.transform = 'translateX(0)'; b2.style.transform = `translateX(${(dx < 0 ? 1 : -1) * W}px)`;
+          clearTimeout(slideGroup.timer); slideGroup.timer = setTimeout(() => finishSlide(false), 240);
+        }
+        lastTap = null; return;
+      }
+      if (Math.hypot(dx, dy) > 10) return;
+      const now = e.timeStamp;
+      if (lastTap && now - lastTap.t < DOUBLE_MS && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) {
+        lastTap = null;
+        if (!document.body.classList.contains('ml')) setFsEcg(!ph.fsEcg);
+      } else lastTap = { x: e.clientX, y: e.clientY, t: now };
+    });
+    wrap.addEventListener('pointercancel', () => { if (down && down.drag) finishSlide(false); down = null; });
+  }
+
+  // sheet: drag the handle down to close (or back to half), up for full height;
+  // a downward swipe on the content at its top also closes it
+  function initSheet() {
+    const head = $('shead'), ctl = $('controls'), body = ctl.querySelector('.body');
+    let y0 = null;
+    head.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; y0 = e.clientY; head.setPointerCapture(e.pointerId); });
+    head.addEventListener('pointermove', (e) => { if (y0 !== null) ctl.style.transform = `translateY(${Math.max(-30, e.clientY - y0)}px)`; });
+    const end = (e) => {
+      if (y0 === null) return;
+      const dy = e.clientY - y0; y0 = null; ctl.style.transform = '';
+      const full = document.body.classList.contains('sheet-full');
+      if (dy > 60) { if (full) setSheetFull(false); else closeLayer('sheet'); }
+      else if (dy < -40 || Math.abs(dy) < 6) setSheetFull(dy < -40 ? true : !full);   // a tap on the handle toggles the height
+    };
+    head.addEventListener('pointerup', end); head.addEventListener('pointercancel', end);
+    let ty = null;
+    body.addEventListener('touchstart', (e) => { ty = body.scrollTop <= 0 ? e.touches[0].clientY : null; }, { passive: true });
+    body.addEventListener('touchmove', (e) => {
+      if (ty !== null && e.touches[0].clientY - ty > 90 && body.scrollTop <= 0) { ty = null; if (document.body.classList.contains('sheet-full')) setSheetFull(false); else closeLayer('sheet'); }
+    }, { passive: true });
+    $('sclose').addEventListener('click', () => closeLayer('sheet'));
+    for (const b of $('mTabs').querySelectorAll('button')) b.addEventListener('click', () => {
+      if (sheetOpen() && ui.tab === b.dataset.tab) closeLayer('sheet'); else openSheet(b.dataset.tab);
+    });
+  }
+
+  function initPhone() {
+    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode);
+    window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
+    document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
+    initTouch(); initEcgTouch(); initSheet();
+    new ResizeObserver(sizeSheet).observe($('split')); sizeSheet();
+    // header: speed, pause (hold to reset), more
+    $('mSpeed').addEventListener('click', () => setSpeed(ui.scaleIdx > 0 ? ui.scaleIdx - 1 : SCALES.length - 1));
+    const play = $('mPlay');
+    let hold = 0, held = false;
+    play.addEventListener('pointerdown', () => {
+      held = false; play.classList.add('holding');
+      hold = setTimeout(() => { held = true; play.classList.remove('holding'); buzz(30); $('btnReset').click(); setPaused(false); toast('Reset: sinus rhythm at 72 bpm'); }, 700);
+    });
+    const release = (e) => {
+      clearTimeout(hold); play.classList.remove('holding');
+      if (e.type === 'pointerup' && !held) { setPaused(!ui.paused); if (ui.paused && firstTime('ecgstudio.tipReset')) toast('Tip: press and hold ⏯ to reset'); }
+    };
+    play.addEventListener('pointerup', release); play.addEventListener('pointercancel', release); play.addEventListener('pointerleave', release);
+    play.addEventListener('click', (e) => { if (e.detail === 0) setPaused(!ui.paused); });          // keyboard
+    const menu = $('mMenu'), more = $('mMore');
+    const showMenu = (on) => { menu.hidden = !on; more.setAttribute('aria-expanded', String(on)); };
+    more.addEventListener('click', () => { if (menu.hidden) { showMenu(true); openLayer('menu', () => showMenu(false)); } else closeLayer('menu'); });
+    document.addEventListener('pointerdown', (e) => { if (!menu.hidden && !menu.contains(e.target) && !more.contains(e.target)) closeLayer('menu'); }, true);
+    $('mShare').addEventListener('click', async () => {
+      closeLayer('menu');
+      const url = scenarioLink();
+      if (navigator.share) { try { await navigator.share({ title: 'ECG Studio scenario', url }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+      shareScenario();
+    });
+    $('mPng').addEventListener('click', () => { closeLayer('menu'); saveEcgPng(); });
+    $('mHelp').addEventListener('click', () => { closeLayer('menu'); $('guide').hidden = false; openLayer('help', () => { $('guide').hidden = true; }); });
+    // heart: view options, floating actions, live lead
+    $('mLearn').addEventListener('click', () => { if (sheetOpen() && ui.tab === 'learn') closeLayer('sheet'); else openSheet('learn'); });
+    $('mScrubR').addEventListener('input', (e) => {
+      if (+e.target.value === +$('ischTime').value) return;
+      $('ischTime').value = e.target.value; $('ischTime').dispatchEvent(new Event('input')); buzz(8);
+    });
+    $('mShock').addEventListener('click', () => { buzz(40); $('btnShock').click(); updateFloat(); });
+    $('mAdeno').addEventListener('click', () => { buzz(); $('btnAdeno').click(); });
+    // live lead: its label opens a lead menu; a double-tap on the strip returns to two panes
+    let liveTap = null;
+    $('liveWrap').addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      if (liveTap && e.timeStamp - liveTap < DOUBLE_MS) { liveTap = null; toggleFsHeart(); } else liveTap = e.timeStamp;
+    });
+    const lm = $('leadMenu'), lb = $('leadBtn');
+    const showLeads = (on) => {
+      lm.hidden = !on; lb.setAttribute('aria-expanded', String(on));
+      if (on) lm.innerHTML = LH.LEADS.map((n) => `<button type="button" role="menuitemradio" aria-checked="${n === ph.live}" data-lead="${n}">${n}</button>`).join('');
+    };
+    lb.addEventListener('click', () => { if (lm.hidden) { showLeads(true); openLayer('leads', () => showLeads(false)); } else closeLayer('leads'); });
+    lm.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-lead]'); if (!b) return;
+      ph.live = b.dataset.lead; lb.textContent = `${ph.live} ▾`; lb.setAttribute('aria-label', `Live lead: ${ph.live}. Change lead`); buzz(); closeLayer('leads');
+    });
+    document.addEventListener('pointerdown', (e) => { if (!lm.hidden && !lm.contains(e.target) && !lb.contains(e.target)) closeLayer('leads'); }, true);
+    // ECG: interpretation bar, lead groups, seconds, full-screen controls
+    $('interp').addEventListener('click', (e) => {
+      if (!isM() || document.body.classList.contains('fs-ecg') || e.target.closest('button')) return;
+      if (hasLayer('interp')) closeLayer('interp');
+      else { document.body.classList.add('interp-open'); openLayer('interp', () => document.body.classList.remove('interp-open')); }
+    });
+    $('mDots').innerHTML = GROUPS.map((g, i) => `<button type="button" role="tab" aria-label="${g.join(', ')}" aria-selected="${i === ph.group}"></button>`).join('');
+    [...$('mDots').children].forEach((d, i) => d.addEventListener('click', () => { if (i !== ph.group && ph.peek === null) { const f = (i - ph.group + GROUPS.length) % GROUPS.length; if (f === 1 || f === GROUPS.length - 1) slideGroup(f === 1 ? 1 : -1); else setGroup(i); } }));
+    $('mSecs').addEventListener('click', () => {
+      ph.win = SECS[(SECS.indexOf(ph.win) + 1) % SECS.length];
+      const t = `${ph.win / 1000} s`; $('mSecs').textContent = t; $('mSecs').setAttribute('aria-label', `Seconds shown: ${t}. Tap to change`);
+    });
+    $('fsExit').addEventListener('click', () => setFsEcg(false));
+    $('fsFlip').addEventListener('click', () => { ph.flip = !ph.flip; fsClass(); });
+    $('fsInterp').addEventListener('click', () => { const off = document.body.classList.toggle('fs-nointerp'); $('fsInterp').setAttribute('aria-pressed', String(!off)); });
+    try { if (localStorage.getItem('ecgstudio.tipFsEcg')) $('ghint').hidden = true; } catch (e) { /* no storage */ }
+    if (isM() && MQ_PORT.matches && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double-tap the ECG for all 12 leads, or the space beside the heart to fill the screen with it. The tabs below explain the gestures.', 7000), 800);
   }
 
   function initUI() {
@@ -1941,12 +2560,7 @@
     const ts = $('timescale');
     ts.addEventListener('input', () => { ui.scaleIdx = +ts.value; $('tsVal').textContent = SCALE_LABEL[ui.scaleIdx]; });
     $('ovLabels').addEventListener('change', (e) => { ui.labels = e.target.checked; });
-    // phones: one pane at a time
-    for (const b of $('viewsw').querySelectorAll('button')) b.addEventListener('click', () => {
-      document.body.classList.toggle('show-ecg', b.dataset.pane === 'ecg');
-      for (const x of $('viewsw').querySelectorAll('button')) x.setAttribute('aria-selected', String(x === b));
-    });
-    $('ovLegend').checked = !matchMedia(PHONE).matches; $('legend').hidden = !$('ovLegend').checked;
+    $('ovLegend').checked = !isM(); $('legend').hidden = !$('ovLegend').checked;
     $('ovLegend').addEventListener('change', (e) => { $('legend').hidden = !e.target.checked; });
     $('ovLeads').addEventListener('change', (e) => {
       ui.leads = e.target.checked;
@@ -1954,38 +2568,26 @@
       // pull back so the chest electrodes fit in view
       if (ui.leads && g3.camera.position.length() < 600) { g3.camera.position.setLength(660); g3.controls.update(); }
     });
-    $('btnPause').addEventListener('click', () => { ui.paused = !ui.paused; $('btnPause').textContent = ui.paused ? 'Resume' : 'Pause'; });
+    $('btnPause').addEventListener('click', () => setPaused(!ui.paused));
     // Reset: normal sinus rhythm at 72 bpm with no abnormalities
     $('btnReset').addEventListener('click', async () => {
       ui.avnrt = null; ui.preAtrRate = null; ui.vRate = null;
       ui.rate = 72; $('rate').value = 72;
-      const prev = heartKey(), rebuild = ui.struct.lvh || ui.struct.rvh;
-      Object.assign(ui.struct, { rae: false, lae: false, lvh: false, rvh: false, ap: '', peri: false, brugada: false });
-      for (const id of ['stRAE', 'stLAE', 'stLVH', 'stRVH', 'stPeri', 'stBrugada']) $(id).checked = false;
-      $('stAP').value = ''; placeAPMarker();
+      const prev = heartKey(), rebuild = CONDITIONS.some((c) => c.rebuild && ui.struct[c.id]);
+      for (const c of CONDITIONS) ui.struct[c.id] = c.options ? '' : false;
+      placeAPMarker(); showCatalog(false); renderConditions();
       if (rebuild) await rebuildHeart(prev); else newSim();
       renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); ui.rateMode = ''; syncRate();
     });
     $('ischTime').addEventListener('input', (e) => {
       ui.ischH = ISCH_STOPS[+e.target.value][0]; $('ischVal').textContent = fmtHours(ui.ischH); $('ischStage').textContent = ischStage(ui.ischH);
       ui.ischPending = ui.ischH;                                  // applied once per frame
-    });
-    for (const [id, key] of [['stRAE', 'rae'], ['stLAE', 'lae']]) $(id).addEventListener('change', (e) => {
-      ui.struct[key] = e.target.checked; S.setAtrialEnlargement({ ra: ui.struct.rae, la: ui.struct.lae }); interpret();
-    });
-    for (const [id, key] of [['stLVH', 'lvh'], ['stRVH', 'rvh']]) $(id).addEventListener('change', async (e) => {
-      const prev = heartKey();
-      ui.struct[key] = e.target.checked;
-      for (const x of ['stLVH', 'stRVH']) $(x).disabled = true;
-      await rebuildHeart(prev);
-      for (const x of ['stLVH', 'stRVH']) $(x).disabled = false;
+      syncScrub();
     });
     for (const b of $('arrButtons').querySelectorAll('button')) b.addEventListener('click', () => { startRhythm(b.dataset.arr); syncRate(); interpret(); });
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); });
     $('btnShock').addEventListener('click', () => { ui.avnrt = null; S.shock(); syncRate(); interpret(); });
-    $('stPeri').addEventListener('change', (e) => { ui.struct.peri = e.target.checked; S.setPericarditis(ui.struct.peri); interpret(); });
-    $('stBrugada').addEventListener('change', (e) => { ui.struct.brugada = e.target.checked; S.setBrugada(ui.struct.brugada); interpret(); });
-    $('stAP').addEventListener('change', (e) => { ui.struct.ap = e.target.value; S.setAccessoryPathway(ui.struct.ap || null); placeAPMarker(); interpret(); });
+    initConditions();
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
     initPicking(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
@@ -1994,18 +2596,19 @@
     $('cutFull').addEventListener('click', () => setCut(100));
     initStrips();
     g3.controls.addEventListener('change', () => { if (ui.view === 'cutaway') g3.planeDirty = true; });
-    if (window.matchMedia(PHONE).matches) toggleControls(false);   // start collapsed on phones
+    if (isM()) toggleControls(false);   // phones: the sheet opens from the tab bar
+    initPhone();
     $('btnHelp').addEventListener('click', () => { $('guide').hidden = false; });
     $('btnShare').addEventListener('click', shareScenario);
     window.addEventListener('hashchange', () => location.reload());   // a scenario link pasted into an open tab
     $('btnSavePng').addEventListener('click', saveEcgPng);
-    $('guideClose').addEventListener('click', () => { $('guide').hidden = true; });
+    $('guideClose').addEventListener('click', hideGuide);
     for (const b of document.querySelectorAll('#guide .toc button')) b.addEventListener('click', () => {
       for (const x of document.querySelectorAll('#guide .toc button')) x.setAttribute('aria-selected', String(x === b));
       for (const pg of document.querySelectorAll('#guide .hpage')) pg.hidden = pg.dataset.page !== b.dataset.page;
     });
-    $('guide').addEventListener('click', (e) => { if (e.target.id === 'guide') $('guide').hidden = true; });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('guide').hidden = true; });
+    $('guide').addEventListener('click', (e) => { if (e.target.id === 'guide') hideGuide(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideGuide(); });
 
     // split: focus buttons and draggable divider
     const split = $('split');
