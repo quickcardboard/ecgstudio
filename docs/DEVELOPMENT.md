@@ -364,3 +364,16 @@ Reciprocal R grows somewhat (proximal RCA: R in I 1.1 → 1.5 mV). Remaining: an
 LAD) infarct keeps R in V3–V4, because the apex is activated late (20–27 ms) by the Purkinje
 network; fixing that needs the conduction-system retune described above. `ladRvMm` (LAD supply of
 the anterior RV strip) stays off.
+
+### Round 22: coronary territories against the AHA 17-segment model (from branch cs-tune)
+
+`tools/aha_segments.js` measures which artery supplies each AHA wall. The model gave most of the
+anterolateral wall to the LAD (64–74%), where the AHA typical assignment is the circumflex. Two
+causes: the diagonals reached too far round and OM1 ran too posteriorly; and the proximal LAD,
+which curves from the left main round the pulmonary trunk to the anterior groove, was claiming the
+basal anterolateral wall through the nearest-node rule although it gives no free-wall branches on
+that stretch. Fixes: OM1 down the anterolateral–lateral wall, diagonals at the anterior–anterolateral
+junction, proximal-LAD nodes lateral of `ladProxFreeWallPhi` excluded from free-wall assignment.
+Agreement with AHA 81% → 88%; anterolateral wall now 78–85% circumflex. Proximal LCx at 1 h gives ST
+elevation in I, aVL, V5–V6 with reciprocal III/aVF and posterior (V1–V4) depression (was V6 only);
+mid LAD loses I/aVL and shows the wrap-around inferior pattern; distal LCx unchanged.
