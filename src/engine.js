@@ -761,7 +761,17 @@
       // left main: from the left-posterior aortic sinus to the LAD/LCx split
       const lmStart = A.nearest(add(ao, [12, -4, -6]), epiV), split = lvEpi(1.55, 0.95);
       const LM = addBranch('LM', -1, [lmStart, split]);
-      const LAD = addBranch('LAD', LM[LM.length - 1], [lvEpi(1.6, 0.75), lvEpi(1.65, 0.5), lvEpi(1.6, 0.25), lvEpi(1.0, 0.06), lvEpi(-0.4, 0.1)]);
+      // LAD down the anterior interventricular groove: waypoints on the LV
+      // epicardium where it meets the RV anteriorly (the rotational coordinate is
+      // distorted near the base, so a fixed angle there lands far round the
+      // free wall and the LAD would run with the circumflex in the AV groove)
+      const antGroove = (zz) => {
+        const near = (c) => { const i = A.ii[c], j = A.jj[c], k = A.kk[c];
+          for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let e = -1; e <= 1; e++) { const w = A.at(i + a, j + b, k + e); if (w >= 0 && A.label[w] === LAB.RV) return true; }
+          return false; };
+        return this._nearestWhere((c) => A.label[c] === LAB.LV && A.epi[c] && A.zuvc[c] >= 0 && A.phi[c] > 0.6 && near(c), (c) => Math.abs(A.zuvc[c] - zz) * 80 + Math.abs(A.phi[c] - 1.7) * 5);
+      };
+      const LAD = addBranch('LAD', LM[LM.length - 1], [antGroove(0.8), antGroove(0.65), antGroove(0.5), antGroove(0.35), antGroove(0.2), lvEpi(1.0, 0.06), lvEpi(-0.4, 0.1)]);
       // diagonals: the anterior–anterolateral junction (the anterolateral free wall is mainly marginal territory)
       addBranch('D1', along(LAD, 0.18), [lvEpi(1.8, 0.62), lvEpi(1.9, 0.4)]);
       addBranch('D2', along(LAD, 0.42), [lvEpi(1.75, 0.35), lvEpi(1.85, 0.15)]);

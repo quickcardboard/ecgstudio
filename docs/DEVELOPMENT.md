@@ -377,3 +377,17 @@ junction, proximal-LAD nodes lateral of `ladProxFreeWallPhi` excluded from free-
 Agreement with AHA 81% → 88%; anterolateral wall now 78–85% circumflex. Proximal LCx at 1 h gives ST
 elevation in I, aVL, V5–V6 with reciprocal III/aVF and posterior (V1–V4) depression (was V6 only);
 mid LAD loses I/aVL and shows the wrap-around inferior pattern; distal LCx unchanged.
+
+### Round 23: LAD in the anterior interventricular groove
+
+The LAD shared its first ~15 mm with the circumflex (LAD–LCx angle 0°, gap 0 mm; 9–14° by
+20–30 mm), so the two could not be told apart when clicked. Cause: its first waypoint was given in
+the rotational coordinate (angle 1.6 at 75% height), which is distorted near the base and landed
+53 mm from the left-main split, round the free wall; the shortest surface path ran out along the
+AV groove with the LCx and swept back. The LAD waypoints are now taken from the anatomy: LV
+epicardium bordering the RV anteriorly (the anterior interventricular groove) at 80/65/50/35/20%
+height, then round the apex as before. The LAD now leaves the left main at ~50° and is 70–75° from
+the LCx by 20–30 mm (anatomical bifurcation angle typically 70–90°), passing left of the pulmonary
+trunk straight down the groove. AHA agreement 88% → 89%. Ischaemia audit: proximal LCx old infarct
+adds Q in V5–V6; mid-LAD old infarct Q in III and V1–V3 (was III, aVF, V1–V4); distal LAD at 1 h
+ST elevation V2–V5 (was V1–V5); other sites unchanged.
