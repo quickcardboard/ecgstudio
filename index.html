@@ -523,7 +523,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-01 (ed4cb87).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-01 (5484bd8).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -1859,6 +1859,7 @@ THE SOFTWARE.
     limbRotation: 1.1298,            // extra frontal rotation of the heart as seen by the limb leads (degrees, + = more vertical)
     torsoIIGain: 0.8457,           // lead II length of the torso (Burger) triangle relative to its computed value
     atrialTorsoII: 0.92,        // torso lead II for atrial sources (keeps the P-wave calibration made at torsoBlend 0.6)
+    atriaAnchored: false, atriaRotation: 14, atriaPitch: -10, atriaYaw: 8,   // atria keep their own (base-anchored) orientation
     forward: 1,                 // 1: blended dipole/near-field leads (calibrated); 2: inhomogeneous torso volume conductor for all leads (tools/torso_v2.py)
     forwardGain: 1,             // overall ECG gain of forward model 2
     torsoBlend: 0.8466,            // limb leads: share of the bounded-torso lead field (rest: Einthoven projection)
@@ -1910,7 +1911,7 @@ THE SOFTWARE.
       this.rvWallLayers = opts.rvWallLayers || 0;
       if (this.rvWallLayers) this._editLVWall(V, this.rvWallLayers, LAB.RV, rvThickenWeight);
       // atrial wall thickening (opts.raWallLayers / laWallLayers, outward)
-      this.raWallLayers = opts.raWallLayers !== undefined ? opts.raWallLayers : 1;   // one extra layer by default (RA force ≈ LA force, see LAE)
+      this.raWallLayers = opts.raWallLayers !== undefined ? opts.raWallLayers : (typeof RA_LAYERS_DEFAULT === 'number' ? RA_LAYERS_DEFAULT : 1);   // forward model 1: one extra layer (RA force ≈ LA force, see LAE); forward model 2 uses the CT walls (0)
       this.laWallLayers = opts.laWallLayers || 0;
       if (this.raWallLayers) this._editLVWall(V, this.raWallLayers, LAB.RA, () => 1);
       if (this.laWallLayers) this._editLVWall(V, this.laWallLayers, LAB.LA, () => 1);
@@ -2696,6 +2697,24 @@ THE SOFTWARE.
       }
       this.offset = [tx, ty, tz];
       this.toTorso = (p) => add(rotP(p), this.offset);
+      // Atria anchored at the base: the heart turns in the chest by its apex
+      // swinging about the base, while the atria stay held by the great veins
+      // and arteries. With atriaAnchored they keep their own orientation
+      // (atriaRotation/Pitch/Yaw), pivoting about the AV-ring centre, which
+      // stays attached to the ventricles.
+      this.toTorsoAtrial = this.toTorso; this.rotAtrial = Rm;
+      if (P.atriaAnchored) {
+        const rotM = (rotD, pitD, yawD) => {
+          const t = -rotD * Math.PI / 180, c1 = Math.cos(t), s1 = Math.sin(t), q = pitD * Math.PI / 180, c2 = Math.cos(q), s2 = Math.sin(q), y = yawD * Math.PI / 180, c3 = Math.cos(y), s3 = Math.sin(y);
+          const mm = (X, Y) => { const o = new Array(9).fill(0); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) o[3 * i + j] += X[3 * i + k] * Y[3 * k + j]; return o; };
+          return mm([c3, 0, s3, 0, 1, 0, -s3, 0, c3], mm([c1, -s1, 0, s1, c1, 0, 0, 0, 1], [1, 0, 0, 0, c2, -s2, 0, s2, c2]));
+        };
+        const Ra = rotM(P.atriaRotation, P.atriaPitch, P.atriaYaw), lmk = A.landmarks;
+        const cav = mul(add(lmk.MV.c, lmk.TV.c), 0.5), cavT = rotP(cav);
+        this.rotAtrial = Ra;
+        this.toTorsoAtrial = (p) => { const x = p[0] - cav[0], y = p[1] - cav[1], z = p[2] - cav[2];
+          return add([Ra[0] * x + Ra[1] * y + Ra[2] * z + cavT[0], Ra[3] * x + Ra[4] * y + Ra[5] * z + cavT[1], Ra[6] * x + Ra[7] * y + Ra[8] * z + cavT[2]], this.offset); };
+      }
       this.apex = apex;
       const on = (x, y) => [x, y, surfZ(x) - 1];
       const V2 = on(26, 28), V4 = on(78, 0);
@@ -2767,6 +2786,7 @@ THE SOFTWARE.
       const E = names.map((k) => this.electrodes[k]);
       const R = this.rot;
       const axes = [0, 1, 2].map((j) => [R[j], R[3 + j], R[6 + j]]);   // columns of R
+      const Ra = this.rotAtrial || R, axesA = [0, 1, 2].map((j) => [Ra[j], Ra[3 + j], Ra[6 + j]]);   // atrial frame (anchored atria)
       // Brody effect: the highly conductive cavity blood amplifies radial
       // (transmural) ventricular sources relative to tangential ones. Model the
       // effective source as −(I + B·r̂r̂ᵀ)∇Vm, r̂ = local transmural direction.
@@ -2822,7 +2842,7 @@ THE SOFTWARE.
         for (let c = 0; c < n; c += 5) { if (this.kind[c] !== KIND.VENT) continue; const m = this.toTorso(A.p(c)); const gv = grad(eV2, m); gs += Math.hypot(gv[0], gv[1], gv[2]); const r = sub(E[eV2], m); rs += 1 / dot(r, r); cnt++; }
         tv2 = { grad, scale: rs / gs };
       }
-      this._lw = { TF, tfSample, tfScale, tfMean, E, axes, B, rhat, aniso, anorm, fwd, NE, tv2 };
+      this._lw = { TF, tfSample, tfScale, tfMean, E, axes, axesA, B, rhat, aniso, anorm, fwd, NE, tv2 };
       const cc = new Float64Array(NE);
       for (let c = 0; c < n; c++) {
         const kc = this.kind[c]; if (!kc) continue;
@@ -2841,7 +2861,7 @@ THE SOFTWARE.
     // adds out[e]·(Vm_w − Vm_c) to lead e (summation by parts of −σi∇Vm·∇L).
     pairCoef(c, w, a, out) {
       const A = this.A, h = A.h, kc = this.kind[c];
-      const { TF, tfSample, tfScale, tfMean, E, axes, B, rhat, aniso, anorm, fwd, tv2 } = this._lw;
+      const { TF, tfSample, tfScale, tfMean, E, axes, axesA, B, rhat, aniso, anorm, fwd, tv2 } = this._lw;
       let sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : this.P.atrialSourceGain;
       // hypertrophied myocytes carry more intracellular current (source
       // strength ∝ conductance); scaling the pair keeps uniform plateaus silent
@@ -2849,12 +2869,13 @@ THE SOFTWARE.
         const g = (x) => (A.label[x] === LAB.RV ? this.P.rvSourceGain : this.P.lvSourceGain);
         sc *= Math.sqrt(g(c) * g(w));
       }
-      const m = this.toTorso(lerp(A.p(c), A.p(w), 0.5));   // pair midpoint, torso frame
-      let ex = axes[a];                                       // pair direction, torso frame
+      const atrialPair = kc !== KIND.VENT && this.P.atriaAnchored;
+      const m = (atrialPair ? this.toTorsoAtrial : this.toTorso)(lerp(A.p(c), A.p(w), 0.5));   // pair midpoint, torso frame
+      let ex = (atrialPair ? axesA : axes)[a];               // pair direction, torso frame
       // The heart turns in the chest by its apex swinging about the base, so the
       // atria (at the base) turn less than the ventricles: atrial source
       // directions are turned back by atrialFrontalRot in the frontal plane.
-      if (kc !== KIND.VENT && this.P.atrialFrontalRot) {
+      if (kc !== KIND.VENT && this.P.atrialFrontalRot && !this.P.atriaAnchored) {
         const al = this.P.atrialFrontalRot * Math.PI / 180, ca = Math.cos(al), sa = Math.sin(al);
         ex = [ca * ex[0] - sa * ex[1], sa * ex[0] + ca * ex[1], ex[2]];
       }
@@ -4058,6 +4079,8 @@ THE SOFTWARE.
   // Bounded-torso limb-lead fields (tools/torso_leadfield.py). Bundled next to
   // the engine in Node; the browser page passes the embedded copy in.
   let DEFAULT_TORSO = null;
+  let RA_LAYERS_DEFAULT = 1;   // extra RA wall layers when not given (forward model 2 uses the CT walls: setRaLayersDefault(0))
+  const setRaLayersDefault = (n) => { RA_LAYERS_DEFAULT = n; };
   if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
     try { DEFAULT_TORSO = require(__dirname + '/torso_leadfield.json'); } catch (e) { DEFAULT_TORSO = null; }
   }
@@ -4079,7 +4102,7 @@ THE SOFTWARE.
     };
   }
 
-  const api = { hypertrophyOptions, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, setDefaultTorso2, lvThickenWeight, rvThickenWeight };
+  const api = { hypertrophyOptions, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, setDefaultTorso2, setRaLayersDefault, lvThickenWeight, rvThickenWeight };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ECGStudio = api;
 })(typeof window !== 'undefined' ? window : globalThis);

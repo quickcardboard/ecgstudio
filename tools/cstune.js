@@ -3,7 +3,7 @@
 //   node tools/cstune.js '[{...}, ...]'          one JSON line per set
 //   require('./tools/cstune.js').evaluate(p)     → { score, m }
 // A set may carry "lv" (LV wall layers, default 3) besides model parameters.
-const fs = require('fs'); const LH = require('../src/engine.js');
+const fs = require('fs'); const LH = require('../src/engine.js'); if (process.env.RA !== undefined) LH.setRaLayersDefault(+process.env.RA);
 const JSONA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 const anat = new Map();
 const anatomy = (lv, rv) => { const k = lv + '/' + rv; if (!anat.has(k)) anat.set(k, new LH.Anatomy(JSONA, { lvWallLayers: lv, rvWallLayers: rv })); return anat.get(k); };

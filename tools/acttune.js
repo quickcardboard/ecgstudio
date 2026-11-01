@@ -4,7 +4,7 @@
 // atrial mapping (e.g. Lemery 2007), clinical HV/PR. Target ranges are
 // approximate literature values.
 //   node tools/acttune.js '[{...}]'          require('./acttune.js').evaluate(p)
-const fs = require('fs'); const LH = require('../src/engine.js');
+const fs = require('fs'); const LH = require('../src/engine.js'); if (process.env.RA !== undefined) LH.setRaLayersDefault(+process.env.RA);
 const JSONA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 const anat = new Map();
 const anatomy = (lv, rv) => { const k = lv + '/' + rv; if (!anat.has(k)) anat.set(k, new LH.Anatomy(JSONA, { lvWallLayers: lv, rvWallLayers: rv })); return anat.get(k); };
