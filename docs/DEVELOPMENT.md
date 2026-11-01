@@ -495,3 +495,7 @@ below V3; proximal LAD ST V1–V4 and old anterior QS kept; blocks/hypertrophy c
 Forward model 2 (round-21 set, V3 fix applied): V2 R 2.17 → 1.93 at +24 mm but V3 R 2.6–2.7, the
 distal-LAD QS in V3 lost (early r 0.48 → 1.14) and the Dower angle error grows 18.7° → 22.3°: no help
 there. (A bug had put V3 20 mm low whenever `chestLeadY` was set; fixed.)
+
+*LAD route* (from milestone-1, round 23 there): the LAD follows the anterior interventricular
+groove (LV epicardium bordering the RV anteriorly) instead of rotational-coordinate waypoints that
+sent its first ~15 mm along the AV groove on top of the circumflex.

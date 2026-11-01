@@ -523,7 +523,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-01 (4badb6b).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-01 (bb8d0e8).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -1862,6 +1862,8 @@ THE SOFTWARE.
     torsoIIGain: 0.8457,           // lead II length of the torso (Burger) triangle relative to its computed value
     atrialTorsoII: 0.92,        // torso lead II for atrial sources (keeps the P-wave calibration made at torsoBlend 0.6)
     atriaAnchored: false, atriaRotation: 14, atriaPitch: -10, atriaYaw: 8,   // atria keep their own (base-anchored) orientation
+    chestLeadY: 0,          // chest electrode level offset (mm, + up)
+    v12Y: 0,                // V1/V2 raised this much (mm) relative to V4-V6 (heart lower under V1/V2)
     torsoHalfWidth: 160, torsoHalfDepth: 110,   // chest cross-section (mm); adult range roughly 140-175 × 95-120
     forward: 1,                 // 1: blended dipole/near-field leads (calibrated); 2: inhomogeneous torso volume conductor for all leads (tools/torso_v2.py)
     forwardGain: 1,             // overall ECG gain of forward model 2
@@ -2388,7 +2390,17 @@ THE SOFTWARE.
       // left main: from the left-posterior aortic sinus to the LAD/LCx split
       const lmStart = A.nearest(add(ao, [12, -4, -6]), epiV), split = lvEpi(1.55, 0.95);
       const LM = addBranch('LM', -1, [lmStart, split]);
-      const LAD = addBranch('LAD', LM[LM.length - 1], [lvEpi(1.6, 0.75), lvEpi(1.65, 0.5), lvEpi(1.6, 0.25), lvEpi(1.0, 0.06), lvEpi(-0.4, 0.1)]);
+      // LAD down the anterior interventricular groove: waypoints on the LV
+      // epicardium where it meets the RV anteriorly (the rotational coordinate is
+      // distorted near the base, so a fixed angle there lands far round the
+      // free wall and the LAD would run with the circumflex in the AV groove)
+      const antGroove = (zz) => {
+        const near = (c) => { const i = A.ii[c], j = A.jj[c], k = A.kk[c];
+          for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let e = -1; e <= 1; e++) { const w = A.at(i + a, j + b, k + e); if (w >= 0 && A.label[w] === LAB.RV) return true; }
+          return false; };
+        return this._nearestWhere((c) => A.label[c] === LAB.LV && A.epi[c] && A.zuvc[c] >= 0 && A.phi[c] > 0.6 && near(c), (c) => Math.abs(A.zuvc[c] - zz) * 80 + Math.abs(A.phi[c] - 1.7) * 5);
+      };
+      const LAD = addBranch('LAD', LM[LM.length - 1], [antGroove(0.8), antGroove(0.65), antGroove(0.5), antGroove(0.35), antGroove(0.2), lvEpi(1.0, 0.06), lvEpi(-0.4, 0.1)]);
       // diagonals: the anterior–anterolateral junction (the anterolateral free wall is mainly marginal territory)
       addBranch('D1', along(LAD, 0.18), [lvEpi(1.8, 0.62), lvEpi(1.9, 0.4)]);
       addBranch('D2', along(LAD, 0.42), [lvEpi(1.75, 0.35), lvEpi(1.85, 0.15)]);
@@ -2723,13 +2735,19 @@ THE SOFTWARE.
           return add([Ra[0] * x + Ra[1] * y + Ra[2] * z + cavT[0], Ra[3] * x + Ra[4] * y + Ra[5] * z + cavT[1], Ra[6] * x + Ra[7] * y + Ra[8] * z + cavT[2]], this.offset); };
       }
       this.apex = apex;
-      const on = (x, y) => [x, y, surfZ(x) - 1];
-      const V2 = on(26, 28), V4 = on(78, 0);
+      // chestLeadY: chest electrode level (mm, + up). V4 and V5/V6 lie in the
+      // 5th intercostal space; V1/V2 one space higher, in the 4th.
+      const chY = P.chestLeadY || 0;
+      const on = (x, y) => [x, y + chY, surfZ(x) - 1];
+      // v12Y: V1/V2 height above V4 beyond the default 28 mm (4th ICS at the sternal edge vs
+      // 5th ICS in the mid-clavicular line; the ribs slope down laterally)
+      const v12 = 28 + (P.v12Y || 0);
+      const V2 = on(26, v12), V4 = on(78, 0);
       const mid = lerp(V2, V4, 0.5);
       this.electrodes = {
         RA: [-(a + 10), 170, 0], LA: [a + 10, 170, 0], LL: [60, -330, 0],
-        V1: on(-26, 28), V2: V2, V3: on(mid[0], mid[1]), V4: V4,
-        V5: on(0.775 * a, 0), V6: [a, 0, 0],   // anterior / mid-axillary lines scale with the chest width
+        V1: on(-26, v12), V2: V2, V3: on(mid[0], mid[1] - chY), V4: V4,   // (mid is already at the shifted level)
+        V5: on(0.775 * a, 0), V6: [a, chY, 0],   // anterior / mid-axillary lines scale with the chest width
       };
       this.torso = { a, b };
       // precordial lead directions (unit vectors heart centre -> electrode), torso frame
@@ -4114,10 +4132,16 @@ THE SOFTWARE.
   // Ventricular hypertrophy presets: thicker free wall (anatomy), stronger
   // sources (lead fields) and a reversed transmural repolarisation gradient
   // (strain). Validated with tools/hyper.js.
-  function hypertrophyOptions({ lvh = false, rvh = false } = {}) {
+  // Hypertrophy: thicker wall (more myocardium), strain repolarization and, for
+  // forward model 1, a source gain that stood in for the missing volume effect.
+  // Forward model 2 (torso volume conductor) gets LVH voltage from the wall mass
+  // alone (lvSourceGain 1: Sokolow ~5 mV, Cornell ~2.7 mV at 5 layers); RVH keeps
+  // a smaller RV gain (1.3) for right axis deviation and a dominant R in V1.
+  function hypertrophyOptions({ lvh = false, rvh = false } = {}, forward = DEFAULTS.forward) {
+    const f2 = forward === 2;
     return {
       anatomy: { lvWallLayers: lvh ? 5 : 2, rvWallLayers: rvh ? 5 : 0 },
-      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1 },
+      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? (f2 ? 1 : 1.5) : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? (f2 ? 1.3 : 1.8) : 1 },
     };
   }
 
