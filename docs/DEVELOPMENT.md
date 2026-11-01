@@ -408,3 +408,28 @@ Effect (live conduction model): proximal LCx at 1 h now ST elevation in I, aVL, 
 reciprocal III/aVF and posterior (V1–V4) depression (was V6 only); mid LAD loses I/aVL and shows
 the wrap-around inferior pattern; distal LCx unchanged. Physical candidate: LCx injury lateral
 0.40 vs inferior 0.07 mV; distal LAD QS V3–V4 without lateral Q.
+
+### Round 20 (cs-tune): hypertrophy, LBBB mapping check, chest electrodes against Dower
+
+*Hypertrophy (forward model 2).* The torso conductor gives LVH voltage from the wall mass alone,
+so the LV source gain (1.5) is dropped: 5 layers give Sokolow ~4.5–5 mV, Cornell ~2.7 mV and strain
+T in V5–V6 (was Sokolow 7.7). A thick RV alone gives only +92°; RVH keeps an RV gain of 1.3 (axis
++142–153°, dominant R in V1, R in aVR, deep S V5). Forward model 1 keeps its old settings.
+
+*LBBB activation against mapping data* (`tools/lbbbmap.js`, AHA segments): LV breakthrough on the
+anterior septum, the wavefront round the anterior wall to the lateral wall and round the apex and
+inferior wall, latest at the basal inferolateral (posterolateral) wall at ~100 ms. This agrees
+with Vassallo 1984 and Auricchio 2004 (septal breakthrough, U-shaped wavefront round a line of
+slow conduction/block between septum and lateral wall, the commonest anterior; latest
+lateral/posterolateral), so activation is left as fitted. The +90° LBBB axis comes from where
+that late posterolateral base sits (inferior, y ≈ −22 mm), not from the order of activation.
+Making the RV septum activate early swings LBBB left but reverses normal septal activation (no
+septal q, Durrer error 0.16 → 4–17): rejected.
+
+*Lead vectors against Dower* (`tools/leadvectors.py`; Dower's forward matrix, checked: its
+pseudo-inverse reproduces the published inverse Dower rows). Limb leads within 8–13°; chest leads
+were 18–40° off (V2–V4 read too far right of and above the heart). Chest electrodes 20 mm lower
+(`chestLeadY: -20`) with the apex 20 mm more medial (`apexX: 52`) cut the mean error 26° → 19°.
+With activation unchanged and the gain recalibrated, that candidate gives normal axis +55/63°,
+qI −0.05, V1 rS 0.36/1.31, transition V3–V4, II/V5 ratio 0.71, LAFB −66°, P +62°, LVH Sokolow 4.4,
+RVH +153°, circumflex injury lateral; LBBB +89° and LPFB +89/92° are unchanged.
