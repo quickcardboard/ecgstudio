@@ -82,9 +82,10 @@ function evaluate(p) {
   s += pen(N.II[0] / Math.max(pr[4][0], pr[5][0]), 0.45, 1.2) * 8;                       // limb vs chest size (II R ~0.5-0.7 × V5/V6 R)
   s += pen(pr[0][1], 0.7, 2.0) * 4 + pen(pr[0][0] / Math.max(0.01, pr[0][1]), 0, 0.5) * 3;   // normal V1: rS with a real S
   for (let i = 0; i < 4; i++) s += Math.max(0, pr[i][0] - pr[i + 1][0]) * 3;           // R grows V1→V4
+  s += pen(pr[1][0], 0.15, 1.0) * 4 + Math.max(0, Math.max(pr[1][0], pr[2][0]) - Math.max(pr[3][0], pr[4][0])) * 4;   // small r in V2; tallest R in V4–V5
   s += Math.max(0, pr[3][1] - pr[3][0] - 0.5) * 2 + Math.max(0, pr[0][0] - pr[0][1]) * 3; // transition by V4, rS in V1
   s += pen(m.act.PR, 130, 170) / 5 + pen(m.act.total, 60, 85) / 5 + pen(m.act.apexMed, 0, 22) / 3 + pen(m.act.HV, 30, 55) / 5;
-  s += m.dLAD.slice(1, 4).reduce((a, x) => a + Math.max(0, x - 0.1), 0) * 8;              // apical infarct: QS/Q in V3–V5
+  s += m.dLAD.slice(1, 4).reduce((a, x) => a + Math.max(0, x - 0.1), 0) * 12;              // apical infarct: QS/Q in V3–V5
   s += m.dLADinf.slice(1).reduce((a, x) => a + Math.max(0, x - 0.15), 0) * 3;             // wrap-around apex: inferior Q
   s += Math.max(0, m.pLCx.inf - m.pLCx.lat + 0.05) * 20 + pen(m.pLCx.lat, 0.1, 5) * 10;     // circumflex injury is lateral
   s += pen(m.P.axis, 30, 75) / 5;

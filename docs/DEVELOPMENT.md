@@ -433,3 +433,30 @@ were 18–40° off (V2–V4 read too far right of and above the heart). Chest el
 With activation unchanged and the gain recalibrated, that candidate gives normal axis +55/63°,
 qI −0.05, V1 rS 0.36/1.31, transition V3–V4, II/V5 ratio 0.71, LAFB −66°, P +62°, LVH Sokolow 4.4,
 RVH +153°, circumflex injury lateral; LBBB +89° and LPFB +89/92° are unchanged.
+
+### Round 21 (cs-tune): CT orientation, measured source anisotropy, constrained re-fit
+
+*Why the orientation had drifted.* Orientation moves the normal and LBBB axes together, but the
+LBBB axis sat 33–67° right of the normal axis at every orientation (clinically it is at or left of
+it). The cause was `sigmaRatio` 10: the intracellular along/across conductivity ratio alone. With
+the heart's own bulk anisotropy (treated as isotropic by the torso) the effective source ratio is
+(σil/σbl)/(σit/σbt) ≈ 2.9 (Clerc 1976), 3.4 (Roberts 1979), 1.7 (Roberts & Scher 1982). At the CT
+orientation (0/0/0) and ratio 3: normal +31°, LBBB −3°, LAFB −49°. The earlier tilt (15°, −25°)
+had been compensating the overstated fibre source.
+
+*Torso grid* (CT, ratio 3, activation fixed): lung 0.04/0.1 S/m, liver + spine (ORGANS), chest
+leads 0/−20 mm, apex x 52/68, chest gap 20/35 mm. None fixes V1/R progression; lungs 0.04 with
+organs score best. Chosen: lungs 0.04, organs, chest leads −20, apex x 68 (mid-clavicular), gap 20.
+
+*Constrained re-fit* (`ACTMAX=0.5`: sets off the mapping targets are rejected; atrial parameters
+locked; muscle/Purkinje velocities and PMJ delay within literature ranges): activation score 0;
+normal +35/39°, LBBB +16°, LAFB −41°, P +63°, septal q, II/V5 0.57, Sokolow 3.7. Open: R peaks
+in V3 (V2 R 1.7), V1 r 0.43, distal-LAD QS lost in V2–V3, RVH +94°, LPFB ~+50°.
+
+*Fascicle territories.* The LPF territory had collapsed to a strip of the inferior septum (83 of
+~1060 LV Purkinje nodes) with the LPF landing outside it. Anatomically the LPF is the broad
+division (posterior septum, inferior and inferolateral walls, posteromedial papillary muscle).
+Widening it alone barely moves LPFB (+54°) because the two networks were linked at near full speed
+(purkCrossSlow 1.2): a blocked territory refilled within ~8 ms. Next re-fit: territories and the
+LPF landing site held to anatomy, cross-links free only at the apex (`purkCrossApexZ`), R-wave
+progression and distal-LAD QS weighted more.
