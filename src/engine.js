@@ -128,6 +128,7 @@
     // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
     wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
     avnToneExp: 0.45,      // AV-nodal delay ∝ (72/rate)^exp (autonomic coupling)
+    mbZ: 0.40,             // moderator band insertion on the RV free wall (apicobasal UVC)
     rbbSeptalFrac: 0,   // distal fraction of septal RBB giving off RV septal Purkinje
     rbbSeptalDelay: 20.31,    // ms extra delay into the RV septal Purkinje
 
@@ -664,7 +665,7 @@
       const rbbSept = this.chain(KIND.BUNDLE, SEG.RBB, rbbPath, P.cvBundle, 2.0, hisEnd);
       const rvFree = (c) => endoRV(c) && A.label[c] === LAB.RV;
       const rbbMidP = P2(rbbMid);
-      const mbEnd = this._nearestWhere(rvFree, (c) => Math.abs(A.zuvc[c] - 0.40) * 60 - len(sub(P2(c), rbbMidP)) * 0.5 - P2(c)[2] * 0.3);
+      const mbEnd = this._nearestWhere(rvFree, (c) => Math.abs(A.zuvc[c] - P.mbZ) * 60 - len(sub(P2(c), rbbMidP)) * 0.5 - P2(c)[2] * 0.3);
       const mbPts = []; const mbEndP = P2(mbEnd);
       const mbLen = len(sub(mbEndP, rbbMidP)); const nmb = Math.max(2, Math.round(mbLen / 2));
       for (let s = 1; s <= nmb; s++) mbPts.push(lerp(rbbMidP, mbEndP, s / nmb));

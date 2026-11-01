@@ -6,7 +6,7 @@
 const fs = require('fs'); const LH = require('../src/engine.js');
 const JSONA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 const anat = new Map();
-const anatomy = (lv) => { if (!anat.has(lv)) anat.set(lv, new LH.Anatomy(JSONA, { lvWallLayers: lv })); return anat.get(lv); };
+const anatomy = (lv, rv) => { const k = lv + '/' + rv; if (!anat.has(k)) anat.set(k, new LH.Anatomy(JSONA, { lvWallLayers: lv, rvWallLayers: rv })); return anat.get(k); };
 const LEAD = (n) => LH.LEADS.indexOf(n);
 
 function record(M, setup) {
@@ -26,8 +26,8 @@ const earlyR = (b, n) => { const v = b.y(n); let r = 0; for (let t = 0; t < Math
 const initQ = (b, n) => { const v = b.y(n).slice(0, 20); return v.reduce((a, x) => (Math.abs(x) > Math.abs(a) ? x : a), 0); };
 
 function evaluate(p) {
-  const { lv = 3, ...mp } = p;
-  const A = anatomy(lv), M = new LH.Model(A, mp);
+  const { lv = 3, rv = 0, ...mp } = p;
+  const A = anatomy(lv, rv), M = new LH.Model(A, mp);
   const cs = M.csSegments, br = M.coronary.branches;
   const n = record(M, () => {});
   const blk = (seg) => (S) => { for (const c of cs[seg].slice(0, 3)) S.blocked[c] = 1; };
@@ -63,7 +63,7 @@ function evaluate(p) {
   s += pen(m.LPF.net, 100, 150) / 4 + pen(m.LPF.axis, 95, 150) / 8;
   s += pen(m.LBB.axis, -30, 60) / 12 + pen(m.LBB.qrs, 130, 170) / 10 + pen(m.RBB.qrs, 115, 160) / 10;
   s += pen(N.qrs, 80, 100) / 5 + pen(m.LAF.qrs, 85, 115) / 10 + pen(m.LPF.qrs, 85, 115) / 10;
-  s += pen(N.qI, -0.25, -0.04) * 10 + pen(N.qV6, -0.25, -0.04) * 10 + pen(N.rV1, 0.04, 0.3) * 10;
+  s += pen(N.qI, -0.25, -0.04) * 20 + pen(pr[4][0], 0.5, 2.5) * 4 + pen(pr[5][0], 0.5, 2.5) * 4 + pen(N.qV6, -0.25, -0.04) * 10 + pen(N.rV1, 0.04, 0.3) * 10;
   s += pen(N.I[0], 0.4, 1.5) * 4 + pen(N.II[0], 0.7, 1.8) * 4;
   for (let i = 0; i < 4; i++) s += Math.max(0, pr[i][0] - pr[i + 1][0]) * 3;           // R grows V1→V4
   s += Math.max(0, pr[3][1] - pr[3][0] - 0.5) * 2 + Math.max(0, pr[0][0] - pr[0][1]) * 3; // transition by V4, rS in V1
