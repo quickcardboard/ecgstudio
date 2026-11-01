@@ -1,12 +1,13 @@
 // Evolution-strategy tuner for the conduction system (diagonal CMA-style):
 // node tools/es_tune.js <start.json> <out-dir> [generations] [lambda] [workers]
+// (EVAL=./acttune.js to score activation only; RANGES=file.json to search another parameter set)
 // Each generation samples lambda parameter sets around the mean, evaluates
 // them with tools/cstune.js in persistent worker processes, recombines the
 // best quarter and adapts the per-parameter step sizes. Every evaluation is
 // appended to out-dir/evals.jsonl, a generation summary to out-dir/log.txt.
 const { fork } = require('child_process'); const fs = require('fs'); const path = require('path');
 if (process.argv[2] === '--worker') {
-  const { evaluate } = require('./cstune.js');
+  const { evaluate } = require(process.env.EVAL || './cstune.js');
   process.on('message', ({ id, p }) => { let r; try { r = evaluate(p); } catch (e) { r = { score: 1e9, err: String(e) }; } process.send({ id, p, ...r }); });
   return;
 }
@@ -20,6 +21,7 @@ const R = {
   mbZ: [0.34, 0.48], rbbSeptalFrac: [0, 0.25], apexX: [58, 82], apexY: [-48, -22], chestGap: [10, 25], purkLinkR: [2.6, 4.5], sigmaRatio: [6.5, 10],
   atrialFrontalRot: [0, 70],
 };
+if (process.env.RANGES) { const r = JSON.parse(fs.readFileSync(process.env.RANGES, 'utf8')); for (const k of Object.keys(R)) delete R[k]; Object.assign(R, r); }   // optional: own parameter set
 const K = Object.keys(R), D = K.length;
 const start = JSON.parse(fs.readFileSync(startFile, 'utf8'));
 const def = { atrialFrontalRot: 30, septalTerrHalf: 0.15, lsfZ: 0.3, lsfPhi: 0.05, lbbSplitZ: 0.84, lbbSplitPhi: 0, purkZmaxLV: 0.94, mbZ: 0.4, rbbSeptalFrac: 0, apexX: 72, apexY: -34.83, chestGap: 15, purkLinkR: 3.2, sigmaRatio: 10, torsoIIGain: 0.6, torsoBlend: 0.7 };
@@ -52,7 +54,7 @@ const log = (s) => { fs.appendFileSync(path.join(outDir, 'log.txt'), s + '\n'); 
     const gb = res[order[0][1]];
     if (gb.score < best.score) { best = gb; sigma = Math.min(0.3, sigma * 1.08); fs.writeFileSync(path.join(outDir, 'best.json'), JSON.stringify(best)); } else sigma = Math.max(0.025, sigma * 0.93);
     const m = best.m;
-    log(`g ${g} genBest ${order[0][0]} best ${best.score} sigma ${sigma.toFixed(3)} | N ${m.N.axis}/${m.N.net} qI ${m.N.qI} LAF ${m.LAF.net} LPF ${m.LPF.net} LBB ${m.LBB.axis} apex ${m.act.apexMed} V4 ${m.N.prog[3]} V5 ${m.N.prog[4]} dLAD ${m.dLAD.slice(0, 4)}`);
+    log(`g ${g} genBest ${order[0][0]} best ${best.score} sigma ${sigma.toFixed(3)} | ` + (m.N ? `N ${m.N.axis}/${m.N.net} qI ${m.N.qI} LAF ${m.LAF.net} LPF ${m.LPF.net} LBB ${m.LBB.axis} apex ${m.act.apexMed} V4 ${m.N.prog[3]} V5 ${m.N.prog[4]} dLAD ${m.dLAD.slice(0, 4)}` : JSON.stringify(m)));
   }
   log('done'); for (const w of workers) w.kill(); process.exit(0);
 })();
