@@ -23,7 +23,8 @@ import scipy.sparse as sp, pyamg
 src, out = sys.argv[1], sys.argv[2]
 H = float(sys.argv[3]) if len(sys.argv) > 3 else 4.0
 d = json.load(open(src))
-A, B, Y0, Y1 = float(d['torso']['a']), float(d['torso']['b']), -360.0, 220.0   # chest cross-section from the engine
+A, B = float(d['torso']['a']), float(d['torso']['b'])   # chest cross-section from the engine
+Y0, Y1 = float(os.environ.get('TORSO_Y0', -360)), float(os.environ.get('TORSO_Y1', 220))   # trunk bottom (pelvis) / top (mm, heart frame)
 SIG = dict(torso=0.22, lung=0.05, blood=0.65, heart=0.20)
 
 # LIMBS=1: add arms hanging at the sides (joined to the trunk only at the
@@ -45,6 +46,13 @@ def ellipsoid(c, r):
     return ((X - c[0]) / r[0]) ** 2 + ((Yg - c[1]) / r[1]) ** 2 + ((Z - c[2]) / r[2]) ** 2 <= 1.0
 lungs = ellipsoid((-78, 55, -15), (62, 125, 80)) | ellipsoid((108, 55, -30), (50, 120, 72))
 sig[lungs] = SIG['lung']
+# ORGANS=1: liver under the right hemidiaphragm (its left lobe under the heart)
+# and the vertebral column; both conduct poorly (liver ~0.05, bone ~0.02 S/m)
+if os.environ.get('ORGANS'):
+    SIG.update(liver=0.05, bone=0.02)
+    liver = ellipsoid((-45, -125, 5), (125, 60, 95))
+    sig[liver & ~lungs] = SIG['liver']
+    sig[(X ** 2 + (Z + 88) ** 2 <= 22 ** 2) & (Yg >= Y0)] = SIG['bone']
 
 def rasterise(pts, value):
     p = np.asarray(pts, float).reshape(-1, 3)
