@@ -237,7 +237,7 @@
 
     // ECG
     ecgGain: 0.0174,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm)
-    precordialDipoleW: 0.7,     // share of the precordial signal from the heart-vector projection
+    precordialDipoleW: 0.55,     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
     dowerChest: 0.5,            // chest dipole directions blended this far toward Dower's measured lead vectors (Frank torso)

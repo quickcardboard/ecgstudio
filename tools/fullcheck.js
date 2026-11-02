@@ -26,7 +26,7 @@ if (!nocal) { const A0 = new LH.Anatomy(JSON.parse(JSON.stringify(JA)), { lvWall
 const cs = require('./cstune.js').evaluate({ lv, rv, ...mp });
 // ---- ischaemia localisation
 const A = new LH.Anatomy(JA, { lvWallLayers: lv, rvWallLayers: rv }), M = new LH.Model(A, mp), br = M.coronary.branches;
-const SITES = { pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * 0.3)], dLAD: br.LAD[Math.round(br.LAD.length * 0.7)],
+const SITES = { pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * 0.3)], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)],   // distal LAD: just past the second diagonal (apical-anterior infarct)
   pLCx: br.LCx[0], dLCx: br.LCx[Math.round(br.LCx.length * 0.6)], pRCA: br.RCA[0], PDA: br.PDA[0] };
 function beat(S) {
   const rec = []; S.onSample((t, v) => rec.push(Array.from(v))); S.run(+(process.env.ISCH_MS || 3000));   // (an old scar needs a few beats to settle: 3 s matches 3.6 s exactly)
@@ -47,7 +47,8 @@ const EXP = {
   pLAD: { ste: { core: ['V1', 'V2', 'V3', 'V4', 'I', 'aVL'], bad: ['II', 'III', 'aVF'] }, q: { core: ['V1', 'V2', 'V3', 'V4'], bad: ['II', 'III', 'aVF'] } },
   // (the inferior wall is mainly PDA territory: no inferior ST/Q from the LAD)
   mLAD: { ste: { core: ['V2', 'V3', 'V4'], bad: ['I', 'aVL', 'II', 'III', 'aVF'] }, q: { core: ['V2', 'V3', 'V4'], bad: ['I', 'aVL', 'II', 'III', 'aVF'] } },
-  dLAD: { ste: { core: ['V3', 'V4', 'V5'], bad: ['I', 'aVL', 'II', 'III', 'aVF'] }, q: { core: ['V4', 'V5'], bad: ['I', 'aVL', 'V1', 'II', 'III', 'aVF'] } },
+  // apical-anterior (Bayés de Luna et al., MRI-based, 2006): Q V1–V2 extending to V3–V6, none in I/aVL; STE V2/V3–V5
+  dLAD: { ste: { core: ['V3', 'V4'], bad: ['I', 'aVL', 'II', 'III', 'aVF'] }, q: { core: ['V2', 'V3', 'V4'], bad: ['I', 'aVL', 'II', 'III', 'aVF'] } },
   pLCx: { ste: { core: ['I', 'aVL', 'V5', 'V6'], bad: ['V1', 'V2', 'V3', 'II', 'III', 'aVF'] }, q: { core: ['I', 'aVL', 'V6'], bad: ['V1', 'V2', 'V3', 'II', 'III', 'aVF'] } },
   dLCx: { ste: { core: ['V6'], bad: ['V1', 'V2', 'V3'] }, q: { core: ['V6'], bad: ['V1', 'V2', 'V3'] } },
   pRCA: { ste: { core: ['II', 'III', 'aVF'], bad: ['I', 'aVL', 'V4', 'V5', 'V6'] }, q: { core: ['II', 'III', 'aVF'], bad: ['I', 'aVL', 'V2', 'V3', 'V4', 'V5', 'V6'] } },
