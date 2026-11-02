@@ -1,0 +1,63 @@
+{
+ "note": "refine-2 round 2 re-fit (not adopted): live model, activation + position + lead settings",
+ "score": 16.21,
+ "params": {
+  "lv": 2,
+  "rv": 0,
+  "cvPurkinje": 2.2505,
+  "apexPurkMul": 1.1861,
+  "apexPurkZ": 0.3282,
+  "pmjAntero": 4.0549,
+  "cvBundle": 2.8253,
+  "heartRotation": 20.7014,
+  "heartPitch": -9.791,
+  "heartYaw": 8.7797,
+  "torsoBlend": 0.7495,
+  "torsoIIGain": 0.565,
+  "limbRotation": 5.3123,
+  "precordialGain": 0.4797,
+  "precordialDipoleW": 0.7769,
+  "dowerChest": 0.3009,
+  "avnSegDelay": 16.59
+ },
+ "metrics": {
+  "iErr": 3,
+  "miss": [
+   "mLAD q-V4",
+   "dLAD q-V4",
+   "dLAD q-V5"
+  ],
+  "axes": {
+   "N": 36,
+   "LAF": -44,
+   "LPF": 99,
+   "LBB": 79,
+   "RVH": 171
+  },
+  "cs": 8.73,
+  "act": 5.29,
+  "apex": 25,
+  "HV": 27,
+  "total": 79,
+  "qrs": {
+   "V1": [
+    0.16,
+    1.01
+   ],
+   "V2": [
+    0.36,
+    1.45
+   ],
+   "R": [
+    0.16,
+    0.36,
+    0.55,
+    0.74,
+    0.63,
+    0.82
+   ],
+   "qI": -0.05,
+   "ratio": 0.68
+  }
+ }
+}

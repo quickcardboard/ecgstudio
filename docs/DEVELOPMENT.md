@@ -547,3 +547,16 @@ the apex (worse, 8–11 misses), faster Purkinje (2.3–3.4 m/s: loses pLAD/mLAD
 Purkinje (`apexPurkMul` 1.8–2.5, added off by default: apex 21–26 ms but normal axis −22 to −49°).
 Activation and lead geometry have to move together (next round). New options, off by default:
 `chestLeadY`, `apexPurkMul`/`apexPurkZ`.
+
+### refine-2 round 2: joint re-fit of activation, position and lead settings (not adopted)
+
+`tools/refit.js` scores a set (3 × ischaemia misses, +10 per miss beyond the baseline; axes with the
+normal axis per 3°; ½ × the QRS checklist; ½ × the activation-mapping score); `tools/es_tune.js`
+optimised Purkinje speed, apical Purkinje, junction delay, bundle speed, heart orientation and the
+limb/chest lead settings within physiological ranges (40 generations × 8; ~23 s per evaluation after
+removing duplicated occlusion runs, caching the hypertrophy anatomies and 3 s ischaemia beats).
+Best set (tools/data/refit_round2.json): score 35.5 → 16.2; normal axis +29 → +43° (app reading),
+activation score 12.8 → 5.3 (apex 30 → 25 ms, HV 24 → 27 ms, Purkinje 2.25 m/s, PMJ 4 ms); blocks,
+WPW, P waves, hypertrophy and arrhythmias keep their patterns, QRS ~6 ms narrower. Not adopted:
+LAFB −48 → −37/−40°, old mid-LAD Q V1–V3 → V1–V2, old distal-LAD Q still absent in V4–V5, PDA at 1 h
+adds V1/V4 STE. The scoring weighted LAFB lightly and read Q waves on a shorter beat than the audit.
