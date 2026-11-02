@@ -629,3 +629,26 @@ loss of anterior free wall, D2 territory and the apical cap projects onto the in
 apex faces down as well as forward in this CT heart). The default rule is kept as a documented
 compensation; making the anterior free wall's early forces visible to V2–V4 needs a forward-model
 rebuild with re-tuned activation rather than further parameter search.
+
+### refine-2 round 7: regional decomposition of the LAD infarct signal (diagnostics only)
+
+Following an outside review, each lead was split by region (sum over voxel pairs, exact to 1e-8;
+`tools/regiondecomp.js`), with activation geometry (`tools/actgeom.js`), Purkinje breakthroughs
+(`tools/purkbreak.js`) and a transmural/tangential source split (`tools/srcsplit.js`). Septal
+perforators on (`septalPerf` [0.14, 0.3, 0.45, 0.6]).
+
+- The early r in V2–V3 comes from the upper (zuvc ≥ 0.5) anterior wall and septum (20–25 ms: V2
+  +0.17–0.23, V3 +0.27–0.31 mV), which mid- and distal-LAD infarcts leave alive.
+- The lower anterior wall and septum (0.25–0.5), which they kill, are activated from above
+  (anterior endocardium 19 → 23 → 26 ms base to apex; apex median 29 ms) and point down
+  (Y −0.12 to −0.22): losing them gives the inferior Q. The apex itself projects correctly
+  (forward-left, V3–V4).
+- Not the cause: source anisotropy (sigmaRatio 1/3/10 give the same anterior loss), the
+  heart-vector part of the chest leads (the local part agrees), Purkinje speed alone
+  (cvPurkinje 3, purkCrossSlow 1: breakthroughs 11–16 ms, anterior forces unchanged).
+- Apical Purkinje links faster (apexPurkMul 4, apexPurkZ 0.5) turns the lower anterior forces
+  forward-left and fits mapping better (acttune 15.3 → 6.5, apex median 13 ms). Full check
+  (ISCH_MS 3600): misses 15 → 10, no inferior Q from LAD infarcts, V4 Q appears; but the normal
+  axis swings to −53° (LPFB 80°). With cvPurkinje 3 and purkCrossSlow 1 as well: 8 misses, V1–V3 Q
+  in proximal/mid LAD, axis −26°, LPFB 40°. Next: why an apex-first sequence moves the normal
+  axis left (late basal/superior forces) rather than tuning further.
