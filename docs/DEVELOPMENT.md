@@ -795,3 +795,20 @@ mm; +0 & rear +2: 9.5/10.8/13.3; +1 & rear +1: 10.9/12.0/13.5. The rear wall bar
 (+1 & rear +2, Brody 2: 26/−46/93°) gives 10 misses (R0 9); +0 & rear +3: 10; +0 & rear +2 with
 Brody 4: 9 (LPFB 88°). Mid/distal LAD V2–V4 Q missing in all: anterior wall thickness does not decide
 which early forces survive the infarct. Not adopted.
+
+### rebuild-1 round 2: what keeps the V2–V4 r after mid- and distal-LAD infarcts (R0, diagnostics)
+
+Mid LAD (22%, `SUPPLY=0.18,0.3,0.45 SEPT=1 tools/regiondecomp.js '{}' mLAD`): all LAD territory past
+D1 dies (4748 cells, 21% of LV). The surviving S1 septal band (1740 cells), D1 free wall (1155) and
+RV still push V1–V3 positive at 20–40 ms (S1 +0.09/0.13/0.14, upper D1 +0.03/0.09/0.16, RV
++0.10/0.15/−0.08 mV) against the inferior and LCx walls; V4 also gets +0.27 from the lateral (LCx)
+wall. So the residual small r in V1–V2 comes from tissue that does survive a post-S1/D1 occlusion;
+V3–V4 keep r from D1 and the lateral wall.
+
+Distal LAD (`scratchpad dsize`): the checker's site (45%, just past D2) kills 11.8% of the LV (apex
+77%, apical anterior 73%, apical septal 53%, mid anterior 28%), a realistic apical-anterior infarct;
+ischaudit's 70% site kills only the apex tip (4.4%). Timing (`REG=dead`): the dying tissue adds to
+V2–V4 only from 30 ms (apex 35–40 ms: V4 +0.43–0.51), after the r peak (V2–V3 at 20–25 ms), and its
+anterior part pulls V2–V3 negative at 20–30 ms. Infarct V4 loses its late r (35 ms 0.44 → 0.05) but
+not the initial r. Apex endocardium mean 30 ms (earliest 14) against Durrer's early apex: distal
+LAD Q waves need the apex earlier, which (apexPurkMul) still costs the normal axis and LPFB.

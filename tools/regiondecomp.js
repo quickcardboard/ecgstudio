@@ -33,7 +33,7 @@ if (process.env.REG === 'time' && process.env.ZSPLIT) {   // anterior wall and s
     const d = ((A.phi[c] % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI), sec = SEC[Math.min(5, Math.floor(d / (Math.PI / 3)))];
     reg[c] = sec === 'sept' ? (z < zs ? 0 : 2) : sec === 'ant' ? (z < zs ? 1 : 3) : 5; }
 }
-if (process.env.REG === 'time' && process.env.SUPPLY) {   // regions by supplying artery and position along the LAD
+if (process.env.SUPPLY) {   // regions by supplying artery and position along the LAD
   const C = M.coronary, LADi = new Map(br.LAD.map((id, i) => [id, i / (br.LAD.length - 1)])), cut = process.env.SUPPLY.split(',').map(Number);   // e.g. 0.18,0.3,0.45
   RN.splice(0, NR, `LAD<${cut[0]}`, `LAD${cut[0]}-${cut[1]}`, `LAD${cut[1]}-${cut[2]}`, `LAD>${cut[2]}`, 'LCx', 'RCA/PDA', 'RV/oth');
   for (let c = 0; c < n; c++) { if (A.label[c] !== LH.LAB.LV) { reg[c] = 6; continue; } const nd = C.voxNode[c]; if (nd < 0) { reg[c] = 6; continue; }
