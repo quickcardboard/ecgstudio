@@ -742,3 +742,22 @@ and 14 at 0.22 (built-in at 0.22: also 14). It still costs the proximal LCx (814
 elevation lost at 12 h) and gives proximal LAD a V4 Q at 12 h. The diagonal course is not what
 limits the anterior Q waves; the mid-LAD site after S1/D1 (MLAD_F 0.22) is neutral on the live rule
 (7 → 7) and gains one miss with perforators (15 → 14). Built-in diagonals kept.
+
+Mid-LAD test site now 22% of the LAD (just after S1/D1) in every tool (`MLAD_F` overrides).
+
+Fading Brody effect (`brodyFade`: enhancement × exp(−depth/brodyFade), depth = transmural UVC; off).
+Axis screen (CS_LITE, perforators on): normal 10 mm wall with B 4 / fade 0.25 gives N 34°, LAFB −45°,
+LPFB 102° (uniform B 2 had LAFB −19°); every apex-first combination loses LPFB (33–57°). Full check
+(calibrated gain; misses with the live septal rule / with perforators):
+
+| variant | live | perf | normal/LAF/LPF | R V1–V6 | notes |
+|---|---|---|---|---|---|
+| reference | 7 | 14 | 33/−49/100 | 0.19/0.44/0.41/0.66/1.07/0.99 | |
+| normal wall, B 4, fade 0.25 | 11 | 14 | 34/−45/102 | 0.86/1.61/1.80/1.63/1.15/0.66 | tall V1–V2 R; proximal RCA loses its inferior Q |
+| normal wall, B 2, fade 0.5 | 13 | 13 | 29/−43/100 | 0.66/1.38/1.63/1.64/1.14/0.77 | same |
+| +3 layers, B 2, fade 0.25 | 8 | 11 | 43/−44/96 | 0.28/0.56/0.60/0.72/1.06/0.97 | no inferior Q from LAD; distal LCx Q in I not V6; mid LAD Q in aVL |
+
+The fade keeps the fascicular axes, but with a normal wall the chest R waves become too tall in
+V1–V3 and the inferior Q of proximal RCA occlusion is lost. On the live wall, B 2 / fade 0.25 removes
+the inferior Q from LAD infarcts (perforators: 14 → 11) at the cost of distal-LCx and aVL errors.
+Mid/distal LAD still have no V2–V4 Q in any variant. Not adopted.
