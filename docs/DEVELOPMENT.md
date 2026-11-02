@@ -838,3 +838,22 @@ the opposite of the literature (the added wall layers taper off toward the base,
 An earlier basal lateral wall would move away from the literature, so that direction is dropped.
 A late base adds upward terminal force, so the normal axis would need its inferior force from
 elsewhere.
+
+### rebuild-1 round 3: late base, apical thickening, limb-lead forward model (screens on R0)
+
+Options (off; Node overrides): `LV_BASE_FULL` (the added layers reach the valve rings: basal lateral
+epicardium 36/50 → 45/59 ms, late region 73 → 76 ms, as the literature has the base last) and
+`lvApexLayers`/`LV_APEX` (apical cap; note the normal apex is the thinnest part of the LV).
+Axes (CS_LITE, normal/LAFB/LPFB/LBBB), current sequence; apex-first (apexPurkMul 4, z 0.5, same
+territory) in brackets:
+- R0 26/−44/93/59 (−45/−55/67/11); base full 26/−45/93/56 (−38); apex +2 36/−39/92/60 (−37);
+  both 34/−41/92/57 (−30).
+- limb leads: torsoBlend 0 (Einthoven) 14/−26/69/29; 0.35: 18/−36/84/42; 1 (torso field only)
+  38/−48/98/74; torsoIIGain 0.8/1: 36/−47/92/65, 44/−50/92/70; limbRotation 0/16: 6/−49/86/44,
+  47/−36/98/70. Apex-first stays at −25° … −53° in every variant.
+- Torso field only with no adjustments (torsoBlend 1, torsoIIGain 1, limbRotation 0): 32/−60/92/73.
+Full check: torso field only 9 misses; with precordialGain 0.66 (restores chest R after the
+calibration) 8 misses (mid/distal LAD V2–V4 Q, mid LAD aVL ST, distal LAD III ST), R V1–V6
+0.31/0.62/0.68/0.82/1.08/0.97. Its limb voltages at app scale (calibrated gain ×0.76): normal II R
+1.2, LAFB aVL R 3.1, LPFB III R 4.2 mV (R0: 2.9/3.2; textbook ~1.5), i.e. the fascicular-amplitude
+limitation grows. torsoBlend 1 alone: 12 misses (proximal RCA/PDA lose the II Q), fascsearch 1.8.

@@ -266,10 +266,19 @@
   // apicobasal (z) coordinates: zero at the septal junctions, ramping to full
   // over the free wall, tapering to the base and to the (normally thin) apex.
   // Shared by the voxel tissue and the displayed surface so they agree.
+  // (LV_BASE_FULL, Node test override: no taper toward the base, the added layers reach the valve rings)
+  const ENV = typeof process !== 'undefined' && process.env ? process.env : {};
   function lvThickenWeight(phi, z) {
     if (!(z >= 0)) return 0;
     const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
-    return sm((Math.abs(phi) - 0.5) / 0.9) * sm((0.9 - z) / 0.25) * sm((z - 0.04) / 0.2);
+    const base = ENV.LV_BASE_FULL ? sm((0.99 - z) / 0.06) : sm((0.9 - z) / 0.25);
+    return sm((Math.abs(phi) - 0.5) / 0.9) * base * sm((z - 0.04) / 0.2);
+  }
+  // apical cap growth map (all round the apex, fading out by mid-apical level)
+  function lvApexWeight(phi, z) {
+    if (!(z >= 0)) return 0;
+    const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+    return sm((0.35 - z) / 0.15);
   }
 
   // rear (inferior + inferolateral) LV wall growth map: rotational UVC below −0.8 (tapering in
@@ -314,6 +323,9 @@
       // which is normally a little thicker than the anterior wall and apex
       this.lvRearLayers = opts.lvRearLayers !== undefined ? opts.lvRearLayers : (typeof process !== 'undefined' && process.env && process.env.LV_REAR ? +process.env.LV_REAR : 0);   // (LV_REAR: Node test override)
       if (this.lvRearLayers) this._editLVWall(V, this.lvRearLayers, LAB.LV, lvRearWeight);
+      // opts.lvApexLayers: extra layers on the apical cap (LV_APEX: Node test override)
+      this.lvApexLayers = opts.lvApexLayers !== undefined ? opts.lvApexLayers : (ENV.LV_APEX ? +ENV.LV_APEX : 0);
+      if (this.lvApexLayers) this._editLVWall(V, this.lvApexLayers, LAB.LV, lvApexWeight);
       // ventricular hypertrophy (opts.rvWallLayers: RV free wall, outward)
       this.rvWallLayers = opts.rvWallLayers || 0;
       if (this.rvWallLayers) this._editLVWall(V, this.rvWallLayers, LAB.RV, rvThickenWeight);
