@@ -615,3 +615,16 @@ source ratio (sigmaRatio 3; live 10) the apical infarct removes much more early 
 (early r V2 0.67 → 0.41, V3 0.99 → 0.76, V5 0.59 → 0.36) but still no Q, and the whole normal ECG
 changes (V3 R ~1 mV, axes). The test model's apical Q came from its combination: CT orientation,
 measured source ratio, early apex (16–20 ms) and a physical torso for every lead.
+
+### apex-research round 1: the septal reach above an LAD occlusion is a compensating artefact
+
+A distal-LAD occlusion killed septum and anteroseptal wall up to 0.16 of the apicobasal length
+above the occlusion (27–33% of the infarct): the septum at level z is supplied from the LAD at
+z − `septalSpread` (0.15), and that rule also covers the anteroseptal band (rotational UVC 0.1–1.7).
+Septal perforators actually leave the LAD at right angles and supply at and below their origin.
+Removing the reach (`septalSpread` 0, optionally limiting the band to the true septum,
+`ladSeptPhi` 0.7) leaves no necrosis above the occlusion but takes checker misses 5 → 11–12: the mid
+LAD loses all anterior Q (V2–V4) and gains III/aVF Q; the distal LAD's Q moves to III/aVF. The
+anterior Q waves were resting on the extra (early-activating) septal necrosis: loss of anterior and
+apical wall alone does not reach V2–V4 early in the QRS in this model, the same limitation as the
+apical Q. Kept on refine-2 for now; to be re-tested on any research candidate.
