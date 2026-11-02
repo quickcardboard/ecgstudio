@@ -26,7 +26,7 @@ if (!nocal) { const A0 = new LH.Anatomy(JSON.parse(JSON.stringify(JA)), { lvWall
 const cs = require('./cstune.js').evaluate({ lv, rv, ...mp });
 // ---- ischaemia localisation
 const A = new LH.Anatomy(JA, { lvWallLayers: lv, rvWallLayers: rv }), M = new LH.Model(A, mp), br = M.coronary.branches;
-const SITES = { pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * 0.3)], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)],   // distal LAD: just past the second diagonal (apical-anterior infarct)
+const SITES = { pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * +(process.env.MLAD_F || 0.3))], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)],   // distal LAD: just past the second diagonal (apical-anterior infarct)
   pLCx: br.LCx[0], dLCx: br.LCx[Math.round(br.LCx.length * 0.6)], pRCA: br.RCA[0], PDA: br.PDA[0] };
 function beat(S) {
   const rec = []; S.onSample((t, v) => rec.push(Array.from(v))); S.run(+(process.env.ISCH_MS || 3000));   // (an old scar needs a few beats to settle: 3 s matches 3.6 s exactly)
@@ -62,6 +62,7 @@ for (const [site, node] of Object.entries(SITES)) {
   const isQS = (n) => ref[n].r40 >= 0.2 && b[n].r40 < 0.1 && b[n].s >= 0.3 && b[n].s > 2 * b[n].rMax;
   const Q = L.filter((n) => n !== 'aVR' && b[n].st > -0.08 && ((isQ(b[n]) && (!isQ(ref[n]) || b[n].qAmp < ref[n].qAmp - 0.2)) || isQS(n)));
   const e = EXP[site], miss = (have, g) => g.core.filter((n) => !have.includes(n)), bad = (have, g) => g.bad.filter((n) => have.includes(n));
+  if (process.env.QDBG && site === process.env.QDBG) for (const n of ['V1','V2','V3','V4']) console.error(site, n, JSON.stringify({ ref: { r40: +ref[n].r40.toFixed(2) }, inf: Object.fromEntries(Object.entries(b[n]).map(([k, v]) => [k, +(+v).toFixed(2)])) }));
   const r = { ste, Q, steMiss: miss(ste, e.ste), steBad: bad(ste, e.ste), qMiss: miss(Q, e.q), qBad: bad(Q, e.q) };
   iErr += r.steMiss.length + r.steBad.length + r.qMiss.length + r.qBad.length; isch[site] = r;
 }

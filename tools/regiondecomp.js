@@ -12,7 +12,7 @@ const JA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 const P = JSON.parse(process.argv[2] || '{}'), SITE = process.argv[3] || 'dLAD', HOURS = +(process.argv[4] || 720);
 const { lv = LV0, rv = 0, ...mp } = P;
 const A = new LH.Anatomy(JA, { lvWallLayers: lv, rvWallLayers: rv }), M = new LH.Model(A, mp), br = M.coronary.branches;
-const SITES = { pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * 0.3)], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)],
+const SITES = { pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * +(process.env.MLAD_F || 0.3))], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)],
   pLCx: br.LCx[0], dLCx: br.LCx[Math.round(br.LCx.length * 0.6)], pRCA: br.RCA[0], PDA: br.PDA[0] };
 const RN = ['sept', 'ant', 'lat', 'inf', 'apex', 'rv', 'oth'], NR = RN.length, NE = M.NE, n = M.nVox;
 const SEC = ['sept', 'ant', 'lat', 'lat', 'inf', 'sept'];   // anteroseptal, anterior, anterolateral, inferolateral, inferior, inferoseptal
@@ -32,6 +32,19 @@ if (process.env.REG === 'time' && process.env.ZSPLIT) {   // anterior wall and s
     if (lab !== LH.LAB.LV || z < 0) { reg[c] = 6; continue; } if (z < 0.25) { reg[c] = 4; continue; }
     const d = ((A.phi[c] % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI), sec = SEC[Math.min(5, Math.floor(d / (Math.PI / 3)))];
     reg[c] = sec === 'sept' ? (z < zs ? 0 : 2) : sec === 'ant' ? (z < zs ? 1 : 3) : 5; }
+}
+if (process.env.REG === 'time' && process.env.SUPPLY) {   // regions by supplying artery and position along the LAD
+  const C = M.coronary, LADi = new Map(br.LAD.map((id, i) => [id, i / (br.LAD.length - 1)])), cut = process.env.SUPPLY.split(',').map(Number);   // e.g. 0.18,0.3,0.45
+  RN.splice(0, NR, `LAD<${cut[0]}`, `LAD${cut[0]}-${cut[1]}`, `LAD${cut[1]}-${cut[2]}`, `LAD>${cut[2]}`, 'LCx', 'RCA/PDA', 'RV/oth');
+  for (let c = 0; c < n; c++) { if (A.label[c] !== LH.LAB.LV) { reg[c] = 6; continue; } const nd = C.voxNode[c]; if (nd < 0) { reg[c] = 6; continue; }
+    const b = C.nodes[nd].branch; if (b === 'LAD') { const f = LADi.get(nd); reg[c] = f < cut[0] ? 0 : f < cut[1] ? 1 : f < cut[2] ? 2 : 3; } else if (b === 'LCx' || b === 'LM') reg[c] = 4; else reg[c] = 5; }
+  if (process.env.SEPT) {   // split the most proximal bin into septum (rotational UVC 0.1-1.7) and free wall, merge the rest of the LAD
+    RN.splice(0, NR, `sept<${cut[0]}`, `free<${cut[0]}`, `LAD>${cut[0]}`, 'zz>0.5 of it', 'LCx', 'RCA/PDA', 'RV/oth');
+    for (let c = 0; c < n; c++) { if (reg[c] === 0) reg[c] = A.phi[c] > 0.1 && A.phi[c] < 1.7 ? 0 : 1; else if (reg[c] === 1 || reg[c] === 2 || reg[c] === 3) reg[c] = 2; }
+    for (let c = 0; c < n; c++) if (reg[c] === 1 && A.zuvc[c] >= 0.5) reg[c] = 3;   // proximal free wall split: upper half separately
+    RN[1] = `free<${cut[0]} z<.5`; RN[3] = `free<${cut[0]} z>=.5`;
+  }
+  const cnt = new Array(NR).fill(0); for (let c = 0; c < n; c++) if (M.kind[c] === LH.KIND.VENT) cnt[reg[c]]++; console.log('cells: ' + RN.map((r, i) => r + ' ' + cnt[i]).join(', '));
 }
 // regional pair weights (a pair belongs to its low cell's region; pair coefficients exactly as the model's W)
 function regionalW(dead) {

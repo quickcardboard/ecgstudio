@@ -219,6 +219,7 @@
     ladProxFreeWallPhi: 2.0,
     apexTipZ: 0.06,           // apical tip (apicobasal UVC below this) is LAD; the apical inferior wall above it is PDA  // proximal-LAD nodes lateral of this (rotational UVC) supply no free wall
     ladRvMm: 0,            // RV muscle within this distance (mm) of the LAD is supplied by it (RV branches)
+    d1Path: null, d2Path: null,   // diagonal waypoints [[rotational UVC, apicobasal UVC], ...] (null = built-in)
     septalPerf: null,      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
@@ -787,8 +788,10 @@
       };
       const LAD = addBranch('LAD', LM[LM.length - 1], [antGroove(0.8), antGroove(0.65), antGroove(0.5), antGroove(0.35), antGroove(0.2), lvEpi(1.0, 0.06)]);   // ends at the apex: the inferior wall is PDA territory (right-dominant hearts)
       // diagonals: the anterior–anterolateral junction (the anterolateral free wall is mainly marginal territory)
-      addBranch('D1', along(LAD, 0.18), [lvEpi(1.8, 0.62), lvEpi(1.9, 0.4)]);
-      addBranch('D2', along(LAD, 0.42), [lvEpi(1.75, 0.35), lvEpi(1.85, 0.15)]);
+      // (P.d1Path / P.d2Path: optional [[phi, zuvc], ...] waypoints replacing these)
+      const wp = (pts) => pts.map(([ph, z]) => lvEpi(ph, z));
+      addBranch('D1', along(LAD, 0.18), wp(P.d1Path || [[1.8, 0.62], [1.9, 0.4]]));
+      addBranch('D2', along(LAD, 0.42), wp(P.d2Path || [[1.75, 0.35], [1.85, 0.15]]));
       const LCX = addBranch('LCx', LM[LM.length - 1], [lvEpi(2.2, 0.93), lvEpi(2.8, 0.9), lvEpi(-2.9, 0.88), lvEpi(-2.3, 0.88)]);
       addBranch('OM1', along(LCX, 0.25), [lvEpi(2.3, 0.8), lvEpi(2.35, 0.55), lvEpi(2.4, 0.3)]);   // first obtuse marginal: down the anterolateral–lateral wall
       addBranch('OM2', along(LCX, 0.85), [lvEpi(-2.6, 0.5), lvEpi(-2.5, 0.25)]);

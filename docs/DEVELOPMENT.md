@@ -706,3 +706,21 @@ The Brody term removes the inferior Q of LAD infarcts but not the missing V2–V
 anterior wall that makes the early r survives these infarcts), and it costs the fascicular axes.
 Not adopted. The uniform B overstates the effect away from the cavity; a cavity-distance-weighted
 form would be the physical version.
+
+Coronary anatomy of the anterior wall. The septal territory rule is phi 0.1–1.7 and the LAD runs
+at phi ≈ 1.7, so the AHA "anterior" 60° sector of the earlier tables (1.05–2.09) is half anterior
+septum. Split by supply (`SUPPLY=0.18,0.3,0.45 SEPT=1 REG=time`), the normal early r in V2–V4
+(25 ms: V2 +0.28, V3 +0.39, V4 +0.33) comes almost entirely from tissue fed before 18% of the LAD:
+the S1 septal band and D1's upper free wall. The mid-LAD test site (`Math.round(0.3·len)`, node 10)
+lies one node below S2 (node 9), so S2's septal band (395 cells at zuvc 0.5–0.67) survives it, and
+D1 (waypoints phi 1.8–1.9 down to zuvc 0.4) runs beside the LAD and takes the mid-anterior wall.
+
+Options (off): `d1Path`/`d2Path` replace the diagonal waypoints; tools/fullcheck.js and
+regiondecomp.js take `MLAD_F` (mid-LAD site as a fraction of the LAD) and fullcheck `QDBG=site`
+(prints the Q/QS measures); tools/earlyqrs.js prints early QRS samples normal vs infarct.
+Diagonals across the anterior wall (D1 [[2.05,0.65],[2.3,0.45]], D2 [[1.95,0.38],[2.15,0.18]]; AHA
+agreement 91 → 89%) and the mid-LAD site just after S1/D1 (MLAD_F 0.22): mid LAD r40 V1–V4
+0.19/0.44/0.41/0.66 → 0.04/0.16/0.11/0.42 mV (V1 QS, V2–V3 poor R progression just above the QS
+threshold r40 < 0.1), inferior Q only in III; misses 15 → 13 (with Brody 1: 10, mid LAD r 0.06/0.18/
+0.28/0.40, no inferior Q). Distal LAD r in V1–V4 is unchanged in every variant: its territory (apex
+and lower walls) does not make the early anterior forces.
