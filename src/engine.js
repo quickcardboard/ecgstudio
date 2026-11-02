@@ -218,6 +218,7 @@
     ladProxFreeWallPhi: 2.0,
     apexTipZ: 0.06,           // apical tip (apicobasal UVC below this) is LAD; the apical inferior wall above it is PDA  // proximal-LAD nodes lateral of this (rotational UVC) supply no free wall
     ladRvMm: 0,            // RV muscle within this distance (mm) of the LAD is supplied by it (RV branches)
+    septalPerf: null,      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
@@ -822,6 +823,13 @@
       // level z − septalSpread (a perforator reaches ~1.3 cm above its origin
       // and everything below it). The drawn LAD and the septum stay consistent:
       // the further up the LAD an occlusion, the more septum (and septal Q waves).
+      // septalPerf: explicit septal perforators at these fractions along the LAD (S1 beside
+      // D1, S2… further down). A perforator runs into the septum at right angles and
+      // supplies the septal band from its origin down to the next one; the basal septum
+      // above S1 is S1's too. Without it, the septum at level z is supplied from the
+      // LAD at level z − septalSpread.
+      const perf = P.septalPerf && P.septalPerf.length ? P.septalPerf.map((f) => branches.LAD[Math.min(branches.LAD.length - 1, Math.round(f * (branches.LAD.length - 1)))]).sort((a, b) => nodes[b].zz - nodes[a].zz) : null;
+      const perfFor = (zz) => { let b = perf[0]; for (const id of perf) if (nodes[id].zz >= zz) b = id; return b; };
       const voxNode = new Int32Array(A.n).fill(-1);
       for (let c = 0; c < A.n; c++) {
         const L = A.label[c]; if (L !== LAB.LV && L !== LAB.RV) continue;
@@ -834,7 +842,7 @@
         // apical cap: the LAD (to the tip), except its inferior face, which the PDA
         // reaches in right-dominant hearts (AHA segment 15 = RCA, 17 = LAD)
         else if (zz >= 0 && zz < 0.2) voxNode[c] = zz > P.apexTipZ && ph < -0.6 && ph > -2.4 ? nearestOf(branches.PDA, c, euc) : nearestOf(branches.LAD, c, euc);
-        else if (ph > 0.1 && ph < 1.7) voxNode[c] = nearestOf(branches.LAD, c, (x, id) => Math.abs(nodes[id].zz - (zz - P.septalSpread)));   // septum (LAD perforators)
+        else if (ph > 0.1 && ph < 1.7) voxNode[c] = perf ? perfFor(zz) : nearestOf(branches.LAD, c, (x, id) => Math.abs(nodes[id].zz - (zz - P.septalSpread)));   // septum (LAD perforators)
         else if (ph > -0.7 && ph <= 0.1) voxNode[c] = nearestOf(branches.PDA, c, zOnly);                                   // inferior septum (PDA)
         else voxNode[c] = nearestOf(lvSurface, c, uvcDist);
       }

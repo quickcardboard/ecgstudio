@@ -615,3 +615,17 @@ source ratio (sigmaRatio 3; live 10) the apical infarct removes much more early 
 (early r V2 0.67 → 0.41, V3 0.99 → 0.76, V5 0.59 → 0.36) but still no Q, and the whole normal ECG
 changes (V3 R ~1 mV, axes). The test model's apical Q came from its combination: CT orientation,
 measured source ratio, early apex (16–20 ms) and a physical torso for every lead.
+
+### refine-2 round 6: explicit septal perforators (option, off) and what they show
+
+`septalPerf` (fractions along the LAD, e.g. [0.14, 0.3, 0.45, 0.6]; default off) gives the septum to
+explicit perforators: each supplies the septal band from its origin down to the next, S1 also the
+basal septum above it. No necrosis above an occlusion. Checker misses 5 → 12: mid- and distal-LAD
+infarcts lose all anterior Q and show QS in II/III/aVF (mid LAD early r V1–V4 0.14/0.32/0.30/0.49 →
+0.11/0.29/0.29/0.43; II/III/aVF → ~0). Not fixed by a silent scar (`scarWindow` 0: 11 misses), the
+measured source ratio (3 or 5: 11–12), or the torso chest field (12). The anterior Q waves of the
+default rule come from the extra, early-activating septal necrosis (upward reach `septalSpread`);
+loss of anterior free wall, D2 territory and the apical cap projects onto the inferior leads (the
+apex faces down as well as forward in this CT heart). The default rule is kept as a documented
+compensation; making the anterior free wall's early forces visible to V2–V4 needs a forward-model
+rebuild with re-tuned activation rather than further parameter search.
