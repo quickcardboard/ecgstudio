@@ -772,7 +772,7 @@
         const q = dirs[i].clone().normalize().multiplyScalar(lens[i]);
         arrow(sets[set], q, q.length() - 3, 0x38c6e8, 6);
         const dot = new THREE.Mesh(new THREE.SphereGeometry(3.2, 14, 10), arrowMat(0x38c6e8)); dot.position.copy(q); dot.renderOrder = 11; sets[set].add(dot);
-        const tagAt = q.clone().multiplyScalar(1.07); if (set === 'book') tagAt.y -= 9;   // (the horizontal fan is edge-on from the front: keep its labels off lead I's)
+        const tagAt = q.clone().multiplyScalar(1.07); if (set === 'book' && i >= 3) tagAt.y -= 9;   // (V4–V6 lie near lead I's line seen from the front: keep their labels off it)
         leadTag(k, tagAt, 'lead chest', set);
       });
     };
@@ -781,7 +781,11 @@
       return [['I', I], ['II', II], ['III', III], ['aVR', I.clone().add(II).multiplyScalar(-0.5)], ['aVL', I.clone().sub(III).multiplyScalar(0.5)], ['aVF', II.clone().add(III).multiplyScalar(0.5)]]; };
     // textbook: hexaxial (equal lengths) and V1 120°, V2 90°, V3 75°, V4 60°, V5 30°, V6 0° (from the patient's left toward anterior)
     limbFan('book', [['I', 0], ['II', 60], ['III', 120], ['aVR', -150], ['aVL', -30], ['aVF', 90]].map(([n, d]) => [n, fromDeg(d)]), 82);
-    chestFan('book', [120, 90, 75, 60, 30, 0].map((d) => { const a = d * Math.PI / 180; return new THREE.Vector3(Math.cos(a), 0, Math.sin(a)); }), [92, 92, 92, 92, 92, 92]);
+    // (each tilted to its electrode's height: V1/V2 in the 4th intercostal space above V4–V6 in the 5th, V3 between)
+    chestFan('book', [120, 90, 75, 60, 30, 0].map((d, i) => {
+      const e = M.electrodes[['V1', 'V2', 'V3', 'V4', 'V5', 'V6'][i]], el = Math.atan2(e[1] - hc[1], Math.hypot(e[0] - hc[0], e[2] - hc[2])), a = d * Math.PI / 180;
+      return new THREE.Vector3(Math.cos(a) * Math.cos(el), Math.sin(el), Math.sin(a) * Math.cos(el));
+    }), [92, 92, 92, 92, 92, 92]);
     // measured: the limb vectors the ECG computation uses (engine blend of the torso field and Einthoven)
     const lv = M.limbLeadVectors, V3v = (a) => new THREE.Vector3(a[0], a[1], a[2]);
     if (lv) {

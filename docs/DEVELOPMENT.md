@@ -521,3 +521,6 @@ axes and the standard horizontal-plane chest fan (V1 120°, V2 90°, V3 75°, V4
 from the patient's left toward anterior). The legend's switch ("Textbook axes" ⇄ "Model lead
 vectors") shows the vectors the model computes with: the blended limb vectors (engine exposes
 `limbTorsoVec`, the torso part per unit heart vector) and the Dower-blended chest directions.
+Textbook chest arrows keep the textbook azimuths but take each electrode's height from the heart
+centre: V1/V2 (4th intercostal space) 27–36° up, V3 22°, V4–V6 (5th space, level with the heart
+centre) about 0°.
