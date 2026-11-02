@@ -560,3 +560,22 @@ activation score 12.8 → 5.3 (apex 30 → 25 ms, HV 24 → 27 ms, Purkinje 2.25
 WPW, P waves, hypertrophy and arrhythmias keep their patterns, QRS ~6 ms narrower. Not adopted:
 LAFB −48 → −37/−40°, old mid-LAD Q V1–V3 → V1–V2, old distal-LAD Q still absent in V4–V5, PDA at 1 h
 adds V1/V4 STE. The scoring weighted LAFB lightly and read Q waves on a shorter beat than the audit.
+
+### refine-2 round 3: activation-only re-fit with the septal fascicle (not adopted)
+
+The septal fascicle's block is now tied to its parent division (the posterior one here), as on
+cs-tune: RBB + LAF + LPF stays complete, and clearing the block releases the septal fibres (off by
+default). Alone it moves Durrer's mid-septal early site from 9.6 to 4–6 ms but delays the anterior
+and posterior sites ~3 ms, and the territories are walled off by `purkCrossSlow` 6.8.
+
+Tool fix: the checker, activation score and optimiser had defaulted to a 2-layer LV wall (the test
+model's); the app's normal heart has 3. They now take it from `hypertrophyOptions`. On the app heart,
+round 1 has 9 checker misses (not 5): old mid-LAD Q missing V3–V4; distal LAD STE/Q in III/aVF and no
+STE in V5; PDA STE in V1. Normal +33°, LAFB −49°, LPFB +100°, activation score 15.3, apex 29 ms.
+
+Activation-only re-fit (Purkinje speed, apical network, septal fascicle territory/landing,
+cross-link slowing; position and lead settings fixed; tools/data/refit_round3.json): misses 9 → 8
+(mid-LAD Q gains V3, distal-LAD inferior Q gone; distal-LCx Q in V6 lost), activation 15.3 → 7.0,
+apex 25 ms. Not adopted: LPFB by tools/fascsearch.js +83/75° (no right axis deviation; the re-fit's
+own measure read +94°), and the LAD Q waves in V4–V5 are still absent. Activation alone does not fix
+them; the apex geometry (apex ~35 mm below V4, facing the inferior leads) is the remaining lever.
