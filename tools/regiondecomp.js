@@ -77,7 +77,7 @@ function decompose(occl) {
   const S0 = mk(); S0.run(RUN); const vb = S0.log.vent[S0.log.vent.length - 2], on = Math.floor(vb.on);
   const S = mk();
   const dead = occl ? Uint8Array.from({ length: n }, (_, c) => (S.blocked[c] && M.kind[c] === LH.KIND.VENT ? 1 : 0)) : null;
-  const WR = regionalW(dead), T = 60;
+  const WR = regionalW(dead), T = +(process.env.TMAX || 60);
   const out = Array.from({ length: NR + 1 }, () => Array.from({ length: T }, () => new Float64Array(NE)));
   const full = Array.from({ length: T }, () => new Float64Array(NE)), model = Array.from({ length: T }, () => new Float64Array(NE));
   const cells = [], creg = new Array(n);
@@ -104,7 +104,7 @@ function decompose(occl) {
   let e2 = 0; for (let t = 0; t < T; t++) for (let e = 0; e < NE; e++) e2 = Math.max(e2, Math.abs((model[t][e] - model[0][e]) - (full[t][e] - full[0][e] + out[NR][t][e] - out[NR][0][e])));
   return { S, out, relErr: err / mag, modelErr: e2 / mag, on };
 }
-const SHOW = ['II', 'III', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'], LI = SHOW.map((s) => LH.LEADS.indexOf(s));
+const SHOW = process.env.LIMB ? ['I', 'II', 'III', 'aVL', 'aVF', 'V1', 'V2', 'V4', 'V6'] : ['II', 'III', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'], LI = SHOW.map((s) => LH.LEADS.indexOf(s));
 function summary(S, out, w0, w1) {
   return out.map((series) => {
     const acc = { D: [0, 0, 0], L: new Array(12).fill(0) };
@@ -136,6 +136,16 @@ if (process.env.REG === 'time') {   // normal heart only: every region per 5 ms
   const Nn = decompose(null);
   console.log('normal heart by region, mean per 5 ms (heart vector X left Y sup Z ant; leads mV)');
   console.log('ms   region   X     Y     Z   | ' + SHOW.map((s) => s.padStart(5)).join(' '));
+  if (process.env.AREA) {   // QRS area (mV·ms) per region and per window, and each region's share of the frontal axis
+    const T = +(process.env.TMAX || 60), B = +(process.env.BIN || 10), iI = LH.LEADS.indexOf('I'), iF = LH.LEADS.indexOf('aVF');
+    const tot = new Array(NR + 1).fill(0).map(() => [0, 0]);
+    console.log('window  ' + RN.map((r) => (r + ' I/aVF').padStart(14)).join(''));
+    for (let w0 = 0; w0 < T; w0 += B) { const sm = summary(Nn.S, Nn.out, w0, Math.min(T, w0 + B)); let row = String(w0).padEnd(8);
+      sm.forEach((x, i) => { if (i >= NR) return; const a = x.L[iI] * B, b = x.L[iF] * B; tot[i][0] += a; tot[i][1] += b; row += (a.toFixed(1) + '/' + b.toFixed(1)).padStart(14); }); console.log(row); }
+    let sI = 0, sF = 0; tot.forEach(([a, b]) => { sI += a; sF += b; });
+    console.log('total   ' + tot.slice(0, NR).map(([a, b]) => (a.toFixed(1) + '/' + b.toFixed(1)).padStart(14)).join('') + `   sum I ${sI.toFixed(1)} aVF ${sF.toFixed(1)} -> area axis ${(Math.atan2(sF * 2 / Math.sqrt(3), sI) * 180 / Math.PI).toFixed(0)} deg`);
+    process.exit(0);
+  }
   for (let w0 = 0; w0 < 45; w0 += 5) { const sm = summary(Nn.S, Nn.out, w0, w0 + 5); sm.forEach((x, i) => { if (i < NR) console.log(String(w0).padEnd(5) + RN[i].padEnd(7) + x.D.map(f).join(' ') + ' | ' + LI.map((k) => f(x.L[k]).padStart(5)).join(' ')); }); }
   process.exit(0);
 }

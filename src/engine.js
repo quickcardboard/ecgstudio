@@ -151,6 +151,7 @@
     apexX: 72, apexY: -34.83,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)
     apexPurkMul: 1, apexPurkZ: 0.3,   // Purkinje links below apexPurkZ (apicobasal UVC) conduct apexPurkMul× faster (1 = off)
+    apexPurkPhi: 0,        // >0: only where |rotational UVC| < apexPurkPhi (paraseptal), except the apical cap (zuvc < 0.25)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
     purkZmaxLV: 0.94, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)
     pmjAntero: 2,          // Purkinje -> muscle junction delay (ms)
@@ -1000,7 +1001,8 @@
             f = apical ? 1 : P.purkCrossSlow;
           }
           // the apical network is the densest and best interconnected: faster effective conduction
-          const apexF = P.apexPurkMul > 1 && A.zuvc[c] >= 0 && A.zuvc[c] < P.apexPurkZ && A.zuvc[q] >= 0 && A.zuvc[q] < P.apexPurkZ ? 1 / P.apexPurkMul : 1;
+          const inAp = (x) => A.zuvc[x] >= 0 && A.zuvc[x] < P.apexPurkZ && (!P.apexPurkPhi || A.zuvc[x] < 0.25 || Math.abs(A.phi[x]) < P.apexPurkPhi);
+          const apexF = P.apexPurkMul > 1 && inAp(c) && inAp(q) ? 1 / P.apexPurkMul : 1;
           this.edge(idOf.get(c), idOf.get(q), d / P.cvPurkinje * f * apexF);
         }
       }

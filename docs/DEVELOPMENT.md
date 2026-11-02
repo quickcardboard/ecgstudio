@@ -659,3 +659,16 @@ injury current adds inferior ST elevation. Misses: 15 → 18 (10 mm), 19 (20 mm)
 sequence (apexPurkMul 4, apexPurkZ 0.5): 10 → 11 / 13; at 20 mm mid LAD gains Q V1–V5 (all core
 leads) but Q and ST in II, distal LAD Q V3–V5. Kept off; worth revisiting once the axis of the
 apex-first sequence is understood.
+
+Why the apex-first sequence moves the normal axis left (QRS area per region in I/aVF, mV·ms over
+0–100 ms, `AREA=1 TMAX=100 REG=time tools/regiondecomp.js`). Current model: net aVF only +8.4 out of
+regional terms of ±15 (septum I −15.6, RV I −14.9, lateral I +21.3); the inferior share comes from the
+apex (+6.7), anterior wall (+5.6) and inferior wall (+3.0), the first two because they are activated
+base → apex. Apical cap alone 4× faster (apexPurkZ 0.25): apex +1.6, anterior +1.9, lateral −0.7 →
+axis −19°. Below 0.5 (4×): the lateral wall fills apex → base (18/23/28 ms) and its aVF area goes
++2.6 → −29.3, RV −3 → −11 → −60° (−42° with pure Einthoven limb leads, so not the torso field).
+Limiting the speed-up to the paraseptal wall (new `apexPurkPhi`, default off) does not help
+(−53° to −57°). So the normal inferior axis and the wrong LAD Q share one cause: forces pointing
+down because the lower walls are activated from above. A literature apex-first sequence needs an
+inferior force the model is missing (candidates: oversized rightward septal and RV areas, the
+heart's frontal tilt within the normal range, the inferior wall's late upward basal sweep).
