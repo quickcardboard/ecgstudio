@@ -679,3 +679,30 @@ aVF barely moves, so the axis turns toward 0° (current sequence 32° → 7–26
 sequence stays left (−28° to −49°, from −60°). It also reverses septal activation (right face 15–16
 ms before the left 23–35 ms; acttune 15.3 → 23–67). Rejected: the missing inferior force is not the
 septum. The apex-first deficit is the lateral wall (aVF −29.3, unchanged by any septal setting).
+
+Lateral wall and wall thickness (`tools/lattime.js`): transmural transit is 35–40 ms (endocardium
+20–37, epicardium 50–74 ms), and only ~10% of endocardial cells are Purkinje breakthroughs. The CT
+heart's own LV wall is 9.5–10.8 mm (cavity-to-epicardium); the +3 layers make the mid lateral and
+inferior walls 14–15 mm (hypertrophy range). Without them transit is 20–25 ms and acttune improves
+(15.3 → 11.3), but the area axis is −81° (apex-first −78°): the extra layers compensate for missing
+inferior force. Frontal tilt (`heartRotation` −6…44, long axis 33–80°) does not rescue apex-first
+(−68° … −24°); torsoIIGain 1 only scales.
+
+Brody effect (`brody`, radial sources ×(1+B), uniform through the wall; off until now) restores it.
+Area axis, current/apex-first: +3 layers B 2: 56°/6°, B 3: –/26°; normal wall B 2: 52°/−34°, B 4:
+–/25°. Full check (perforators on, ISCH_MS 3600; misses, normal/LAFB/LPFB axes by the standard
+measure):
+
+| variant | misses | N / LAF / LPF | LAD Q |
+|---|---|---|---|
+| perforators (reference) | 15 | 33 / −49 / 100 | II III aVF (mid, distal) |
+| B 1 | 11 | 49 / −29 / 92 | III aVF (mid, distal) |
+| apex-first, B 2 | 10 | 8 / −8 / 60 | none (mid, distal) |
+| apex-first, B 3 | 14 | 25 / 15 / 58 | none |
+| normal wall, B 2 | 10 | 53 / −19 / 90 | none; R V1 0.39 |
+| normal wall, apex-first, B 3–4 | 14 | 7–25 / −16…24 / 47 | mid LAD V1–V2 |
+
+The Brody term removes the inferior Q of LAD infarcts but not the missing V2–V4 Q (the upper
+anterior wall that makes the early r survives these infarcts), and it costs the fascicular axes.
+Not adopted. The uniform B overstates the effect away from the cavity; a cavity-distance-weighted
+form would be the physical version.
