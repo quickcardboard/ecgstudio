@@ -1,0 +1,65 @@
+{
+ "note": "apex-research: combined re-fit (measured source ratio, torso chest field, septal fascicle, apical Purkinje, lead settings), stopped at generation 19",
+ "score": 45.8,
+ "params": {
+  "rv": 0,
+  "septalFascicle": true,
+  "chestTorso": true,
+  "sigmaRatio": 4,
+  "ventSourceGain": 1,
+  "cvPurkinje": 2.172,
+  "apexPurkMul": 1.1441,
+  "apexPurkZ": 0.3844,
+  "septalTerrHalf": 0.05,
+  "lsfZ": 0.15,
+  "lsfPhi": 0.1185,
+  "purkCrossSlow": 6.8,
+  "torsoBlend": 0.6673,
+  "torsoIIGain": 0.6584,
+  "limbRotation": 10.611,
+  "precordialGain": 0.5708,
+  "precordialDipoleW": 0.7288
+ },
+ "metrics": {
+  "iErr": 5,
+  "miss": [
+   "mLAD q-V3",
+   "mLAD q-V4",
+   "dLAD q-V2",
+   "dLAD q-V3",
+   "dLAD q-V4"
+  ],
+  "axes": {
+   "N": 58,
+   "LAF": 1,
+   "LPF": 83,
+   "LBB": 67,
+   "RVH": 123
+  },
+  "cs": 25.98,
+  "act": 8.01,
+  "apex": 25,
+  "HV": 24,
+  "total": 84,
+  "qrs": {
+   "V1": [
+    0.22,
+    1.08
+   ],
+   "V2": [
+    0.47,
+    1.4
+   ],
+   "R": [
+    0.22,
+    0.47,
+    0.72,
+    0.71,
+    0.94,
+    0.89
+   ],
+   "qI": -0.06,
+   "ratio": 1.28
+  }
+ }
+}

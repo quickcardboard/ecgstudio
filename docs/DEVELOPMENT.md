@@ -628,3 +628,12 @@ LAD loses all anterior Q (V2–V4) and gains III/aVF Q; the distal LAD's Q moves
 anterior Q waves were resting on the extra (early-activating) septal necrosis: loss of anterior and
 apical wall alone does not reach V2–V4 early in the QRS in this model, the same limitation as the
 apical Q. Kept on refine-2 for now; to be re-tested on any research candidate.
+
+### apex-research round 2: combined re-fit stopped
+
+Combined re-fit (source ratio 2.5–4, torso chest field, septal fascicle, apical Purkinje, cross-links,
+limb/chest lead settings; axes scored with tools/fascsearch.js) stopped after 19 generations
+(tools/data/apex_research.json): 5 checker misses (mid-LAD Q V3–V4, distal-LAD Q V2–V4) with LAFB
++1° and LPFB +83° (both lose their deviation). On refine-2, explicit septal perforators then showed
+that the anterior Q waves rest on septal necrosis (refine-2 round 6). Branch parked; the next step
+is a forward-model rebuild, not parameter search.
