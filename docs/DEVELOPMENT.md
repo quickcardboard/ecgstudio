@@ -734,3 +734,11 @@ at 12 h (good), mid LAD gains ST elevation in I/aVL at 1 h, distal LAD in II at 
 loses 500 cells and V5 ST elevation at 12 h. The V2–V3 r loss needs the perforators as well, so the
 change is a trade-off, not a pure gain; a shorter diagonal course that stays out of the
 anterolateral sector is the next variant to try.
+
+D1-only course (variant H, `d1Path` [[2.0,0.66],[2.1,0.52]], D2 unchanged; AHA 90%, apical lateral
+LCx 69% kept, mid anterolateral 95 → 88%). No gain: full check 7 → 8 on the live rule (mid LAD ST
+elevation in I), 7 at MLAD_F 0.22 (same as the built-in diagonals at 0.22); with perforators 15 → 16,
+and 14 at 0.22 (built-in at 0.22: also 14). It still costs the proximal LCx (8140 → 7929 cells, V5 ST
+elevation lost at 12 h) and gives proximal LAD a V4 Q at 12 h. The diagonal course is not what
+limits the anterior Q waves; the mid-LAD site after S1/D1 (MLAD_F 0.22) is neutral on the live rule
+(7 → 7) and gains one miss with perforators (15 → 14). Built-in diagonals kept.
