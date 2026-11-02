@@ -219,7 +219,8 @@
     ladProxFreeWallPhi: 2.0,
     apexTipZ: 0.06,           // apical tip (apicobasal UVC below this) is LAD; the apical inferior wall above it is PDA  // proximal-LAD nodes lateral of this (rotational UVC) supply no free wall
     ladRvMm: 0,            // RV muscle within this distance (mm) of the LAD is supplied by it (RV branches)
-    d1Path: null, d2Path: null,   // diagonal waypoints [[rotational UVC, apicobasal UVC], ...] (null = built-in)
+    // diagonals cross the anterior wall toward the anterolateral wall (the LAD itself feeds the strip beside the groove)
+    d1Path: [[2.05, 0.65], [2.3, 0.45]], d2Path: [[1.95, 0.38], [2.15, 0.18]],   // waypoints [[rotational UVC, apicobasal UVC], ...]
     septalPerf: null,      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
