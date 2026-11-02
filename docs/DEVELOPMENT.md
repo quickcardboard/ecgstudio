@@ -724,3 +724,13 @@ agreement 91 → 89%) and the mid-LAD site just after S1/D1 (MLAD_F 0.22): mid L
 threshold r40 < 0.1), inferior Q only in III; misses 15 → 13 (with Brody 1: 10, mid LAD r 0.06/0.18/
 0.28/0.40, no inferior Q). Distal LAD r in V1–V4 is unchanged in every variant: its territory (apex
 and lower walls) does not make the early anterior forces.
+
+Full regression of the lateral diagonals as default (candidate eaef6ef, reverted). Identical:
+evalecg, fascsearch, blocks, wpw, pwave (both), hyper, stcheck, arrhythmia, avnrt, avrt. Changed:
+AHA agreement 91 → 89% (mid anterolateral LCx 95 → 79%, apical lateral LCx 69 → 58%: the diagonals
+take marginal territory); full check on the live septal rule 7 → 8 misses (mid LAD adds ST elevation
+in I; MLAD_F 0.22: 7), with perforators 15 → 15 (0.22: 13); ischaudit: proximal LAD gains Q in aVL/V4
+at 12 h (good), mid LAD gains ST elevation in I/aVL at 1 h, distal LAD in II at 1 h, proximal LCx
+loses 500 cells and V5 ST elevation at 12 h. The V2–V3 r loss needs the perforators as well, so the
+change is a trade-off, not a pure gain; a shorter diagonal course that stays out of the
+anterolateral sector is the next variant to try.
