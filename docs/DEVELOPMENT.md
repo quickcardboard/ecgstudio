@@ -761,3 +761,29 @@ The fade keeps the fascicular axes, but with a normal wall the chest R waves bec
 V1–V3 and the inferior Q of proximal RCA occlusion is lost. On the live wall, B 2 / fade 0.25 removes
 the inferior Q from LAD infarcts (perforators: 14 → 11) at the cost of distal-LCx and aVL errors.
 Mid/distal LAD still have no V2–V4 Q in any variant. Not adopted.
+
+### rebuild-1 round 1: physiological base (branch cut from refine-2)
+
+Defaults on this branch (R0), from the refine-2 round 7 diagnostics:
+- septal perforators `septalPerf` [0.14, 0.3, 0.45, 0.6] instead of the upward-reach rule;
+- LV free wall +2 layers (~12 mm, upper normal; the CT wall is ~10 mm, +3 gave 14–15 mm);
+- right-bundle septal Purkinje `rbbSeptalFrac` 0.3, `rbbSeptalDelay` 25: right septal face 31 ms,
+  10 ms after the left (was 39 ms: the left-to-right septal front ran unopposed, and with the
+  thinner wall V1–V2 R reached 0.9–1.6 mV);
+- fading Brody effect `brody` 2, `brodyFade` 0.25 (radial sources near the cavity enhanced);
+- `ecgGain` 0.0174 → 0.0194 (calibrated heart-vector gain ratio R0/live).
+
+Full regression against refine-2 (live defaults):
+- normal: QRS 92 → 86 ms, axis 29 → 22°, II R 0.73 → 1.13, T III −0.14 → +0.26 (limitation fixed),
+  q I/V6 −0.05/−0.04 → −0.07/−0.08, R V1–V6 0.14/0.32/0.30/0.48/0.79/0.73 → 0.23/0.47/0.52/0.62/
+  0.83/0.74; fascsearch score 4.06 → 2.2 (LAFB −49 → −44°, LPFB 100 → 93°, aVL R 2.4 → 2.9);
+  activation score 15.3 → 12.5;
+- LVH Sokolow 3.72 → 4.51, Cornell 2.53 → 2.77; RVH axis 165 → 149°, V1 R/S 0.98/0.12;
+- blocks, arrhythmias, AVNRT/AVRT, WPW, P waves: same behaviour (sinus QRS 89 → 83 ms; VT QRS
+  167 → 183 ms); stcheck within 0.04 mV; AHA agreement 91% (unchanged);
+- ischaemia (full check, mid LAD at 22%): 7 → 9 misses. Gone: inferior Q of distal LAD, PDA ST in
+  V1. New: mid LAD Q only in V1 (the live rule's V1–V3 came from the septal-reach compensation;
+  r in V1–V3 now halved), distal LAD Q in aVF, mid LAD ST elevation in I. ischaudit: RCA sites show
+  a III Q from 1 h; distal LCx adds inferior ST at 1 h and III/aVF Q at 30 days (inferolateral).
+Remaining core problem: V2–V4 Q for mid and distal LAD. Apex-first activation still moves the
+normal axis left on R0 (apexPurkMul 1.5–3: −43° … +15°), so it stays off.
