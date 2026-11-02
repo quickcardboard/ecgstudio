@@ -672,3 +672,10 @@ Limiting the speed-up to the paraseptal wall (new `apexPurkPhi`, default off) do
 down because the lower walls are activated from above. A literature apex-first sequence needs an
 inferior force the model is missing (candidates: oversized rightward septal and RV areas, the
 heart's frontal tilt within the normal range, the inferior wall's late upward basal sweep).
+
+Candidate 1, earlier right-septal activation (`rbbSeptalFrac`/`rbbSeptalDelay`, RV septal Purkinje
+from the right bundle). The septum's lead-I area goes −15.6 → +4.6 and the RV's −14.9 → −0.2, but
+aVF barely moves, so the axis turns toward 0° (current sequence 32° → 7–26°) and the apex-first
+sequence stays left (−28° to −49°, from −60°). It also reverses septal activation (right face 15–16
+ms before the left 23–35 ms; acttune 15.3 → 23–67). Rejected: the missing inferior force is not the
+septum. The apex-first deficit is the lateral wall (aVF −29.3, unchanged by any septal setting).
