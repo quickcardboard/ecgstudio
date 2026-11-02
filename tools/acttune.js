@@ -4,7 +4,8 @@
 // atrial mapping (e.g. Lemery 2007), clinical HV/PR. Target ranges are
 // approximate literature values.
 //   node tools/acttune.js '[{...}]'          require('./acttune.js').evaluate(p)
-const fs = require('fs'); const LH = require('../src/engine.js'); if (process.env.RA !== undefined && LH.setRaLayersDefault) LH.setRaLayersDefault(+process.env.RA);
+const fs = require('fs'); const LH = require('../src/engine.js');
+const LV0 = LH.hypertrophyOptions({}).anatomy.lvWallLayers;   // the app's normal LV wall (3 on the live model) if (process.env.RA !== undefined && LH.setRaLayersDefault) LH.setRaLayersDefault(+process.env.RA);
 const JSONA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 const anat = new Map();
 const anatomy = (lv, rv) => { const k = lv + '/' + rv; if (!anat.has(k)) anat.set(k, new LH.Anatomy(JSONA, { lvWallLayers: lv, rvWallLayers: rv })); return anat.get(k); };
@@ -56,7 +57,7 @@ function atrial(A, M, S) {
 }
 
 function evaluate(p) {
-  const { lv = 2, rv = 0, ...mp } = p;
+  const { lv = LV0, rv = 0, ...mp } = p;
   const A = anatomy(lv, rv), M = new LH.Model(A, mp);
   const S = new LH.Sim(M, { seed: 1 }); S.run(1700);
   const vb = S.log.vent[S.log.vent.length - 1], t0 = vb.on;

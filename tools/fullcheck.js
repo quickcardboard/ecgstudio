@@ -4,11 +4,12 @@
 // as tools/ischaudit.js). Prints one JSON line.
 //   [TV2=field.json] [RA=0] node tools/fullcheck.js '{params}'
 const fs = require('fs'); const path = require('path'); const LH = require('../src/engine.js');
+const LV0 = LH.hypertrophyOptions({}).anatomy.lvWallLayers;   // the app's normal LV wall (3 on the live model)
 if (process.env.RA !== undefined && LH.setRaLayersDefault) LH.setRaLayersDefault(+process.env.RA);
 if (process.env.TV2) LH.setDefaultTorso2(require(path.resolve(process.env.TV2)));
 const JA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 function check(p, nocal = !!process.env.NOCAL) {
-const { lv = 2, rv = 0, ...mp } = p;
+const { lv = LV0, rv = 0, ...mp } = p;
 const L = LH.LEADS;
 // ---- gain: peak spatial QRS vector (Kors regression) = 1.6 mV
 function calibrate(M) {

@@ -3,7 +3,8 @@
 //   node tools/cstune.js '[{...}, ...]'          one JSON line per set
 //   require('./tools/cstune.js').evaluate(p)     → { score, m }
 // A set may carry "lv" (LV wall layers, default 3) besides model parameters.
-const fs = require('fs'); const LH = require('../src/engine.js'); if (process.env.RA !== undefined && LH.setRaLayersDefault) LH.setRaLayersDefault(+process.env.RA);
+const fs = require('fs'); const LH = require('../src/engine.js');
+const LV0 = LH.hypertrophyOptions({}).anatomy.lvWallLayers;   // the app's normal LV wall (3 on the live model) if (process.env.RA !== undefined && LH.setRaLayersDefault) LH.setRaLayersDefault(+process.env.RA);
 const JSONA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 const anat = new Map();
 const anatomy = (lv, rv) => { const k = lv + '/' + rv; if (!anat.has(k)) anat.set(k, new LH.Anatomy(JSONA, { lvWallLayers: lv, rvWallLayers: rv })); return anat.get(k); };
@@ -32,7 +33,7 @@ const earlyR = (b, n) => { const v = b.y(n); let r = 0; for (let t = 0; t < Math
 const initQ = (b, n) => { const v = b.y(n).slice(0, 20); return v.reduce((a, x) => (Math.abs(x) > Math.abs(a) ? x : a), 0); };
 
 function evaluate(p) {
-  const { lv = 2, rv = 0, ...mp } = p;
+  const { lv = LV0, rv = 0, ...mp } = p;
   const A = anatomy(lv, rv), M = new LH.Model(A, mp);
   const cs = M.csSegments, br = M.coronary.branches;
   const n = record(M, () => {});
