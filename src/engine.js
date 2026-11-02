@@ -145,6 +145,7 @@
     precordialGain: 0.52,        // overall chest-lead gain
     sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
+    brodyFade: 0,           // >0: the enhancement falls off as exp(−depth/brodyFade) from the cavity (depth = transmural UVC, 0 endo … 1 epi); 0 = uniform
     heartPitch: -10,          // degrees about the left–right axis (+ tips the anterior wall upward)
     heartYaw: 8,           // degrees about the vertical axis (+ = apex swung from anterior toward the left)
     heartRotation: 14,    // degrees about the AP axis (+ = more vertical heart)
@@ -1291,7 +1292,9 @@
       }
       // midpoint radial direction and its component along the pair
       const rr = [0.5 * (rhat[3 * c] + rhat[3 * w]), 0.5 * (rhat[3 * c + 1] + rhat[3 * w + 1]), 0.5 * (rhat[3 * c + 2] + rhat[3 * w + 2])];
-      const re = B * (rr[0] * ex[0] + rr[1] * ex[1] + rr[2] * ex[2]);
+      let Bp = B;
+      if (B && this.P.brodyFade > 0) { const d = 0.5 * (Math.max(0, A.tm[c]) + Math.max(0, A.tm[w])); Bp = B * Math.exp(-d / this.P.brodyFade); }
+      const re = Bp * (rr[0] * ex[0] + rr[1] * ex[1] + rr[2] * ex[2]);
       // pair-midpoint fibre (sign-aligned average), and its component along the pair
       let ff = [0, 0, 0], fe = 0;
       if (aniso && kc === KIND.VENT) {

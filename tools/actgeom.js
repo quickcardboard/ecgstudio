@@ -8,7 +8,7 @@ const JA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 const P = JSON.parse(process.argv[2] || '{}'), SITE = process.argv[3];
 const { lv = LV0, rv = 0, ...mp } = P;
 const A = new LH.Anatomy(JA, { lvWallLayers: lv, rvWallLayers: rv }), M = new LH.Model(A, mp), br = M.coronary.branches, n = M.nVox;
-const SITES = { mLAD: br.LAD[Math.round(br.LAD.length * 0.3)], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)], PDA: br.PDA[0] };
+const SITES = { mLAD: br.LAD[Math.round(br.LAD.length * +(process.env.MLAD_F || 0.22))], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)], PDA: br.PDA[0] };
 const RN = ['sept', 'ant', 'lat', 'inf', 'apex', 'rv'], SEC = ['sept', 'ant', 'lat', 'lat', 'inf', 'sept'];
 const reg = new Int8Array(n).fill(-1);
 for (let c = 0; c < n; c++) {

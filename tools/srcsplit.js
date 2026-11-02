@@ -6,7 +6,7 @@ const fs = require('fs'); const LH = require('../src/engine.js');
 const JA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 const P = JSON.parse(process.argv[2] || '{}'), SITE = process.argv[3] || 'dLAD'; const { lv = 3, rv = 0, ...mp } = P;
 const A = new LH.Anatomy(JA, { lvWallLayers: lv, rvWallLayers: rv }), M = new LH.Model(A, mp), n = M.nVox, br = M.coronary.branches;
-const SITES = { mLAD: br.LAD[Math.round(br.LAD.length * 0.3)], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)] };
+const SITES = { mLAD: br.LAD[Math.round(br.LAD.length * +(process.env.MLAD_F || 0.22))], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)] };
 const RN = ['sept', 'ant', 'lat', 'lat', 'inf', 'sept'];
 const region = (c) => { if (A.label[c] !== LH.LAB.LV || A.zuvc[c] < 0) return null; if (A.zuvc[c] < 0.25) return 'apex'; const d = ((A.phi[c] % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI); return RN[Math.min(5, Math.floor(d / (Math.PI / 3)))]; };
 const S2 = new LH.Sim(M, { seed: 1 }); S2.addOcclusion(SITES[SITE]); S2.setIschemiaTime(720);

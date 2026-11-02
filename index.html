@@ -659,7 +659,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-02 (eaef6ef).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-02 (c0654ee).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -1895,6 +1895,7 @@ THE SOFTWARE.
     precordialGain: 0.52,        // overall chest-lead gain
     sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
+    brodyFade: 0,           // >0: the enhancement falls off as exp(−depth/brodyFade) from the cavity (depth = transmural UVC, 0 endo … 1 epi); 0 = uniform
     heartPitch: -10,          // degrees about the left–right axis (+ tips the anterior wall upward)
     heartYaw: 8,           // degrees about the vertical axis (+ = apex swung from anterior toward the left)
     heartRotation: 14,    // degrees about the AP axis (+ = more vertical heart)
@@ -3041,7 +3042,9 @@ THE SOFTWARE.
       }
       // midpoint radial direction and its component along the pair
       const rr = [0.5 * (rhat[3 * c] + rhat[3 * w]), 0.5 * (rhat[3 * c + 1] + rhat[3 * w + 1]), 0.5 * (rhat[3 * c + 2] + rhat[3 * w + 2])];
-      const re = B * (rr[0] * ex[0] + rr[1] * ex[1] + rr[2] * ex[2]);
+      let Bp = B;
+      if (B && this.P.brodyFade > 0) { const d = 0.5 * (Math.max(0, A.tm[c]) + Math.max(0, A.tm[w])); Bp = B * Math.exp(-d / this.P.brodyFade); }
+      const re = Bp * (rr[0] * ex[0] + rr[1] * ex[1] + rr[2] * ex[2]);
       // pair-midpoint fibre (sign-aligned average), and its component along the pair
       let ff = [0, 0, 0], fe = 0;
       if (aniso && kc === KIND.VENT) {

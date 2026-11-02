@@ -12,7 +12,7 @@ const JA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 const P = JSON.parse(process.argv[2] || '{}'), SITE = process.argv[3] || 'dLAD', HOURS = +(process.argv[4] || 720);
 const { lv = LV0, rv = 0, ...mp } = P;
 const A = new LH.Anatomy(JA, { lvWallLayers: lv, rvWallLayers: rv }), M = new LH.Model(A, mp), br = M.coronary.branches;
-const SITES = { pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * +(process.env.MLAD_F || 0.3))], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)],
+const SITES = { pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * +(process.env.MLAD_F || 0.22))], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)],
   pLCx: br.LCx[0], dLCx: br.LCx[Math.round(br.LCx.length * 0.6)], pRCA: br.RCA[0], PDA: br.PDA[0] };
 const RN = ['sept', 'ant', 'lat', 'inf', 'apex', 'rv', 'oth'], NR = RN.length, NE = M.NE, n = M.nVox;
 const SEC = ['sept', 'ant', 'lat', 'lat', 'inf', 'sept'];   // anteroseptal, anterior, anterolateral, inferolateral, inferior, inferoseptal

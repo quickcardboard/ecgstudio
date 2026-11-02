@@ -43,7 +43,7 @@ function evaluate(p) {
   // CS_LITE: skip the occlusion records (tools/fullcheck.js checks every site's ST and Q itself)
   const lite = !!process.env.CS_LITE, none = { y: () => [0], st: () => 0 };
   const dlad = lite ? none : record(M, occl(br.LAD[Math.round(br.LAD.length * 0.7)]));
-  const mlad = lite ? none : record(M, occl(br.LAD[Math.round(br.LAD.length * 0.3)]));
+  const mlad = lite ? none : record(M, occl(br.LAD[Math.round(br.LAD.length * +(process.env.MLAD_F || 0.22))]));
   const prca = lite ? none : record(M, occl(br.RCA[0]));
   const plcx = lite ? { y: () => [0], st: (n) => (['I', 'aVL', 'V5', 'V6'].includes(n) ? 0.2 : 0) } : record(M, (S) => { S.addOcclusion(br.LCx[0]); S.setIschemiaTime(1); });   // acute circumflex: lateral, not inferior
   const hyp = (opt, P) => { const H = LH.hypertrophyOptions(opt, mp.forward !== undefined ? mp.forward : LH.DEFAULTS.forward); const AH = anatomy(lv + (opt.lvh ? 3 : 0), opt.rvh ? 5 : rv); /* cached */ return record(new LH.Model(AH, { ...mp, ...H.params }), () => {}); };
