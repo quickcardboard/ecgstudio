@@ -512,3 +512,23 @@ density over the ventricles). Dower-matching sites lie 20–40 mm left of the la
 (V1 on the midline), cutting the direction error 18.7° → 6°; with them (or with the heart 23 mm
 further right) the QRS still peaks in V2–V3 (R V1 0.9, V2 2.1–2.6): the tall early anterior R of
 forward model 2 is not a lead-direction problem.
+
+### Round 22 (cs-tune): orientation, RV wall and source checks with ischaemia scoring
+
+`tools/fullcheck.js` scores a set in one run: gain recalibrated on the heart vector, axes/QRS
+(cstune), and the app's ischaemia reading for seven occlusion sites (ST elevation at 1 h, Q at
+30 days) against textbook lead groups (core leads that must show, leads that must not); `iErr`
+counts misses. Base (round-21 set, CT orientation, ratio 3): iErr 8, axis error 5.6.
+
+Orientation, one axis at a time within ±20° of the CT: pitch −20° best (iErr 8, axes normal +56°,
+LAFB −40°, LBBB +60°, RVH +101°, V2 R/S 1.49/2.60); rotation ±20°, yaw ±15° and pitch +10/+20° worse.
+At every orientation: proximal LAD lacks ST elevation in V1, I, aVL; PDA occlusion gives no
+inferior ST elevation; LPFB ≤ +61°.
+RV wall: +1 layer makes V2 larger (R 2.7–3.3) and adds anterior Q misses; −1 layer cannot be
+built at 2 mm voxels (the free wall is 1–2 voxels in places: the cavity opens, the beat fails).
+RV source strength as a stand-in for a thinner compact wall (pitch −20°, ratio 3.4):
+`rvSourceGain` 0.8 → V2 R 1.21; 0.6 → R V1–V6 0.33, 0.99, 1.32, 1.38, 1.46, 1.28 (R grows to V5),
+iErr 8, axes kept. The RV near field is the cause of the tall early anterior R.
+Source ratio at pitch −20°: 3.4 best (iErr 8, axis error 3.1, LAFB −50°); 2.3 and 1.7 lose LAFB
+and lateral STE. Upstroke width is not a factor (2 ms smoothstep; the 40 Hz recording filter cannot
+tell it from a step, and a ~1 mm wavefront is thinner than a voxel).
