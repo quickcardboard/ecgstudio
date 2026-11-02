@@ -7,7 +7,8 @@ const fs = require('fs'); const path = require('path'); const LH = require('../s
 if (process.env.RA !== undefined && LH.setRaLayersDefault) LH.setRaLayersDefault(+process.env.RA);
 if (process.env.TV2) LH.setDefaultTorso2(require(path.resolve(process.env.TV2)));
 const JA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
-const p = JSON.parse(process.argv[2] || '{}'); const { lv = 2, rv = 0, ...mp } = p;
+function check(p, nocal = !!process.env.NOCAL) {
+const { lv = 2, rv = 0, ...mp } = p;
 const L = LH.LEADS;
 // ---- gain: peak spatial QRS vector (Kors regression) = 1.6 mV
 function calibrate(M) {
@@ -20,7 +21,7 @@ function calibrate(M) {
 }
 const fwd = mp.forward !== undefined ? mp.forward : LH.DEFAULTS.forward;
 const gainKey = fwd === 2 ? 'forwardGain' : 'ecgGain';
-if (!process.env.NOCAL) { const A0 = new LH.Anatomy(JSON.parse(JSON.stringify(JA)), { lvWallLayers: lv, rvWallLayers: rv }); const M0 = new LH.Model(A0, mp); mp[gainKey] = +((mp[gainKey] || M0.P[gainKey]) * calibrate(M0)).toFixed(4); }
+if (!nocal) { const A0 = new LH.Anatomy(JSON.parse(JSON.stringify(JA)), { lvWallLayers: lv, rvWallLayers: rv }); const M0 = new LH.Model(A0, mp); mp[gainKey] = +((mp[gainKey] || M0.P[gainKey]) * calibrate(M0)).toFixed(4); }
 const cs = require('./cstune.js').evaluate({ lv, rv, ...mp });
 // ---- ischaemia localisation
 const A = new LH.Anatomy(JA, { lvWallLayers: lv, rvWallLayers: rv }), M = new LH.Model(A, mp), br = M.coronary.branches;
@@ -66,5 +67,8 @@ const m = cs.m, pr = m.N.prog;
 const axes = { N: m.N.axis, LAF: m.LAF.net, LPF: m.LPF.net, LBB: m.LBB.axis, RVH: m.RVH.axis };
 const pen = (v, lo, hi) => (v < lo ? lo - v : v > hi ? v - hi : 0);
 const axErr = pen(axes.N, 30, 75) / 15 + pen(axes.LAF, -90, -45) / 15 + pen(axes.LPF, 100, 180) / 15 + pen(axes.LBB, -30, 60) / 15 + pen(axes.RVH, 110, 210) / 15;
-console.log(JSON.stringify({ p: process.env.TAG || '', gain: mp[gainKey], cs: cs.score, iErr, axErr: +axErr.toFixed(2), axes,
-  qrs: { V1: pr[0], V2: pr[1], R: pr.map((x) => x[0]), qI: m.N.qI, ratio: +(m.N.II[0] / Math.max(pr[4][0], pr[5][0])).toFixed(2) }, isch }));
+return { p: process.env.TAG || '', gain: mp[gainKey], cs: cs.score, iErr, axErr: +axErr.toFixed(2), axes, csm: m,
+  qrs: { V1: pr[0], V2: pr[1], R: pr.map((x) => x[0]), qI: m.N.qI, ratio: +(m.N.II[0] / Math.max(pr[4][0], pr[5][0])).toFixed(2) }, isch };
+}
+module.exports = { check };
+if (require.main === module) { const r = check(JSON.parse(process.argv[2] || '{}')); delete r.csm; console.log(JSON.stringify(r)); }
