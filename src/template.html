@@ -231,6 +231,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .vinfo > * { pointer-events: auto; }
 .vtitle { font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); background: var(--panel); padding: 6px 9px; border-radius: 6px; border: 1px solid var(--panel-line); }
 .legend { position: static; max-width: 100%; box-sizing: border-box; display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--viewport-fg); background: var(--panel); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--panel-line); }
+.legend .leadset { margin-left: 10px; font: inherit; font-size: 11px; color: var(--viewport-fg); background: transparent; border: 1px solid var(--panel-line); border-radius: 999px; padding: 1px 8px; cursor: pointer; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
 .legend[hidden] { display: none; }
 .clock { position: absolute; z-index: 2; right: 10px; bottom: calc(var(--vb) + 8px); font: 500 12px/1 var(--font-data); color: var(--panel-muted); background: var(--panel); padding: 7px 10px; border-radius: 8px; border: 1px solid var(--panel-line); font-variant-numeric: tabular-nums; }
@@ -546,7 +547,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <span id="legendBlock" hidden><i style="background:var(--blocked)"></i>Blocked <i style="background:var(--partial); margin-left:8px"></i>Partial block</span>
         <span id="legendIsch" hidden><i style="background:var(--ischemic)"></i>Ischemic <i style="background:var(--necrotic); margin-left:8px"></i>Necrotic <i style="background:#ffd84a; margin-left:8px"></i>Occlusion</span>
         <span id="legendAP" hidden><i style="background:var(--chest)"></i>Accessory pathway</span>
-        <span id="legendLeads" hidden><i style="background:var(--limb)"></i>Limb leads <i style="background:var(--chest); margin-left:8px"></i>Chest leads <i style="background:#ffffff; margin-left:8px"></i>Heart vector</span>
+        <span id="legendLeads" hidden><i style="background:var(--limb)"></i>Limb leads <i style="background:var(--chest); margin-left:8px"></i>Chest leads <i style="background:#ffffff; margin-left:8px"></i>Heart vector <button type="button" id="leadSetBtn" class="leadset" title="Switch between the textbook lead axes and the lead vectors this model computes with">Textbook axes</button></span>
       </div>
       </div>
       <div class="clock" id="clock">t 0.000 s</div>

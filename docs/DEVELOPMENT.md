@@ -507,3 +507,17 @@ anterior axis, head up, patient's left on the viewer's right. The 3D scene is al
 frame the lead fields use, so in this view the limb-lead vectors lie in the screen plane, V2 points
 almost straight at the viewer and V1–V6 fan from the viewer's left to right; a cut from here is a
 coronal (frontal) section. Help → View controls lists the four presets.
+
+### Round 26: textbook lead axes in the Leads view; model lead vectors on request
+
+The Leads view drew the limb leads from the raw torso lead field alone (I −30°, II +81° ×2.6,
+III +98° ×3.1 relative to I), more distorted than Burger's measured triangle (via Dower/Frank:
+I −20°, II +78° ×1.6, III +107° ×2.0) and not what the ECG uses, which blends that field with
+Einthoven's axes (`torsoBlend`, `torsoIIGain`, `limbRotation`): heart-averaged I −23°, II +74° ×1.4,
+III +108° ×1.8, close to Burger. (Malmivuo & Plonsey, *Bioelectromagnetism* ch. 18, covers these
+distortion factors: torso boundary, heart eccentricity, lungs, intracavitary blood.)
+For teaching the view now shows the textbook reference by default: Einthoven's hexaxial frontal
+axes and the standard horizontal-plane chest fan (V1 120°, V2 90°, V3 75°, V4 60°, V5 30°, V6 0°
+from the patient's left toward anterior). The legend's switch ("Textbook axes" ⇄ "Model lead
+vectors") shows the vectors the model computes with: the blended limb vectors (engine exposes
+`limbTorsoVec`, the torso part per unit heart vector) and the Dower-blended chest directions.

@@ -24,7 +24,7 @@
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', struct: { rae: false, lae: false, lvh: false, rvh: false, ap: '', dual: true }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', struct: { rae: false, lae: false, lvh: false, rvh: false, ap: '', dual: true }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, leadSet: 'book', scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const bufIdx = (t) => (((Math.round(t) + ecg.t0) % PAGE) + PAGE) % PAGE;   // sim time → paper sample
   const ecg = { t0: 0, buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
@@ -674,7 +674,7 @@
     const mw = g3.inner.matrixWorld;
     const dir = pr.world ? new THREE.Vector3(...pr.world).normalize() : pr.n.clone().transformDirection(mw);
     ctl.target.set(0, 0, 0);
-    cam.position.copy(dir).multiplyScalar(ui.leads ? 660 : pr.dist);
+    cam.position.copy(dir).multiplyScalar(ui.leads ? 720 : pr.dist);
     cam.up.set(...pr.up); cam.lookAt(0, 0, 0); ctl.update();
     g3.planeDirty = true;
   }
@@ -733,50 +733,67 @@
     add('Right bundle', mid(S_.RBB, 0.45), 'cutaway', 'cs');
     add('Moderator band', mid(S_.RBB, 0.85), 'cutaway', 'cs');
 
-    // lead vectors, drawn in the torso frame shifted to the heart centre
+    // Lead vectors in the torso frame, from the heart centre. Two sets:
+    //  textbook — Einthoven's hexaxial frontal-plane axes and the standard
+    //    horizontal-plane fan of the chest leads (the teaching reference);
+    //  measured — the directions this model's ECG uses (limb leads: torso
+    //    lead field blended with Einthoven, as in the engine; chest leads:
+    //    electrode directions blended toward Dower's lead vectors).
     const grp = g3.leads = new THREE.Group(); grp.visible = false; g3.scene.add(grp);
+    const sets = g3.leadSets = { book: new THREE.Group(), meas: new THREE.Group() };
+    grp.add(sets.book, sets.meas);
     const hc = M.heartCenterTorso;
     const arrowMat = (hex) => new THREE.MeshBasicMaterial({ color: hex, depthTest: false, transparent: true, opacity: 0.95 });
-    const arrow = (dir, len, hex, head = 7) => {
+    const arrow = (into, dir, len, hex, head = 7) => {
       const a = new THREE.ArrowHelper(dir.clone().normalize(), new THREE.Vector3(), len, hex, head, head * 0.55);
       a.line.material.depthTest = false; a.line.material.transparent = true; a.cone.material.depthTest = false;
       a.renderOrder = 10; a.line.renderOrder = 10; a.cone.renderOrder = 10;
-      grp.add(a); return a;
+      into.add(a); return a;
     };
-    const leadTag = (text, p, kind) => {
+    const leadTag = (text, p, kind, set = null) => {
       const el = document.createElement('div'); el.className = `tag ${kind}`; el.textContent = text; layer.appendChild(el);
-      g3.labels.push({ el, pos: p, view: 'leads', space: 'scene' });
+      g3.labels.push({ el, pos: p, view: 'leads', space: 'scene', set });
       return g3.labels[g3.labels.length - 1];
     };
-    // limb leads: the torso's own heart-averaged lead vectors (a computed
-    // Burger triangle) when available, else Einthoven's hexaxial directions
+    const limbFan = (set, LIMB, Rl = 95) => {
+      const Lmax = Math.max(...LIMB.map((x) => x[1].length()));
+      for (const [name, vec] of LIMB) {
+        const len0 = vec.length(), d = vec.clone().normalize(), Rk = Rl * (0.55 + 0.45 * len0 / Lmax);
+        const neg = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), d.clone().multiplyScalar(-Rk)]),
+          new THREE.LineDashedMaterial({ color: 0xf0b429, dashSize: 4, gapSize: 3, depthTest: false, transparent: true, opacity: 0.45 }));
+        neg.computeLineDistances(); neg.renderOrder = 10; sets[set].add(neg);
+        arrow(sets[set], d, Rk, 0xf0b429);
+        const at = d.clone().multiplyScalar(Rk + 9); if (set === 'book' && name === 'I') at.y += 9;   // clear of V6, which lies on the same line seen from the front
+        leadTag(name, at, 'lead limb', set);
+      }
+    };
+    const chestFan = (set, dirs, lens) => {
+      ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].forEach((k, i) => {
+        const q = dirs[i].clone().normalize().multiplyScalar(lens[i]);
+        arrow(sets[set], q, q.length() - 3, 0x38c6e8, 6);
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(3.2, 14, 10), arrowMat(0x38c6e8)); dot.position.copy(q); dot.renderOrder = 11; sets[set].add(dot);
+        const tagAt = q.clone().multiplyScalar(1.07); if (set === 'book') tagAt.y -= 9;   // (the horizontal fan is edge-on from the front: keep its labels off lead I's)
+        leadTag(k, tagAt, 'lead chest', set);
+      });
+    };
+    const fromDeg = (deg) => { const a = deg * Math.PI / 180; return new THREE.Vector3(Math.cos(a), -Math.sin(a), 0); };   // frontal plane, + = inferior
+    const hexaxial = (I, II) => { const III = II.clone().sub(I);
+      return [['I', I], ['II', II], ['III', III], ['aVR', I.clone().add(II).multiplyScalar(-0.5)], ['aVL', I.clone().sub(III).multiplyScalar(0.5)], ['aVF', II.clone().add(III).multiplyScalar(0.5)]]; };
+    // textbook: hexaxial (equal lengths) and V1 120°, V2 90°, V3 75°, V4 60°, V5 30°, V6 0° (from the patient's left toward anterior)
+    limbFan('book', [['I', 0], ['II', 60], ['III', 120], ['aVR', -150], ['aVL', -30], ['aVF', 90]].map(([n, d]) => [n, fromDeg(d)]), 82);
+    chestFan('book', [120, 90, 75, 60, 30, 0].map((d) => { const a = d * Math.PI / 180; return new THREE.Vector3(Math.cos(a), 0, Math.sin(a)); }), [92, 92, 92, 92, 92, 92]);
+    // measured: the limb vectors the ECG computation uses (engine blend of the torso field and Einthoven)
     const lv = M.limbLeadVectors, V3v = (a) => new THREE.Vector3(a[0], a[1], a[2]);
-    let LIMB;
     if (lv) {
-      const LI = V3v(lv.I), LII = V3v(lv.II), LIII = LII.clone().sub(LI);
-      LIMB = [['I', LI], ['II', LII], ['III', LIII], ['aVR', LI.clone().add(LII).multiplyScalar(-0.5)],
-        ['aVL', LI.clone().sub(LIII).multiplyScalar(0.5)], ['aVF', LII.clone().add(LIII).multiplyScalar(0.5)]];
-    } else {
-      LIMB = [['I', 0], ['II', 60], ['III', 120], ['aVR', -150], ['aVL', -30], ['aVF', 90]].map(([n, deg]) => { const a = deg * Math.PI / 180; return [n, new THREE.Vector3(Math.cos(a), -Math.sin(a), 0)]; });
-    }
-    const Lmax = Math.max(...LIMB.map((x) => x[1].length())), Rl = 95;
-    for (const [name, vec] of LIMB) {
-      const len0 = vec.length(), d = vec.clone().normalize(), Rk = Rl * (0.55 + 0.45 * len0 / Lmax);
-      const neg = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), d.clone().multiplyScalar(-Rk)]),
-        new THREE.LineDashedMaterial({ color: 0xf0b429, dashSize: 4, gapSize: 3, depthTest: false, transparent: true, opacity: 0.45 }));
-      neg.computeLineDistances(); neg.renderOrder = 10; grp.add(neg);
-      arrow(d, Rk, 0xf0b429);
-      leadTag(name, d.clone().multiplyScalar(Rk + 9), 'lead limb');
-    }
-    ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].forEach((k, i) => {
-      // drawn along the lead direction the model uses (electrode distance, Dower-blended direction)
-      const e = M.electrodes[k], dist = Math.hypot(e[0] - hc[0], e[1] - hc[1], e[2] - hc[2]), u = M.leadDir[i];
-      const q = new THREE.Vector3(u[0], u[1], u[2]).normalize().multiplyScalar(dist);
-      arrow(q, q.length() - 3, 0x38c6e8, 6);
-      const dot = new THREE.Mesh(new THREE.SphereGeometry(3.2, 14, 10), arrowMat(0x38c6e8)); dot.position.copy(q); dot.renderOrder = 11; grp.add(dot);
-      leadTag(k, q.clone().multiplyScalar(1.07), 'lead chest');
-    });
-    g3.heartVec = arrow(new THREE.Vector3(1, 0, 0), 10, 0xffffff, 9);
+      const P = M.P, b = P.torsoBlend, lr = P.limbRotation * Math.PI / 180, tv = M.limbTorsoVec;
+      // Einthoven part of the blend acts on the heart vector turned by limbRotation: its lead vectors are the turned-back axes
+      const ein = (deg) => { const v = fromDeg(deg); return new THREE.Vector3(Math.cos(lr) * v.x - Math.sin(lr) * v.y, Math.sin(lr) * v.x + Math.cos(lr) * v.y, 0); };
+      const I = V3v(tv.I).multiplyScalar(b).add(ein(0).multiplyScalar(1 - b));
+      const II = V3v(tv.II).multiplyScalar(b * P.torsoIIGain).add(ein(60).multiplyScalar(1 - b));
+      limbFan('meas', hexaxial(I, II));
+    } else limbFan('meas', hexaxial(fromDeg(0), fromDeg(60)));
+    chestFan('meas', M.leadDir.map((u) => V3v(u)), ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k) => { const e = M.electrodes[k]; return Math.hypot(e[0] - hc[0], e[1] - hc[1], e[2] - hc[2]); }));
+    g3.heartVec = arrow(grp, new THREE.Vector3(1, 0, 0), 10, 0xffffff, 9);
     g3.heartVecTag = leadTag('Heart vector', new THREE.Vector3(), 'lead hv');
   }
 
@@ -839,6 +856,7 @@
   function updateOverlays() {
     const showLabels = ui.labels, showLeads = ui.leads;
     g3.leads.visible = showLeads;
+    g3.leadSets.book.visible = ui.leadSet !== 'meas'; g3.leadSets.meas.visible = ui.leadSet === 'meas';
     if (showLeads) {
       const D = S.dipole || [0, 0, 0], mag = Math.hypot(D[0], D[1], D[2]);
       const on = mag > 0.04;
@@ -856,7 +874,7 @@
     const cut = ui.view === 'cutaway';
     for (const l of g3.labels) {
       let vis;
-      if (l.view === 'leads') vis = showLeads && !(l.hidden);
+      if (l.view === 'leads') vis = showLeads && !(l.hidden) && (!l.set || l.set === (ui.leadSet === 'meas' ? 'meas' : 'book'));
       else if (l.view === 'cut-dyn') vis = showLabels && ui.view === 'cutaway' && !l.off;
       else if (l.view === 'cutaway') vis = showLabels && ui.view === 'cutaway' && !l.off;
       else if (l.view === 'both' && ui.view === 'cutaway') vis = showLabels && !l.off;
@@ -2569,7 +2587,11 @@
       ui.leads = e.target.checked;
       $('legendLeads').hidden = !ui.leads;
       // pull back so the chest electrodes fit in view
-      if (ui.leads && g3.camera.position.length() < 600) { g3.camera.position.setLength(660); g3.controls.update(); }
+      if (ui.leads && g3.camera.position.length() < 660) { g3.camera.position.setLength(720); g3.controls.update(); }
+    });
+    $('leadSetBtn').addEventListener('click', () => {
+      ui.leadSet = ui.leadSet === 'meas' ? 'book' : 'meas';
+      $('leadSetBtn').textContent = ui.leadSet === 'meas' ? 'Model lead vectors' : 'Textbook axes';
     });
     $('btnPause').addEventListener('click', () => setPaused(!ui.paused));
     // Reset: normal sinus rhythm at 72 bpm with no abnormalities

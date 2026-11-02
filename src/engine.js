@@ -1162,6 +1162,8 @@
         let nv = 0; for (let c = 0; c < n; c += 7) if (this.kind[c] === KIND.VENT) nv++;
         tfMean = [mul(mI, 1 / nv), mul(mII, 1 / nv)];
         this.limbLeadVectors = { I: mul(mI, 1 / lI), II: mul(mII, 1 / lI) };
+        // torso part of the limb leads per unit heart vector (as the forward model sums it), for the lead display
+        this.limbTorsoVec = { I: mul(tfMean[0], tfScale / 1e-4), II: mul(tfMean[1], tfScale / 1e-4) };
       }
       const W = new Float32Array(n * NE);
       const E = names.map((k) => this.electrodes[k]);
