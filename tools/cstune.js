@@ -39,11 +39,13 @@ function evaluate(p) {
   const blk = (seg) => (S) => S.setBlock(seg, 'complete');   // (the app's own block, incl. any tied septal fibres)
   const laf = record(M, blk('LAF')), lpf = record(M, blk('LPF')), lbb = record(M, blk('LBB')), rbb = record(M, blk('RBB'));
   const occl = (node) => (S) => { S.addOcclusion(node); S.setIschemiaTime(720); };
-  const dlad = record(M, occl(br.LAD[Math.round(br.LAD.length * 0.7)]));
-  const mlad = record(M, occl(br.LAD[Math.round(br.LAD.length * 0.3)]));
-  const prca = record(M, occl(br.RCA[0]));
-  const plcx = record(M, (S) => { S.addOcclusion(br.LCx[0]); S.setIschemiaTime(1); });   // acute circumflex: lateral, not inferior
-  const hyp = (opt, P) => { const H = LH.hypertrophyOptions(opt, mp.forward !== undefined ? mp.forward : LH.DEFAULTS.forward); const AH = new LH.Anatomy(JSONA, { lvWallLayers: lv + (opt.lvh ? 3 : 0), rvWallLayers: opt.rvh ? 5 : rv }); return record(new LH.Model(AH, { ...mp, ...H.params }), () => {}); };
+  // CS_LITE: skip the occlusion records (tools/fullcheck.js checks every site's ST and Q itself)
+  const lite = !!process.env.CS_LITE, none = { y: () => [0], st: () => 0 };
+  const dlad = lite ? none : record(M, occl(br.LAD[Math.round(br.LAD.length * 0.7)]));
+  const mlad = lite ? none : record(M, occl(br.LAD[Math.round(br.LAD.length * 0.3)]));
+  const prca = lite ? none : record(M, occl(br.RCA[0]));
+  const plcx = lite ? { y: () => [0], st: (n) => (['I', 'aVL', 'V5', 'V6'].includes(n) ? 0.2 : 0) } : record(M, (S) => { S.addOcclusion(br.LCx[0]); S.setIschemiaTime(1); });   // acute circumflex: lateral, not inferior
+  const hyp = (opt, P) => { const H = LH.hypertrophyOptions(opt, mp.forward !== undefined ? mp.forward : LH.DEFAULTS.forward); const AH = anatomy(lv + (opt.lvh ? 3 : 0), opt.rvh ? 5 : rv); /* cached */ return record(new LH.Model(AH, { ...mp, ...H.params }), () => {}); };
   const lvh = hyp({ lvh: true }), rvh = hyp({ rvh: true });
   // activation: apex endocardium, total time, HV
   const S = new LH.Sim(M, { seed: 1 }); S.run(1700);   // activation times of the last complete beat

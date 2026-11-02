@@ -28,7 +28,7 @@ const A = new LH.Anatomy(JA, { lvWallLayers: lv, rvWallLayers: rv }), M = new LH
 const SITES = { pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * 0.3)], dLAD: br.LAD[Math.round(br.LAD.length * 0.7)],
   pLCx: br.LCx[0], dLCx: br.LCx[Math.round(br.LCx.length * 0.6)], pRCA: br.RCA[0], PDA: br.PDA[0] };
 function beat(S) {
-  const rec = []; S.onSample((t, v) => rec.push(Array.from(v))); S.run(3600);
+  const rec = []; S.onSample((t, v) => rec.push(Array.from(v))); S.run(+(process.env.ISCH_MS || 3000));   // (an old scar needs a few beats to settle: 3 s matches 3.6 s exactly)
   const vb = S.log.vent[S.log.vent.length - 2], E = S.beatEnds(vb), q0 = Math.floor(vb.on), J = Math.ceil(E.last) + 6, b0 = rec[q0 - 15], m = {};
   L.forEach((n, k) => {
     const at = (t) => rec[t][k] - b0[k]; let qDur = 0, qAmp = 0, rMax = 0, r40 = 0, sMin = 0;
