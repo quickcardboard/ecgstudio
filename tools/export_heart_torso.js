@@ -1,8 +1,9 @@
 // Export the heart (tissue and cavity blood) and the electrode positions in the
 // torso frame, for tools/torso_v2.py.   node tools/export_heart_torso.js out.json ['{params}']
 const fs = require('fs'); const LH = require('../src/engine.js'); if (process.env.RA !== undefined) LH.setRaLayersDefault(+process.env.RA);
-const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json')));
-const M = new LH.Model(A, JSON.parse(process.argv[3] || '{}'));
+const { lv = 2, rv = 0, ...MP } = JSON.parse(process.argv[3] || '{}');   // (lv/rv: wall layers, as the tuning tools)
+const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json')), { lvWallLayers: lv, rvWallLayers: rv });
+const M = new LH.Model(A, MP);
 const [nx, ny, nz] = A.dims, h = A.h, o = A.origin;
 const tissue = [], blood = [], tlab = [];
 for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
