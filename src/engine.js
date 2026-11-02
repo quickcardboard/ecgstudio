@@ -120,7 +120,7 @@
     cvHis: 1.50,
     cvBundle: 3.03,        // bundle branches and fascicles
     // Spec: conduction system ~3x faster than ventricular myocardium
-    cvPurkinje: 2.357,
+    cvPurkinje: 1.82,
     avnSegDelay: 17,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
     avnSegments: 5,
     slowPathSegments: 4, slowPathSegDelay: 50, slowPathErpExtra: 20, slowPathCvK: 1,   // dual AV-node pathways (AVNRT)
@@ -131,16 +131,16 @@
     rbbSeptalFrac: 0,   // distal fraction of septal RBB giving off RV septal Purkinje
     rbbSeptalDelay: 20.31,    // ms extra delay into the RV septal Purkinje
 
-    lafPhi: 2.75, lafZ: 0.54, lpfPhi: -2.23, lpfZ: 0.29, lsfPhi: -0.176, lsfZ: 0.177,
-    septalFascicle: true,  // optional left septal fascicle (anatomically debated; off)
+    lafPhi: 2.75, lafZ: 0.54, lpfPhi: -2.23, lpfZ: 0.29, lsfPhi: 0.05, lsfZ: 0.42,
+    septalFascicle: false,  // optional left septal fascicle (anatomically debated; off)
     fascConnectFrac: 0.59,  // distal fraction of LAF/LPF giving off Purkinje branches
     lbbSplitZ: 0.84, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
-    septalTerrHalf: 0.126,    // half-width (rad) of the mid-septal Purkinje territory
+    septalTerrHalf: 0,    // half-width (rad) of the mid-septal Purkinje territory
     lbbSeptalFrac: 0,           // distal fraction of the LBB trunk giving off septal Purkinje
     lpfApexZ: 0.25,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
     lpfTerrLo: -1.54, lpfTerrHi: 0.56,  // LPF territory in rotational UVC (inferior/posterior wall)
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
-    purkCrossSlow: 3.41,     // conduction-time factor on Purkinje links between fascicle territories
+    purkCrossSlow: 6.8,     // conduction-time factor on Purkinje links between fascicle territories
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
     precordialGain: 0.52,        // overall chest-lead gain
     sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
