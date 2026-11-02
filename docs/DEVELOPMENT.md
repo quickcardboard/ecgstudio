@@ -600,3 +600,18 @@ V2 R/S 0.32/1.28, R V1–V6 0.14, 0.32, 0.30, 0.49, 0.79, 0.73); LVH (lv 6) Soko
 Cornell 2.70 → 2.52; WPW delta polarity in V1–V5 shifts toward ± in some sites. 0.5 dips V3 below V2;
 0.6 keeps the PDA V1 ST elevation. Still missing: old mid-LAD Q in V4; old distal-LAD Q in V2–V4
 (Q in III instead).
+
+### refine-2 round 5: torso-based local field for the chest leads (option, off)
+
+`chestTorso` takes the electrodes' local potentials from a volume conductor solved for the live
+heart (tools/export_heart_torso.js + tools/torso_v2.py → src/torso_v2.json: lungs 0.04 S/m, liver,
+spine, cavity blood; its own Burger triangle I −16°, II +68° ×1.7, III +100° ×1.9) instead of point
+sources; the heart-vector part and the limb leads are unchanged. At `precordialDipoleW` 0.55 it gives
+the same 5 checker misses as the point-source version with better normal progression (R V1–V6 0.14,
+0.35, 0.39, 0.53, 0.91, 0.83). Off by default; the browser build does not embed the field yet.
+
+Apical (distal-LAD) Q in V2–V4 still absent with either local field. Diagnostic: with the measured
+source ratio (sigmaRatio 3; live 10) the apical infarct removes much more early anterior force
+(early r V2 0.67 → 0.41, V3 0.99 → 0.76, V5 0.59 → 0.36) but still no Q, and the whole normal ECG
+changes (V3 R ~1 mV, axes). The test model's apical Q came from its combination: CT orientation,
+measured source ratio, early apex (16–20 ms) and a physical torso for every lead.
