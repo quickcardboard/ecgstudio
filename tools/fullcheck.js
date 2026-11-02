@@ -24,6 +24,7 @@ const fwd = mp.forward !== undefined ? mp.forward : LH.DEFAULTS.forward;
 const gainKey = fwd === 2 ? 'forwardGain' : 'ecgGain';
 if (!nocal) { const A0 = new LH.Anatomy(JSON.parse(JSON.stringify(JA)), { lvWallLayers: lv, rvWallLayers: rv }); const M0 = new LH.Model(A0, mp); mp[gainKey] = +((mp[gainKey] || M0.P[gainKey]) * calibrate(M0)).toFixed(4); }
 const cs = require('./cstune.js').evaluate({ lv, rv, ...mp });
+if (process.env.NOISCH) { const m = cs.m; return { p: process.env.TAG || '', gain: mp[gainKey], axes: { N: m.N.axis, LAF: m.LAF.net, LPF: m.LPF.net, LBB: m.LBB.axis, RVH: m.RVH.axis }, qrs: { R: m.N.prog.map((x) => +x[0].toFixed(2)), S: m.N.prog.map((x) => +x[1].toFixed(2)), qI: m.N.qI }, isch: {} }; }   // NOISCH: calibrated axes and R progression only
 // ---- ischaemia localisation
 const A = new LH.Anatomy(JA, { lvWallLayers: lv, rvWallLayers: rv }), M = new LH.Model(A, mp), br = M.coronary.branches;
 const SITES = { pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * +(process.env.MLAD_F || 0.22))], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)],   // distal LAD: just past the second diagonal (apical-anterior infarct)

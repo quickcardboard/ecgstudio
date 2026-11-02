@@ -128,8 +128,8 @@
     // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
     wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
     avnToneExp: 0.45,      // AV-nodal delay ∝ (72/rate)^exp (autonomic coupling)
-    rbbSeptalFrac: 0,   // distal fraction of septal RBB giving off RV septal Purkinje
-    rbbSeptalDelay: 20.31,    // ms extra delay into the RV septal Purkinje
+    rbbSeptalFrac: 0.3,   // distal fraction of septal RBB giving off RV septal Purkinje (right septal face ~10 ms after the left, Durrer)
+    rbbSeptalDelay: 25,    // ms extra delay into the RV septal Purkinje
 
     lafPhi: 2.75, lafZ: 0.54, lpfPhi: -2.23, lpfZ: 0.29, lsfPhi: 0.05, lsfZ: 0.42,
     septalFascicle: false,  // optional left septal fascicle (anatomically debated; off)
@@ -144,8 +144,8 @@
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
     precordialGain: 0.52,        // overall chest-lead gain
     sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
-    brody: 0,               // radial source enhancement by intracavitary blood (Brody effect)
-    brodyFade: 0,           // >0: the enhancement falls off as exp(−depth/brodyFade) from the cavity (depth = transmural UVC, 0 endo … 1 epi); 0 = uniform
+    brody: 2,               // radial source enhancement by intracavitary blood (Brody effect)
+    brodyFade: 0.25,        // >0: the enhancement falls off as exp(−depth/brodyFade) from the cavity (depth = transmural UVC, 0 endo … 1 epi); 0 = uniform
     heartPitch: -10,          // degrees about the left–right axis (+ tips the anterior wall upward)
     heartYaw: 8,           // degrees about the vertical axis (+ = apex swung from anterior toward the left)
     heartRotation: 14,    // degrees about the AP axis (+ = more vertical heart)
@@ -221,7 +221,7 @@
     apexTipZ: 0.06,           // apical tip (apicobasal UVC below this) is LAD; the apical inferior wall above it is PDA  // proximal-LAD nodes lateral of this (rotational UVC) supply no free wall
     ladRvMm: 0,            // RV muscle within this distance (mm) of the LAD is supplied by it (RV branches)
     d1Path: null, d2Path: null,   // diagonal waypoints [[rotational UVC, apicobasal UVC], ...] (null = built-in)
-    septalPerf: null,      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
+    septalPerf: [0.14, 0.3, 0.45, 0.6],      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
@@ -240,7 +240,7 @@
     idioventricularRate: 34,
 
     // ECG
-    ecgGain: 0.0174,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm)
+    ecgGain: 0.0194,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm; rescaled for the rebuild-1 heart)
     precordialDipoleW: 0.55,
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
@@ -293,10 +293,10 @@
       const rho = q('rho'), zz = q('z'), ph = q('phi'), vs = decode(json.vside, Int8Array), fb = decode(json.fiber, Int8Array);
       const V = [];   // editable voxel list
       for (let c = 0; c < n0; c++) V.push({ g: idx[c], l: lab[c], rho: rho[c], z: zz[c], phi: ph[c] * Math.PI, vs: vs[c], f: [fb[3 * c] / 127, fb[3 * c + 1] / 127, fb[3 * c + 2] / 127] });
-      // The averaged CT heart's LV free wall is thickened by 3 voxel layers
-      // (~6 mm): with it the model reproduces normal, LAFB and LPFB axes
-      // together (see tools/research and tools/data/fascicular_candidate_v2.json).
-      const layers = opts.lvWallLayers !== undefined ? opts.lvWallLayers : 3;
+      // The averaged CT heart's LV free wall (~10 mm) is thickened by 2 voxel
+      // layers (~12 mm, upper normal); with the fading Brody effect this keeps
+      // the normal, LAFB and LPFB axes together (rebuild-1 round 1 notes).
+      const layers = opts.lvWallLayers !== undefined ? opts.lvWallLayers : 2;
       this.lvWallLayers = layers;
       if (layers) this._editLVWall(V, layers);
       // ventricular hypertrophy (opts.rvWallLayers: RV free wall, outward)
@@ -2500,7 +2500,7 @@
   // (strain). Validated with tools/hyper.js.
   function hypertrophyOptions({ lvh = false, rvh = false } = {}) {
     return {
-      anatomy: { lvWallLayers: lvh ? 6 : 3, rvWallLayers: rvh ? 5 : 0 },
+      anatomy: { lvWallLayers: lvh ? 6 : 2, rvWallLayers: rvh ? 5 : 0 },
       params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1 },
     };
   }
