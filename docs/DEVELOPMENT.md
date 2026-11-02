@@ -787,3 +787,11 @@ Full regression against refine-2 (live defaults):
   a III Q from 1 h; distal LCx adds inferior ST at 1 h and III/aVF Q at 30 days (inferolateral).
 Remaining core problem: V2–V4 Q for mid and distal LAD. Apex-first activation still moves the
 normal axis left on R0 (apexPurkMul 1.5–3: −43° … +15°), so it stays off.
+
+Rear-only wall (`lvRearLayers`, inferior + inferolateral, rotational UVC < −0.8; option, off; Node
+override LV_REAR). Thickness (cavity to epicardium, anterior/lateral/inferior mid): R0 12.4/13.3/13.3
+mm; +0 & rear +2: 9.5/10.8/13.3; +1 & rear +1: 10.9/12.0/13.5. The rear wall barely moves the axis
+(no Brody: −15° … +4°); the Brody term still sets it. Matching R0's axes with a thinner anterior wall
+(+1 & rear +2, Brody 2: 26/−46/93°) gives 10 misses (R0 9); +0 & rear +3: 10; +0 & rear +2 with
+Brody 4: 9 (LPFB 88°). Mid/distal LAD V2–V4 Q missing in all: anterior wall thickness does not decide
+which early forces survive the infarct. Not adopted.

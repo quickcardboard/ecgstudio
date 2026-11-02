@@ -659,7 +659,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-02 (2cf2f26).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-02 (898ee86).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -2018,6 +2018,13 @@ THE SOFTWARE.
     return sm((Math.abs(phi) - 0.5) / 0.9) * sm((0.9 - z) / 0.25) * sm((z - 0.04) / 0.2);
   }
 
+  // rear (inferior + inferolateral) LV wall growth map: rotational UVC below −0.8 (tapering in
+  // over 0.4 rad), stopping short of the lateral midline at ±π, same apex/base tapers
+  function lvRearWeight(phi, z) {
+    const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+    return lvThickenWeight(phi, z) * sm((-0.8 - phi) / 0.4) * sm((phi + 3.05) / 0.3);
+  }
+
   // RV free wall growth map: full over the body of the wall, tapering at the
   // base (valve rings, outflow) and the apex
   function rvThickenWeight(phi, z) {
@@ -2049,6 +2056,10 @@ THE SOFTWARE.
       const layers = opts.lvWallLayers !== undefined ? opts.lvWallLayers : 2;
       this.lvWallLayers = layers;
       if (layers) this._editLVWall(V, layers);
+      // opts.lvRearLayers: extra layers on the inferior and inferolateral ("posterior") wall only,
+      // which is normally a little thicker than the anterior wall and apex
+      this.lvRearLayers = opts.lvRearLayers !== undefined ? opts.lvRearLayers : (typeof process !== 'undefined' && process.env && process.env.LV_REAR ? +process.env.LV_REAR : 0);   // (LV_REAR: Node test override)
+      if (this.lvRearLayers) this._editLVWall(V, this.lvRearLayers, LAB.LV, lvRearWeight);
       // ventricular hypertrophy (opts.rvWallLayers: RV free wall, outward)
       this.rvWallLayers = opts.rvWallLayers || 0;
       if (this.rvWallLayers) this._editLVWall(V, this.rvWallLayers, LAB.RV, rvThickenWeight);
