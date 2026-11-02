@@ -812,3 +812,16 @@ V2–V4 only from 30 ms (apex 35–40 ms: V4 +0.43–0.51), after the r peak (V2
 anterior part pulls V2–V3 negative at 20–30 ms. Infarct V4 loses its late r (35 ms 0.44 → 0.05) but
 not the initial r. Apex endocardium mean 30 ms (earliest 14) against Durrer's early apex: distal
 LAD Q waves need the apex earlier, which (apexPurkMul) still costs the normal axis and LPFB.
+
+Fascicle terminals to the apex (options, off): `fascApexZ` continues LAF and LPF toward the apex,
+each giving off Purkinje branches in its own territory (the extension carries its fascicle's segment,
+so a fascicular block blocks it); `fascApexFrom` lets it branch part-way along the fascicle;
+`fascApexLafPhi`/`fascApexLpfPhi` aim it. LAFB/LPFB keep their axes (−45°/93°) in every variant,
+but the apex is not earlier (apical endocardium median 30 → 27–31 ms; target 8–24): the fascicles
+reach their terminals at +10 ms and the extension delivers to the apical network at ~20 ms, no
+sooner than the network itself (apical Purkinje median 22 ms). Branching earlier (fascApexFrom
+0–0.6) lowers the normal axis (6–16°) without an earlier apex.
+`apexPurkSameTerr` (apical speed-up only within one fascicle's territory, option): apex median 13–25
+ms, LPFB a little better than with bridging (m4/z0.5: 67° vs 51°), but the normal axis still falls
+(−1° … −45°). So the conflict is not the territory bridge: whenever the apex fires early, this
+model's normal axis turns left (lateral wall filled apex → base, refine-2 round 7).

@@ -132,6 +132,9 @@
     rbbSeptalDelay: 25,    // ms extra delay into the RV septal Purkinje
 
     lafPhi: 2.75, lafZ: 0.54, lpfPhi: -2.23, lpfZ: 0.29, lsfPhi: 0.05, lsfZ: 0.42,
+    fascApexZ: 0,          // >0: LAF and LPF continue from their terminals toward the apex (to this apicobasal UVC), giving off Purkinje branches in their own territories (0 = off)
+    fascApexFrom: 1,       // where along the fascicle the extension branches off (1 = terminal, 0.3 = a third of the way)
+    fascApexLafPhi: null, fascApexLpfPhi: null,   // rotational UVC of the extensions' ends (null = the fascicle's own)
     septalFascicle: false,  // optional left septal fascicle (anatomically debated; off)
     fascConnectFrac: 0.59,  // distal fraction of LAF/LPF giving off Purkinje branches
     lbbSplitZ: 0.84, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
@@ -152,6 +155,7 @@
     apexX: 72, apexY: -34.83,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)
     apexPurkMul: 1, apexPurkZ: 0.3,   // Purkinje links below apexPurkZ (apicobasal UVC) conduct apexPurkMul× faster (1 = off)
+    apexPurkSameTerr: false,   // true: the apical speed-up only on links within one fascicle's territory (cross-territory links keep purkCrossSlow)
     apexPurkPhi: 0,        // >0: only where |rotational UVC| < apexPurkPhi (paraseptal), except the apical cap (zuvc < 0.25)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
     purkZmaxLV: 0.94, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)
@@ -740,6 +744,21 @@
         return !best || sc < best.sc ? { id, sc } : best;
       }, null).id;
 
+      // fascicle extensions toward the apex: both divisions fan out to the apical
+      // endocardium; the extension carries its fascicle's segment (blocked with it)
+      if (P.fascApexZ > 0) {
+        const ext = (nodes, seg, phi, terr) => {
+          const tgt = this._uvcNearest((c) => endoLV(c) && territory(c) === terr, phi, P.fascApexZ);
+          const start = nodes[Math.min(nodes.length - 1, Math.max(0, Math.round((nodes.length - 1) * P.fascApexFrom)))];
+          const path = A.path(A.nearest(this.pt(start), endoLV), tgt, endoLV).map(P2);
+          const ch = this.chain(KIND.BUNDLE, seg, path, P.cvBundle, 2.0, start);
+          connect(ch, this.purkLV, 1, 6, 0, inTerr(terr));
+          return nodes.concat(ch);
+        };
+        // (the apical cap below lpfApexZ is LPF territory, so the LAF extension stops at its edge)
+        this.laf = ext(this.laf, SEG.LAF, P.fascApexLafPhi !== null ? P.fascApexLafPhi : P.lafPhi, 0);
+        this.lpf = ext(this.lpf, SEG.LPF, P.fascApexLpfPhi !== null ? P.fascApexLpfPhi : P.lpfPhi, 1);
+      }
       // conduction-system node lists for rendering/picking
       this.csSegments = {
         AVN: avn, HIS: his, LBB: lbb, LAF: this.laf, LPF: this.lpf, LSF: this.lsf, RBB: this.rbb,
@@ -1017,7 +1036,7 @@
           }
           // the apical network is the densest and best interconnected: faster effective conduction
           const inAp = (x) => A.zuvc[x] >= 0 && A.zuvc[x] < P.apexPurkZ && (!P.apexPurkPhi || A.zuvc[x] < 0.25 || Math.abs(A.phi[x]) < P.apexPurkPhi);
-          const apexF = P.apexPurkMul > 1 && inAp(c) && inAp(q) ? 1 / P.apexPurkMul : 1;
+          const apexF = P.apexPurkMul > 1 && inAp(c) && inAp(q) && (!P.apexPurkSameTerr || terr.get(c) === terr.get(q)) ? 1 / P.apexPurkMul : 1;
           this.edge(idOf.get(c), idOf.get(q), d / P.cvPurkinje * f * apexF);
         }
       }
