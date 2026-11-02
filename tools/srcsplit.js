@@ -4,7 +4,7 @@
 //   node tools/srcsplit.js '{params}' [site=dLAD]
 const fs = require('fs'); const LH = require('../src/engine.js');
 const JA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
-const P = JSON.parse(process.argv[2] || '{}'), SITE = process.argv[3] || 'dLAD'; const { lv = 3, rv = 0, ...mp } = P;
+const P = JSON.parse(process.argv[2] || '{}'), SITE = process.argv[3] || 'dLAD'; const { lv = LH.hypertrophyOptions({}).anatomy.lvWallLayers, rv = 0, ...mp } = P;
 const A = new LH.Anatomy(JA, { lvWallLayers: lv, rvWallLayers: rv }), M = new LH.Model(A, mp), n = M.nVox, br = M.coronary.branches;
 const SITES = { mLAD: br.LAD[Math.round(br.LAD.length * +(process.env.MLAD_F || 0.22))], dLAD: br.LAD[Math.round(br.LAD.length * 0.45)] };
 const RN = ['sept', 'ant', 'lat', 'lat', 'inf', 'sept'];

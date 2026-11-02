@@ -3,7 +3,7 @@
 // endocardial activation time of the region by apicobasal band.   node tools/purkbreak.js '{params}'
 const fs = require('fs'); const LH = require('../src/engine.js');
 const JA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
-const P = JSON.parse(process.argv[2] || '{}'); const { lv = 3, rv = 0, ...mp } = P;
+const P = JSON.parse(process.argv[2] || '{}'); const { lv = LH.hypertrophyOptions({}).anatomy.lvWallLayers, rv = 0, ...mp } = P;
 const A = new LH.Anatomy(JA, { lvWallLayers: lv, rvWallLayers: rv }), M = new LH.Model(A, mp), n = M.nVox;
 const RN = ['sept', 'ant', 'lat', 'lat', 'inf', 'sept'];
 const region = (c) => { if (A.label[c] === LH.LAB.RV) return 'rv'; if (A.label[c] !== LH.LAB.LV || A.zuvc[c] < 0) return null; if (A.zuvc[c] < 0.25) return 'apex'; const d = ((A.phi[c] % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI); return RN[Math.min(5, Math.floor(d / (Math.PI / 3)))]; };

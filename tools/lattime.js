@@ -5,7 +5,7 @@
 // neighbour lies lower (fed from below through the muscle).   node tools/lattime.js '{params}'
 const fs = require('fs'); const LH = require('../src/engine.js');
 const JA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
-const P = JSON.parse(process.argv[2] || '{}'); const { lv = 3, rv = 0, ...mp } = P;
+const P = JSON.parse(process.argv[2] || '{}'); const { lv = LH.hypertrophyOptions({}).anatomy.lvWallLayers, rv = 0, ...mp } = P;
 const A = new LH.Anatomy(JA, { lvWallLayers: lv, rvWallLayers: rv }), M = new LH.Model(A, mp), n = M.nVox;
 const S = new LH.Sim(M, { seed: 1 }); S.run(3000); const on = S.log.vent[S.log.vent.length - 1].on, t = (c) => S.tAct[c] - on;
 const E = M.extraEdges, pmjT = new Map();

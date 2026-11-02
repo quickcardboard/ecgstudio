@@ -825,3 +825,16 @@ sooner than the network itself (apical Purkinje median 22 ms). Branching earlier
 ms, LPFB a little better than with bridging (m4/z0.5: 67° vs 51°), but the normal axis still falls
 (−1° … −45°). So the conflict is not the territory bridge: whenever the apex fires early, this
 model's normal axis turns left (lateral wall filled apex → base, refine-2 round 7).
+
+Lateral wall against the literature (R0, `tools/lattime.js`; tools now default to the model's own
+wall). Literature (abstracts/secondary sources; full texts not reachable from this environment):
+Durrer 1970 — three LV endocardial sites at 0–5 ms, confluent by 15–20 ms, the posterobasal area
+activated last; intraoperative mapping — terminal epicardial activation in the basal lateral wall
+at 62–74 ms; ECGI in normal hearts — apex-to-base activation of the posterior LV, LV base last.
+Model: anterolateral endocardium 20–31 ms (mid-height first), inferolateral endocardium 33–36 ms at
+every height; latest epicardium at the mid inferolateral wall (67–68 ms) while the basal lateral
+epicardium finishes at 36 (anterolateral) / 50 ms (inferolateral). So the model's base is early,
+the opposite of the literature (the added wall layers taper off toward the base, leaving it thin).
+An earlier basal lateral wall would move away from the literature, so that direction is dropped.
+A late base adds upward terminal force, so the normal axis would need its inferior force from
+elsewhere.
