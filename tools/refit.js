@@ -10,8 +10,12 @@ const BASE_IERR = +(process.env.BASE_IERR || 5);
 function evaluate(p) {
   const r = check(p, true), a = act.evaluate(p), ax = r.axes;
   const pen = (v, lo, hi) => (v < lo ? lo - v : v > hi ? v - hi : 0);
-  const axis = pen(ax.N, 30, 75) / 3 + (pen(ax.LAF, -90, -45) + pen(ax.LPF, 100, 180) + pen(ax.LBB, -30, 90) + pen(ax.RVH, 110, 210)) / 10;   // normal axis weighted most
-  const score = 3 * r.iErr + 10 * Math.max(0, r.iErr - BASE_IERR) + axis + 0.5 * r.cs + 0.5 * a.score;
+  // AXES=lenient: fascicular blocks only need the deviation (LAFB ≤ −30°, LPFB ≥ +90°); LBBB not scored
+  const len_ = process.env.AXES === 'lenient';
+  const axis = pen(ax.N, 30, 75) / 3 + (len_ ? pen(ax.LAF, -90, -30) + pen(ax.LPF, 90, 180) + pen(ax.RVH, 90, 210)
+    : pen(ax.LAF, -90, -45) + pen(ax.LPF, 100, 180) + pen(ax.LBB, -30, 90) + pen(ax.RVH, 110, 210)) / 10;   // normal axis weighted most
+  const W_I = +(process.env.W_ISCH || 3);   // weight per ischaemia lead-group miss
+  const score = W_I * r.iErr + 10 * Math.max(0, r.iErr - BASE_IERR) + axis + 0.5 * r.cs + 0.5 * a.score;
   const miss = Object.entries(r.isch).flatMap(([s, v]) => [...v.steMiss.map((n) => `${s} ste-${n}`), ...v.steBad.map((n) => `${s} STE+${n}`), ...v.qMiss.map((n) => `${s} q-${n}`), ...v.qBad.map((n) => `${s} Q+${n}`)]);
   return { score: +score.toFixed(2), m: { iErr: r.iErr, miss, axes: ax, cs: r.cs, act: a.score, apex: a.m.apexMed, HV: a.m.HV, total: a.m.total, qrs: r.qrs } };
 }
