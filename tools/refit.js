@@ -8,7 +8,9 @@ process.env.CS_LITE = process.env.CS_LITE || '1';   // ischaemia is checked by f
 const { check } = require('./fullcheck.js'); const act = require('./acttune.js');
 const BASE_IERR = +(process.env.BASE_IERR || 5);
 function evaluate(p) {
-  const r = check(p, true), a = act.evaluate(p), ax = r.axes;
+  const r = check(p, true), a = act.evaluate(p), ax = { ...r.axes };
+  // AXES_FS=1: normal and fascicular-block axes from tools/fascsearch.js (the standard validation measure)
+  if (process.env.AXES_FS) { const { lv, rv, ...mp } = p; const f = require('./fascsearch.js')(mp).num; Object.assign(ax, f); }
   const pen = (v, lo, hi) => (v < lo ? lo - v : v > hi ? v - hi : 0);
   // AXES=lenient: fascicular blocks only need the deviation (LAFB ≤ −30°, LPFB ≥ +90°); LBBB not scored
   const len_ = process.env.AXES === 'lenient';
