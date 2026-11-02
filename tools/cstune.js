@@ -1,0 +1,99 @@
+// Conduction-system / orientation tuning: evaluate parameter sets against
+// textbook ECG targets and Durrer's activation data.
+//   node tools/cstune.js '[{...}, ...]'          one JSON line per set
+//   require('./tools/cstune.js').evaluate(p)     → { score, m }
+// A set may carry "lv" (LV wall layers, default 3) besides model parameters.
+const fs = require('fs'); const LH = require('../src/engine.js'); if (process.env.RA !== undefined && LH.setRaLayersDefault) LH.setRaLayersDefault(+process.env.RA);
+const JSONA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
+const anat = new Map();
+const anatomy = (lv, rv) => { const k = lv + '/' + rv; if (!anat.has(k)) anat.set(k, new LH.Anatomy(JSONA, { lvWallLayers: lv, rvWallLayers: rv })); return anat.get(k); };
+if (process.env.TV2) LH.setDefaultTorso2(require(require('path').resolve(process.env.TV2)));   // forward model 2 field to use
+const LEAD = (n) => LH.LEADS.indexOf(n);
+
+function record(M, setup) {
+  const S = new LH.Sim(M, { seed: 1 }); const rec = [];
+  S.onSample((t, L) => rec.push(Array.from(L)));
+  setup(S); S.run(2700);
+  const vb = S.log.vent[S.log.vent.length - 2];
+  const q0 = Math.floor(vb.on), q1 = Math.ceil(vb.last) + 2, base = rec[q0 - 15];
+  const y = (n) => rec.slice(q0, q1).map((r) => r[LEAD(n)] - base[LEAD(n)]);
+  const st = (n) => rec[q1 + 40][LEAD(n)] - base[LEAD(n)];   // ST at J + 40 ms
+  // P-wave frontal axis from the P area in I and aVF
+  const a = S.log.atrial.filter((x) => x.on < vb.on).pop() || { on: vb.on - 160 }, a0 = Math.max(10, Math.floor(a.on)), pb = rec[a0 - 10];
+  const parea = (n) => rec.slice(a0, a0 + 100).reduce((acc, r) => acc + r[LEAD(n)] - pb[LEAD(n)], 0);
+  const paxis = Math.atan2(parea('aVF'), parea('I')) * 180 / Math.PI;
+  return { S, vb, q0, qrs: q1 - q0, y, st, paxis };
+}
+const axisOf = (b) => { const s = (n) => b.y(n).reduce((a, v) => a + v, 0); return Math.atan2(s('aVF'), s('I')) * 180 / Math.PI; };
+const netAxis = (b) => { const n = (l) => { const v = b.y(l); return Math.max(...v) + Math.min(...v); }; return Math.atan2(n('aVF'), n('I')) * 180 / Math.PI; };
+const rs = (b, n) => { const v = b.y(n); return [Math.max(...v), -Math.min(...v)]; };
+// early r: largest positive deflection before the QRS first goes clearly negative (within 45 ms)
+const earlyR = (b, n) => { const v = b.y(n); let r = 0; for (let t = 0; t < Math.min(45, v.length); t++) { if (v[t] < -0.15) break; r = Math.max(r, v[t]); } return r; };
+const initQ = (b, n) => { const v = b.y(n).slice(0, 20); return v.reduce((a, x) => (Math.abs(x) > Math.abs(a) ? x : a), 0); };
+
+function evaluate(p) {
+  const { lv = 2, rv = 0, ...mp } = p;
+  const A = anatomy(lv, rv), M = new LH.Model(A, mp);
+  const cs = M.csSegments, br = M.coronary.branches;
+  const n = record(M, () => {});
+  const blk = (seg) => (S) => S.setBlock(seg, 'complete');   // (the app's own block, incl. any tied septal fibres)
+  const laf = record(M, blk('LAF')), lpf = record(M, blk('LPF')), lbb = record(M, blk('LBB')), rbb = record(M, blk('RBB'));
+  const occl = (node) => (S) => { S.addOcclusion(node); S.setIschemiaTime(720); };
+  const dlad = record(M, occl(br.LAD[Math.round(br.LAD.length * 0.7)]));
+  const mlad = record(M, occl(br.LAD[Math.round(br.LAD.length * 0.3)]));
+  const prca = record(M, occl(br.RCA[0]));
+  const plcx = record(M, (S) => { S.addOcclusion(br.LCx[0]); S.setIschemiaTime(1); });   // acute circumflex: lateral, not inferior
+  const hyp = (opt, P) => { const H = LH.hypertrophyOptions(opt, mp.forward !== undefined ? mp.forward : LH.DEFAULTS.forward); const AH = new LH.Anatomy(JSONA, { lvWallLayers: lv + (opt.lvh ? 3 : 0), rvWallLayers: opt.rvh ? 5 : rv }); return record(new LH.Model(AH, { ...mp, ...H.params }), () => {}); };
+  const lvh = hyp({ lvh: true }), rvh = hyp({ rvh: true });
+  // activation: apex endocardium, total time, HV
+  const S = new LH.Sim(M, { seed: 1 }); S.run(1700);   // activation times of the last complete beat
+  const t0 = S.log.vent[S.log.vent.length - 1].on, vlast = S.log.vent[S.log.vent.length - 1].last, apex = [];
+  for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.tm[c] >= 0 && A.tm[c] < 0.15 && A.zuvc[c] >= 0 && A.zuvc[c] < 0.3) { const t = S.tAct[c] - t0; if (t > -5 && t < 200) apex.push(t); }
+  apex.sort((a, b) => a - b);
+  const m = {
+    N: { axis: Math.round(axisOf(n)), net: Math.round(netAxis(n)), qrs: n.qrs, I: rs(n, 'I'), II: rs(n, 'II'),
+      qI: +initQ(n, 'I').toFixed(2), qV6: +initQ(n, 'V6').toFixed(2), rV1: +initQ(n, 'V1').toFixed(2),
+      prog: ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((l) => rs(n, l).map((x) => +x.toFixed(2))) },
+    LAF: { axis: Math.round(axisOf(laf)), net: Math.round(netAxis(laf)), qrs: laf.qrs },
+    LPF: { axis: Math.round(axisOf(lpf)), net: Math.round(netAxis(lpf)), qrs: lpf.qrs },
+    LBB: { axis: Math.round(axisOf(lbb)), qrs: lbb.qrs, V1: rs(lbb, 'V1'), V6: rs(lbb, 'V6') },
+    RBB: { qrs: rbb.qrs, V1: rs(rbb, 'V1') },
+    act: { PR: Math.round(t0 - S.log.atrial.filter((a) => a.on < t0).pop().on), total: Math.round(vlast - t0), apexMed: Math.round(apex[apex.length >> 1]), HV: Math.round(t0 - S.tAct[M.his[0]]) },
+    dLAD: ['V2', 'V3', 'V4', 'V5', 'V6'].map((l) => +earlyR(dlad, l).toFixed(2)),
+    mLAD: ['V1', 'V2', 'V3', 'V4'].map((l) => +earlyR(mlad, l).toFixed(2)),
+    pRCA: ['II', 'III', 'aVF'].map((l) => +earlyR(prca, l).toFixed(2)),
+    dLADinf: ['II', 'III', 'aVF'].map((l) => +earlyR(dlad, l).toFixed(2)),
+    pLCx: { lat: +Math.max(...['I', 'aVL', 'V5', 'V6'].map(plcx.st)).toFixed(2), inf: +Math.max(...['II', 'III', 'aVF'].map(plcx.st)).toFixed(2) },
+    P: { axis: Math.round(n.paxis) },
+    LVH: { sokolow: +(rs(lvh, 'V1')[1] + Math.max(rs(lvh, 'V5')[0], rs(lvh, 'V6')[0])).toFixed(2) },
+    RVH: { axis: Math.round((axisOf(rvh) + 360) % 360), RaVR: +rs(rvh, 'aVR')[0].toFixed(2), V1: rs(rvh, 'V1').map((x) => +x.toFixed(2)) },
+  };
+  // score: distance from targets (0 = all met)
+  const pen = (v, lo, hi) => (v < lo ? lo - v : v > hi ? v - hi : 0);
+  const N = m.N, pr = N.prog;
+  let s = 0;
+  s += pen(N.axis, 35, 70) / 8 + pen(N.net, 30, 70) / 8;
+  s += pen(m.LAF.net, -80, -45) / 4 + pen(m.LAF.axis, -85, -40) / 8;
+  s += pen(m.LPF.net, 100, 150) / 3 + pen(m.LPF.axis, 95, 150) / 5;
+  s += pen(m.LBB.axis, -30, 60) / 4 + pen(m.LBB.qrs, 130, 170) / 10 + pen(m.RBB.qrs, 115, 160) / 10;
+  s += pen(N.qrs, 80, 100) / 5 + pen(m.LAF.qrs, 85, 118) / 3 + pen(m.LPF.qrs, 85, 118) / 3;   // isolated fascicular block: QRS < 120 ms
+  s += pen(N.qI, -0.25, -0.04) * 20 + pen(pr[4][0], 0.5, 2.5) * 4 + pen(pr[5][0], 0.5, 2.5) * 4 + pen(N.qV6, -0.25, -0.04) * 10 + pen(N.rV1, 0.04, 0.3) * 10;
+  s += pen(N.I[0], 0.4, 1.5) * 4 + pen(N.II[0], 0.7, 1.8) * 4;
+  s += pen(N.II[0] / Math.max(pr[4][0], pr[5][0]), 0.45, 1.2) * 8;                       // limb vs chest size (II R ~0.5-0.7 × V5/V6 R)
+  s += pen(pr[0][1], 0.7, 2.0) * 4 + pen(pr[0][0] / Math.max(0.01, pr[0][1]), 0, 0.5) * 3;   // normal V1: rS with a real S
+  for (let i = 0; i < 4; i++) s += Math.max(0, pr[i][0] - pr[i + 1][0]) * 3;           // R grows V1→V4
+  s += pen(pr[1][0], 0.15, 1.0) * 4 + Math.max(0, Math.max(pr[1][0], pr[2][0]) - Math.max(pr[3][0], pr[4][0])) * 4;   // small r in V2; tallest R in V4–V5
+  s += Math.max(0, pr[3][1] - pr[3][0] - 0.5) * 2 + Math.max(0, pr[0][0] - pr[0][1]) * 3; // transition by V4, rS in V1
+  s += pen(m.act.PR, 130, 170) / 5 + pen(m.act.total, 60, 85) / 5 + pen(m.act.apexMed, 0, 22) / 3 + pen(m.act.HV, 30, 55) / 5;
+  s += m.dLAD.slice(1, 4).reduce((a, x) => a + Math.max(0, x - 0.1), 0) * 12;              // apical infarct: QS/Q in V3–V5
+  s += m.dLADinf.slice(1).reduce((a, x) => a + Math.max(0, x - 0.15), 0) * 3;             // wrap-around apex: inferior Q
+  s += Math.max(0, m.pLCx.inf - m.pLCx.lat + 0.05) * 20 + pen(m.pLCx.lat, 0.1, 5) * 10;     // circumflex injury is lateral
+  s += pen(m.P.axis, 30, 75) / 5;
+  s += pen(m.LVH.sokolow, 3.5, 6) * 4;
+  s += pen(m.RVH.axis, 95, 200) / 10 + pen(m.RVH.RaVR, 0, 1.2) * 3 + (m.RVH.V1[0] < m.RVH.V1[1] ? 3 : 0);
+  s += m.mLAD.reduce((a, x) => a + Math.max(0, x - 0.1), 0) * 8;
+  s += m.pRCA.reduce((a, x) => a + Math.max(0, x - 0.4), 0) * 2;                          // inferior: Q before any R
+  return { score: +s.toFixed(2), m };
+}
+module.exports = { evaluate };
+if (require.main === module) for (const p of JSON.parse(process.argv[2] || '[{}]')) { const r = evaluate(p); console.log(JSON.stringify({ p, ...r })); }

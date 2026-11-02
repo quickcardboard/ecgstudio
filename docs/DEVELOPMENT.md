@@ -524,3 +524,26 @@ vectors") shows the vectors the model computes with: the blended limb vectors (e
 Textbook chest arrows keep the textbook azimuths but take each electrode's height from the heart
 centre: V1/V2 (4th intercostal space) 27–36° up, V3 22°, V4–V6 (5th space, level with the heart
 centre) about 0°.
+
+### refine-2 round 1: inferior wall to the PDA; the LAD ends at the apex
+
+Strategy for this branch: fix the LAD misses first, then move position and activation toward
+physiology without losing what the live model does well; every change is gated on
+`tools/fullcheck.js` (ischaemia lead groups at 1 h and 30 days, axes, QRS shape) and, for activation,
+`tools/acttune.js` (mapping data). The checker now expects no inferior ST or Q from LAD occlusions
+(the inferior wall is mainly PDA territory in right-dominant hearts).
+
+Changes: the LAD stops at the apex (no wrap onto the inferior wall; drawn shorter too); the PDA runs
+down the inferior groove almost to the apex; the apical cap is LAD except its inferior face above the
+tip (`apexTipZ` 0.06), which goes to the PDA (AHA: apex 17 = LAD, apical inferior 15 = RCA).
+AHA agreement 89% → 91%. Checker misses 13 → 5 (mid LAD: STE V1–V5, Q V1–V3, no inferior changes).
+Normal ECG and blocks unchanged.
+
+Still open: old mid-LAD infarct lacks a Q in V4 (r 0.60 → 0.38); old distal LAD (apical) infarct
+shows a QS in III instead of Q in V4–V5. Causes: the apex lies ~35 mm below V4 and activates late
+(30 ms; Durrer 8–24 ms), so its loss trims the R instead of making a Q. Tried and rejected here
+(each alone): stronger scar window (0.7/0.9: no anterior Q, more inferior), chest leads lowered to
+the apex (worse, 8–11 misses), faster Purkinje (2.3–3.4 m/s: loses pLAD/mLAD Q), faster apical
+Purkinje (`apexPurkMul` 1.8–2.5, added off by default: apex 21–26 ms but normal axis −22 to −49°).
+Activation and lead geometry have to move together (next round). New options, off by default:
+`chestLeadY`, `apexPurkMul`/`apexPurkZ`.
