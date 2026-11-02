@@ -524,3 +524,108 @@ vectors") shows the vectors the model computes with: the blended limb vectors (e
 Textbook chest arrows keep the textbook azimuths but take each electrode's height from the heart
 centre: V1/V2 (4th intercostal space) 27–36° up, V3 22°, V4–V6 (5th space, level with the heart
 centre) about 0°.
+
+### refine-2 round 1: inferior wall to the PDA; the LAD ends at the apex
+
+Strategy for this branch: fix the LAD misses first, then move position and activation toward
+physiology without losing what the live model does well; every change is gated on
+`tools/fullcheck.js` (ischaemia lead groups at 1 h and 30 days, axes, QRS shape) and, for activation,
+`tools/acttune.js` (mapping data). The checker now expects no inferior ST or Q from LAD occlusions
+(the inferior wall is mainly PDA territory in right-dominant hearts).
+
+Changes: the LAD stops at the apex (no wrap onto the inferior wall; drawn shorter too); the PDA runs
+down the inferior groove almost to the apex; the apical cap is LAD except its inferior face above the
+tip (`apexTipZ` 0.06), which goes to the PDA (AHA: apex 17 = LAD, apical inferior 15 = RCA).
+AHA agreement 89% → 91%. Checker misses 13 → 5 (mid LAD: STE V1–V5, Q V1–V3, no inferior changes).
+Normal ECG and blocks unchanged.
+
+Still open: old mid-LAD infarct lacks a Q in V4 (r 0.60 → 0.38); old distal LAD (apical) infarct
+shows a QS in III instead of Q in V4–V5. Causes: the apex lies ~35 mm below V4 and activates late
+(30 ms; Durrer 8–24 ms), so its loss trims the R instead of making a Q. Tried and rejected here
+(each alone): stronger scar window (0.7/0.9: no anterior Q, more inferior), chest leads lowered to
+the apex (worse, 8–11 misses), faster Purkinje (2.3–3.4 m/s: loses pLAD/mLAD Q), faster apical
+Purkinje (`apexPurkMul` 1.8–2.5, added off by default: apex 21–26 ms but normal axis −22 to −49°).
+Activation and lead geometry have to move together (next round). New options, off by default:
+`chestLeadY`, `apexPurkMul`/`apexPurkZ`.
+
+### refine-2 round 2: joint re-fit of activation, position and lead settings (not adopted)
+
+`tools/refit.js` scores a set (3 × ischaemia misses, +10 per miss beyond the baseline; axes with the
+normal axis per 3°; ½ × the QRS checklist; ½ × the activation-mapping score); `tools/es_tune.js`
+optimised Purkinje speed, apical Purkinje, junction delay, bundle speed, heart orientation and the
+limb/chest lead settings within physiological ranges (40 generations × 8; ~23 s per evaluation after
+removing duplicated occlusion runs, caching the hypertrophy anatomies and 3 s ischaemia beats).
+Best set (tools/data/refit_round2.json): score 35.5 → 16.2; normal axis +29 → +43° (app reading),
+activation score 12.8 → 5.3 (apex 30 → 25 ms, HV 24 → 27 ms, Purkinje 2.25 m/s, PMJ 4 ms); blocks,
+WPW, P waves, hypertrophy and arrhythmias keep their patterns, QRS ~6 ms narrower. Not adopted:
+LAFB −48 → −37/−40°, old mid-LAD Q V1–V3 → V1–V2, old distal-LAD Q still absent in V4–V5, PDA at 1 h
+adds V1/V4 STE. The scoring weighted LAFB lightly and read Q waves on a shorter beat than the audit.
+
+### refine-2 round 3: activation-only re-fit with the septal fascicle (not adopted)
+
+The septal fascicle's block is now tied to its parent division (the posterior one here), as on
+cs-tune: RBB + LAF + LPF stays complete, and clearing the block releases the septal fibres (off by
+default). Alone it moves Durrer's mid-septal early site from 9.6 to 4–6 ms but delays the anterior
+and posterior sites ~3 ms, and the territories are walled off by `purkCrossSlow` 6.8.
+
+Tool fix: the checker, activation score and optimiser had defaulted to a 2-layer LV wall (the test
+model's); the app's normal heart has 3. They now take it from `hypertrophyOptions`. On the app heart,
+round 1 has 9 checker misses (not 5): old mid-LAD Q missing V3–V4; distal LAD STE/Q in III/aVF and no
+STE in V5; PDA STE in V1. Normal +33°, LAFB −49°, LPFB +100°, activation score 15.3, apex 29 ms.
+
+Activation-only re-fit (Purkinje speed, apical network, septal fascicle territory/landing,
+cross-link slowing; position and lead settings fixed; tools/data/refit_round3.json): misses 9 → 8
+(mid-LAD Q gains V3, distal-LAD inferior Q gone; distal-LCx Q in V6 lost), activation 15.3 → 7.0,
+apex 25 ms. Not adopted: LPFB by tools/fascsearch.js +83/75° (no right axis deviation; the re-fit's
+own measure read +94°), and the LAD Q waves in V4–V5 are still absent. Activation alone does not fix
+them; the apex geometry (apex ~35 mm below V4, facing the inferior leads) is the remaining lever.
+
+### refine-2 round 4: literature target for the distal LAD; more local field in the chest leads
+
+Checker: the distal LAD is tested just past the second diagonal (the apical-anterior infarct) and
+judged against the MRI-based classification (Bayés de Luna et al., Circulation 2006): Q waves
+V1–V2 extending to V3–V6, none in I/aVL (core V2–V4); ST elevation V3–V4; no inferior changes (the
+inferior wall is PDA territory here). Round 1 on this target: 7 misses.
+
+Infarct size is not the limit: at 30 days the whole downstream territory is dead (`ischDeadS` has no
+effect then); a distal-LAD infarct is 16% of the LV, yet V4/V5 early r rises slightly and the only Q
+is in III. The apex lies ~35 mm below V4, under no chest electrode; V3–V4 overlie mid-anterior wall.
+Lowering the chest leads to the apex or turning the heart (pitch −25°, yaw 18°, rotation 4°) and
+raising the apex all made the ischaemia pattern worse (10–13 misses).
+
+Change: chest leads take 45% of their signal from the local field (`precordialDipoleW` 0.7 → 0.55).
+Misses 7 → 5: mid-LAD old-infarct Q gains V3, PDA occlusion loses its V1 ST elevation. Limb leads,
+axes, fascicular and AV blocks, arrhythmias, P waves unchanged. Chest voltages ~15% lower (normal
+V2 R/S 0.32/1.28, R V1–V6 0.14, 0.32, 0.30, 0.49, 0.79, 0.73); LVH (lv 6) Sokolow 4.20 → 3.70,
+Cornell 2.70 → 2.52; WPW delta polarity in V1–V5 shifts toward ± in some sites. 0.5 dips V3 below V2;
+0.6 keeps the PDA V1 ST elevation. Still missing: old mid-LAD Q in V4; old distal-LAD Q in V2–V4
+(Q in III instead).
+
+### refine-2 round 5: torso-based local field for the chest leads (option, off)
+
+`chestTorso` takes the electrodes' local potentials from a volume conductor solved for the live
+heart (tools/export_heart_torso.js + tools/torso_v2.py → src/torso_v2.json: lungs 0.04 S/m, liver,
+spine, cavity blood; its own Burger triangle I −16°, II +68° ×1.7, III +100° ×1.9) instead of point
+sources; the heart-vector part and the limb leads are unchanged. At `precordialDipoleW` 0.55 it gives
+the same 5 checker misses as the point-source version with better normal progression (R V1–V6 0.14,
+0.35, 0.39, 0.53, 0.91, 0.83). Off by default; the browser build does not embed the field yet.
+
+Apical (distal-LAD) Q in V2–V4 still absent with either local field. Diagnostic: with the measured
+source ratio (sigmaRatio 3; live 10) the apical infarct removes much more early anterior force
+(early r V2 0.67 → 0.41, V3 0.99 → 0.76, V5 0.59 → 0.36) but still no Q, and the whole normal ECG
+changes (V3 R ~1 mV, axes). The test model's apical Q came from its combination: CT orientation,
+measured source ratio, early apex (16–20 ms) and a physical torso for every lead.
+
+### refine-2 round 6: explicit septal perforators (option, off) and what they show
+
+`septalPerf` (fractions along the LAD, e.g. [0.14, 0.3, 0.45, 0.6]; default off) gives the septum to
+explicit perforators: each supplies the septal band from its origin down to the next, S1 also the
+basal septum above it. No necrosis above an occlusion. Checker misses 5 → 12: mid- and distal-LAD
+infarcts lose all anterior Q and show QS in II/III/aVF (mid LAD early r V1–V4 0.14/0.32/0.30/0.49 →
+0.11/0.29/0.29/0.43; II/III/aVF → ~0). Not fixed by a silent scar (`scarWindow` 0: 11 misses), the
+measured source ratio (3 or 5: 11–12), or the torso chest field (12). The anterior Q waves of the
+default rule come from the extra, early-activating septal necrosis (upward reach `septalSpread`);
+loss of anterior free wall, D2 territory and the apical cap projects onto the inferior leads (the
+apex faces down as well as forward in this CT heart). The default rule is kept as a documented
+compensation; making the anterior free wall's early forces visible to V2–V4 needs a forward-model
+rebuild with re-tuned activation rather than further parameter search.

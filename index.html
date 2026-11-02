@@ -659,7 +659,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-02 (1688a7a).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-02 (543235d).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -1900,6 +1900,7 @@ THE SOFTWARE.
     heartRotation: 14,    // degrees about the AP axis (+ = more vertical heart)
     apexX: 72, apexY: -34.83,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)
+    apexPurkMul: 1, apexPurkZ: 0.3,   // Purkinje links below apexPurkZ (apicobasal UVC) conduct apexPurkMul× faster (1 = off)
     purkLinkR: 3.2,        // Purkinje node link radius (× node spacing)
     purkZmaxLV: 0.94, purkZmaxRV: 0.93,   // basal limit of Purkinje networks (apicobasal UVC)
     pmjAntero: 2,          // Purkinje -> muscle junction delay (ms)
@@ -1964,8 +1965,10 @@ THE SOFTWARE.
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
     scarWindow: 0.5,       // old scar as an electrical window: its would-be activation counted inverted (0 = silent scar)
     scarRefractory: 200,   // ms between phantom activations of a scar cell
-    ladProxFreeWallPhi: 2.0,  // proximal-LAD nodes lateral of this (rotational UVC) supply no free wall
+    ladProxFreeWallPhi: 2.0,
+    apexTipZ: 0.06,           // apical tip (apicobasal UVC below this) is LAD; the apical inferior wall above it is PDA  // proximal-LAD nodes lateral of this (rotational UVC) supply no free wall
     ladRvMm: 0,            // RV muscle within this distance (mm) of the LAD is supplied by it (RV branches)
+    septalPerf: null,      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
@@ -1985,10 +1988,12 @@ THE SOFTWARE.
 
     // ECG
     ecgGain: 0.0174,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm)
-    precordialDipoleW: 0.7,     // share of the precordial signal from the heart-vector projection
+    precordialDipoleW: 0.55,
+    chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
     dowerChest: 0.5,            // chest dipole directions blended this far toward Dower's measured lead vectors (Frank torso)
+    chestLeadY: 0,              // all chest electrodes this much higher (mm; negative = lower)
     v12Y: 24,                   // V1/V2 this much (mm) higher above V4-V6 (4th ICS at the sternal edge; ribs slope down laterally)
     ecgHighpass: 0.05,          // Hz, diagnostic-ECG high-pass (baseline restoration)
     ecgLowpass: 40,             // Hz, ECG machine low-pass (0 = off; diagnostic carts use up to 150)
@@ -2475,6 +2480,12 @@ THE SOFTWARE.
       this.csSegments = {
         AVN: avn, HIS: his, LBB: lbb, LAF: this.laf, LPF: this.lpf, LSF: this.lsf, RBB: this.rbb,
       };
+      // the septal fibres arise from one of the two main divisions: a block of
+      // that division takes them too (so RBB + LAF + LPF stays a complete block)
+      if (this.lsf.length) {
+        const end = (f) => this.pt(f[f.length - 1]), e = end(this.lsf);
+        this.lsfTie = len(sub(e, end(this.laf))) <= len(sub(e, end(this.lpf))) ? 'LAF' : 'LPF';
+      }
     }
 
     // ---- Coronary arteries (right-dominant) and perfusion territories ----
@@ -2523,7 +2534,7 @@ THE SOFTWARE.
           return false; };
         return this._nearestWhere((c) => A.label[c] === LAB.LV && A.epi[c] && A.zuvc[c] >= 0 && A.phi[c] > 0.6 && near(c), (c) => Math.abs(A.zuvc[c] - zz) * 80 + Math.abs(A.phi[c] - 1.7) * 5);
       };
-      const LAD = addBranch('LAD', LM[LM.length - 1], [antGroove(0.8), antGroove(0.65), antGroove(0.5), antGroove(0.35), antGroove(0.2), lvEpi(1.0, 0.06), lvEpi(-0.4, 0.1)]);
+      const LAD = addBranch('LAD', LM[LM.length - 1], [antGroove(0.8), antGroove(0.65), antGroove(0.5), antGroove(0.35), antGroove(0.2), lvEpi(1.0, 0.06)]);   // ends at the apex: the inferior wall is PDA territory (right-dominant hearts)
       // diagonals: the anterior–anterolateral junction (the anterolateral free wall is mainly marginal territory)
       addBranch('D1', along(LAD, 0.18), [lvEpi(1.8, 0.62), lvEpi(1.9, 0.4)]);
       addBranch('D2', along(LAD, 0.42), [lvEpi(1.75, 0.35), lvEpi(1.85, 0.15)]);
@@ -2543,7 +2554,7 @@ THE SOFTWARE.
       const RCA = addBranch('RCA', -1, [rcaStart].concat(ringPts, [crux]));
       const acuteIdx = RCA.reduce((b, id) => (nodes[id].x < nodes[b].x ? id : b), RCA[0]);
       addBranch('AM', acuteIdx, [A.nearest(add([nodes[acuteIdx].x, nodes[acuteIdx].y, nodes[acuteIdx].z], [8, -45, 10]), (c) => A.label[c] === LAB.RV && A.epi[c])]);
-      const PDA = addBranch('PDA', RCA[RCA.length - 1], [lvEpi(-0.7, 0.7), lvEpi(-0.75, 0.45), lvEpi(-0.7, 0.2)]);
+      const PDA = addBranch('PDA', RCA[RCA.length - 1], [lvEpi(-0.7, 0.7), lvEpi(-0.75, 0.45), lvEpi(-0.7, 0.2), lvEpi(-0.5, 0.08)]);   // down the inferior groove almost to the apex
       addBranch('PLV', RCA[RCA.length - 1], [lvEpi(-1.5, 0.8), lvEpi(-1.9, 0.65)]);
       // node UVC (for LV territory assignment)
       for (const n of nodes) { const c = n.vox; n.phi = A.phi[c]; n.zz = A.zuvc[c]; n.lv = A.label[c] === LAB.LV; }
@@ -2562,6 +2573,13 @@ THE SOFTWARE.
       // level z − septalSpread (a perforator reaches ~1.3 cm above its origin
       // and everything below it). The drawn LAD and the septum stay consistent:
       // the further up the LAD an occlusion, the more septum (and septal Q waves).
+      // septalPerf: explicit septal perforators at these fractions along the LAD (S1 beside
+      // D1, S2… further down). A perforator runs into the septum at right angles and
+      // supplies the septal band from its origin down to the next one; the basal septum
+      // above S1 is S1's too. Without it, the septum at level z is supplied from the
+      // LAD at level z − septalSpread.
+      const perf = P.septalPerf && P.septalPerf.length ? P.septalPerf.map((f) => branches.LAD[Math.min(branches.LAD.length - 1, Math.round(f * (branches.LAD.length - 1)))]).sort((a, b) => nodes[b].zz - nodes[a].zz) : null;
+      const perfFor = (zz) => { let b = perf[0]; for (const id of perf) if (nodes[id].zz >= zz) b = id; return b; };
       const voxNode = new Int32Array(A.n).fill(-1);
       for (let c = 0; c < A.n; c++) {
         const L = A.label[c]; if (L !== LAB.LV && L !== LAB.RV) continue;
@@ -2571,8 +2589,10 @@ THE SOFTWARE.
           const lad = nearestOf(branches.LAD, c, euc);
           voxNode[c] = P.ladRvMm > 0 && euc(c, lad) < P.ladRvMm * P.ladRvMm && nodes[lad].zz > 0.15 ? lad : nearestOf(rvNodes, c, euc);
         }
-        else if (zz >= 0 && zz < 0.2) voxNode[c] = nearestOf(branches.LAD, c, euc);                 // apex: wrap-around LAD
-        else if (ph > 0.1 && ph < 1.7) voxNode[c] = nearestOf(branches.LAD, c, (x, id) => Math.abs(nodes[id].zz - (zz - P.septalSpread)));   // septum (LAD perforators)
+        // apical cap: the LAD (to the tip), except its inferior face, which the PDA
+        // reaches in right-dominant hearts (AHA segment 15 = RCA, 17 = LAD)
+        else if (zz >= 0 && zz < 0.2) voxNode[c] = zz > P.apexTipZ && ph < -0.6 && ph > -2.4 ? nearestOf(branches.PDA, c, euc) : nearestOf(branches.LAD, c, euc);
+        else if (ph > 0.1 && ph < 1.7) voxNode[c] = perf ? perfFor(zz) : nearestOf(branches.LAD, c, (x, id) => Math.abs(nodes[id].zz - (zz - P.septalSpread)));   // septum (LAD perforators)
         else if (ph > -0.7 && ph <= 0.1) voxNode[c] = nearestOf(branches.PDA, c, zOnly);                                   // inferior septum (PDA)
         else voxNode[c] = nearestOf(lvSurface, c, uvcDist);
       }
@@ -2729,7 +2749,9 @@ THE SOFTWARE.
             const apical = A.zuvc[c] >= 0 && A.zuvc[c] < P.purkCrossApexZ && A.zuvc[q] >= 0 && A.zuvc[q] < P.purkCrossApexZ;
             f = apical ? 1 : P.purkCrossSlow;
           }
-          this.edge(idOf.get(c), idOf.get(q), d / P.cvPurkinje * f);
+          // the apical network is the densest and best interconnected: faster effective conduction
+          const apexF = P.apexPurkMul > 1 && A.zuvc[c] >= 0 && A.zuvc[c] < P.apexPurkZ && A.zuvc[q] >= 0 && A.zuvc[q] < P.apexPurkZ ? 1 / P.apexPurkMul : 1;
+          this.edge(idOf.get(c), idOf.get(q), d / P.cvPurkinje * f * apexF);
         }
       }
       return nodes;
@@ -2838,14 +2860,16 @@ THE SOFTWARE.
       this.offset = [tx, ty, tz];
       this.toTorso = (p) => add(rotP(p), this.offset);
       this.apex = apex;
-      const on = (x, y) => [x, y, surfZ(x) - 1];
+      // chestLeadY: all chest electrodes moved up/down together (mm, + up)
+      const chY = P.chestLeadY || 0;
+      const on = (x, y) => [x, y + chY, surfZ(x) - 1];
       const v12 = 28 + (P.v12Y || 0);
       const V2 = on(26, v12), V4 = on(78, 0);
       const mid = lerp(V2, V4, 0.5);
       this.electrodes = {
         RA: [-170, 170, 0], LA: [170, 170, 0], LL: [60, -330, 0],
-        V1: on(-26, v12), V2: V2, V3: on(mid[0], mid[1]), V4: V4,
-        V5: on(124, 0), V6: [160, 0, 0],
+        V1: on(-26, v12), V2: V2, V3: on(mid[0], mid[1] - chY), V4: V4,   // (mid is already at the shifted level)
+        V5: on(124, 0), V6: [160, chY, 0],
       };
       this.torso = { a, b };
       // precordial lead directions (unit vectors heart centre -> electrode), torso frame
@@ -2948,7 +2972,33 @@ THE SOFTWARE.
         const f = [fb[3 * c], fb[3 * c + 1], fb[3 * c + 2]], fl = Math.hypot(f[0], f[1], f[2]) || 1;
         for (let d = 0; d < 3; d++) fwd[3 * c + d] = (R[3 * d] * f[0] + R[3 * d + 1] * f[1] + R[3 * d + 2] * f[2]) / fl;   // torso frame
       }
-      this._lw = { TF, tfSample, tfScale, tfMean, E, axes, B, rhat, aniso, anorm, fwd, NE };
+      // chestTorso: the electrodes' local (near-field) potentials from a solved torso
+      // volume conductor (tools/torso_v2.py: lungs, cavity blood; reciprocity potentials
+      // psi_e, lead field grad psi_e) instead of the point-source 1/r formula. The
+      // heart-vector part of the chest leads and the limb leads are unchanged.
+      let tv2 = null;
+      const T2 = this.P.chestTorso ? (this.P.torsoV2 || DEFAULT_TORSO2) : null;
+      if (T2) {
+        const [nx, ny, nz] = T2.dims, o = T2.origin, th = T2.h;
+        const psi = names.map((k) => { if (k === T2.ref) return null; const a = decode(T2.psi[k], Int16Array), f = new Float32Array(a.length), s = T2.scale[k]; for (let i = 0; i < a.length; i++) f[i] = a[i] * s; return f; });
+        const grad = (e, p) => {                               // gradient of the trilinear interpolant
+          const F = psi[e]; if (!F) return [0, 0, 0];
+          const fx = (p[0] - o[0]) / th, fy = (p[1] - o[1]) / th, fz = (p[2] - o[2]) / th;
+          const i0 = Math.max(0, Math.min(nx - 2, Math.floor(fx))), j0 = Math.max(0, Math.min(ny - 2, Math.floor(fy))), k0 = Math.max(0, Math.min(nz - 2, Math.floor(fz)));
+          const tx = Math.min(1, Math.max(0, fx - i0)), ty = Math.min(1, Math.max(0, fy - j0)), tz = Math.min(1, Math.max(0, fz - k0));
+          const v = (a, b, c) => F[((i0 + a) * ny + (j0 + b)) * nz + (k0 + c)];
+          let gx = 0, gy = 0, gz = 0;
+          for (let b = 0; b < 2; b++) for (let c = 0; c < 2; c++) gx += (v(1, b, c) - v(0, b, c)) * (b ? ty : 1 - ty) * (c ? tz : 1 - tz);
+          for (let a = 0; a < 2; a++) for (let c = 0; c < 2; c++) gy += (v(a, 1, c) - v(a, 0, c)) * (a ? tx : 1 - tx) * (c ? tz : 1 - tz);
+          for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) gz += (v(a, b, 1) - v(a, b, 0)) * (a ? tx : 1 - tx) * (b ? ty : 1 - ty);
+          return [gx / th, gy / th, gz / th];
+        };
+        // scale: mean |grad psi_V2| over the ventricles matches the point-source 1/r² near field (keeps the chest gains meaningful)
+        let gs = 0, rs = 0; const eV2 = names.indexOf('V2');
+        for (let c = 0; c < n; c += 5) { if (this.kind[c] !== KIND.VENT) continue; const m = this.toTorso(A.p(c)); const gv = grad(eV2, m); gs += Math.hypot(gv[0], gv[1], gv[2]); const r = sub(E[eV2], m); rs += 1 / dot(r, r); }
+        tv2 = { grad, scale: rs / gs };
+      }
+      this._lw = { TF, tfSample, tfScale, tfMean, E, axes, B, rhat, aniso, anorm, fwd, NE, tv2 };
       const cc = new Float64Array(NE);
       for (let c = 0; c < n; c++) {
         const kc = this.kind[c]; if (!kc) continue;
@@ -2967,7 +3017,7 @@ THE SOFTWARE.
     // adds out[e]·(Vm_w − Vm_c) to lead e (summation by parts of −σi∇Vm·∇L).
     pairCoef(c, w, a, out) {
       const A = this.A, h = A.h, kc = this.kind[c];
-      const { TF, tfSample, tfScale, tfMean, E, axes, B, rhat, aniso, anorm, fwd } = this._lw;
+      const { TF, tfSample, tfScale, tfMean, E, axes, B, rhat, aniso, anorm, fwd, tv2 } = this._lw;
       let sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : this.P.atrialSourceGain;
       // hypertrophied myocytes carry more intracellular current (source
       // strength ∝ conductance); scaling the pair keeps uniform plateaus silent
@@ -3015,6 +3065,13 @@ THE SOFTWARE.
         if (q && kc !== KIND.VENT) Lv = Lv.map((x) => x * this.P.atrialTorsoII / this.P.torsoIIGain);   // torsoIIGain shortens lead II for ventricular sources only
         const cc = tfScale * h * h * sc * ((Lv[0] * lex[0] + Lv[1] * lex[1] + Lv[2] * lex[2]) + re * (Lv[0] * lrr[0] + Lv[1] * lrr[1] + Lv[2] * lrr[2]) + fe * (Lv[0] * lff[0] + Lv[1] * lff[1] + Lv[2] * lff[2]));
         out[12 + q] = cc;
+      }
+      if (tv2) {                                              // torso lead fields for the electrode potentials
+        for (let e = 0; e < 9; e++) {
+          const G = tv2.grad(e, m);
+          out[e] = tv2.scale * h * h * sc * ((G[0] * ex[0] + G[1] * ex[1] + G[2] * ex[2]) + re * (G[0] * rr[0] + G[1] * rr[1] + G[2] * rr[2]) + fe * (G[0] * ff[0] + G[1] * ff[1] + G[2] * ff[2]));
+        }
+        return;
       }
       for (let e = 0; e < 9; e++) {
         const rx = E[e][0] - m[0], ry = E[e][1] - m[1], rz = E[e][2] - m[2];
@@ -3222,6 +3279,7 @@ THE SOFTWARE.
       if (site === 'SAN') { this.saExit = null; this.sinusArrest = false; this.sinusPauseUntil = -1; }
       if (site === 'AVN') { this.avnBlockMul = 1; for (const c of M.avn) { this.erpExtra[c] = P.avnErpExtra; this.cvK[c] = P.avnCvRestK; this.cvTau[c] = P.avnCvRestTau; } }
       delete this.blocks[site];
+      if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = 0;
       if (!type) { this._applyAvn(); return; }
       this.blocks[site] = { type, ...opts };
       const gate = (cell, mode, n) => this.gates.set(cell, { mode, n, count: 0, site });
@@ -3243,6 +3301,7 @@ THE SOFTWARE.
         if (type === 'mobitz2') gate(cs.HIS[1], 'drop-1-of', opts.n || 4);
         else if (type === 'complete') for (const c of cs.HIS) this.blocked[c] = 1;
       } else if (type === 'complete') for (const c of cells) this.blocked[c] = 1;
+      if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = this.blocks[site] && this.blocks[site].type === 'complete' ? 1 : 0;   // septal fibres go with their parent division
       this._applyAvn();
     }
     clearBlocks() { for (const s of Object.keys(this.blocks)) this.setBlock(s, null); }
@@ -4171,6 +4230,12 @@ THE SOFTWARE.
     try { DEFAULT_TORSO = require(__dirname + '/torso_leadfield.json'); } catch (e) { DEFAULT_TORSO = null; }
   }
   const setDefaultTorso = (tf) => { DEFAULT_TORSO = tf; };
+  // solved torso volume conductor for the chest leads' local field (chestTorso; tools/torso_v2.py)
+  let DEFAULT_TORSO2 = null;
+  if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+    try { DEFAULT_TORSO2 = require(__dirname + '/torso_v2.json'); } catch (e) { DEFAULT_TORSO2 = null; }
+  }
+  const setDefaultTorso2 = (tf) => { DEFAULT_TORSO2 = tf; };
 
   // Ventricular hypertrophy presets: thicker free wall (anatomy), stronger
   // sources (lead fields) and a reversed transmural repolarisation gradient
@@ -4182,7 +4247,7 @@ THE SOFTWARE.
     };
   }
 
-  const api = { hypertrophyOptions, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, lvThickenWeight, rvThickenWeight };
+  const api = { hypertrophyOptions, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, setDefaultTorso2, lvThickenWeight, rvThickenWeight };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ECGStudio = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,0 +1,60 @@
+{
+ "note": "refine-2 round 3: activation-only re-fit on the app heart (lv 3), not adopted",
+ "score": 48.77,
+ "params": {
+  "rv": 0,
+  "septalFascicle": true,
+  "cvPurkinje": 2.3638,
+  "apexPurkMul": 1.0249,
+  "apexPurkZ": 0.3874,
+  "septalTerrHalf": 0.1185,
+  "lsfZ": 0.1805,
+  "lsfPhi": 0.2805,
+  "purkCrossSlow": 5.3109
+ },
+ "metrics": {
+  "iErr": 8,
+  "miss": [
+   "mLAD q-V4",
+   "dLAD ste-V5",
+   "dLAD STE+III",
+   "dLAD STE+aVF",
+   "dLAD q-V4",
+   "dLAD q-V5",
+   "dLCx q-V6",
+   "PDA STE+V1"
+  ],
+  "axes": {
+   "N": 35,
+   "LAF": -35,
+   "LPF": 94,
+   "LBB": 70,
+   "RVH": 155
+  },
+  "cs": 10.55,
+  "act": 7,
+  "apex": 25,
+  "HV": 23,
+  "total": 81,
+  "qrs": {
+   "V1": [
+    0.17,
+    1.19
+   ],
+   "V2": [
+    0.39,
+    1.54
+   ],
+   "R": [
+    0.17,
+    0.39,
+    0.52,
+    0.73,
+    0.96,
+    0.92
+   ],
+   "qI": -0.06,
+   "ratio": 0.93
+  }
+ }
+}

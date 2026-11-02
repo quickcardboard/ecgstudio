@@ -30,6 +30,9 @@ Run before and after any engine change and compare:
 - `node tools/ischaudit.js [sites] [hours]`: ST/Q/T per lead for every occlusion site and time
   stop (`MP='{...}'` overrides parameters)
 - `node tools/stcheck.js`, `node tools/arrhythmia.js`, `node tools/avnrt.js`, `node tools/avrt.js`
+- `ISCH_MS=3600 node tools/fullcheck.js '{}'`: ischaemia lead groups (ST at 1 h, Q at 30 days) for seven
+  occlusion sites against textbook/MRI criteria, plus axes and QRS shape (`tools/refit.js` adds the
+  activation-mapping score from `tools/acttune.js`)
 
 Browser checks use the preinstalled Playwright Chromium (launch with
 `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`), loading `index.html`
@@ -45,6 +48,7 @@ Known limitations (Round 14–15 notes in docs/DEVELOPMENT.md):
 - normal T in III flat to slightly negative
 - inferior Q in II appears late in proximal RCA and PDA occlusion
 - inferior subendocardial patch leaves a small inferior q
+- old apical (distal-LAD) infarct shows a Q in III rather than the expected V2–V4 (refine-2 rounds 4–5)
 - VT/VF slow the simulation on slower machines
 
 ## Conventions
