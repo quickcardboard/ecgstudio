@@ -579,3 +579,24 @@ cross-link slowing; position and lead settings fixed; tools/data/refit_round3.js
 apex 25 ms. Not adopted: LPFB by tools/fascsearch.js +83/75° (no right axis deviation; the re-fit's
 own measure read +94°), and the LAD Q waves in V4–V5 are still absent. Activation alone does not fix
 them; the apex geometry (apex ~35 mm below V4, facing the inferior leads) is the remaining lever.
+
+### refine-2 round 4: literature target for the distal LAD; more local field in the chest leads
+
+Checker: the distal LAD is tested just past the second diagonal (the apical-anterior infarct) and
+judged against the MRI-based classification (Bayés de Luna et al., Circulation 2006): Q waves
+V1–V2 extending to V3–V6, none in I/aVL (core V2–V4); ST elevation V3–V4; no inferior changes (the
+inferior wall is PDA territory here). Round 1 on this target: 7 misses.
+
+Infarct size is not the limit: at 30 days the whole downstream territory is dead (`ischDeadS` has no
+effect then); a distal-LAD infarct is 16% of the LV, yet V4/V5 early r rises slightly and the only Q
+is in III. The apex lies ~35 mm below V4, under no chest electrode; V3–V4 overlie mid-anterior wall.
+Lowering the chest leads to the apex or turning the heart (pitch −25°, yaw 18°, rotation 4°) and
+raising the apex all made the ischaemia pattern worse (10–13 misses).
+
+Change: chest leads take 45% of their signal from the local field (`precordialDipoleW` 0.7 → 0.55).
+Misses 7 → 5: mid-LAD old-infarct Q gains V3, PDA occlusion loses its V1 ST elevation. Limb leads,
+axes, fascicular and AV blocks, arrhythmias, P waves unchanged. Chest voltages ~15% lower (normal
+V2 R/S 0.32/1.28, R V1–V6 0.14, 0.32, 0.30, 0.49, 0.79, 0.73); LVH (lv 6) Sokolow 4.20 → 3.70,
+Cornell 2.70 → 2.52; WPW delta polarity in V1–V5 shifts toward ± in some sites. 0.5 dips V3 below V2;
+0.6 keeps the PDA V1 ST elevation. Still missing: old mid-LAD Q in V4; old distal-LAD Q in V2–V4
+(Q in III instead).
