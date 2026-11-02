@@ -652,3 +652,10 @@ perforators on (`septalPerf` [0.14, 0.3, 0.45, 0.6]).
   axis swings to −53° (LPFB 80°). With cvPurkinje 3 and purkCrossSlow 1 as well: 8 misses, V1–V3 Q
   in proximal/mid LAD, axis −26°, LPFB 40°. Next: why an apex-first sequence moves the normal
   axis left (late basal/superior forces) rather than tuning further.
+
+LAD supply of the anterior RV strip (`ladRvMm`, perforators on, ISCH_MS 3600). The strip (4–12% of
+the RV) adds little to V2–V3 at 20–40 ms (≤ 0.01 mV) and slightly deepens the inferior Q; its 1-h
+injury current adds inferior ST elevation. Misses: 15 → 18 (10 mm), 19 (20 mm). With the apex-first
+sequence (apexPurkMul 4, apexPurkZ 0.5): 10 → 11 / 13; at 20 mm mid LAD gains Q V1–V5 (all core
+leads) but Q and ST in II, distal LAD Q V3–V5. Kept off; worth revisiting once the axis of the
+apex-first sequence is understood.
