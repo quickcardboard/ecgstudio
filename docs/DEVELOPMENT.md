@@ -1127,3 +1127,8 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
 - Activation-map score 11.6 (old 13.2, lower is better); normal total activation 77 ms.
 - Validation suite before → after: normal QRS 87 → 80 ms, axis 29° → −6° (normal, but lead III now negative); LAFB −59° → −47°/−51°, aVL R 3.1 → 2.3 mV; LPFB 91° → 87–89°, III R 4.5 → 3.4 mV (the fascicular limb voltages move towards textbook); LVH Cornell 2.8 → 6.0 with deeper lateral T inversion; hyper.js RVH preset axis 121° → 88° (the reader's RVH scenario still reads RVH at 154°); fullcheck: pRCA now has Q in II (old limitation fixed); dLAD old infarct adds inferior Q (wrap-around LAD pattern); arrhythmia, AVNRT, AVRT, WPW and ST baseline unchanged.
 - Browser check (1440×900, 1280×720, 844×390): loads without errors, reads "Normal sinus rhythm, axis −2°".
+
+## rebuild-1 round 16: LPFB fix attempt (not adopted)
+
+- Grid tilt 14/17/20 × LPF φ −1.6/−1.8/−2.0 × z 0.25/0.3, each tilt with its own solved field (`tools/data/physfit_tilt_lpf.json`, 22 scenarios): at tilt 17 and 20, LPFB passes (91°, 93°) and the score is 18 / 2 / 2, but **RVH fails** at every such candidate. Its axis wraps past 180° (−157° to −178° at tilt 17, −106° to −122° at tilt 20) and the reader calls LVH. At tilt 14, LPFB stays at 89°.
+- RVH preset at tilt 17 with rvSourceGain 1.0 / 1.2 / 1.4 / 1.6: axis −17° / −23° / −51° / −135°. The RV's added force points **up and right**, not down and right as in textbook RVH (+110° to +150°); the 154° at tilt 14 is reached from the superior side. Same defect as the RBBB axis (−57° to −74°): the RV's late forces are superior. Not pushed to milestone-1: fixing LPFB this way trades it for RVH.
