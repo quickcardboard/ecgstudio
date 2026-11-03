@@ -973,3 +973,16 @@ allowed with LAD sites ("anterolateral"), I/aVL only with proximal LAD; the circ
 Re-score: live 15/22 (3 partial, 4 wrong), rebuild 17/22 (3, 2), physiological fibre ratio 15/22 (4, 3).
 Rebuild remaining: LAFB pseudo-infarct; RVH reading after proximal LCx; LVH after proximal RCA;
 distal LCx reads normal (1 h) / LAFB (30 d).
+
+### rebuild-1 round 7: measured fibre ratio, reader-scored structural search (tools/fibresearch.js)
+
+96 variants at sigmaRatio 3–4, brody 0, sampled over physiological/anatomical ranges (purkCrossSlow
+6.8–15, cvPurkinje 1.82–2.8, lafPhi 2.1–2.75, lafZ 0.54–0.75, lpfPhi −2.23…−1.6, lpfZ 0.29–0.4,
+lpfTerrLo −1.54…−2.2, heartRotation 14–22), each checked for re-entry (none), calibrated and read
+by tools/reader.js on normal, LAFB, LPFB, LBBB, RBBB (tools/data/fibresearch_stage1.json). Best 3/5
+(46 variants): normal, LBBB, RBBB read right; LAFB and LPFB fail in every variant — LPFB reads
+normal at 85–88°, LAFB reaches −4 … −32° with a narrow QRS and reads as an old high-lateral/
+anterior MI. Limb-lead model at sigmaRatio 4 (torsoBlend 0/0.5, torsoUniform 1, torsoIIGain 1.3,
+limbRotation ±10): LPFB 47–90° (90 only with the normal axis at 73°); heart yaw −2…18 and pitch
+−20…0: LPFB 82–86°. At the measured fibre ratio LPFB has a ~85° ceiling in this heart that no
+conduction-system structure, orientation or limb-lead setting tested moves; sigmaRatio 10 stays.
