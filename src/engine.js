@@ -132,6 +132,7 @@
     rbbSeptalDelay: 25,    // ms extra delay into the RV septal Purkinje
 
     lafPhi: 2.75, lafZ: 0.54, lpfPhi: -2.23, lpfZ: 0.29, lsfPhi: 0.05, lsfZ: 0.42,
+    fascDelayMul: 2,       // conduction-time factor of a fascicle under a 'delay' block (incomplete fascicular block)
     fascApexZ: 0,          // >0: LAF and LPF continue from their terminals toward the apex (to this apicobasal UVC), giving off Purkinje branches in their own territories (0 = off)
     fascApexFrom: 1,       // where along the fascicle the extension branches off (1 = terminal, 0.3 = a third of the way)
     fascApexLafPhi: null, fascApexLpfPhi: null,   // rotational UVC of the extensions' ends (null = the fascicle's own)
@@ -1587,7 +1588,7 @@
       const M = this.M, P = this.P, cs = M.csSegments;
       const cells = site === 'SAN' ? [M.sanCell] : site === 'AVN' ? M.avn : cs[site];
       // clear what this site had
-      for (const c of cells) { this.blocked[c] = 0; this.gates.delete(c); }
+      for (const c of cells) { this.blocked[c] = 0; this.gates.delete(c); if (site !== 'AVN' && site !== 'SAN') this.cvMul[c] = 1; }
       if (site === 'SAN') { this.saExit = null; this.sinusArrest = false; this.sinusPauseUntil = -1; }
       if (site === 'AVN') { this.avnBlockMul = 1; for (const c of M.avn) { this.erpExtra[c] = P.avnErpExtra; this.cvK[c] = P.avnCvRestK; this.cvTau[c] = P.avnCvRestTau; } }
       delete this.blocks[site];
@@ -1613,6 +1614,8 @@
         if (type === 'mobitz2') gate(cs.HIS[1], 'drop-1-of', opts.n || 4);
         else if (type === 'complete') for (const c of cs.HIS) this.blocked[c] = 1;
       } else if (type === 'complete') for (const c of cells) this.blocked[c] = 1;
+      // conduction delay (incomplete block): the bundle/fascicle conducts, slowed by opts.mul
+      else if (type === 'delay') for (const c of cells) this.cvMul[c] = opts.mul || P.fascDelayMul;
       if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = this.blocks[site] && this.blocks[site].type === 'complete' ? 1 : 0;   // septal fibres go with their parent division
       this._applyAvn();
     }

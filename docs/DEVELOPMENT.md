@@ -883,3 +883,21 @@ Full check (k 0.3/0.45/0.6/1): 6/5/5/5 misses (10 without). At 0.45: mid LAD Q V
 leads), distal LAD Q V3–V5 (V2 missing) and III; remaining: mid LAD aVL ST, distal LAD III Q and ST,
 proximal RCA no II Q. ischaudit: mid LAD Q V1–V5 from 12 h, ST/T course as before (ST elevation at
 48 h slightly shorter); proximal LCx unchanged. Default k 0.45 (QS depth ~ −2 mV in V3–V4).
+
+### rebuild-1 round 5: contiguous-lead checker; fascicular block voltages
+
+tools/fullcheck.js now counts a finding in a lead that should not have it only when a contiguous
+lead shows it too (II/III/aVF, I/aVL/V5/V6, neighbouring chest leads; clinical two-contiguous-lead
+rule; CONTIG=0 restores the per-lead count). Core leads still count one by one. Rebuild: 5 → 2
+misses (distal LAD no Q in V2, proximal RCA no Q in II); the lone aVL ST (mid LAD) and lone III
+Q/ST (distal LAD, III ST +0.12 mV, II/aVF +0.09/+0.11) no longer count.
+
+Fascicular-block limb voltages (fascsearch at calibrated app scale; textbook ~1–1.5 mV): LAFB aVL R
+3.1, LPFB III R 4.5 (R0 2.9/3.2, live 2.4/3.2). New `setBlock(site, 'delay', {mul})` (fascicle
+slowed instead of cut; `fascDelayMul` 2; tools: FASC_DELAY). Amplitude follows the axis shift:
+delay ×2 LAFB −45°/aVL 2.1, LPFB 83°/III 2.6; ×3 −55°/3.0, 89°/3.9; complete −62°/3.1, 91°/4.5.
+Levers screened (purkCrossSlow 1.5–6.8, torsoUniform 0–1, torsoIIGain 0.8–1, brody 2–3): none
+keeps normal 30–75°, LAFB ≤ −45° and LPFB > 90° together with lower voltages; the best lower
+the voltages by ~20–30% (e.g. cross 1.5, uniform 1, Brody 3: 24/−52/90°, aVL 2.1, III 3.7).
+In this model a fascicular block reaches its axis only with a frontal QRS vector ~2.5× the normal
+one (real LAFB: ~1–1.3×); not adopted, kept as a known limitation.

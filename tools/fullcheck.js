@@ -55,6 +55,8 @@ const EXP = {
   pRCA: { ste: { core: ['II', 'III', 'aVF'], bad: ['I', 'aVL', 'V4', 'V5', 'V6'] }, q: { core: ['II', 'III', 'aVF'], bad: ['I', 'aVL', 'V2', 'V3', 'V4', 'V5', 'V6'] } },
   PDA: { ste: { core: ['II', 'III', 'aVF'], bad: ['I', 'aVL', 'V1', 'V2', 'V3', 'V4'] }, q: { core: ['II', 'III', 'aVF'], bad: ['I', 'aVL', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'] } },
 };
+// contiguous leads: inferior II/III/aVF, lateral I/aVL/V5/V6, neighbouring chest leads
+const NEXT = { II: ['III', 'aVF'], III: ['II', 'aVF'], aVF: ['II', 'III'], I: ['aVL', 'V6'], aVL: ['I'], V1: ['V2'], V2: ['V1', 'V3'], V3: ['V2', 'V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5', 'I'], aVR: [] };
 const isch = {}; let iErr = 0;
 for (const [site, node] of Object.entries(SITES)) {
   const S1 = new LH.Sim(M, { seed: 1 }); S1.addOcclusion(node); S1.setIschemiaTime(1); const a = beat(S1);
@@ -62,7 +64,10 @@ for (const [site, node] of Object.entries(SITES)) {
   const S2 = new LH.Sim(M, { seed: 1 }); S2.addOcclusion(node); S2.setIschemiaTime(720); const b = beat(S2);
   const isQS = (n) => ref[n].r40 >= 0.2 && b[n].r40 < 0.1 && b[n].s >= 0.3 && b[n].s > 2 * b[n].rMax;
   const Q = L.filter((n) => n !== 'aVR' && b[n].st > -0.08 && ((isQ(b[n]) && (!isQ(ref[n]) || b[n].qAmp < ref[n].qAmp - 0.2)) || isQS(n)));
-  const e = EXP[site], miss = (have, g) => g.core.filter((n) => !have.includes(n)), bad = (have, g) => g.bad.filter((n) => have.includes(n));
+  const e = EXP[site], miss = (have, g) => g.core.filter((n) => !have.includes(n));
+  // a finding in a lead that should not have it counts only when a contiguous lead shows it too
+  // (clinical rule: two contiguous leads); CONTIG=0 restores the per-lead count
+  const bad = (have, g) => g.bad.filter((n) => have.includes(n) && (process.env.CONTIG === '0' || (NEXT[n] || []).some((m) => have.includes(m))));
   if (process.env.QDBG && site === process.env.QDBG) for (const n of ['V1','V2','V3','V4']) console.error(site, n, JSON.stringify({ ref: { r40: +ref[n].r40.toFixed(2) }, inf: Object.fromEntries(Object.entries(b[n]).map(([k, v]) => [k, +(+v).toFixed(2)])) }));
   const r = { ste, Q, steMiss: miss(ste, e.ste), steBad: bad(ste, e.ste), qMiss: miss(Q, e.q), qBad: bad(Q, e.q) };
   iErr += r.steMiss.length + r.steBad.length + r.qMiss.length + r.qBad.length; isch[site] = r;

@@ -1,3 +1,4 @@
+let lbbSet = new Set();
 // Score sinus, LAFB and LPFB together for parameter sets.
 //   node tools/fascsearch.js '[{...},{...}]'     evaluate a list
 // Prints axis/QRS/morphology for each and a combined score (lower is better).
@@ -9,7 +10,7 @@ const LEAD = (n) => LH.LEADS.indexOf(n);
 function beat(M, blk) {
   const S = new LH.Sim(M, { seed: 1 }); const rec = [];
   S.onSample((t, L) => rec.push(Array.from(L)));
-  for (const c of blk) S.blocked[c] = 1;
+  for (const c of blk) if (process.env.FASC_DELAY && !lbbSet.has(c)) S.cvMul[c] = +process.env.FASC_DELAY; else S.blocked[c] = 1;   // FASC_DELAY: whole fascicle slowed instead of cut
   S.run(2700);
   const vb = S.log.vent[S.log.vent.length - 2];
   const q0 = Math.floor(vb.on), q1 = Math.ceil(vb.last) + 2, base = rec[q0 - 15];
@@ -27,7 +28,8 @@ function beat(M, blk) {
 const TORSO = process.env.TORSO ? JSON.parse(fs.readFileSync(process.env.TORSO)) : null;   // default torso is bundled; override with TORSO=path
 function evaluate(p) {
   const M = new LH.Model(A, TORSO ? Object.assign({ torsoField: TORSO }, p) : p);
-  const n = beat(M, []), lbbb = beat(M, M.csSegments.LBB.slice(0, 3)), lafb = beat(M, BLOCKALL ? M.csSegments.LAF : M.csSegments.LAF.slice(0, 3)), lpfb = beat(M, BLOCKALL ? M.csSegments.LPF : M.csSegments.LPF.slice(0, 3));
+  lbbSet = new Set(M.csSegments.LBB); const DL = !!process.env.FASC_DELAY;
+  const n = beat(M, []), lbbb = beat(M, M.csSegments.LBB.slice(0, 3)), lafb = beat(M, BLOCKALL || DL ? M.csSegments.LAF : M.csSegments.LAF.slice(0, 3)), lpfb = beat(M, BLOCKALL || DL ? M.csSegments.LPF : M.csSegments.LPF.slice(0, 3));
   const prog = ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k) => n.rs(k));
   // score: distance from teaching targets
   const pen = (v, lo, hi) => (v < lo ? lo - v : v > hi ? v - hi : 0);
