@@ -17,7 +17,9 @@ for k, v in (('{{AUTHOR}}', htmlmod.escape(site['author'])), ('{{CONTACT}}', con
 anatomy = (src / 'anatomy.json').read_text()
 assert '</script' not in anatomy
 html = html.replace('/*__ANATOMY__*/', anatomy, 1)
-torso = (src / 'torso_leadfield.json').read_text()
+# limb leads: the solved torso's LA/LL reciprocity fields (limbTorso2); the older cylinder field
+# (torso_leadfield.json) stays in src/ for Node experiments and is not shipped
+torso = (src / 'torso_limb.json').read_text()
 assert '</script' not in torso
 html = html.replace('/*__TORSO__*/', torso, 1)
 for key, f in (('/*__THREE__*/', 'three.min.js'), ('/*__ORBIT__*/', 'OrbitControls.js')):

@@ -38,7 +38,7 @@
   async function boot() {
     if (!window.THREE) { setLoading('The 3D library could not load. Check your connection and reload.'); return; }
     await tick();
-    LH.setDefaultTorso(JSON.parse($('torso-data').textContent));
+    LH.setDefaultTorso(null); LH.setDefaultTorso2(JSON.parse($('torso-data').textContent));   // limb leads from the solved torso
     const scen = readScenario();
     setMode();
     await buildHeart();

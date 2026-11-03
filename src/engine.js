@@ -110,9 +110,9 @@
   // ---------------------------------------------------------------------------
   const DEFAULTS = {
     // Conduction velocities, m/s (== mm/ms)
-    cvVentLong: 0.62,      // ventricular myocardium along fibres
-    cvVentTrans: 0.26,     // across fibres (incl. transmural unless cvVentSheet is set)
-    cvVentSheet: 0,        // optional separate transmural (sheet) speed; 0 = same as cvVentTrans
+    cvVentLong: 0.6,       // ventricular myocardium along fibres (published 0.50–0.65 m/s)
+    cvVentTrans: 0.26,     // across fibres in the sheet plane (sheet-normal; transmural when cvVentSheet is 0)
+    cvVentSheet: 0.4,      // transmural (sheet) speed (published 0.25–0.60 m/s); 0 = same as cvVentTrans
     cvAtrial: 0.80,        // working atrial myocardium (isotropic)
     cvBachmann: 1.60,      // Bachmann's bundle
     cvCrista: 1.20,        // crista terminalis
@@ -121,7 +121,7 @@
     cvHis: 1.50,
     cvBundle: 3.03,        // bundle branches and fascicles
     // Spec: conduction system ~3x faster than ventricular myocardium
-    cvPurkinje: 1.82,
+    cvPurkinje: 1.8,
     avnSegDelay: 17,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
     avnSegments: 5,
     slowPathSegments: 4, slowPathSegDelay: 50, slowPathErpExtra: 20, slowPathCvK: 1,   // dual AV-node pathways (AVNRT)
@@ -132,20 +132,20 @@
     rbbSeptalFrac: 0.3,   // distal fraction of septal RBB giving off RV septal Purkinje (right septal face ~10 ms after the left, Durrer)
     rbbSeptalDelay: 25,    // ms extra delay into the RV septal Purkinje
 
-    lafPhi: 2.75, lafZ: 0.54, lpfPhi: -2.23, lpfZ: 0.29, lsfPhi: 0.05, lsfZ: 0.42,
+    lafPhi: 1.8, lafZ: 0.7, lpfPhi: -1.8, lpfZ: 0.3, lsfPhi: 0.05, lsfZ: 0.42,
     fascDelayMul: 2,       // conduction-time factor of a fascicle under a 'delay' block (incomplete fascicular block)
     fascApexZ: 0,          // >0: LAF and LPF continue from their terminals toward the apex (to this apicobasal UVC), giving off Purkinje branches in their own territories (0 = off)
     fascApexFrom: 1,       // where along the fascicle the extension branches off (1 = terminal, 0.3 = a third of the way)
     fascApexLafPhi: null, fascApexLpfPhi: null,   // rotational UVC of the extensions' ends (null = the fascicle's own)
-    septalFascicle: false,  // optional left septal fascicle (anatomically debated; off)
-    fascConnectFrac: 0.59,  // distal fraction of LAF/LPF giving off Purkinje branches
+    septalFascicle: true,   // left septal fascicle (Durrer's mid-septal root)
+    fascConnectFrac: 0.45,  // distal fraction of LAF/LPF giving off Purkinje branches
     lbbSplitZ: 0.84, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
     septalTerrHalf: 0,    // half-width (rad) of the mid-septal Purkinje territory
     lbbSeptalFrac: 0,           // distal fraction of the LBB trunk giving off septal Purkinje
     lpfApexZ: 0.25,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
     lpfTerrLo: -1.54, lpfTerrHi: 0.56,  // LPF territory in rotational UVC (inferior/posterior wall)
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
-    purkCrossSlow: 6.8,     // conduction-time factor on Purkinje links between fascicle territories
+    purkCrossSlow: 3,       // conduction-time factor on Purkinje links between fascicle territories
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
     precordialGain: 0.66,        // overall chest-lead gain
     sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
@@ -247,9 +247,9 @@
     idioventricularRate: 34,
 
     // ECG
-    ecgGain: 0.0143,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm; rescaled for the rebuild-1 heart and torso-field limb leads)
+    ecgGain: 0.01348,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm; rescaled for the rebuild-1 heart and torso-field limb leads)
     precordialDipoleW: 0.55,
-    limbTorso2: false,         // limb leads I, II from the solved torso (src/torso_v2.json: shoulder/axilla and hip contact patches) instead of the cylinder field
+    limbTorso2: true,          // limb leads I, II from the solved torso (src/torso_limb.json: shoulder/axilla and hip contact patches) instead of the cylinder field
     fullTorso: false,          // with chestTorso: every lead from the solved torso's electrode potentials (limb LA−RA, LL−RA; chest V − WCT), no heart-vector blend
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
@@ -1227,7 +1227,7 @@
       // + three uniform-field "leads" giving the heart dipole vector (VCG X,Y,Z)
       // + optionally limb leads I and II from a bounded-torso lead field
       const TF = this.P.torsoField !== undefined ? this.P.torsoField : DEFAULT_TORSO;
-      const NE = names.length + 3 + (TF ? 2 : 0) + (this.P.cavityWindow > 0 ? 1 : 0);   // (+ a virtual electrode in the LV cavity)
+      const NE = names.length + 3 + (TF || this.P.limbTorso2 ? 2 : 0) + (this.P.cavityWindow > 0 ? 1 : 0);   // (+ a virtual electrode in the LV cavity)
       let tfSample = null, tfScale = 1, tfMean = null;
       if (TF) {
         if (!TF._I) { TF._I = decode(TF.I, Float32Array); TF._II = decode(TF.II, Float32Array); }
@@ -1303,7 +1303,7 @@
       const T2 = this.P.chestTorso || this.P.limbTorso2 ? (this.P.torsoV2 || DEFAULT_TORSO2) : null;
       if (T2) {
         const [nx, ny, nz] = T2.dims, o = T2.origin, th = T2.h;
-        const psi = names.map((k) => { if (k === T2.ref) return null; const a = decode(T2.psi[k], Int16Array), f = new Float32Array(a.length), s = T2.scale[k]; for (let i = 0; i < a.length; i++) f[i] = a[i] * s; return f; });
+        const psi = names.map((k) => { if (k === T2.ref || !T2.psi[k]) return null; const a = decode(T2.psi[k], Int16Array), f = new Float32Array(a.length), s = T2.scale[k]; for (let i = 0; i < a.length; i++) f[i] = a[i] * s; return f; });
         const grad = (e, p) => {                               // gradient of the trilinear interpolant
           const F = psi[e]; if (!F) return [0, 0, 0];
           const fx = (p[0] - o[0]) / th, fy = (p[1] - o[1]) / th, fz = (p[2] - o[2]) / th;
@@ -1319,12 +1319,18 @@
         // scale: mean |grad psi_V2| over the ventricles matches the point-source 1/r² near field (keeps the chest gains meaningful)
         let gs = 0, rs = 0; const eV2 = names.indexOf('V2');
         for (let c = 0; c < n; c += 5) { if (this.kind[c] !== KIND.VENT) continue; const m = this.toTorso(A.p(c)); const gv = grad(eV2, m); gs += Math.hypot(gv[0], gv[1], gv[2]); const r = sub(E[eV2], m); rs += 1 / dot(r, r); }
-        tv2 = { grad, scale: rs / gs, chest: !!this.P.chestTorso };
+        tv2 = { grad, scale: gs ? rs / gs : 0, chest: !!this.P.chestTorso && gs > 0 };
         if (this.P.limbTorso2) {   // limb leads from the solved torso: same normalisation as the cylinder field (mean |lead I| over the heart = 1e-4)
           const eLA = names.indexOf('LA'), eLL = names.indexOf('LL'); let sl = 0, cl = 0;
           for (let c = 0; c < n; c += 7) { if (!this.kind[c]) continue; const gv = grad(eLA, this.toTorso(A.p(c))); sl += Math.hypot(gv[0], gv[1], gv[2]); cl++; }
           tv2.limb = { eLA, eLL, scale: 1e-4 / (sl / cl) };
           this.torsoLimb = true;
+          // heart-averaged lead vectors (lead display; same conventions as the cylinder field)
+          const mI = [0, 0, 0], mII = [0, 0, 0]; let nv = 0;
+          for (let c = 0; c < n; c += 7) { if (this.kind[c] !== KIND.VENT) continue; const p = this.toTorso(A.p(c)), a = grad(eLA, p), b = grad(eLL, p); for (let d = 0; d < 3; d++) { mI[d] += a[d]; mII[d] += b[d]; } nv++; }
+          const lI = len(mI);
+          this.limbLeadVectors = { I: mul(mI, 1 / lI), II: mul(mII, 1 / lI) };
+          this.limbTorsoVec = { I: mul(mI, tv2.limb.scale / nv / 1e-4), II: mul(mII, tv2.limb.scale / nv / 1e-4) };
         }
       }
       let cav = null;
@@ -2624,7 +2630,7 @@
   // solved torso volume conductor for the chest leads' local field (chestTorso; tools/torso_v2.py)
   let DEFAULT_TORSO2 = null;
   if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
-    try { DEFAULT_TORSO2 = require(__dirname + '/torso_v2.json'); } catch (e) { DEFAULT_TORSO2 = null; }
+    try { DEFAULT_TORSO2 = require(__dirname + '/torso_limb.json'); } catch (e) { DEFAULT_TORSO2 = null; }
   }
   const setDefaultTorso2 = (tf) => { DEFAULT_TORSO2 = tf; };
 

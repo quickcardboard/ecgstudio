@@ -100,6 +100,9 @@ function diagnose(m, L) {
   // (LVH criteria are not used in bundle-branch block; with RVH only Sokolow-Lyon counts)
   if (!lbbb && !rbbb && (sok >= 3.5 || (!rvh && (corn > 2.8 || L.aVL.R >= 1.1)))) dx.push('LVH');
   if (rvh) dx.push('RVH');
+  // poor R-wave progression (R in V3 <= 0.3 mV, narrow QRS); read as possible old anterior MI when not otherwise explained
+  f.rV3 = +L.V3.R.toFixed(2);
+  if (narrow && L.V3.R <= 0.3) dx.push('poor R progression');
   f.sokolow = +sok.toFixed(2); f.cornell = +corn.toFixed(2);
   // intervals
   if (m.pr !== null && m.pr > 200) dx.push('1st-degree AVB');
@@ -123,10 +126,10 @@ function diagnose(m, L) {
 // expect: required diagnoses (all), forbidden (none of), and for ischaemia required / allowed territories
 const NOT_ISCH = ['STEMI', 'old MI'];
 const SCEN = {
-  normal: { expect: { none: ['LAFB', 'LPFB', 'LBBB', 'RBBB', 'IVCD', 'LVH', 'RVH', '1st-degree AVB', 'long QT', 'STEMI', 'old MI', 'T inversion'], axis: 'normal' } },
-  avb1: { set: (S) => S.setBlock('AVN', 'first'), expect: { all: ['1st-degree AVB'], none: ['LBBB', 'RBBB', 'STEMI'] } },
+  normal: { expect: { none: ['LAFB', 'LPFB', 'LBBB', 'RBBB', 'IVCD', 'LVH', 'RVH', '1st-degree AVB', 'long QT', 'STEMI', 'old MI', 'T inversion', 'poor R progression'], axis: 'normal' } },
+  avb1: { set: (S) => S.setBlock('AVN', 'first'), expect: { all: ['1st-degree AVB'], none: ['LBBB', 'RBBB', 'STEMI', 'poor R progression'] } },
   LAFB: { set: (S) => S.setBlock('LAF', 'complete'), expect: { all: ['LAFB'], none: ['LBBB', 'RBBB', 'IVCD', 'LPFB', ...NOT_ISCH] } },
-  LPFB: { set: (S) => S.setBlock('LPF', 'complete'), expect: { all: ['LPFB'], none: ['LBBB', 'RBBB', 'IVCD', 'LAFB', 'RVH', ...NOT_ISCH] } },
+  LPFB: { set: (S) => S.setBlock('LPF', 'complete'), expect: { all: ['LPFB'], none: ['LBBB', 'RBBB', 'IVCD', 'LAFB', 'RVH', 'poor R progression', ...NOT_ISCH] } },
   LBBB: { set: (S) => S.setBlock('LBB', 'complete'), expect: { all: ['LBBB'], none: ['RBBB'] } },
   RBBB: { set: (S) => S.setBlock('RBB', 'complete'), expect: { all: ['RBBB'], none: ['LBBB', 'LAFB', 'LPFB', ...NOT_ISCH] } },
   LVH: { hyp: { lvh: true }, expect: { all: ['LVH'], none: ['LBBB', 'RBBB', 'RVH', 'old MI'] } },
@@ -171,7 +174,7 @@ function run(LH, JA, params, names) {
     const got0 = key === 'ste' ? (f.steT || []) : (f.qT || []), ex = mi[key];
     const got = got0.some((t) => t.endsWith('ateral')) ? [...got0, 'lateral'] : got0;   // 'lateral' = either lateral group
     const miss = ex.req.filter((t) => !got.includes(t)), extra = got0.filter((t) => !ex.req.includes(t) && !ex.ok.includes(t));
-    const okDx = [...MI_OK.all, ...(site.includes('LAD') && site !== 'dLAD' ? MI_OK.LAD : []), ...(site === 'pRCA' || site === 'PDA' ? MI_OK.RCA : [])];
+    const okDx = [...MI_OK.all, ...(site.includes('LAD') ? ['poor R progression'] : []), ...(site.includes('LAD') && site !== 'dLAD' ? MI_OK.LAD : []), ...(site === 'pRCA' || site === 'PDA' ? MI_OK.RCA : [])];
     for (const d of dx) if (!d.startsWith('STEMI') && !d.startsWith('old MI') && !okDx.includes(d)) extra.push(d);
     out.push({ scen: `${site} ${label}`, pass: !miss.length && !extra.length, grade: miss.length ? 'fail' : extra.length ? 'partial' : 'pass', dx, axis: r.m.axis, qrs: r.m.qrs, simQRS: r.simQRS, miss, extra, leads: key === 'ste' ? f.ste : f.Q });
   }
