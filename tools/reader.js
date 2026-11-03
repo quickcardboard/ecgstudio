@@ -73,7 +73,9 @@ function read(rec, hint, rr) {
 }
 
 // ---------------------------------------------------------------- criteria
-const GROUPS = { septal: ['V1', 'V2'], anterior: ['V3', 'V4'], lateral: ['I', 'aVL', 'V5', 'V6'], inferior: ['II', 'III', 'aVF'] };
+// high lateral (I, aVL) marks an LAD occlusion before D1 or a circumflex/diagonal territory; low lateral (V5, V6)
+// extends an anterior STEMI ('anterolateral') or belongs to the circumflex
+const GROUPS = { septal: ['V1', 'V2'], anterior: ['V3', 'V4'], lowLateral: ['V5', 'V6'], highLateral: ['I', 'aVL'], inferior: ['II', 'III', 'aVF'] };
 const NEXT = { II: ['III', 'aVF'], III: ['II', 'aVF'], aVF: ['II', 'III'], I: ['aVL'], aVL: ['I'], V1: ['V2'], V2: ['V1', 'V3'], V3: ['V2', 'V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5'] };
 const contiguous = (set) => set.filter((n) => (NEXT[n] || []).some((m) => set.includes(m)));
 const territories = (leads) => Object.entries(GROUPS).filter(([, g]) => g.some((n) => leads.includes(n))).map(([t]) => t);
@@ -131,11 +133,11 @@ const SCEN = {
 // diagnoses that are a real consequence of the occlusion (anything else besides the infarct is unexpected)
 const MI_OK = { all: ['T inversion', 'long QT'], LAD: ['LAFB', 'RBBB'], RCA: ['1st-degree AVB'] };
 const MI = {
-  pLAD: { f: (b) => b.LAD[0], ste: { req: ['anterior'], ok: ['septal', 'lateral'] }, q: { req: ['anterior'], ok: ['septal', 'lateral'] } },
-  mLAD: { f: (b) => b.LAD[Math.round(b.LAD.length * 0.22)], ste: { req: ['anterior'], ok: ['septal'] }, q: { req: ['anterior'], ok: ['septal'] } },
-  dLAD: { f: (b) => b.LAD[Math.round(b.LAD.length * 0.45)], ste: { req: ['anterior'], ok: ['septal'] }, q: { req: ['anterior'], ok: ['septal'] } },
-  pLCx: { f: (b) => b.LCx[0], ste: { req: ['lateral'], ok: [] }, q: { req: ['lateral'], ok: [] } },
-  dLCx: { f: (b) => b.LCx[Math.round(b.LCx.length * 0.6)], ste: { req: ['lateral'], ok: ['inferior'] }, q: { req: ['lateral'], ok: ['inferior'] } },
+  pLAD: { f: (b) => b.LAD[0], ste: { req: ['anterior'], ok: ['septal', 'lowLateral', 'highLateral'] }, q: { req: ['anterior'], ok: ['septal', 'lowLateral', 'highLateral'] } },
+  mLAD: { f: (b) => b.LAD[Math.round(b.LAD.length * 0.22)], ste: { req: ['anterior'], ok: ['septal', 'lowLateral'] }, q: { req: ['anterior'], ok: ['septal', 'lowLateral'] } },
+  dLAD: { f: (b) => b.LAD[Math.round(b.LAD.length * 0.45)], ste: { req: ['anterior'], ok: ['septal', 'lowLateral'] }, q: { req: ['anterior'], ok: ['septal', 'lowLateral'] } },
+  pLCx: { f: (b) => b.LCx[0], ste: { req: ['lateral'], ok: ['lowLateral', 'highLateral'] }, q: { req: ['lateral'], ok: ['lowLateral', 'highLateral'] } },
+  dLCx: { f: (b) => b.LCx[Math.round(b.LCx.length * 0.6)], ste: { req: ['lateral'], ok: ['lowLateral', 'highLateral', 'inferior'] }, q: { req: ['lateral'], ok: ['lowLateral', 'highLateral', 'inferior'] } },
   pRCA: { f: (b) => b.RCA[0], ste: { req: ['inferior'], ok: ['septal'] }, q: { req: ['inferior'], ok: ['septal'] } },
   PDA: { f: (b) => b.PDA[0], ste: { req: ['inferior'], ok: [] }, q: { req: ['inferior'], ok: [] } },
 };
@@ -163,8 +165,9 @@ function run(LH, JA, params, names) {
   for (const [site, mi] of Object.entries(MI)) for (const [h, key, label] of [[1, 'ste', '1 h'], [720, 'q', '30 d']]) {
     if (!want(site + ' ' + label)) continue;
     const r = record(M0, (S) => { S.addOcclusion(mi.f(M0.coronary.branches)); S.setIschemiaTime(h); }), { dx, f } = r.interpret();
-    const got = key === 'ste' ? (f.steT || []) : (f.qT || []), ex = mi[key];
-    const miss = ex.req.filter((t) => !got.includes(t)), extra = got.filter((t) => !ex.req.includes(t) && !ex.ok.includes(t));
+    const got0 = key === 'ste' ? (f.steT || []) : (f.qT || []), ex = mi[key];
+    const got = got0.some((t) => t.endsWith('ateral')) ? [...got0, 'lateral'] : got0;   // 'lateral' = either lateral group
+    const miss = ex.req.filter((t) => !got.includes(t)), extra = got0.filter((t) => !ex.req.includes(t) && !ex.ok.includes(t));
     const okDx = [...MI_OK.all, ...(site.includes('LAD') && site !== 'dLAD' ? MI_OK.LAD : []), ...(site === 'pRCA' || site === 'PDA' ? MI_OK.RCA : [])];
     for (const d of dx) if (!d.startsWith('STEMI') && !d.startsWith('old MI') && !okDx.includes(d)) extra.push(d);
     out.push({ scen: `${site} ${label}`, pass: !miss.length && !extra.length, grade: miss.length ? 'fail' : extra.length ? 'partial' : 'pass', dx, axis: r.m.axis, qrs: r.m.qrs, simQRS: r.simQRS, miss, extra, leads: key === 'ste' ? f.ste : f.Q });

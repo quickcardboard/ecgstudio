@@ -145,8 +145,8 @@ if (process.env.REG === 'dead') {
     [1, 4, 0, 6].forEach((i) => console.log(String(w0).padEnd(6) + RN[i].padEnd(7) + sm[i].D.map(f).join(' ') + ' | ' + LI.map((k) => f(sm[i].L[k]).padStart(5)).join(' '))); }
   process.exit(0);
 }
-if (process.env.REG === 'time') {   // normal heart only: every region per 5 ms
-  const Nn = decompose(null);
+if (process.env.REG === 'time') {   // normal heart (or BLOCKT=site: with that conduction block): every region per 5 ms
+  const Nn = decompose(process.env.BLOCKT || null);
   console.log('normal heart by region, mean per 5 ms (heart vector X left Y sup Z ant; leads mV)');
   console.log('ms   region   X     Y     Z   | ' + SHOW.map((s) => s.padStart(5)).join(' '));
   if (process.env.AREA && process.env.BLOCK) {   // QRS area per region: normal, block, and block − normal
@@ -178,7 +178,7 @@ const cnt = new Array(NR).fill(0), dcnt = new Array(NR).fill(0);
 for (let c = 0; c < n; c++) if (M.kind[c] === LH.KIND.VENT) { cnt[reg[c]]++; if (I.S.blocked[c]) dcnt[reg[c]]++; }
 console.log('dead share by region: ' + RN.map((r, i) => `${r} ${Math.round(100 * dcnt[i] / Math.max(1, cnt[i]))}%`).join(', '));
 const res = {};
-for (const [w0, w1] of [[0, 20], [20, 40]]) {
+for (const [w0, w1] of (process.env.WIN ? process.env.WIN.split(',').map((w) => w.split('-').map(Number)) : [[0, 20], [20, 40]])) {
   const sn = summary(N.S, N.out, w0, w1), si = summary(I.S, I.out, w0, w1);
   const diff = si.map((s, i) => ({ D: s.D.map((v, a) => v - sn[i].D[a]), L: s.L.map((v, k) => v - sn[i].L[k]) }));
   table(`NORMAL ${w0}-${w1} ms`, sn); table(`INFARCT ${w0}-${w1} ms`, si); table(`INFARCT - NORMAL ${w0}-${w1} ms`, diff);

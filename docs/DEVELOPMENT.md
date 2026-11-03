@@ -954,3 +954,22 @@ Results (tools/data/reader_*.json): live 14/22 read correctly, 4 partial, 4 wron
   proximal LCx (loss of lateral forces with tall V1 R, the posterior-MI mimic), LVH after proximal
   RCA, LAFB reading after distal LCx.
 - physiological: LPFB fails (reads an inferior old MI), LAFB widens to IVCD.
+
+LAFB pseudo-infarct (rebuild). The reader's "old MI" in LAFB is q 34 ms / −0.23 mV in I and 45 ms /
+−0.53 mV in aVL (textbook LAFB: small, narrow q), q 25–32 ms in V5–V6, and QS-like V2–V3 (r 0.06–0.09
+mV). Regional forces in the first 35 ms (`BLOCKT=LAF LIMB=1 REG=time tools/regiondecomp.js`): the
+inferior wall's early forces (aVL −0.3 … −0.47 mV) are no longer cancelled, because the LAF
+territory's endocardium activates 30–40 ms late (anterior free wall 54–61 ms vs 15–28, anterolateral
+50–64 vs 21–28; its Purkinje nodes median 33 ms). Interconnection (purkCrossSlow 6.8 → 1.5), Purkinje
+speed (1.82 → 2.5–3 m/s) and LBB-trunk septal branches (lbbSeptalFrac with a septal territory: the
+normal QRS widens to ~145 ms, the territory is cut off) do not narrow the q without losing the
+deviation: q width and LAFB axis both follow the territory delay (cross 1.5 + Purkinje 3 m/s: delay
+18 ms, axis −23°, q aVL 33 ms). Real LAFB reaches −60° with a ~20 ms delay and q ≤ 20 ms; this model
+needs ~35 ms for the same deviation — the over-cancellation of round 5 again. Not fixed.
+
+Mid-LAD "lateral" ST was V5 (+0.23 mV next to V4 +0.66), not I/aVL (aVL +0.17, I +0.05: no two
+contiguous). The reader now splits high lateral (I, aVL) from low lateral (V5, V6): V5–V6 are
+allowed with LAD sites ("anterolateral"), I/aVL only with proximal LAD; the circumflex needs either.
+Re-score: live 15/22 (3 partial, 4 wrong), rebuild 17/22 (3, 2), physiological fibre ratio 15/22 (4, 3).
+Rebuild remaining: LAFB pseudo-infarct; RVH reading after proximal LCx; LVH after proximal RCA;
+distal LCx reads normal (1 h) / LAFB (30 d).
