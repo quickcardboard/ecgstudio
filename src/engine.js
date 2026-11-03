@@ -145,7 +145,7 @@
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
     purkCrossSlow: 6.8,     // conduction-time factor on Purkinje links between fascicle territories
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
-    precordialGain: 0.52,        // overall chest-lead gain
+    precordialGain: 0.66,        // overall chest-lead gain
     sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
     brody: 2,               // radial source enhancement by intracavitary blood (Brody effect)
     brodyFade: 0.25,        // >0: the enhancement falls off as exp(−depth/brodyFade) from the cavity (depth = transmural UVC, 0 endo … 1 epi); 0 = uniform
@@ -244,7 +244,7 @@
     idioventricularRate: 34,
 
     // ECG
-    ecgGain: 0.0194,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm; rescaled for the rebuild-1 heart)
+    ecgGain: 0.0143,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm; rescaled for the rebuild-1 heart and torso-field limb leads)
     precordialDipoleW: 0.55,
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
@@ -255,10 +255,10 @@
     ecgHighpass: 0.05,          // Hz, diagnostic-ECG high-pass (baseline restoration)
     ecgLowpass: 40,             // Hz, ECG machine low-pass (0 = off; diagnostic carts use up to 150)
     torsoUniform: 0,            // share of the heart-averaged torso lead vector in place of the per-cell field
-    limbRotation: 8,            // extra frontal rotation of the heart as seen by the limb leads (degrees, + = more vertical)
-    torsoIIGain: 0.6,           // lead II length of the torso (Burger) triangle relative to its computed value
+    limbRotation: 0,            // extra frontal rotation of the heart as seen by the limb leads (degrees, + = more vertical)
+    torsoIIGain: 1,           // lead II length of the torso (Burger) triangle relative to its computed value
     atrialTorsoII: 0.92,        // torso lead II for atrial sources (keeps the P-wave calibration made at torsoBlend 0.6)
-    torsoBlend: 0.7,            // limb leads: share of the bounded-torso lead field (rest: Einthoven projection)
+    torsoBlend: 1,            // limb leads: share of the bounded-torso lead field (rest: Einthoven projection)
     dipoleGain: 3.0,            // heart-vector scale for the limb leads (mV per unit dipole)
   };
 
@@ -266,12 +266,13 @@
   // apicobasal (z) coordinates: zero at the septal junctions, ramping to full
   // over the free wall, tapering to the base and to the (normally thin) apex.
   // Shared by the voxel tissue and the displayed surface so they agree.
-  // (LV_BASE_FULL, Node test override: no taper toward the base, the added layers reach the valve rings)
+  // The added layers reach the valve rings (the base is as thick as the mid wall and, as in
+  // the mapping literature, activated last); LV_BASE_TAPER (Node test override) restores the old taper.
   const ENV = typeof process !== 'undefined' && process.env ? process.env : {};
   function lvThickenWeight(phi, z) {
     if (!(z >= 0)) return 0;
     const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
-    const base = ENV.LV_BASE_FULL ? sm((0.99 - z) / 0.06) : sm((0.9 - z) / 0.25);
+    const base = ENV.LV_BASE_TAPER ? sm((0.9 - z) / 0.25) : sm((0.99 - z) / 0.06);
     return sm((Math.abs(phi) - 0.5) / 0.9) * base * sm((z - 0.04) / 0.2);
   }
   // apical cap growth map (all round the apex, fading out by mid-apical level)
