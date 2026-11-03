@@ -7,6 +7,8 @@
 <link rel="canonical" href="https://ecgstudio.app/">
 <meta property="og:description" content="A 3D heart that computes its own 12-lead ECG. Rhythms, blocks, ischemia, infarction and more, in real time.">
 <meta name="theme-color" content="#121b26">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="ECG Studio">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28S3 20 3 11a6.5 6.5 0 0 1 13-1 6.5 6.5 0 0 1 13 1c0 9-13 17-13 17z' fill='%23c2304f'/%3E%3Cpath d='M5 15h6l2-4 3 9 2-5h9' stroke='%23fff' stroke-width='2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -291,7 +293,7 @@ body.m #c3d, body.m #ecgWrap, body.m .live, body.m #shead { -webkit-user-select:
 body.m #app { padding: env(safe-area-inset-top, 0px) 0 0; gap: 0; }
 body.m header.top { min-height: 50px; gap: 8px; padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); }
 body.m .brand h1 { font-size: 19px; }
-body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp { display: none; }
+body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp, body.m #btnInstall { display: none; }
 body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mctl button { height: 38px; min-width: 42px; padding: 0 11px; border-radius: 19px; display: grid; place-items: center; }
 .mctl svg { width: 20px; height: 20px; fill: currentColor; }
@@ -303,6 +305,9 @@ body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mplay.holding::after { width: 100%; transition: width 0.7s linear; }
 body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index: 21; right: max(10px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 50px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
 .mmenu button { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
+.mmenu .minstall { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; color: var(--accent); font-weight: 600; }
+.binstall { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); border-color: var(--accent); }
+.binstall svg, .minstall svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 body.m #split { flex-direction: column; gap: 6px; padding: 0 8px 6px; }
 body.m #pane3d { flex: 0 0 60%; --vb: 0px; }
@@ -319,7 +324,8 @@ body.m #controls .viewbar .vgroup { flex: 1 1 100%; }
 body.m #controls .viewbar .vgroup > * { flex: 1; text-align: center; }
 body.m #controls .viewbar button, body.m #controls .viewbar .tog { padding: 10px 11px; font-size: 13px; }
 body.m .mfloat { display: flex; gap: 8px; position: absolute; z-index: 3; right: 8px; bottom: 8px; }
-.mfloat button { padding: 11px 15px; font: 600 14px/1 var(--font-ui); border-radius: 21px; border: 0; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+.mfloat button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 96px; padding: 11px 15px; font: 600 14px/1 var(--font-ui); text-align: center; border-radius: 21px; border: 0; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+.mfloat .bolt { font-size: 15px; line-height: 1; }
 .mfloat .shock { background: #ffcc33; color: #1a1300; }
 .mfloat .adeno { background: #38c6e8; color: #04222b; }
 body.m .press { display: block; position: absolute; z-index: 4; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; pointer-events: none;
@@ -343,7 +349,7 @@ body.m .gbar { display: flex; align-items: center; gap: 6px; position: absolute;
 body.m #interp { order: 2; flex: none; flex-wrap: wrap; gap: 6px; padding: 8px 32px 8px 10px; border-bottom: 0; border-top: 1px solid var(--line); cursor: pointer; position: relative; }
 body.m #interp::after { content: "▴"; position: absolute; right: 12px; top: 8px; color: var(--muted); font-size: 13px; }
 body.m #rhythm { flex: 1 1 100%; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.m .chips { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+body.m .chips { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-height: 23px; }
 body.m .chips::-webkit-scrollbar { display: none; }
 body.m .chip { font-size: 11px; padding: 4px 6px; }
 body.m .findings { display: none; }
@@ -433,6 +439,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <button id="btnReset" type="button">Reset</button>
     </div>
     <button id="btnShare" type="button" title="Copy a link that reopens this exact scenario">Share</button>
+    <button id="btnInstall" type="button" class="binstall" title="Install ECG Studio as an app" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Install app</button>
     <button id="btnHelp" type="button">Help</button>
     <div class="mctl" role="group" aria-label="Simulation">
       <button type="button" id="mSpeed" class="mspeed" aria-label="Simulation speed: 1×. Tap to change">1×</button>
@@ -444,6 +451,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
     <button type="button" role="menuitem" id="mShare">Share this scenario</button>
     <button type="button" role="menuitem" id="mPng">Save ECG image</button>
     <button type="button" role="menuitem" id="mHelp">Help</button>
+    <button type="button" role="menuitem" id="mInstall" class="minstall"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Install app</button>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
@@ -569,7 +577,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <div class="rebuild" id="rebuildNote" hidden>Building the heart…</div>
       <button type="button" class="mlearn" id="mLearn" aria-pressed="false">Learn</button>
       <div class="mfloat" id="mFloat">
-        <button type="button" id="mShock" class="shock" hidden>⚡ Shock</button>
+        <button type="button" id="mShock" class="shock" hidden><span class="bolt" aria-hidden="true">⚡</span>Shock</button>
         <button type="button" id="mAdeno" class="adeno" hidden>Adenosine</button>
       </div>
       <div class="mscrub" id="mScrub" hidden>

@@ -1158,3 +1158,47 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
 ## Round 28: WPW left lateral only
 
 - The Conditions list offers one accessory pathway, left lateral; the posteroseptal option is removed to keep things simple for now. The engine's `setAccessoryPathway` keeps its other sites; share links or recently-used entries naming another site load without a pathway.
+
+### mobile-1 round 7: installable app (PWA)
+
+- `manifest.webmanifest` (name, standalone display, theme colours, icons) and `sw.js` sit beside
+  `index.html` at the site root, with icons in `icons/` (192, 512, maskable 512, Apple touch 180,
+  drawn from the favicon's heart and trace). The app adds the manifest link and registers the
+  service worker only when served over http(s), so `file://` loading is unchanged.
+- Service worker: same-origin requests network-first with the cache as the offline fallback (so
+  a new deploy shows at once); Google Fonts cache-first. Bump `CACHE` in `sw.js` only to drop
+  old caches; updates do not need it.
+- Phone ⋯ menu: **Install app** (download icon). Android/Chrome: the browser's own install
+  prompt. iOS Safari (no prompt API) and other cases: a short how-to. Hidden when already
+  running as the installed app.
+- Checked over http://127.0.0.1: no manifest or installability errors in Chrome; after one
+  visit the page reloads and simulates offline.
+
+### mobile-1 round 8: steady interpretation, shock/adenosine cues, gesture changes
+
+- Interpretation (all layouts): a change of rhythm, block or condition, a shock, Reset or a new
+  run starts a full 10 s acquisition (`ACQ_MS`, simulated time; `markChange()`) showing only
+  "Acquiring…"; afterwards a reading that cannot be made (too few beats, e.g. a slow escape in
+  complete heart block) keeps the last one instead of flipping back to "Acquiring…". VF is read at
+  once. The phone interpretation bar keeps its height while acquiring.
+- Heart-view background: a yellow flash on a shock (0.7 s) and a blue tint fading from the dose to
+  the end of the adenosine AV-nodal block (`stageColour()`), in the Shock/Adenosine button
+  colours. Shock button text centred.
+- Phone tab notes shortened (Rhythm, Blocks). Gestures: taps count as a burst only within 40 px
+  of the first; either atrium 3 taps = flutter, 4 = AF; ventricles 3 = VT, 4 = VF; AV node 3 taps
+  = AVNRT; accessory pathway marker (any view) 3 taps = orthodromic AVRT, 1–2 taps explain this.
+  The model induces AVRT over a left lateral pathway only (a posteroseptal one does not re-enter
+  from an atrial premature beat, `tools/avrt.js posteroseptal`), so the posteroseptal pathway is
+  switched to left lateral, with a message, as the AVRT button already did.
+- 3D view: panes narrower than 0.85 (width/height) widen the vertical field of view so the heart
+  keeps the two-pane framing (whole heart visible in the full-screen phone view).
+
+### mobile-1 round 9: sheets close from the handle only, desktop Install button, link fix
+
+- Phone sheets no longer close when their content is dragged down (scrolling the Conditions
+  catalogue closed it); only dragging the handle down (or ✕, or back) closes a sheet.
+- Desktop header: an **Install app** button appears when the browser offers installation
+  (`beforeinstallprompt`, Chrome/Edge) and opens its prompt; the phone ⋯ menu item is unchanged.
+- Share links: an occlusion on a coronary node that is not an offered vessel (a side-branch node,
+  e.g. links made before the anatomy changes) is skipped instead of throwing in `segmentName`
+  and leaving the page on the loading screen (`#o=40` reproduced it).
