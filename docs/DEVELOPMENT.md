@@ -1092,3 +1092,11 @@ balance of lead I, so with this heart one of the two is borderline.
   | cylinder field, 14 | 50 | −65 | 91 | 76 | −74 |
 
 - With the more anatomical limb field, the LAFB-to-LPFB axis span is about 110° at every tilt (textbook about 160–170°); with the cylinder field it is 156°. The cylinder field's 3× vertical gain was what carried LAFB and LPFB past −45° and +90°. LBBB stays 21–33° right of normal, and the band sensitivity remains (mbPhi 45 moves the normal axis 41° → −19°). Not adopted: the activation, not the limb field, is the remaining cause. The fascicular blocks' late forces are too weak relative to the normal beat, and RBBB's terminal RV forces point upward.
+
+## rebuild-1 round 13: why LAFB/LPFB axes fall short with the realistic limb field
+
+- Activation delays under block (`BLOCK=LAF|LPF ZSPLIT=1 node tools/actgeom.js`): LAFB delays the anterior/lateral base by about 28 ms and the mid lateral wall by 17 ms; LPFB delays the inferior wall by 28 ms and the apex by 18 ms. Both are in the literature range; the delay is not the problem.
+- Block − normal frontal area by region (`TV2=... REG=time AREA=1 BLOCK=LAF node tools/regiondecomp.js '{"limbTorso2":true}'`; regiondecomp now honours TV2): in LAFB the lateral wall adds aVF −48 (upward, as it should) but the anterior wall adds aVF +31, so the area axis only reaches −29°. In LAFB the anterior wall is reached from the septum and swept circumferentially (direction left, posterior, slightly down). With the cylinder field the lateral term was −84, which hid the anterior one.
+- Apical anastomoses (`purkCrossApexZ` 0.35 / 0.45 / 0.55) and a narrower LPF territory (`lpfTerrHi` 0.2) with the realistic limb field: LAFB −36° at best, LPFB 74–81°. Normal 27–41°, LBBB 65°, RBBB −40° to −50°. No pass.
+- LV long axis in the torso frame: 52° below horizontal in the frontal plane, 39° anterior (CT literature about 40–50° and 30–45°), so the heart's placement is not grossly off.
+- The 1.5× fascicular limb voltages and the textbook fascicular axes come from the same cause, the cylinder field's 3× vertical gain. Under a realistic limb field the activation gives LAFB about −35° and LPFB about 80°.

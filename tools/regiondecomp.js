@@ -6,7 +6,7 @@
 // RV, other (conduction system, LV base outside UVC); "window" = the old-scar window term.
 // Prints per region: mean contribution over 0-20 and 20-40 ms after QRS onset (mV) to the heart
 // vector (X left, Y superior, Z anterior) and to II, III, aVF, V1-V6, plus the infarct minus normal.
-const fs = require('fs'); const LH = require('../src/engine.js');
+const fs = require('fs'); if (process.env.TV2) require('../src/engine.js').setDefaultTorso2(JSON.parse(fs.readFileSync(process.env.TV2))); const LH = require('../src/engine.js');
 const LV0 = LH.hypertrophyOptions({}).anatomy.lvWallLayers;
 const JA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
 const P = JSON.parse(process.argv[2] || '{}'), SITE = process.argv[3] || 'dLAD', HOURS = +(process.argv[4] || 720);
