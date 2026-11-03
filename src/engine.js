@@ -248,6 +248,7 @@
     // ECG
     ecgGain: 0.0143,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm; rescaled for the rebuild-1 heart and torso-field limb leads)
     precordialDipoleW: 0.55,
+    limbTorso2: false,         // limb leads I, II from the solved torso (src/torso_v2.json: shoulder/axilla and hip contact patches) instead of the cylinder field
     fullTorso: false,          // with chestTorso: every lead from the solved torso's electrode potentials (limb LA−RA, LL−RA; chest V − WCT), no heart-vector blend
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
@@ -1281,7 +1282,7 @@
       // psi_e, lead field grad psi_e) instead of the point-source 1/r formula. The
       // heart-vector part of the chest leads and the limb leads are unchanged.
       let tv2 = null;
-      const T2 = this.P.chestTorso ? (this.P.torsoV2 || DEFAULT_TORSO2) : null;
+      const T2 = this.P.chestTorso || this.P.limbTorso2 ? (this.P.torsoV2 || DEFAULT_TORSO2) : null;
       if (T2) {
         const [nx, ny, nz] = T2.dims, o = T2.origin, th = T2.h;
         const psi = names.map((k) => { if (k === T2.ref) return null; const a = decode(T2.psi[k], Int16Array), f = new Float32Array(a.length), s = T2.scale[k]; for (let i = 0; i < a.length; i++) f[i] = a[i] * s; return f; });
@@ -1300,7 +1301,13 @@
         // scale: mean |grad psi_V2| over the ventricles matches the point-source 1/r² near field (keeps the chest gains meaningful)
         let gs = 0, rs = 0; const eV2 = names.indexOf('V2');
         for (let c = 0; c < n; c += 5) { if (this.kind[c] !== KIND.VENT) continue; const m = this.toTorso(A.p(c)); const gv = grad(eV2, m); gs += Math.hypot(gv[0], gv[1], gv[2]); const r = sub(E[eV2], m); rs += 1 / dot(r, r); }
-        tv2 = { grad, scale: rs / gs };
+        tv2 = { grad, scale: rs / gs, chest: !!this.P.chestTorso };
+        if (this.P.limbTorso2) {   // limb leads from the solved torso: same normalisation as the cylinder field (mean |lead I| over the heart = 1e-4)
+          const eLA = names.indexOf('LA'), eLL = names.indexOf('LL'); let sl = 0, cl = 0;
+          for (let c = 0; c < n; c += 7) { if (!this.kind[c]) continue; const gv = grad(eLA, this.toTorso(A.p(c))); sl += Math.hypot(gv[0], gv[1], gv[2]); cl++; }
+          tv2.limb = { eLA, eLL, scale: 1e-4 / (sl / cl) };
+          this.torsoLimb = true;
+        }
       }
       let cav = null;
       if (this.P.cavityWindow > 0) {
@@ -1365,12 +1372,15 @@
       // AP axis (+ = more vertical), applied to source directions only
       let lex = ex, lff = ff, lrr = rr;
       // (ventricles only: the atrial P-wave calibration already has its own atrialFrontalRot)
-      if (TF && this.P.limbRotation && kc === KIND.VENT) {
+      if ((TF || (tv2 && tv2.limb)) && this.P.limbRotation && kc === KIND.VENT) {
         const th = -this.P.limbRotation * Math.PI / 180, c = Math.cos(th), s = Math.sin(th);
         const rot = (v) => [c * v[0] - s * v[1], s * v[0] + c * v[1], v[2]];
         lex = rot(ex); lff = rot(ff); lrr = rot(rr);
       }
-      if (TF) for (let q = 0; q < 2; q++) {                    // bounded-torso limb leads I, II
+      if (tv2 && tv2.limb) for (let q = 0; q < 2; q++) {      // solved-torso limb leads I (LA−RA), II (LL−RA)
+        const G = tv2.grad(q ? tv2.limb.eLL : tv2.limb.eLA, m), k2 = q && kc !== KIND.VENT ? this.P.atrialTorsoII / this.P.torsoIIGain : 1;
+        out[12 + q] = k2 * tv2.limb.scale * h * h * sc * ((G[0] * lex[0] + G[1] * lex[1] + G[2] * lex[2]) + re * (G[0] * lrr[0] + G[1] * lrr[1] + G[2] * lrr[2]) + fe * (G[0] * lff[0] + G[1] * lff[1] + G[2] * lff[2]));
+      } else if (TF) for (let q = 0; q < 2; q++) {                    // bounded-torso limb leads I, II
         let Lv = tfSample(q ? TF._II : TF._I, m);
         const u = this.P.torsoUniform;
         if (u) Lv = [0, 1, 2].map((d) => (1 - u) * Lv[d] + u * tfMean[q][d]);
@@ -1378,7 +1388,7 @@
         const cc = tfScale * h * h * sc * ((Lv[0] * lex[0] + Lv[1] * lex[1] + Lv[2] * lex[2]) + re * (Lv[0] * lrr[0] + Lv[1] * lrr[1] + Lv[2] * lrr[2]) + fe * (Lv[0] * lff[0] + Lv[1] * lff[1] + Lv[2] * lff[2]));
         out[12 + q] = cc;
       }
-      if (tv2) {                                              // torso lead fields for the electrode potentials
+      if (tv2 && tv2.chest) {                                 // torso lead fields for the electrode potentials
         for (let e = 0; e < 9; e++) {
           const G = tv2.grad(e, m);
           out[e] = tv2.scale * h * h * sc * ((G[0] * ex[0] + G[1] * ex[1] + G[2] * ex[2]) + re * (G[0] * rr[0] + G[1] * rr[1] + G[2] * rr[2]) + fe * (G[0] * ff[0] + G[1] * ff[1] + G[2] * ff[2]));
@@ -2506,7 +2516,7 @@
       // Goldberger's augmented leads — the limb electrodes are far-field.
       const L = this.leadsLatest, c60 = 0.5, s60 = 0.8660254;
       leads: {
-      if (this.P.fullTorso && this.M._lw && this.M._lw.tv2) {
+      if (this.P.fullTorso && this.M._lw && this.M._lw.tv2 && this.M._lw.tv2.chest) {
         // one volume conductor for all leads: potentials at the electrodes (RA is the reference)
         const ra = v(0), la = v(1), ll = v(2), wctF = (ra + la + ll) / 3, P = this.P;
         L[0] = la - ra; L[1] = ll - ra; L[2] = ll - la;

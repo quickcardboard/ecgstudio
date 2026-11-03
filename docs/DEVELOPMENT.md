@@ -1075,3 +1075,20 @@ balance of lead I, so with this heart one of the two is borderline.
 - RBBB: the late RV wave travels rightward and anterior (direction −0.42, +0.09, +0.45) but gives aVF −36 against I −20 mV·ms: the limb leads overweight vertical forces.
 - Heart-mean limb lead vectors (lead I = 1). Cylinder torso field used by the app (`torso_leadfield.py`: RA/LA on the top face of the cylinder, LL on the bottom): I (0.87, 0.49, −0.07), aVF length 2.75, so lead I is tilted 29° upward and aVF is 3.2× its Einthoven length. The full torso conductor (`torso_v2.py`, shoulder/axilla side patches): I (0.94, 0.35, −0.03), |aVF|/|I| 1.6.
 - Same activation, Einthoven limb leads (`torsoBlend` 0): normal 14°, LBBB 32°, LPFB 59°, LAFB −42°, RBBB −48°; mbPhi 45 moves the normal axis 35° (against about 90° with the cylinder field). The cylinder field roughly triples the axis sensitivity, and the heart tilt was fitted around it. The activation still puts LBBB about 18° right of normal.
+
+## rebuild-1 round 12: limb leads from the solved torso (option, not adopted)
+
+- New option `limbTorso2` (default off): limb leads I and II from the solved torso's LA/LL reciprocity fields (`torso_v2.py`, anisotropic myocardium, shoulder/axilla and hip patches); chest leads, cavity window and the rest unchanged. Normalised like the cylinder field (mean |lead I| over the heart). Supply the field with `TV2=<file>` (`tools/reader.js`) or `setDefaultTorso2`; the bundled `src/torso_v2.json` is an older 4 mm solve.
+- The solved field holds only for the heart position it was solved at: a tilt scan with the 14° field gave nonsense (more vertical → axis further left). Each tilt was therefore re-exported and re-solved (`export_heart_torso.js` + `ANISO=1 torso_v2.py`, about 1.5 min each).
+- Burger triangle of the solved torso (lead I = 1): I at −15°, II 1.5–1.7 at 71°, III 1.8–1.9 at 104°.
+- Reader (normal / LAFB / LPFB / LBBB / RBBB axes):
+
+  | tilt | normal | LAFB | LPFB | LBBB | RBBB |
+  |---|---|---|---|---|---|
+  | 8 | 30 | −39 (fail) | 75 (fail) | 63 | −53 |
+  | 14 | 41 | −31 (fail) | 80 (fail) | 65 | −40 |
+  | 20 | 46 | −21 (fail) | 84 (fail) | 69 | −29 |
+  | 26 | 52 | −13 (fail) | 87 (fail) | 73 (IVCD) | −24 |
+  | cylinder field, 14 | 50 | −65 | 91 | 76 | −74 |
+
+- With the more anatomical limb field, the LAFB-to-LPFB axis span is about 110° at every tilt (textbook about 160–170°); with the cylinder field it is 156°. The cylinder field's 3× vertical gain was what carried LAFB and LPFB past −45° and +90°. LBBB stays 21–33° right of normal, and the band sensitivity remains (mbPhi 45 moves the normal axis 41° → −19°). Not adopted: the activation, not the limb field, is the remaining cause. The fascicular blocks' late forces are too weak relative to the normal beat, and RBBB's terminal RV forces point upward.
