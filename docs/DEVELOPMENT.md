@@ -901,3 +901,18 @@ keeps normal 30–75°, LAFB ≤ −45° and LPFB > 90° together with lower vol
 the voltages by ~20–30% (e.g. cross 1.5, uniform 1, Brody 3: 24/−52/90°, aVL 2.1, III 3.7).
 In this model a fascicular block reaches its axis only with a frontal QRS vector ~2.5× the normal
 one (real LAFB: ~1–1.3×); not adopted, kept as a known limitation.
+
+Over-cancellation investigation (block/normal voltage ratio at equal gain, fascsearch; textbook
+LAFB aVL R / normal II R ~1–1.3). Rebuild 2.6 (LPFB III/II 3.7). The block amplitudes stay ~3–4
+across settings; the ratio is high because the normal net forces are small: brody 0 → normal II
+0.7 (ratio 4.0), sigmaRatio 5/3/1 → 2.2/3.2/5.7 (ratio 1.6/1.1/0.75). The fibre-direction source term
+(sigmaRatio 10, κ = 9; the measured effective ratio is ~3) both drives the cancellation and makes
+the fascicular axis shifts: at sigmaRatio 3 LAFB no longer deviates (+21°).
+At sigmaRatio 3–4 without the Brody term the normal axis is 54–62° and LAFB −40 … −58° with aVL/II
+1.1–1.7, but LPFB stays at 79–87° (LPF territory 0.25/0.4 apical cap, phi −1.54/−1.2 … 0.56/0.9,
+purkCrossSlow 10–20). purkCrossSlow ≥ 25 gives sustained Purkinje re-entry after the first beat
+(runs from 578 ms to the end), so the apparent LPFB > 100° results at 40 were invalid; screens now
+check for it. Full check sigmaRatio 4, brody 0, purkCrossSlow 15: 1 miss (distal LAD V2 Q;
+proximal RCA regains the II Q), normal 54°, LAFB −42°, LPFB 84°, RVH 104°, R V1–V6
+0.21/0.47/0.61/0.60/0.89/0.86 (gain ×0.70 of the adopted calibration). Not adopted: LPFB loses its
+right axis deviation.
