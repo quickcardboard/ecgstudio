@@ -293,7 +293,7 @@ body.m #c3d, body.m #ecgWrap, body.m .live, body.m #shead { -webkit-user-select:
 body.m #app { padding: env(safe-area-inset-top, 0px) 0 0; gap: 0; }
 body.m header.top { min-height: 50px; gap: 8px; padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); }
 body.m .brand h1 { font-size: 19px; }
-body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp { display: none; }
+body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp, body.m #btnInstall { display: none; }
 body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mctl button { height: 38px; min-width: 42px; padding: 0 11px; border-radius: 19px; display: grid; place-items: center; }
 .mctl svg { width: 20px; height: 20px; fill: currentColor; }
@@ -306,7 +306,8 @@ body.m .mctl { display: flex; align-items: center; gap: 6px; }
 body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index: 21; right: max(10px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 50px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
 .mmenu button { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
 .mmenu .minstall { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; color: var(--accent); font-weight: 600; }
-.minstall svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.binstall { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); border-color: var(--accent); }
+.binstall svg, .minstall svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 body.m #split { flex-direction: column; gap: 6px; padding: 0 8px 6px; }
 body.m #pane3d { flex: 0 0 60%; --vb: 0px; }
@@ -438,6 +439,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <button id="btnReset" type="button">Reset</button>
     </div>
     <button id="btnShare" type="button" title="Copy a link that reopens this exact scenario">Share</button>
+    <button id="btnInstall" type="button" class="binstall" title="Install ECG Studio as an app" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Install app</button>
     <button id="btnHelp" type="button">Help</button>
     <div class="mctl" role="group" aria-label="Simulation">
       <button type="button" id="mSpeed" class="mspeed" aria-label="Simulation speed: 1×. Tap to change">1×</button>
@@ -665,7 +667,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-03 (cef3b19).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-03 (a095054).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -6473,7 +6475,7 @@ THE SOFTWARE.
   }
   function applyScenario(sc) {
     const nodes = M.coronary.nodes.length, sub = !SUBENDO_ON ? [] : sc.sub.filter((c) => c < A.n && (A.label[c] === LH.LAB.LV || A.label[c] === LH.LAB.RV));
-    const occ = sc.occ.filter((n) => n < nodes);
+    const cor = M.coronary, occ = sc.occ.filter((n) => n < nodes && cor.branches[cor.nodes[n].branch]);   // offered vessels only (links made before an anatomy change may name side branches)
     // a healthy stretch first, so the interpretation has this heart's normal beat to compare with
     if (sc.blocks.length || occ.length || sub.length) { S.run(2600); captureRef(); ecg.full = true; }
     for (const [site, type] of sc.blocks) { const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type, m[2] || {}); }
@@ -6951,7 +6953,7 @@ THE SOFTWARE.
   }
 
   // sheet: drag the handle down to close (or back to half), up for full height;
-  // a downward swipe on the content at its top also closes it
+  // the content scrolls freely and never closes the sheet
   function initSheet() {
     const head = $('shead'), ctl = $('controls'), body = ctl.querySelector('.body');
     let y0 = null;
@@ -6965,11 +6967,6 @@ THE SOFTWARE.
       else if (dy < -40 || Math.abs(dy) < 6) setSheetFull(dy < -40 ? true : !full);   // a tap on the handle toggles the height
     };
     head.addEventListener('pointerup', end); head.addEventListener('pointercancel', end);
-    let ty = null;
-    body.addEventListener('touchstart', (e) => { ty = body.scrollTop <= 0 ? e.touches[0].clientY : null; }, { passive: true });
-    body.addEventListener('touchmove', (e) => {
-      if (ty !== null && e.touches[0].clientY - ty > 90 && body.scrollTop <= 0) { ty = null; if (document.body.classList.contains('sheet-full')) setSheetFull(false); else closeLayer('sheet'); }
-    }, { passive: true });
     $('sclose').addEventListener('click', () => closeLayer('sheet'));
     for (const b of $('mTabs').querySelectorAll('button')) b.addEventListener('click', () => {
       if (sheetOpen() && ui.tab === b.dataset.tab) closeLayer('sheet'); else openSheet(b.dataset.tab);
@@ -6989,16 +6986,17 @@ THE SOFTWARE.
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
     }
     item.hidden = standalone;
-    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; });
-    window.addEventListener('appinstalled', () => { installPrompt = null; item.hidden = true; toast('ECG Studio is installed: open it from your home screen.'); });
-    item.addEventListener('click', async () => {
-      closeLayer('menu');
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; $('btnInstall').hidden = false; });
+    window.addEventListener('appinstalled', () => { installPrompt = null; item.hidden = $('btnInstall').hidden = true; toast('ECG Studio is installed: open it from your home screen or app list.'); });
+    const install = async () => {
+      if (hasLayer('menu')) closeLayer('menu');
       if (installPrompt) { const p = installPrompt; installPrompt = null; p.prompt(); await p.userChoice.catch(() => null); return; }
       const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       toast(!served ? 'Install from the website (ecgstudio.app); a saved copy of the page cannot be installed.'
         : ios ? 'To install on iPhone or iPad: in Safari, tap the Share button, then <b>Add to Home Screen</b>.'
           : 'To install: open the browser menu (⋮) and choose <b>Install app</b> or <b>Add to Home screen</b>.', 9000);
-    });
+    };
+    item.addEventListener('click', install); $('btnInstall').addEventListener('click', install);
   }
 
   function initPhone() {

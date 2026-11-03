@@ -1192,3 +1192,13 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
   switched to left lateral, with a message, as the AVRT button already did.
 - 3D view: panes narrower than 0.85 (width/height) widen the vertical field of view so the heart
   keeps the two-pane framing (whole heart visible in the full-screen phone view).
+
+### mobile-1 round 9: sheets close from the handle only, desktop Install button, link fix
+
+- Phone sheets no longer close when their content is dragged down (scrolling the Conditions
+  catalogue closed it); only dragging the handle down (or ✕, or back) closes a sheet.
+- Desktop header: an **Install app** button appears when the browser offers installation
+  (`beforeinstallprompt`, Chrome/Edge) and opens its prompt; the phone ⋯ menu item is unchanged.
+- Share links: an occlusion on a coronary node that is not an offered vessel (a side-branch node,
+  e.g. links made before the anatomy changes) is skipped instead of throwing in `segmentName`
+  and leaving the page on the loading screen (`#o=40` reproduced it).

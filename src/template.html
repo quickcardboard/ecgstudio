@@ -293,7 +293,7 @@ body.m #c3d, body.m #ecgWrap, body.m .live, body.m #shead { -webkit-user-select:
 body.m #app { padding: env(safe-area-inset-top, 0px) 0 0; gap: 0; }
 body.m header.top { min-height: 50px; gap: 8px; padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); }
 body.m .brand h1 { font-size: 19px; }
-body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp { display: none; }
+body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp, body.m #btnInstall { display: none; }
 body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mctl button { height: 38px; min-width: 42px; padding: 0 11px; border-radius: 19px; display: grid; place-items: center; }
 .mctl svg { width: 20px; height: 20px; fill: currentColor; }
@@ -306,7 +306,8 @@ body.m .mctl { display: flex; align-items: center; gap: 6px; }
 body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index: 21; right: max(10px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 50px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
 .mmenu button { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
 .mmenu .minstall { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; color: var(--accent); font-weight: 600; }
-.minstall svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.binstall { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); border-color: var(--accent); }
+.binstall svg, .minstall svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 body.m #split { flex-direction: column; gap: 6px; padding: 0 8px 6px; }
 body.m #pane3d { flex: 0 0 60%; --vb: 0px; }
@@ -438,6 +439,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <button id="btnReset" type="button">Reset</button>
     </div>
     <button id="btnShare" type="button" title="Copy a link that reopens this exact scenario">Share</button>
+    <button id="btnInstall" type="button" class="binstall" title="Install ECG Studio as an app" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Install app</button>
     <button id="btnHelp" type="button">Help</button>
     <div class="mctl" role="group" aria-label="Simulation">
       <button type="button" id="mSpeed" class="mspeed" aria-label="Simulation speed: 1×. Tap to change">1×</button>

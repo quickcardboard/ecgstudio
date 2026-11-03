@@ -2055,7 +2055,7 @@
   }
   function applyScenario(sc) {
     const nodes = M.coronary.nodes.length, sub = !SUBENDO_ON ? [] : sc.sub.filter((c) => c < A.n && (A.label[c] === LH.LAB.LV || A.label[c] === LH.LAB.RV));
-    const occ = sc.occ.filter((n) => n < nodes);
+    const cor = M.coronary, occ = sc.occ.filter((n) => n < nodes && cor.branches[cor.nodes[n].branch]);   // offered vessels only (links made before an anatomy change may name side branches)
     // a healthy stretch first, so the interpretation has this heart's normal beat to compare with
     if (sc.blocks.length || occ.length || sub.length) { S.run(2600); captureRef(); ecg.full = true; }
     for (const [site, type] of sc.blocks) { const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type, m[2] || {}); }
@@ -2533,7 +2533,7 @@
   }
 
   // sheet: drag the handle down to close (or back to half), up for full height;
-  // a downward swipe on the content at its top also closes it
+  // the content scrolls freely and never closes the sheet
   function initSheet() {
     const head = $('shead'), ctl = $('controls'), body = ctl.querySelector('.body');
     let y0 = null;
@@ -2547,11 +2547,6 @@
       else if (dy < -40 || Math.abs(dy) < 6) setSheetFull(dy < -40 ? true : !full);   // a tap on the handle toggles the height
     };
     head.addEventListener('pointerup', end); head.addEventListener('pointercancel', end);
-    let ty = null;
-    body.addEventListener('touchstart', (e) => { ty = body.scrollTop <= 0 ? e.touches[0].clientY : null; }, { passive: true });
-    body.addEventListener('touchmove', (e) => {
-      if (ty !== null && e.touches[0].clientY - ty > 90 && body.scrollTop <= 0) { ty = null; if (document.body.classList.contains('sheet-full')) setSheetFull(false); else closeLayer('sheet'); }
-    }, { passive: true });
     $('sclose').addEventListener('click', () => closeLayer('sheet'));
     for (const b of $('mTabs').querySelectorAll('button')) b.addEventListener('click', () => {
       if (sheetOpen() && ui.tab === b.dataset.tab) closeLayer('sheet'); else openSheet(b.dataset.tab);
@@ -2571,16 +2566,17 @@
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
     }
     item.hidden = standalone;
-    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; });
-    window.addEventListener('appinstalled', () => { installPrompt = null; item.hidden = true; toast('ECG Studio is installed: open it from your home screen.'); });
-    item.addEventListener('click', async () => {
-      closeLayer('menu');
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; $('btnInstall').hidden = false; });
+    window.addEventListener('appinstalled', () => { installPrompt = null; item.hidden = $('btnInstall').hidden = true; toast('ECG Studio is installed: open it from your home screen or app list.'); });
+    const install = async () => {
+      if (hasLayer('menu')) closeLayer('menu');
       if (installPrompt) { const p = installPrompt; installPrompt = null; p.prompt(); await p.userChoice.catch(() => null); return; }
       const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       toast(!served ? 'Install from the website (ecgstudio.app); a saved copy of the page cannot be installed.'
         : ios ? 'To install on iPhone or iPad: in Safari, tap the Share button, then <b>Add to Home Screen</b>.'
           : 'To install: open the browser menu (⋮) and choose <b>Install app</b> or <b>Add to Home screen</b>.', 9000);
-    });
+    };
+    item.addEventListener('click', install); $('btnInstall').addEventListener('click', install);
   }
 
   function initPhone() {
