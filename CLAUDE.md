@@ -26,6 +26,8 @@ Run before and after any engine change and compare:
 - `node tools/evalecg.js`: normal intervals, axis, per-lead R/S/T/P
 - `node tools/fascsearch.js '[{}]'`: normal, LAFB, LPFB, LBBB axes and amplitudes
 - `node tools/blocks.js`, `node tools/wpw.js`, `node tools/pwave.js` (also `'{"atria":{"ra":true}}'`)
+- `node tools/reader.js`: blind cardiologist-style read of 22 scenarios (blocks, hypertrophy, seven occlusions
+  at 1 h and 30 days); `tools/physfit.js` is the joint refit that set the current defaults
 - `node tools/hyper.js '[{"lv":6,"P":{"lvStrain":1,"lvSourceGain":1.5}},{"lv":3,"rv":5,"P":{"rvStrain":0.7,"rvSourceGain":1.8}}]'`
 - `node tools/ischaudit.js [sites] [hours]`: ST/Q/T per lead for every occlusion site and time
   stop (`MP='{...}'` overrides parameters)
@@ -43,12 +45,13 @@ from `file://`; screenshot desktop (1440×900, 1280×720) and phone landscape (8
 Both are wanted: textbook-accurate axes and amplitudes, and accurate ischemia lead localisation
 and time course. Check both kinds of regression when tuning.
 
-Known limitations (Round 14–15 notes in docs/DEVELOPMENT.md):
-- LAFB/LPFB limb voltages about 1.5× textbook (aVL R 2.4, LPFB III R 3.2 mV)
-- normal T in III flat to slightly negative
-- inferior Q in II appears late in proximal RCA and PDA occlusion
-- inferior subendocardial patch leaves a small inferior q
-- old apical (distal-LAD) infarct shows a Q in III rather than the expected V2–V4 (refine-2 rounds 4–5)
+Known limitations (rebuild-1 rounds 10–15 in docs/DEVELOPMENT.md):
+- limb leads come from a solved torso (`limbTorso2`, field solved for heartRotation 14): changing
+  heartRotation needs a re-solved field (`tools/export_heart_torso.js` + `ANISO=1 tools/torso_v2.py`)
+- normal axis about 0° (normal range, lead III negative); LPFB reaches 89° (one degree short)
+- LAFB shows a pseudo-infarct (Q/poor R progression) read as old anterior MI
+- distal LCx STEMI at 1 h is not visible; LBBB and RBBB axes are not textbook (read on morphology)
+- old apical (distal-LAD) infarct also shows inferior Q (wrap-around LAD pattern)
 - VT/VF slow the simulation on slower machines
 
 ## Conventions

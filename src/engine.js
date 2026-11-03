@@ -249,6 +249,7 @@
     // ECG
     ecgGain: 0.01348,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm; rescaled for the rebuild-1 heart and torso-field limb leads)
     precordialDipoleW: 0.55,
+    atrialLimbGain: 1.85,      // atrial sources in the solved-torso limb leads: keeps the P-wave calibration made with the cylinder field (P in II 0.23 mV)
     limbTorso2: true,          // limb leads I, II from the solved torso (src/torso_limb.json: shoulder/axilla and hip contact patches) instead of the cylinder field
     fullTorso: false,          // with chestTorso: every lead from the solved torso's electrode potentials (limb LA−RA, LL−RA; chest V − WCT), no heart-vector blend
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
@@ -1402,7 +1403,7 @@
         lex = rot(ex); lff = rot(ff); lrr = rot(rr);
       }
       if (tv2 && tv2.limb) for (let q = 0; q < 2; q++) {      // solved-torso limb leads I (LA−RA), II (LL−RA)
-        const G = tv2.grad(q ? tv2.limb.eLL : tv2.limb.eLA, m), k2 = q && kc !== KIND.VENT ? this.P.atrialTorsoII / this.P.torsoIIGain : 1;
+        const G = tv2.grad(q ? tv2.limb.eLL : tv2.limb.eLA, m), k2 = kc !== KIND.VENT ? this.P.atrialLimbGain : 1;
         out[12 + q] = k2 * tv2.limb.scale * h * h * sc * ((G[0] * lex[0] + G[1] * lex[1] + G[2] * lex[2]) + re * (G[0] * lrr[0] + G[1] * lrr[1] + G[2] * lrr[2]) + fe * (G[0] * lff[0] + G[1] * lff[1] + G[2] * lff[2]));
       } else if (TF) for (let q = 0; q < 2; q++) {                    // bounded-torso limb leads I, II
         let Lv = tfSample(q ? TF._II : TF._I, m);
