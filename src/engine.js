@@ -111,7 +111,8 @@
   const DEFAULTS = {
     // Conduction velocities, m/s (== mm/ms)
     cvVentLong: 0.62,      // ventricular myocardium along fibres
-    cvVentTrans: 0.26,     // across fibres (incl. transmural)
+    cvVentTrans: 0.26,     // across fibres (incl. transmural unless cvVentSheet is set)
+    cvVentSheet: 0,        // optional separate transmural (sheet) speed; 0 = same as cvVentTrans
     cvAtrial: 0.80,        // working atrial myocardium (isotropic)
     cvBachmann: 1.60,      // Bachmann's bundle
     cvCrista: 1.20,        // crista terminalis
@@ -1082,6 +1083,18 @@
       }
       const src = new Vec(Int32Array, 1 << 21), dst = new Vec(Int32Array, 1 << 21), wt = new Vec(Float32Array, 1 << 21);
       const fb = A.fiber;
+      // orthotropic option: a separate speed across the wall (sheet direction = transmural gradient,
+      // made orthogonal to the fibre); cvVentTrans then applies to the sheet-normal direction
+      const vS = P.cvVentSheet, tw = vS ? new Float32Array(3 * n) : null;
+      if (vS) for (let c = 0; c < n; c++) {
+        if (this.kind[c] !== KIND.VENT || A.tm[c] < 0) continue;
+        const i = A.ii[c], j = A.jj[c], k = A.kk[c], g = [0, 0, 0];
+        for (let a = 0; a < 3; a++) { const p1 = A.at(i + (a === 0), j + (a === 1), k + (a === 2)), m1 = A.at(i - (a === 0), j - (a === 1), k - (a === 2));
+          const vp = p1 >= 0 && A.tm[p1] >= 0, vm = m1 >= 0 && A.tm[m1] >= 0; g[a] = vp && vm ? (A.tm[p1] - A.tm[m1]) / 2 : vp ? A.tm[p1] - A.tm[c] : vm ? A.tm[c] - A.tm[m1] : 0; }
+        const fx = fb[3 * c], fy = fb[3 * c + 1], fz = fb[3 * c + 2], fl = Math.hypot(fx, fy, fz) || 1, d = (g[0] * fx + g[1] * fy + g[2] * fz) / (fl * fl);
+        const sx = g[0] - d * fx, sy = g[1] - d * fy, sz = g[2] - d * fz, sl = Math.hypot(sx, sy, sz);
+        if (sl > 1e-6) { tw[3 * c] = sx / sl; tw[3 * c + 1] = sy / sl; tw[3 * c + 2] = sz / sl; }
+      }
       for (let c = 0; c < n; c++) {
         const kc = this.kind[c]; if (!kc) continue;
         const Lc = A.label[c];
@@ -1101,7 +1114,12 @@
             const fl = Math.hypot(fx, fy, fz) || 1;
             const cs = (a * fx + b * fy + e * fz) / (fl * Math.sqrt(a * a + b * b + e * e));
             const c2 = cs * cs;
-            v = 1 / Math.sqrt(c2 / (P.cvVentLong * P.cvVentLong) + (1 - c2) / (P.cvVentTrans * P.cvVentTrans));
+            if (vS) {
+              let tx = tw[3 * c] + tw[3 * w], ty = tw[3 * c + 1] + tw[3 * w + 1], tz = tw[3 * c + 2] + tw[3 * w + 2];
+              const tl = Math.hypot(tx, ty, tz), dl = Math.sqrt(a * a + b * b + e * e);
+              const ts = tl > 1e-6 ? (a * tx + b * ty + e * tz) / (tl * dl) : 0, t2 = Math.min(1 - c2, ts * ts);
+              v = 1 / Math.sqrt(c2 / (P.cvVentLong * P.cvVentLong) + t2 / (vS * vS) + Math.max(0, 1 - c2 - t2) / (P.cvVentTrans * P.cvVentTrans));
+            } else v = 1 / Math.sqrt(c2 / (P.cvVentLong * P.cvVentLong) + (1 - c2) / (P.cvVentTrans * P.cvVentTrans));
             src.push(c); dst.push(w); wt.push(d / v);
           } else {
             // atrial: isotropic; specialised tracts speed up via cvScale (harmonic mean)
