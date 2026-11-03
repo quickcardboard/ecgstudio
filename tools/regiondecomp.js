@@ -86,7 +86,7 @@ function leads(S, phi) {
 }
 const RUN = +(process.env.ISCH_MS || 3000);
 function decompose(occl) {
-  const mk = () => { const S = new LH.Sim(M, { seed: 1 }); if (occl) { S.addOcclusion(occl); S.setIschemiaTime(HOURS); } return S; };
+  const mk = () => { const S = new LH.Sim(M, { seed: 1 }); if (typeof occl === 'string') S.setBlock(occl, 'complete'); else if (occl) { S.addOcclusion(occl); S.setIschemiaTime(HOURS); } return S; };   // a string = conduction block site (LAF, LPF, LBB, RBB)
   const S0 = mk(); S0.run(RUN); const vb = S0.log.vent[S0.log.vent.length - 2], on = Math.floor(vb.on);
   const S = mk();
   const dead = occl ? Uint8Array.from({ length: n }, (_, c) => (S.blocked[c] && M.kind[c] === LH.KIND.VENT ? 1 : 0)) : null;
@@ -149,6 +149,16 @@ if (process.env.REG === 'time') {   // normal heart only: every region per 5 ms
   const Nn = decompose(null);
   console.log('normal heart by region, mean per 5 ms (heart vector X left Y sup Z ant; leads mV)');
   console.log('ms   region   X     Y     Z   | ' + SHOW.map((s) => s.padStart(5)).join(' '));
+  if (process.env.AREA && process.env.BLOCK) {   // QRS area per region: normal, block, and block − normal
+    const T = +(process.env.TMAX || 130), iI = LH.LEADS.indexOf('I'), iF = LH.LEADS.indexOf('aVF'), Bk = decompose(process.env.BLOCK);
+    const ar = (D) => { const sm = summary(D.S, D.out, 0, T); return sm.map((x) => [x.L[iI] * T, x.L[iF] * T]); };
+    const a = ar(Nn), b = ar(Bk), ax = (v) => (Math.atan2(v[1] * 2 / Math.sqrt(3), v[0]) * 180 / Math.PI).toFixed(0);
+    const tot = (z) => z.slice(0, NR).reduce((s, v) => [s[0] + v[0], s[1] + v[1]], [0, 0]);
+    console.log('region      normal I/aVF     ' + process.env.BLOCK + 'B I/aVF       change I/aVF  (mV·ms, 0-' + T + ' ms)');
+    RN.forEach((r, i) => console.log(r.padEnd(9) + (a[i][0].toFixed(1) + '/' + a[i][1].toFixed(1)).padStart(14) + (b[i][0].toFixed(1) + '/' + b[i][1].toFixed(1)).padStart(16) + ((b[i][0] - a[i][0]).toFixed(1) + '/' + (b[i][1] - a[i][1]).toFixed(1)).padStart(16)));
+    const ta = tot(a), tb = tot(b); console.log('total    ' + (ta[0].toFixed(1) + '/' + ta[1].toFixed(1)).padStart(14) + (tb[0].toFixed(1) + '/' + tb[1].toFixed(1)).padStart(16) + '   area axis ' + ax(ta) + ' -> ' + ax(tb));
+    process.exit(0);
+  }
   if (process.env.AREA) {   // QRS area (mV·ms) per region and per window, and each region's share of the frontal axis
     const T = +(process.env.TMAX || 60), B = +(process.env.BIN || 10), iI = LH.LEADS.indexOf('I'), iF = LH.LEADS.indexOf('aVF');
     const tot = new Array(NR + 1).fill(0).map(() => [0, 0]);

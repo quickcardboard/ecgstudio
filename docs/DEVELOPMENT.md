@@ -916,3 +916,15 @@ check for it. Full check sigmaRatio 4, brody 0, purkCrossSlow 15: 1 miss (distal
 proximal RCA regains the II Q), normal 54°, LAFB −42°, LPFB 84°, RVH 104°, R V1–V6
 0.21/0.47/0.61/0.60/0.89/0.86 (gain ×0.70 of the adopted calibration). Not adopted: LPFB loses its
 right axis deviation.
+
+LPFB at the measured fibre ratio (sigmaRatio 4, brody 0, purkCrossSlow 15). Anatomical LPF variants
+(terminal at the posteromedial papillary level, phi −1.9…−1.3, zuvc 0.29–0.5; territory to phi −2.0/
+−2.4; left septal fascicle with or without a mid-septal territory) all give 84–87°. Regional QRS
+areas (`AREA=1 BLOCK=LPF REG=time tools/regiondecomp.js`): the inferior wall's late forces turn
+down-right (I −18.6, aVF +41 mV·ms) and the septum loses its left-to-right force (I +16.2, as in
+LPFB's rS in I / qR in III), but the anterior and lateral walls keep I +45, so lead I stays positive.
+A more vertical heart moves the normal axis three times faster than LPFB (heartRotation 14 → 26:
+normal 54 → 80°, LPFB 85 → 92°). Read as a cardiologist would: LPFB I R/S 1.0/0.7 (no rS) and
+LAFB QRS 124 ms with II R/S 1.6/2.0 (QRS ≥ 120 ms excludes LAFB) — neither block is recognisable,
+whereas the current rebuild gives LAFB QRS 112 ms, II rS 0.8/2.7, and LPFB I 0.6/0.7, III qR 4.5.
+Not adopted. The axis numbers alone hid this; a criteria-based reader is needed for scoring.
