@@ -1207,3 +1207,8 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
 
 - The septal fibres (Durrer's mid-septal root, `septalFascicle`) stay in the model but are no longer drawn or labelled, and have no block menu of their own; share links with `b=LSF.complete` load without that block.
 - Their block behaviour is tied explicitly to the left posterior fascicle (`lsfTie = 'LPF'`, previously chosen by distance and already the LPF): an LPF block blocks the septal fibres too. ECGs are unchanged (fascsearch: LAFB −46°/−48°, LPFB 89°/91°).
+
+## Round 30: coronary artery labels
+
+- With Labels on, the external view names the drawn coronary arteries: left main, LAD, circumflex, RCA and PDA (red dot, `.tag.cor`). Each label sits at a point along its vessel, lifted off the surface, and hides when that surface faces away. Diagonal and obtuse-marginal labels are defined but skipped while those branches are not drawn.
+- Labels take an optional viewing cone (`cosMin`). The left main runs behind the pulmonary trunk to the left atrial appendage, so its label shows only within about 60° of a left, slightly superior view (the Lateral preset) and not from the front or behind.

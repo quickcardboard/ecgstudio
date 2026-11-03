@@ -208,6 +208,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .tag.chamber { font: 600 13px/1 var(--font-display); letter-spacing: 0.06em; padding-left: 6px; margin: -10px 0 0 -14px; background: rgba(10, 18, 26, 0.55); }
 .tag.chamber::before { display: none; }
 .tag.cs::before { background: var(--cs); }
+.tag.cor::before { background: var(--artery); }
 .tag.lead { font: 600 12px/1 var(--font-data); padding: 3px 5px; margin: -9px 0 0 -12px; background: rgba(10, 18, 26, 0.7); }
 .tag.lead::before { display: none; }
 .tag.limb { color: var(--limb); }
@@ -667,7 +668,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-03 (75b2cfe).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-03 (6e32b76).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -5134,10 +5135,10 @@ THE SOFTWARE.
     const epiOf = (L) => (c) => A.label[c] === L && A.epi[c];
     const mid = (ids, f = 0.5) => { const id = ids[Math.floor((ids.length - 1) * f)]; return [M.x[id], M.y[id], M.z[id]]; };
     g3.labels = [];
-    const add = (text, p, view, kind = 'anat', nrm = null) => {
+    const add = (text, p, view, kind = 'anat', nrm = null, cosMin = 0) => {
       const el = document.createElement('div'); el.className = `tag ${kind}`; el.textContent = text; layer.appendChild(el);
       const pos = V3(p);
-      g3.labels.push({ el, pos, view, nrm: nrm || pos.clone().sub(V3(Cv)).normalize(), space: 'heart' });
+      g3.labels.push({ el, pos, view, nrm: nrm || pos.clone().sub(V3(Cv)).normalize(), space: 'heart', cosMin });
     };
     // external view: surface anchors, hidden when they face away from the camera
     add('Right atrium', farthest(epiOf(4), [-1, 0.2, 0.3]), 'external');
@@ -5150,6 +5151,16 @@ THE SOFTWARE.
     add('SVC', A.landmarks.SVC.c, 'external');
     add('IVC', A.landmarks.IVC.c, 'external');
     add('SA node', [M.x[M.sanCell], M.y[M.sanCell], M.z[M.sanCell]], 'both', 'cs');
+    // coronary arteries (external view): a point along each named branch, lifted off the surface
+    for (const [b, text, f] of [['LM', 'Left main', 0.5], ['LAD', 'LAD', 0.45], ['D1', 'Diagonal', 0.6], ['LCx', 'Circumflex', 0.5], ['OM1', 'Obtuse marginal', 0.6], ['RCA', 'RCA', 0.4], ['PDA', 'PDA', 0.5]]) {
+      const ids = M.coronary.branches[b]; if (!ids || !ids.length) continue;
+      const n = M.coronary.nodes[ids[Math.floor((ids.length - 1) * f)]], o = outwardOf(n.vox);
+      // the left main runs behind the pulmonary trunk to the left atrial appendage: it is seen from the
+      // left (lateral view), so its label shows only within ~60° of a left, slightly superior view
+      const R = M.rot, t = [1, 0.4, 0.15], lm = b === 'LM';
+      const nrm = lm ? V3([0, 1, 2].map((j) => R[j] * t[0] + R[3 + j] * t[1] + R[6 + j] * t[2])).normalize() : V3(o);
+      add(text, [n.x + o[0] * 3, n.y + o[1] * 3, n.z + o[2] * 3], 'external', 'cor', nrm, lm ? 0.5 : 0);
+    }
     // cut views: chamber/wall names are placed on the current plane by placeCutLabels()
     for (const key of ['RA', 'LA', 'RV', 'LV', 'Septum', 'Anterior wall', 'Lateral wall', 'Inferior wall', 'Mitral valve', 'Tricuspid valve']) {
       const el = document.createElement('div'); el.className = `tag ${key.length <= 2 ? 'chamber' : 'anat'}`; el.textContent = key; layer.appendChild(el);
@@ -5326,7 +5337,7 @@ THE SOFTWARE.
         if (l.space === 'heart') tmp.copy(l.pos).applyMatrix4(mw); else tmp.copy(l.pos);
         if (l.view === 'external' || (l.view === 'both' && !cut)) {
           nw.copy(l.nrm).applyMatrix3(nmat).normalize(); toCam.copy(cam.position).sub(tmp);
-          if (nw.dot(toCam) < 0) vis = false;                 // anchor faces away from the viewer
+          if (nw.dot(toCam) < (l.cosMin ? l.cosMin * toCam.length() : 0)) vis = false;   // anchor faces away from the viewer (or outside its viewing cone)
         }
         if (vis) {
           tmp.project(cam);
