@@ -153,7 +153,7 @@
     brodyFade: 0.25,        // >0: the enhancement falls off as exp(−depth/brodyFade) from the cavity (depth = transmural UVC, 0 endo … 1 epi); 0 = uniform
     heartPitch: -10,          // degrees about the left–right axis (+ tips the anterior wall upward)
     heartYaw: 8,           // degrees about the vertical axis (+ = apex swung from anterior toward the left)
-    heartRotation: 14,    // degrees about the AP axis (+ = more vertical heart)
+    heartRotation: 17,    // degrees about the AP axis (+ = more vertical heart)
     apexX: 72, apexY: -34.83,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)
     apexPurkMul: 1, apexPurkZ: 0.3,   // Purkinje links below apexPurkZ (apicobasal UVC) conduct apexPurkMul× faster (1 = off)

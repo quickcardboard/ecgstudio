@@ -7,7 +7,7 @@ all rights reserved (LICENSE).
 ## Build and layout
 
 - `python3 tools/build.py` assembles `src/template.html` + `vendor/` (Three.js r128,
-  OrbitControls) + `src/engine.js` + `src/app.js` + `src/anatomy.json` + `src/torso_leadfield.json`
+  OrbitControls) + `src/engine.js` + `src/app.js` + `src/anatomy.json` + `src/torso_limb.json` (solved-torso limb-lead fields)
   into the single self-contained `index.html`. Commit the rebuilt `index.html` with source changes;
   it is what the site serves.
 - `src/engine.js`: anatomy, model, simulation and lead fields; runs in the browser
@@ -45,10 +45,10 @@ from `file://`; screenshot desktop (1440×900, 1280×720) and phone landscape (8
 Both are wanted: textbook-accurate axes and amplitudes, and accurate ischemia lead localisation
 and time course. Check both kinds of regression when tuning.
 
-Known limitations (rebuild-1 rounds 10–15 in docs/DEVELOPMENT.md):
-- limb leads come from a solved torso (`limbTorso2`, field solved for heartRotation 14): changing
+Known limitations (rebuild-1 rounds 10–17 in docs/DEVELOPMENT.md):
+- limb leads come from a solved torso (`limbTorso2`, field solved for heartRotation 17): changing
   heartRotation needs a re-solved field (`tools/export_heart_torso.js` + `ANISO=1 tools/torso_v2.py`)
-- normal axis about 0° (normal range, lead III negative); LPFB reaches 89° (one degree short)
+- normal axis about 0–15° (normal range, lead III negative); RVH shows an extreme (northwest) axis
 - LAFB shows a pseudo-infarct (Q/poor R progression) read as old anterior MI
 - distal LCx STEMI at 1 h is not visible; LBBB and RBBB axes are not textbook (read on morphology)
 - old apical (distal-LAD) infarct also shows inferior Q (wrap-around LAD pattern)
