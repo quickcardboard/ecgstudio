@@ -297,10 +297,10 @@
 
   // RV free wall growth map: full over the body of the wall, tapering at the
   // base (valve rings, outflow) and the apex
-  function rvThickenWeight(phi, z) {
+  function rvThickenWeight(phi, z, zMax = 0.92) {
     if (!(z >= 0)) return 0;
     const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
-    return sm((0.92 - z) / 0.2) * sm((z - 0.05) / 0.2);
+    return sm((zMax - z) / 0.2) * sm((z - 0.05) / 0.2);
   }
 
   // ---------------------------------------------------------------------------
@@ -335,7 +335,7 @@
       if (this.lvApexLayers) this._editLVWall(V, this.lvApexLayers, LAB.LV, lvApexWeight);
       // ventricular hypertrophy (opts.rvWallLayers: RV free wall, outward)
       this.rvWallLayers = opts.rvWallLayers || 0;
-      if (this.rvWallLayers) this._editLVWall(V, this.rvWallLayers, LAB.RV, rvThickenWeight);
+      if (this.rvWallLayers) { const zm = opts.rvThickZmax ?? 0.92; this._editLVWall(V, this.rvWallLayers, LAB.RV, (ph, z) => rvThickenWeight(ph, z, zm)); }
       // atrial wall thickening (opts.raWallLayers / laWallLayers, outward)
       this.raWallLayers = opts.raWallLayers !== undefined ? opts.raWallLayers : 1;   // one extra layer by default (RA force ≈ LA force, see LAE)
       this.laWallLayers = opts.laWallLayers || 0;

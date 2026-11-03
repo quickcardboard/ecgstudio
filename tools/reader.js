@@ -82,7 +82,8 @@ const territories = (leads) => Object.entries(GROUPS).filter(([, g]) => g.some((
 function diagnose(m, L) {
   const dx = [], f = {};
   // axis
-  f.axis = m.axis < -30 ? 'LAD' : m.axis > 90 ? 'RAD' : 'normal';
+  // axis: normal −30..90, LAD −30..−90, RAD 90..180, extreme ('northwest') −90..−180
+  f.axis = m.axis < -90 ? 'extreme' : m.axis < -30 ? 'LAD' : m.axis > 90 ? 'RAD' : 'normal';
   // conduction
   // LBBB as read clinically: wide QRS, QS/rS in V1 and a dominant, q-free R in V6 or lead I with a late
   // R peak (ACC/AHA 2009 lateral-R criterion relaxed: aVL/V5 may be transitional; axis not used).
@@ -93,7 +94,8 @@ function diagnose(m, L) {
   const narrow = m.qrs < 120;
   if (narrow && m.axis <= -45 && m.axis >= -90 && L.aVL.q.dur > 0 && L.aVL.R > L.aVL.S && ['II', 'III', 'aVF'].every((n) => L[n].S > L[n].R) && L.aVL.rpt >= 45) dx.push('LAFB');
   else if (narrow && m.axis <= -45 && m.axis >= -90) f.lafbIncomplete = true;
-  const rvh = m.axis > 90 && (L.V1.R > L.V1.S || L.V1.R >= 0.7);
+  // RVH: right or extreme (northwest, severe RVH) axis with a dominant or tall R in V1
+  const rvh = (m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7);
   if (narrow && m.axis > 90 && m.axis <= 180 && L.I.S > L.I.R && L.aVL.S > L.aVL.R && L.III.q.dur > 0 && L.III.R > L.III.S && L.aVF.R > L.aVF.S && !rvh) dx.push('LPFB');
   // hypertrophy
   const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S;
