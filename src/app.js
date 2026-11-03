@@ -1899,8 +1899,9 @@
     { id: 'lae', cat: 'Chambers', label: 'LAE', name: 'Left atrial enlargement', also: 'LAE P mitrale atrium notched P', apply: atrialSize },
     { id: 'lvh', cat: 'Chambers', label: 'LVH', name: 'Left ventricular hypertrophy', also: 'LVH ventricle voltage strain', rebuild: true },
     { id: 'rvh', cat: 'Chambers', label: 'RVH', name: 'Right ventricular hypertrophy', also: 'RVH ventricle right axis deviation', rebuild: true },
+    // WPW: left lateral only for now (the engine's setAccessoryPathway has other sites)
     { id: 'ap', cat: 'Accessory pathways', label: 'WPW', name: 'Accessory pathway (WPW)', also: 'Wolff-Parkinson-White pre-excitation bypass tract delta wave short PR',
-      options: [['left-lateral', 'Left lateral', '~55%'], ['posteroseptal', 'Posteroseptal', '~25%']], apply: (v) => S.setAccessoryPathway(v || null) },
+      options: [['left-lateral', 'Left lateral', '~55%']], apply: (v) => S.setAccessoryPathway(v || null) },
     { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
     { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
   ];
