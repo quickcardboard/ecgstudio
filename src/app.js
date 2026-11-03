@@ -1054,14 +1054,14 @@
   }
 
   function updateActionNote() {
-    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click on a coronary artery or the endocardium to start ischemia' }[ui.action];
+    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click on a coronary artery to start ischemia' }[ui.action];
     $('actionNote').hidden = !note || ui.tab === 'learn';
     $('actionNote').textContent = note || '';
   }
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for a PAC or PVC. Three quick taps on the right atrium start flutter, on the left atrium AF; three on the ventricles start VT and four VF.',
     blocks: 'Tap the AV node to step through the AV blocks; three quick taps start AVNRT (AVRT with an accessory pathway). Tap the SA node to cycle its blocks, a bundle branch or fascicle to block it or clear it.',
-    ischemia: 'Press and hold a coronary artery to occlude it. With the heart cut, hold the inner wall or the cut face for subendocardial ischemia.',
+    ischemia: 'Press and hold a coronary artery to occlude it.',
   };
 
   // pointer handling on the 3D canvas: a click (not a drag) acts
@@ -1138,6 +1138,10 @@
     return best < 0 ? null : { cell: best, endo: !!A.endo[best] };
   }
 
+  // Subendocardial ischemia from the 3D view is switched off for now: a local patch gives
+  // territory-specific reciprocal ST elevation (e.g. III, aVL) that real subendocardial
+  // ischemia does not show (see docs/DEVELOPMENT.md). The engine keeps addSubendocardial.
+  const SUBENDO_ON = false;
   // Ischemia clicks: an artery (or the outer surface near one) occludes it; with
   // the heart cut, the cut face or the inner (endocardial) wall of a ventricle
   // starts a subendocardial patch.
@@ -1156,7 +1160,7 @@
     const clot = ray.intersectObjects(g3.clots.children, false).find((h) => !front || h.distance <= front.distance + 3);
     if (clot) { const v = S.insults.find((x) => x.id === clot.object.userData.insult); if (v) { removeIschemia(v.id); flash(x, y, 'Occlusion removed'); return; } }
     let subCell = -1;
-    if (!corHit && cut && front) {
+    if (SUBENDO_ON && !corHit && cut && front) {
       if (front.object === g3.slab.im) { const c = nearestTissue(p.x, p.y, p.z, 1); if (c >= 0 && (A.label[c] === 1 || A.label[c] === 2)) subCell = c; else { flash(x, y, `${isM() ? 'Hold' : 'Click'} ventricular muscle`); return; } }
       else { const side = ventricularSide(p.x, p.y, p.z); if (side && side.endo) subCell = side.cell; }
     }
@@ -1172,7 +1176,7 @@
         g3.corPos.forEach((q, i) => { if (!cor.branches[cor.nodes[i].branch]) return; const d = q.distanceToSquared(p); if (d < bd) { bd = d; node = i; } });
       }
       const verb = isM() ? 'Hold' : 'Click';
-      if (node < 0) { flash(x, y, cut ? `${verb} an artery, the cut face or the inner wall` : `${verb} a coronary artery`); return; }
+      if (node < 0) { flash(x, y, SUBENDO_ON && cut ? `${verb} an artery, the cut face or the inner wall` : `${verb} a coronary artery`); return; }
       const same = S.insults.find((v) => v.kind === 'occlusion' && v.node === node);
       if (same) { removeIschemia(same.id); flash(x, y, 'Occlusion removed'); return; }
       captureRef(); added = S.addOcclusion(node);
@@ -2016,7 +2020,7 @@
     };
   }
   function applyScenario(sc) {
-    const nodes = M.coronary.nodes.length, sub = sc.sub.filter((c) => c < A.n && (A.label[c] === LH.LAB.LV || A.label[c] === LH.LAB.RV));
+    const nodes = M.coronary.nodes.length, sub = !SUBENDO_ON ? [] : sc.sub.filter((c) => c < A.n && (A.label[c] === LH.LAB.LV || A.label[c] === LH.LAB.RV));
     const occ = sc.occ.filter((n) => n < nodes);
     // a healthy stretch first, so the interpretation has this heart's normal beat to compare with
     if (sc.blocks.length || occ.length || sub.length) { S.run(2600); captureRef(); ecg.full = true; }
@@ -2024,7 +2028,7 @@
     renderBlockList();
     if (occ.length || sub.length) {
       for (const n of occ) S.addOcclusion(n);
-      for (const c of sub) S.addSubendocardial(c, 55);
+      if (SUBENDO_ON) for (const c of sub) S.addSubendocardial(c, 55);
       setIschTime(sc.h); recolorIschemia(); renderIschList();
     }
     if (sc.arr) {
