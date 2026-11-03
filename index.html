@@ -659,7 +659,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-03 (d9ddfde).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-03 (62b8334).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -1998,6 +1998,7 @@ THE SOFTWARE.
     // ECG
     ecgGain: 0.0143,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm; rescaled for the rebuild-1 heart and torso-field limb leads)
     precordialDipoleW: 0.55,
+    fullTorso: false,          // with chestTorso: every lead from the solved torso's electrode potentials (limb LA−RA, LL−RA; chest V − WCT), no heart-vector blend
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
@@ -4252,6 +4253,18 @@ THE SOFTWARE.
       // lead axes (I 0°, II +60°, III +120°; +angles are inferior), then
       // Goldberger's augmented leads — the limb electrodes are far-field.
       const L = this.leadsLatest, c60 = 0.5, s60 = 0.8660254;
+      leads: {
+      if (this.P.fullTorso && this.M._lw && this.M._lw.tv2) {
+        // one volume conductor for all leads: potentials at the electrodes (RA is the reference)
+        const ra = v(0), la = v(1), ll = v(2), wctF = (ra + la + ll) / 3, P = this.P;
+        L[0] = la - ra; L[1] = ll - ra; L[2] = ll - la;
+        L[3] = -(L[0] + L[1]) / 2; L[4] = (L[0] - L[2]) / 2; L[5] = (L[1] + L[2]) / 2;
+        for (let k = 0; k < 6; k++) {
+          L[6 + k] = v(3 + k) - wctF;
+          if (this._cavOmega) { const om = this._cavOmega[k]; L[6 + k] = (1 - om) * L[6 + k] + om * (v(this.M.cavityE) - wctF) * (P.cavityTorsoScale || 1); }
+        }
+        break leads;
+      }
       if (this.M.torsoLimb) {
         // bounded-torso lead fields (a computed Burger triangle), optionally
         // blended with the Einthoven projection (torsoBlend = torso share)
@@ -4275,6 +4288,7 @@ THE SOFTWARE.
         const u = dir[k], proj = D[0] * u[0] + D[1] * u[1] + D[2] * u[2];
         L[6 + k] = P.precordialGain * (P.precordialDipoleW * P.precordialDipoleGain * proj + (1 - P.precordialDipoleW) * (v(3 + k) - wct));
         if (this._cavOmega) { const om = this._cavOmega[k]; L[6 + k] = (1 - om) * L[6 + k] + om * P.precordialGain * (v(this.M.cavityE) - wct); }
+      }
       }
       // recording chain: 2nd-order Butterworth low-pass per lead (ECG machine filter)
       if (this.P.ecgLowpass > 0) {

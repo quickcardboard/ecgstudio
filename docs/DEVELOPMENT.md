@@ -986,3 +986,28 @@ anterior MI. Limb-lead model at sigmaRatio 4 (torsoBlend 0/0.5, torsoUniform 1, 
 limbRotation ±10): LPFB 47–90° (90 only with the normal axis at 73°); heart yaw −2…18 and pitch
 −20…0: LPFB 82–86°. At the measured fibre ratio LPFB has a ~85° ceiling in this heart that no
 conduction-system structure, orientation or limb-lead setting tested moves; sigmaRatio 10 stays.
+
+### rebuild-1 round 8: conductivities, a full torso conductor for every lead, and the reader
+
+Conductivities (literature check). Clerc 1976 (calf trabeculae; cable analysis: intra/extra
+resistance ratios 3.6 along and 12.6 across fibres), as usually tabulated: intracellular ~0.17/0.02 S/m
+(ratio ~9), extracellular ~0.63/0.24 S/m (~2.6); bulk ~0.80/0.26 S/m (~3). The "measured effective
+~3" quoted in earlier rounds is the bulk tissue ratio; the impressed source uses the intracellular
+tensor, so sigmaRatio 10 is physiological for the sources. What the model lacked is the medium: an
+anisotropic heart inside a torso instead of an isotropic infinite medium (chest) and a fitted
+limb-lead field.
+
+Full torso conductor. tools/export_heart_torso.js exports fibre directions; tools/torso_v2.py
+ANISO=1 gives the myocardium a bulk tensor (n·σ·n per face, Clerc bulk 0.80/0.26 S/m), with lungs
+0.05, blood 0.65, torso 0.22 S/m, 3 mm grid (1.5 min per solve set). Computed Burger triangle: I −15…
+−18°, II 71–74°, III 104–106°, |II|/|I| 1.6. Engine `fullTorso` (with `chestTorso`, off): every lead
+from the solved electrode potentials (I = LA − RA, II = LL − RA; chest V − WCT), no heart-vector blend,
+limb rotation, lead II gain or chest gain; one calibrated gain. Electrode–ventricle distances: V1 42,
+V2 26, V3 19, V4 20 (LV), V5 39, V6 77 mm.
+Reader, activation unchanged (tools/data/reader_fulltorso_*.json): isotropic heart 13/22 (1 partial,
+8 wrong); anisotropic 14/22 (1, 7); anisotropic + Brody 2: 11/22 (2, 9); rebuild 17/22 (3, 2). In the
+torso: LAFB (pseudo-infarct), LPFB (reads normal, 84°), LBBB (reads IVCD + LVH), and the 30-day Q
+of mid/distal LAD fail; V5 R ~2.5 mV. (The cavity window has no cavity electrode in the torso path:
+pairCoef returns before it, so it only attenuates; a solved cavity lead field would be needed.)
+So the physical conductor alone does not fix the fascicular blocks with today's activation, and
+it loses the anterior Q that the window provided.

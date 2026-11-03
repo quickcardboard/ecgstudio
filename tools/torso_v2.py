@@ -26,6 +26,7 @@ d = json.load(open(src))
 A, B = float(d['torso']['a']), float(d['torso']['b'])   # chest cross-section from the engine
 Y0, Y1 = float(os.environ.get('TORSO_Y0', -360)), float(os.environ.get('TORSO_Y1', 220))   # trunk bottom (pelvis) / top (mm, heart frame)
 SIG = dict(torso=0.22, lung=0.05, blood=0.65, heart=0.20)
+ANISO = False
 SIG.update(json.loads(os.environ.get('SIGMA', '{}') or '{}'))   # SIGMA='{"lung":0.08}' overrides
 
 # LIMBS=1: add arms hanging at the sides (joined to the trunk only at the
@@ -67,6 +68,21 @@ if os.environ.get('NOHEART'):          # homogeneous heart region (no cavity blo
 else:
     blood = rasterise(d['blood'], SIG['blood'])
     heart = rasterise(d['tissue'], SIG['heart'])
+# ANISO=1: myocardium conducts anisotropically (bulk = intracellular + extracellular; Clerc 1976:
+# along fibres ~0.80, across ~0.26 S/m); each face between two heart nodes gets n·σ·n from the
+# nodes' fibre directions (cross terms neglected)
+ANISO = bool(os.environ.get('ANISO')) and 'fib' in d
+if ANISO:
+    SIG.setdefault('heartL', 0.80); SIG.setdefault('heartT', 0.26)
+    FB = np.zeros(X.shape + (3,)); CNT = np.zeros(X.shape)
+    p = np.asarray(d['tissue'], float).reshape(-1, 3); fv = np.asarray(d['fib'], float).reshape(-1, 3)
+    i = np.rint((p[:, 0] - xs[0]) / H).astype(int); j = np.rint((p[:, 1] - ys[0]) / H).astype(int); k = np.rint((p[:, 2] - zs[0]) / H).astype(int)
+    ok = (i >= 0) & (i < len(xs)) & (j >= 0) & (j < len(ys)) & (k >= 0) & (k < len(zs)) & (np.abs(fv).sum(1) > 0)
+    # sign-free averaging of fibre orientations: accumulate the outer product's diagonal (f_a²)
+    np.add.at(FB, (i[ok], j[ok], k[ok]), fv[ok] ** 2); np.add.at(CNT, (i[ok], j[ok], k[ok]), 1)
+    F2 = np.where(CNT[..., None] > 0, FB / np.maximum(CNT, 1)[..., None], 1 / 3)
+    sigA = [np.where(heart, SIG['heartT'] + (SIG['heartL'] - SIG['heartT']) * F2[..., a], sig) for a in range(3)]
+    print('anisotropic myocardium: along %.2f, across %.2f S/m' % (SIG['heartL'], SIG['heartT']))
 # Chest wall and pericardium (optional): STERNUM=1 sternum/costal cartilage in front of the heart
 # (bone 0.02 S/m); RIBS=1 rib-cage shell (bone and intercostal muscle, effective ~0.1 S/m);
 # FAT=1 pericardial/epicardial fat (0.04 S/m) as a shell round the heart.
@@ -91,7 +107,8 @@ rows, cols, vals = [], [], []
 for ax in range(3):
     sa = [slice(None)] * 3; sb = [slice(None)] * 3; sa[ax] = slice(0, -1); sb[ax] = slice(1, None)
     a = idx[tuple(sa)]; b = idx[tuple(sb)]; m = (a >= 0) & (b >= 0)
-    s1 = sig[tuple(sa)][m]; s2 = sig[tuple(sb)][m]
+    sg = sigA[ax] if ANISO else sig
+    s1 = sg[tuple(sa)][m]; s2 = sg[tuple(sb)][m]
     g = 2 * s1 * s2 / (s1 + s2) * H            # face conductance (harmonic mean) × area/length (H²/H)
     rows.append(a[m]); cols.append(b[m]); vals.append(g)
 r = np.concatenate(rows); c = np.concatenate(cols); g = np.concatenate(vals)

@@ -179,6 +179,7 @@ module.exports = { read, diagnose, run, SCEN, MI };
 if (require.main === module) {
   const path = require('path'), fs = require('fs');
   const ENG = path.resolve(process.argv[2] || path.join(__dirname, '../src/engine.js')), LH = require(ENG);
+  if (process.env.TV2) LH.setDefaultTorso2(require(path.resolve(process.env.TV2)));   // solved torso (fullTorso / chestTorso)
   const JA = JSON.parse(fs.readFileSync(path.join(path.dirname(ENG), 'anatomy.json')));
   const params = JSON.parse(process.argv[3] || '{}'), names = process.argv[4] ? process.argv[4].split(',') : null;
   const res = run(LH, JA, params, names);
