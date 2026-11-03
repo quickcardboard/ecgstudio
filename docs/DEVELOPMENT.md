@@ -857,3 +857,29 @@ calibration) 8 misses (mid/distal LAD V2–V4 Q, mid LAD aVL ST, distal LAD III 
 0.31/0.62/0.68/0.82/1.08/0.97. Its limb voltages at app scale (calibrated gain ×0.76): normal II R
 1.2, LAFB aVL R 3.1, LPFB III R 4.2 mV (R0: 2.9/3.2; textbook ~1.5), i.e. the fascicular-amplitude
 limitation grows. torsoBlend 1 alone: 12 misses (proximal RCA/PDA lose the II Q), fascsearch 1.8.
+
+Adopted on rebuild-1 (round 3): wall layers reach the base (`LV_BASE_TAPER` restores the taper),
+limb leads from the torso field alone (`torsoBlend` 1, `torsoIIGain` 1, `limbRotation` 0),
+`precordialGain` 0.66, `ecgGain` 0.0194 → 0.0143 (calibrated ratio). Full regression against R0:
+normal axis 22 → 29°, T axis 39 → 60°, T III +0.26 → +0.49, T aVL +0.18 → −0.10, II R 1.13 → 1.14;
+LAFB −44 → −62° (aVL R 2.9 → 3.1), LPFB 93 → 91° (III R 3.2 → 4.5); RVH axis 149 → 121°, R aVR
+1.42 → 0.21; LVH Sokolow 4.60, Cornell 2.80; blocks, WPW, P waves, arrhythmias, AVNRT/AVRT
+unchanged in behaviour (sinus QRS 84 ms); AHA 90%; checker 9 → 10 (proximal RCA loses the II Q,
+distal LAD a III Q).
+
+### rebuild-1 round 4: cavity window (Wilson) for transmural scars
+
+A chest electrode over a transmural scar looks through it at the LV cavity, whose potential is
+negative from the start of LV activation; that, not the late would-be activation of the dead
+tissue, is what removes the initial r. New `cavityWindow` k: a virtual electrode at the LV cavity
+centroid (point-source field, one more lead weight), and per chest electrode the share Ω_e of its
+view of the LV epicardium (facing cells, cosθ/r², line of sight not crossing living ventricular
+muscle on a 2 mm grid) that is necrotic; the chest lead becomes (1 − kΩ)·V + kΩ·g·(φ_cav − WCT).
+Ω (k 1, 30 days): proximal LAD V3–V5 0.72/0.99/0.54; mid LAD 0.71/0.98/0.44; distal LAD 0.49/0.78/
+0.15; proximal LCx V5/V6 0.45/0.89; distal LCx V6 0.44; PDA none; proximal RCA V1 0.52 (the dead RV
+opens the view). The normal ECG is unchanged (no scar, no window); the activation sequence and axes
+are untouched.
+Full check (k 0.3/0.45/0.6/1): 6/5/5/5 misses (10 without). At 0.45: mid LAD Q V1–V5 (all core
+leads), distal LAD Q V3–V5 (V2 missing) and III; remaining: mid LAD aVL ST, distal LAD III Q and ST,
+proximal RCA no II Q. ischaudit: mid LAD Q V1–V5 from 12 h, ST/T course as before (ST elevation at
+48 h slightly shorter); proximal LCx unchanged. Default k 0.45 (QS depth ~ −2 mV in V3–V4).
