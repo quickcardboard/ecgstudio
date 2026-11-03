@@ -705,7 +705,9 @@
       const rbbSept = this.chain(KIND.BUNDLE, SEG.RBB, rbbPath, P.cvBundle, 2.0, hisEnd);
       const rvFree = (c) => endoRV(c) && A.label[c] === LAB.RV;
       const rbbMidP = P2(rbbMid);
-      const mbEnd = this._nearestWhere(rvFree, (c) => Math.abs(A.zuvc[c] - 0.40) * 60 - len(sub(P2(c), rbbMidP)) * 0.5 - P2(c)[2] * 0.3);
+      const mbPhi = P.mbPhi == null ? null : P.mbPhi * Math.PI / 180;   // optional insertion angle (rotational UVC, deg)
+      const mbEnd = mbPhi == null ? this._nearestWhere(rvFree, (c) => Math.abs(A.zuvc[c] - 0.40) * 60 - len(sub(P2(c), rbbMidP)) * 0.5 - P2(c)[2] * 0.3)
+        : this._nearestWhere(rvFree, (c) => Math.abs(A.zuvc[c] - (P.mbZ ?? 0.40)) * 60 + Math.abs(Math.atan2(Math.sin(A.phi[c] - mbPhi), Math.cos(A.phi[c] - mbPhi))) * 40 + A.tm[c] * 5);
       const mbPts = []; const mbEndP = P2(mbEnd);
       const mbLen = len(sub(mbEndP, rbbMidP)); const nmb = Math.max(2, Math.round(mbLen / 2));
       for (let s = 1; s <= nmb; s++) mbPts.push(lerp(rbbMidP, mbEndP, s / nmb));

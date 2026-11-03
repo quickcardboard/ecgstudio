@@ -1,7 +1,7 @@
 // Activation geometry per LV region (normal sinus beat): endo/mid/epi activation times, share of
 // cells whose local propagation is mainly transmural, and the mean propagation direction (torso frame:
 // X left, Y superior, Z anterior). With a site, the cells that die in that old infarct are reported too.
-//   node tools/actgeom.js '{params}' [site]
+//   node tools/actgeom.js '{params}' [site]     BLOCK=LBB,... applies conduction blocks; ZSPLIT=1 splits regions into base/mid
 const fs = require('fs'); const LH = require('../src/engine.js');
 const LV0 = LH.hypertrophyOptions({}).anatomy.lvWallLayers;
 const JA = JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json'));
@@ -17,7 +17,7 @@ for (let c = 0; c < n; c++) {
   if (lab === LH.LAB.RV) reg[c] = 5;
   else if (lab === LH.LAB.LV && z >= 0) { if (z < 0.25) reg[c] = 4; else { const d = ((A.phi[c] % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI); reg[c] = RN.indexOf(SEC[Math.min(5, Math.floor(d / (Math.PI / 3)))]); } }
 }
-const S = new LH.Sim(M, { seed: 1 }); S.run(3000);
+const S = new LH.Sim(M, { seed: 1 }); if (process.env.BLOCK) for (const b of process.env.BLOCK.split(',')) S.setBlock(b, 'complete'); S.run(3000);
 const vb = S.log.vent[S.log.vent.length - 1], on = vb.on;
 const ta = Float64Array.from(S.tAct, (t) => t - on);
 let dead = null;
@@ -48,7 +48,7 @@ const add = (key, c) => {
 };
 for (let c = 0; c < n; c++) {
   if (reg[c] < 0 || !ok(c)) continue;
-  add(RN[reg[c]], c);
+  add(RN[reg[c]] + (process.env.ZSPLIT && reg[c] < 5 && reg[c] !== 4 ? (A.zuvc[c] > 0.6 ? ' base' : ' mid') : ''), c);
   if (dead && dead[c]) add('DEAD ' + RN[reg[c]], c);
 }
 const f = (x) => (x >= 0 ? ' ' : '') + x.toFixed(2);
