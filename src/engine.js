@@ -320,7 +320,7 @@
       // The averaged CT heart's LV free wall (~10 mm) is thickened by 2 voxel
       // layers (~12 mm, upper normal); with the fading Brody effect this keeps
       // the normal, LAFB and LPFB axes together (rebuild-1 round 1 notes).
-      const layers = opts.lvWallLayers !== undefined ? opts.lvWallLayers : 2;
+      const layers = opts.lvWallLayers !== undefined ? opts.lvWallLayers : (typeof process !== 'undefined' && process.env && process.env.LV_LAYERS !== undefined ? +process.env.LV_LAYERS : 2);   // (LV_LAYERS: Node test override)
       this.lvWallLayers = layers;
       if (layers) this._editLVWall(V, layers);
       // opts.lvRearLayers: extra layers on the inferior and inferolateral ("posterior") wall only,
@@ -339,6 +339,12 @@
       if (this.raWallLayers) this._editLVWall(V, this.raWallLayers, LAB.RA, () => 1);
       if (this.laWallLayers) this._editLVWall(V, this.laWallLayers, LAB.LA, () => 1);
       this._materialize(V);
+      // Anatomical alignment of the rotational coordinate: the engine places fascicles,
+      // Purkinje territories and coronary paths by phi values set on the reference (average)
+      // heart. Another heart's phi is remapped piecewise-linearly so that its own anterior and
+      // inferior RV insertions (septal junctions) fall where the reference heart's do.
+      // (opts.phiAlign or PHI_ALIGN=1; reference junctions measured on the average heart)
+      if (opts.phiAlign || (typeof process !== 'undefined' && process.env && process.env.PHI_ALIGN)) this._alignPhi({ antJ: 1.509, infJ: -0.594 });
       this.landmarks = json.landmarks;
       this._classifySurfaces();
     }
@@ -361,6 +367,21 @@
       });
     }
 
+    _alignPhi(ref) {
+      const pos = [], neg = [];
+      for (let c = 0; c < this.n; c++) {
+        if (this.label[c] !== LAB.LV || this.zuvc[c] < 0.2 || this.zuvc[c] > 0.8) continue;
+        const i = this.ii[c], j = this.jj[c], k = this.kk[c]; let rv = false;
+        for (const [a, b, e] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) { const w = this.at(i + a, j + b, k + e); if (w >= 0 && this.label[w] === LAB.RV) rv = true; }
+        if (rv) (this.phi[c] > 0 ? pos : neg).push(this.phi[c]);
+      }
+      if (!pos.length || !neg.length) return;
+      const med = (a) => a.sort((x, y) => x - y)[Math.floor(a.length / 2)], antJ = med(pos), infJ = med(neg), PI = Math.PI;
+      const xs = [-PI, infJ, antJ, PI], ys = [-PI, ref.infJ, ref.antJ, PI];
+      const f = (p) => { for (let q = 0; q < 3; q++) if (p <= xs[q + 1]) return ys[q] + (ys[q + 1] - ys[q]) * (p - xs[q]) / (xs[q + 1] - xs[q]); return p; };
+      for (let c = 0; c < this.n; c++) if (this.zuvc[c] >= 0) this.phi[c] = f(this.phi[c]);
+      this.phiAlign = { antJ, infJ, ref };
+    }
     _editLVWall(V, layers, label = LAB.LV, weight = lvThickenWeight) {
       const [nx, ny, nz] = this.dims, N = nx * ny * nz;
       const nb = (g) => { const k = g % nz, j = ((g / nz) | 0) % ny, i = (g / (ny * nz)) | 0, out = [];
@@ -684,7 +705,10 @@
 
       const fasc = (seg, phi, zz) => {
         const tgt = this._uvcNearest(endoLV, phi, zz);
-        const path = A.path(A.nearest(this.pt(lbbEnd), endoLV), tgt, endoLV).map(P2);
+        // route through a waypoint on the fascicle's own side of the septum (halfway in
+        // rotational and apicobasal UVC), so the shortest path cannot run round the other wall
+        const s0 = A.nearest(this.pt(lbbEnd), endoLV), wp = this._uvcNearest(endoLV, (A.phi[s0] + phi) / 2, (A.zuvc[s0] + zz) / 2);
+        const path = A.path(s0, wp, endoLV).concat(A.path(wp, tgt, endoLV).slice(1)).map(P2);
         return this.chain(KIND.BUNDLE, seg, path, P.cvBundle, 2.0, lbbEnd);
       };
       // Two-fascicle left bundle: terminals at Durrer's anterior and posterior
@@ -2603,7 +2627,7 @@
   // (strain). Validated with tools/hyper.js.
   function hypertrophyOptions({ lvh = false, rvh = false } = {}) {
     return {
-      anatomy: { lvWallLayers: lvh ? 6 : 2, rvWallLayers: rvh ? 5 : 0 },
+      anatomy: { lvWallLayers: (lvh ? 4 : 0) + (typeof process !== 'undefined' && process.env && process.env.LV_LAYERS !== undefined ? +process.env.LV_LAYERS : 2), rvWallLayers: rvh ? 5 : 0 },
       params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1 },
     };
   }

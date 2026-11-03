@@ -1024,3 +1024,27 @@ time 42–44 ms instead of > 60: the torso near field gives V5/V6 an early peak)
 +30°; LVH read in most blocks (V5 R ~2.5 mV). The ~85° LPFB ceiling is the same in the hybrid and
 in the torso conductor, so it comes from the heart (geometry/activation of the posterior territory),
 not the forward model.
+
+### heart-16 round 1: an individual CT heart (Rodero et al. 2021, case 16)
+
+Source: "Virtual cohort of adult healthy four-chamber heart meshes from CT images", Rodero et al.,
+Zenodo 10.5281/zenodo.4590294, CC BY 4.0 (twenty end-diastolic CT hearts of patients with no cardiac
+disease on follow-up; the current heart is the cohort's average shape). Case 16 is closest to the
+average in the shape-model weights (first nine modes). Same format (labels, fibres, sheets, UVC), so
+tools/parse_vtk.py and tools/build_anatomy.py build it unchanged (src/anatomy.json on this branch).
+Native anatomy: LV wall 9–10 mm (no added layers needed; `LV_LAYERS` test override), long axis
+frontal 39°, 25° below horizontal, 37° left of sagittal (a horizontal-normal heart).
+
+Two things that only worked on the average heart:
+- rotational UVC values are anatomy-specific (septal junctions 1.24/−0.92 vs 1.51/−0.59): new
+  `_alignPhi` (opts.phiAlign / PHI_ALIGN) remaps phi piecewise-linearly so a heart's anterior and
+  inferior RV insertions fall where the reference heart's do;
+- the fascicles were shortest endocardial paths: on case 16 the LAF ran round the inferior wall
+  (anterior paraseptal Purkinje at 39 ms vs 21). Fascicles now pass a waypoint halfway (UVC) on their
+  own side of the septum (early anterior site 37 → 10 ms; acttune 35 → 26; average heart 13).
+Reader (tools/data/reader_case16_*.json; app gain calibrated per variant): 8–11/22 vs 17/22 for the
+average heart. Normal axis −56 … +12°, LPFB 68–86° in every variant (the same ceiling as on the
+average heart, in both forward models), LBBB reads IVCD, proximal and distal LCx injure inferiorly
+(the lateral wall of this horizontal heart faces down: inferior-facing epicardium at phi −1.81 vs
+−1.36). The LPFB ceiling therefore follows neither the heart shape nor the conductor; it is in the
+conduction-system model (Purkinje territories and their activation in block).
