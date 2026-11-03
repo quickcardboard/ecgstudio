@@ -928,3 +928,29 @@ normal 54 → 80°, LPFB 85 → 92°). Read as a cardiologist would: LPFB I R/S 
 LAFB QRS 124 ms with II R/S 1.6/2.0 (QRS ≥ 120 ms excludes LAFB) — neither block is recognisable,
 whereas the current rebuild gives LAFB QRS 112 ms, II rS 0.8/2.7, and LPFB I 0.6/0.7, III qR 4.5.
 Not adopted. The axis numbers alone hid this; a criteria-based reader is needed for scoring.
+
+### rebuild-1 round 6: blind criteria-based reader (tools/reader.js)
+
+Scoring by "would a cardiologist's reading match the pathology?". The reader sees only the 12
+leads: baseline from the flattest TP stretch; QRS onset/end from the spatial velocity (QRS within
+~5 ms of the simulator's activation span); P wave around the largest atrial peak (PR reads ~15 ms
+shorter than atrial activation, as on paper); T end; per-lead q (duration/depth), R, S, R′, QS,
+R-peak time, J-point ST and T. Criteria: ACC/AHA/HRS 2009 (LAFB, LPFB, LBBB, RBBB, IVCD), Sokolow-
+Lyon/Cornell LVH (not in BBB; with RVH only Sokolow), RVH, PR > 200, QTc > 460 (narrow QRS only),
+Fourth Universal Definition STEMI and pathological Q (two contiguous leads; III, aVR, V1 not used
+for Q). Scenarios: normal, 1st-degree AVB, LAFB, LPFB, LBBB, RBBB, LVH, RVH, seven occlusions at 1 h
+(STEMI territory) and 30 days (Q territory), with required/allowed territories and associated
+findings allowed where they follow from the occlusion (LAFB/RBBB with proximal/mid LAD, 1st-degree
+AVB with RCA/PDA, T inversion, long QT). `node tools/reader.js [engine.js] ['{params}'] [scen,...]`.
+Results (tools/data/reader_*.json): live 14/22 read correctly, 4 partial, 4 wrong; rebuild 14/22,
+6 partial, 2 wrong; physiological fibre ratio (sigmaRatio 4, brody 0, purkCrossSlow 15) 12/22, 7, 3.
+- all: normal, RBBB, LVH, pLAD, pLCx 1 h, PDA 1 h read right; dLCx (1 h and 30 d) reads normal in all
+  three (distal LCx occlusion is often ECG-silent clinically); mid LAD 1 h adds lateral ST
+  elevation (I/aVL) in all three; LAFB reads LAFB + a pseudo-infarct (broad q 34–45 ms in I/aVL,
+  q in V2–V3/V5–V6) in all three.
+- live only: LBBB fails (reads IVCD + septal/anterior Q), RVH with an inferior Q, distal LAD 30 d
+  without Q.
+- rebuild: LBBB right; new partials: lateral Q added to mid/distal LAD at 30 d, RVH reading after
+  proximal LCx (loss of lateral forces with tall V1 R, the posterior-MI mimic), LVH after proximal
+  RCA, LAFB reading after distal LCx.
+- physiological: LPFB fails (reads an inferior old MI), LAFB widens to IVCD.
