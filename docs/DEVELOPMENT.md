@@ -1100,3 +1100,14 @@ balance of lead I, so with this heart one of the two is borderline.
 - Apical anastomoses (`purkCrossApexZ` 0.35 / 0.45 / 0.55) and a narrower LPF territory (`lpfTerrHi` 0.2) with the realistic limb field: LAFB −36° at best, LPFB 74–81°. Normal 27–41°, LBBB 65°, RBBB −40° to −50°. No pass.
 - LV long axis in the torso frame: 52° below horizontal in the frontal plane, 39° anterior (CT literature about 40–50° and 30–45°), so the heart's placement is not grossly off.
 - The 1.5× fascicular limb voltages and the textbook fascicular axes come from the same cause, the cylinder field's 3× vertical gain. Under a realistic limb field the activation gives LAFB about −35° and LPFB about 80°.
+
+## rebuild-1 round 14: literature on calibrated ECG models, and the joint refit
+
+Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13740, digital twins from 12-lead ECG + MRI with realistic Purkinje networks), Zappon et al. 2024 (2407.17146, ECG variability), Grandits, Gillette et al. 2024 (2411.00165, identifiability of the conduction system).
+
+- The field fixes the structure (anatomy, torso, Purkinje network, root regions) and the ranges from data, then fits a few parameters jointly to the ECG: root nodes / Purkinje–muscle junctions and conduction speeds. Generic literature values are not expected to reproduce an ECG on their own.
+- Purkinje speed: 2–4 m/s (Durrer); the best QRS fits came at 4 m/s or with the roots firing at once. Ours is 1.82.
+- Myocardium: fibre 0.50–0.65, cross-fibre 0.29–0.48, transmural 0.25–0.60 m/s (anisotropy ratio about 1.35–1.7); fast endocardial layer 0.7–1.5 (sparse) to 1.0–1.9 m/s (dense). Ours is 0.62 / 0.26 (ratio 2.4), with the cross-fibre speed at or below the bottom of the published range.
+- Grandits et al.: different activation maps can give identical ECGs, so a prior on Purkinje–muscle junctions is needed (our activation-map score plays that role).
+- Zappon et al.: diagnostic ECG features are fairly robust to realistic heart position/orientation and conductivity uncertainty in a calibrated model. Our model's sensitivity is therefore a model defect, not the norm.
+- `tools/physfit.js`: joint random search with the solved-torso limb leads (field re-solved per tilt: `TV2DIR/tv<tilt>.json`), score = reader passes + ½ partials − axis shortfall/30°. Stage 1 (old speed ranges, 16 candidates) stalled at LAFB about −30°, LPFB about 75°; stage 2 uses the published speed ranges.
