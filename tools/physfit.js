@@ -4,7 +4,7 @@
 //   TV2DIR=dir node tools/physfit.js out.json [N] [seed]      (BASE / SPACE env override)
 const { spawn } = require('child_process'), fs = require('fs'), path = require('path');
 const out = process.argv[2], N = +(process.argv[3] || 96); let seed = +(process.argv[4] || 11);
-const CWD = path.resolve(__dirname, '..'), SC = 'normal,LAFB,LPFB,LBBB,RBBB', TD = process.env.TV2DIR;
+const CWD = path.resolve(__dirname, '..'), SC = process.env.SCEN === 'all' ? null : (process.env.SCEN || 'normal,LAFB,LPFB,LBBB,RBBB'), TD = process.env.TV2DIR;
 const sh = (args, env = {}) => new Promise((ok) => { const ch = spawn('node', args, { cwd: CWD, env: { ...process.env, ...env } }); let s = ''; ch.stdout.on('data', (d) => (s += d)); ch.on('close', () => ok(s)); });
 const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff), pick = (a) => a[Math.floor(rnd() * a.length)];
 const BASE = process.env.BASE ? JSON.parse(process.env.BASE) : { limbTorso2: true, septalFascicle: true };
@@ -14,7 +14,7 @@ const space = process.env.SPACE ? JSON.parse(process.env.SPACE) : {
   lpfTerrHi: [0.56, 0.2], mbPhi: [null, 65, 55] };
 // axis criteria: shortfall in degrees (0 = inside)
 const AX = { normal: (a) => (a < -30 ? -30 - a : a > 90 ? a - 90 : 0), LAFB: (a) => (a > -45 ? a + 45 : 0), LPFB: (a) => (a < 90 ? 90 - a : 0),
-  LBBB: (a) => 0, RBBB: (a) => (a < -30 ? -30 - a : 0) };
+  LBBB: () => 0, RBBB: () => 0 };   // bundle branch blocks are read on QRS width and V1/V6 shape, not the axis
 const res = [];
 async function one(p) {
   const env = TD ? { TV2: path.join(TD, `tv${p.heartRotation ?? 14}.json`) } : {};
@@ -22,7 +22,7 @@ async function one(p) {
   if (g.trim() !== 'ok') { res.push({ p, reentry: true, score: -99 }); return; }
   const fc = JSON.parse((await sh(['tools/fullcheck.js', JSON.stringify(p)], { ...env, CS_LITE: '1', NOISCH: '1' })).trim().split('\n').pop());
   const q = { ...p, ecgGain: +(0.0143 * fc.gain / 0.0192).toFixed(5) };
-  const r = JSON.parse(await sh(['tools/reader.js', 'src/engine.js', JSON.stringify(q), SC], { ...env, JSON: '1' }));
+  const r = JSON.parse(await sh(SC ? ['tools/reader.js', 'src/engine.js', JSON.stringify(q), SC] : ['tools/reader.js', 'src/engine.js', JSON.stringify(q)], { ...env, JSON: '1' }));
   const pass = r.filter((x) => x.grade === 'pass').length, part = r.filter((x) => x.grade === 'partial').length;
   const short = r.reduce((s, x) => s + (AX[x.scen] ? AX[x.scen](x.axis) : 0), 0);
   res.push({ p: q, pass, part, short, score: +(pass + 0.5 * part - short / 30).toFixed(2), reads: Object.fromEntries(r.map((x) => [x.scen, x.grade[0] + ':' + (x.dx.filter((d) => d !== 'T inversion').join(',') || 'normal') + ' ax' + x.axis + ' qrs' + x.qrs])) });

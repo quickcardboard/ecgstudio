@@ -84,7 +84,10 @@ function diagnose(m, L) {
   // axis
   f.axis = m.axis < -30 ? 'LAD' : m.axis > 90 ? 'RAD' : 'normal';
   // conduction
-  const lbbb = m.qrs >= 120 && ['I', 'aVL', 'V5', 'V6'].filter((n) => L[n].posShare >= 0.6 && L[n].q.dur === 0).length >= 3 && L.V6.rpt > 60 && (L.V1.qs || L.V1.R < L.V1.neg);
+  // LBBB as read clinically: wide QRS, QS/rS in V1 and a dominant, q-free R in V6 or lead I with a late
+  // R peak (ACC/AHA 2009 lateral-R criterion relaxed: aVL/V5 may be transitional; axis not used).
+  const latR = (n) => L[n].posShare >= 0.6 && L[n].q.dur === 0;
+  const lbbb = m.qrs >= 120 && (latR('V6') || latR('I')) && Math.max(L.V6.rpt, L.I.rpt) > 60 && (L.V1.qs || L.V1.R < L.V1.neg);
   const rbbb = m.qrs >= 120 && ((L.V1.rPrime > 0 && L.V1.rPrime > L.V1.rFirst) || (L.V2.rPrime > 0 && L.V2.rPrime > L.V2.rFirst) || (L.V1.R > L.V1.S && L.V1.rpt > 50)) && (L.I.sWide >= 40 || L.V6.sWide >= 40 || L.I.S > L.I.R || L.V6.S > L.V6.R);
   if (lbbb) dx.push('LBBB'); else if (rbbb) dx.push('RBBB'); else if (m.qrs >= 110) dx.push('IVCD');
   const narrow = m.qrs < 120;
