@@ -1042,3 +1042,20 @@ torso: 63–85°. Best hybrid variant (purkCrossSlow 1.5, cvPurkinje 1.82, lafPh
 I r/S 0.4/0.4; LAFB −63° with the pseudo-infarct; dLCx 30 d now right), full checker 1 miss (rebuild
 2), activation score 8.0 (rebuild 12.5; early anterior/septal/posterior sites 4.1/8.2/4.1 ms, LV
 endocardium 75% at 30 ms, apex median 27 ms, total 80 ms), R V1–V6 0.26/0.50/0.51/0.57/1.20/0.96.
+
+Cardone-Noott et al. 2016 (Europace 18 Suppl 4: iv4–iv15, PMC5225966), checked in full: root points
+"four LV earliest activation sites (LV mid septum, LV basal anterior paraseptal, and two LV
+mid-posterior) and three in the RV (RV mid septum, two RV free wall)", from Durrer's "basal anterior
+paraseptal, the mid-septum and the posterior apex regions"; each endocardial node activates at a time
+proportional to its distance to the nearest root (Dijkstra), the speed tuned to Durrer's endocardial
+times. LAFB by knocking out the anterior root: QRS < 120 ms, late axis −50°, qR aVL, R-peak time aVL
+42 ms. LPFB by knocking out the posterior roots: "right-deviated late QRS axis to 100°; Rs or RS
+patterns in leads I and aVL; qR patterns in leads III and aVF". So the published model's LPFB also has
+lead I equiphasic/R-dominant and meets LPFB by the late axis; our Durrer-root variant (LPFB 90°, I r/S
+0.4/0.4) sits at the same place. LBBB = both LV branches knocked out.
+
+Frontal tilt with the Durrer-root variant (reader, tools/data/reader_durrer_tilt*.json): heartRotation
+14 (now): LPFB 90° fails, LBBB passes (17/22); 15, 16, 17: LPFB 91° passes, normal 54/57/59°, but LBBB
+(axis 76–79°) reads IVCD — lead I upright for only 53% of the QRS and aVL mostly negative — (17/22
+each); 20/23: 16/22, 14/22. LPFB and LBBB trade places within one degree: both depend on the same
+balance of lead I, so with this heart one of the two is borderline.
