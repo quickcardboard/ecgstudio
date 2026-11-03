@@ -1024,3 +1024,21 @@ time 42–44 ms instead of > 60: the torso near field gives V5/V6 an early peak)
 +30°; LVH read in most blocks (V5 R ~2.5 mV). The ~85° LPFB ceiling is the same in the hybrid and
 in the torso conductor, so it comes from the heart (geometry/activation of the posterior territory),
 not the forward model.
+
+### rebuild-1 round 9: Durrer-root conduction system (literature roots, near-continuous endocardial layer)
+
+What our activation was validated against: Durrer 1970 summary times (three early LV sites at 0–5
+ms, confluence by 15–20 ms, posterobasal last) and LBBB/RBBB mapping. The Purkinje network itself
+(territory boundaries in UVC, 6.8× slowed cross-links, fascicles ending at the papillary muscles,
+LAF phi 2.75, LPF −2.23) is not from literature. Root-node models (Cardone-Noott et al. 2016,
+Europace) place a few roots at Durrer's early sites (anterior paraseptal high, central septal,
+posterior paraseptal at one third from the apex) on one fast endocardial layer; fascicular block
+removes roots. (Full text not reachable from this environment: pmc.ncbi.nlm.nih.gov blocked.)
+Search over Durrer-type roots (tools/data/fibresearch_durrer_*.json: lafPhi 1.2–1.8, lafZ 0.7–0.8,
+lpfPhi −0.5…−1.2, lpfZ 0.33–0.4, septal fascicle on/off, purkCrossSlow 1–2.5, fascConnectFrac 0.3–
+0.59), 48 each in the hybrid and torso forward models, no re-entry. Hybrid: LPFB 77–90° (none > 90);
+torso: 63–85°. Best hybrid variant (purkCrossSlow 1.5, cvPurkinje 1.82, lafPhi 1.8, lafZ 0.7, lpfPhi
+−1.2, lpfZ 0.4, septalFascicle, fascConnectFrac 0.3): reader 17/22 (= rebuild; LPFB fails at 90°,
+I r/S 0.4/0.4; LAFB −63° with the pseudo-infarct; dLCx 30 d now right), full checker 1 miss (rebuild
+2), activation score 8.0 (rebuild 12.5; early anterior/septal/posterior sites 4.1/8.2/4.1 ms, LV
+endocardium 75% at 30 ms, apex median 27 ms, total 80 ms), R V1–V6 0.26/0.50/0.51/0.57/1.20/0.96.
