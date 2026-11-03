@@ -1149,6 +1149,16 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
 - RVH preset now: 6 layers centred at 0.4 rad (width 0.8), `rvCvMul` 0.8, `rvStrain` 0.7, `rvSourceGain` 1.8. Read: RVH, axis +142°, QRS 84 ms, V1 R/S 0.95/0.09, R in aVR 1.2 mV, T inversion V1–V2. App: "right axis deviation" with the RVH finding.
 - Reader: 18 / 3 / 1 (unchanged; RVH passes with a textbook axis instead of an extreme one). `tools/hyper.js` accepts `an` (extra anatomy options); the CLAUDE.md command now runs the LVH and RVH presets.
 
+## Round 27: subendocardial ischemia switched off
+
+- Clicking the cut face or the inner wall no longer starts subendocardial ischemia (`SUBENDO_ON = false` in `src/app.js`); share links with `se=` load without it. The engine's `addSubendocardial` and the related interpretation and Learn text stay in place for when it returns.
+- Reason: the local patch produced territory-specific reciprocal ST elevation that real subendocardial ischemia does not show (ST change from normal at 1 h, 55 mm patch: true lateral patch III +0.30, aVR +0.33 mV; inferior patch aVL +0.45 mV; posterolateral patch aVR +0.40 mV). Clinically, subendocardial ST depression does not localise (widest in V4–V6 and I/II) and only aVR (± V1) rises, by about 1–2 mm for a single region; ≥ 1 mm aVR elevation with widespread depression suggests left main or three-vessel disease. Planned rework: a circumferential band of the inner LV layer, strongest at the clicked region, checked against those criteria.
+- Text: the Ischemia tab note (desktop and phone) and Help → Control tabs no longer mention subendocardial patches.
+
+## Round 28: WPW left lateral only
+
+- The Conditions list offers one accessory pathway, left lateral; the posteroseptal option is removed to keep things simple for now. The engine's `setAccessoryPathway` keeps its other sites; share links or recently-used entries naming another site load without a pathway.
+
 ### mobile-1 round 7: installable app (PWA)
 
 - `manifest.webmanifest` (name, standalone display, theme colours, icons) and `sw.js` sit beside
