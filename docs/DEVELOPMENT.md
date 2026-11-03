@@ -1202,3 +1202,8 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
 - Share links: an occlusion on a coronary node that is not an offered vessel (a side-branch node,
   e.g. links made before the anatomy changes) is skipped instead of throwing in `segmentName`
   and leaving the page on the loading screen (`#o=40` reproduced it).
+
+## Round 29: septal fascicle hidden and tied to the LPF
+
+- The septal fibres (Durrer's mid-septal root, `septalFascicle`) stay in the model but are no longer drawn or labelled, and have no block menu of their own; share links with `b=LSF.complete` load without that block.
+- Their block behaviour is tied explicitly to the left posterior fascicle (`lsfTie = 'LPF'`, previously chosen by distance and already the LPF): an LPF block blocks the septal fibres too. ECGs are unchanged (fascsearch: LAFB −46°/−48°, LPFB 89°/91°).

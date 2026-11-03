@@ -415,7 +415,6 @@
       { ids: [last(segs.HIS)].concat(segs.LBB), r: 1.2 },
       { ids: [last(segs.LBB)].concat(segs.LAF), r: 0.9 },
       { ids: [last(segs.LBB)].concat(segs.LPF), r: 0.9 },
-      { ids: [last(segs.LBB)].concat(segs.LSF), r: 0.8 },
       { ids: [last(segs.HIS)].concat(segs.RBB), r: 0.9 },
     ];
     for (const p of paths) {
@@ -752,7 +751,6 @@
     add('Left bundle', mid(S_.LBB), 'cutaway', 'cs');
     add('Left anterior fascicle', mid(S_.LAF, 0.75), 'cutaway', 'cs');
     add('Left posterior fascicle', mid(S_.LPF, 0.75), 'cutaway', 'cs');
-    if (S_.LSF.length) add('Septal fascicle', mid(S_.LSF, 0.9), 'cutaway', 'cs');
     add('Right bundle', mid(S_.RBB, 0.45), 'cutaway', 'cs');
     add('Moderator band', mid(S_.RBB, 0.85), 'cutaway', 'cs');
 
@@ -1024,9 +1022,8 @@
     HIS: [['mobitz2', '2nd-degree AV block, Mobitz II (4:3)', { n: 4 }], ['complete', '3rd-degree (complete) block in the His bundle']],
     LBB: [['complete', 'Left bundle branch block']], RBB: [['complete', 'Right bundle branch block']],
     LAF: [['complete', 'Left anterior fascicular block']], LPF: [['complete', 'Left posterior fascicular block']],
-    LSF: [['complete', 'Septal fascicular block']],
   };
-  const SEG_SITE = { [LH.SEG.AVN]: 'AVN', [LH.SEG.HIS]: 'HIS', [LH.SEG.LBB]: 'LBB', [LH.SEG.RBB]: 'RBB', [LH.SEG.LAF]: 'LAF', [LH.SEG.LPF]: 'LPF', [LH.SEG.LSF]: 'LSF' };
+  const SEG_SITE = { [LH.SEG.AVN]: 'AVN', [LH.SEG.HIS]: 'HIS', [LH.SEG.LBB]: 'LBB', [LH.SEG.RBB]: 'RBB', [LH.SEG.LAF]: 'LAF', [LH.SEG.LPF]: 'LPF' };   // septal fibres: drawn and blocked with the LPF
   const isComplete = (b) => b && (b.type === 'complete' || b.type === 'arrest');
   function blockColour(site) { const b = S.blocks[site]; return isComplete(b) ? C.blocked : C.partial; }
   function restColourOf(id) { const site = SEG_SITE[M.seg[id]]; return site && S.blocks[site] ? blockColour(site) : C.cs; }

@@ -789,12 +789,9 @@
       this.csSegments = {
         AVN: avn, HIS: his, LBB: lbb, LAF: this.laf, LPF: this.lpf, LSF: this.lsf, RBB: this.rbb,
       };
-      // the septal fibres arise from one of the two main divisions: a block of
-      // that division takes them too (so RBB + LAF + LPF stays a complete block)
-      if (this.lsf.length) {
-        const end = (f) => this.pt(f[f.length - 1]), e = end(this.lsf);
-        this.lsfTie = len(sub(e, end(this.laf))) <= len(sub(e, end(this.lpf))) ? 'LAF' : 'LPF';
-      }
+      // the septal fibres are treated as part of the posterior division: a block of
+      // the LPF takes them too (so RBB + LAF + LPF stays a complete block)
+      if (this.lsf.length) this.lsfTie = 'LPF';
     }
 
     // ---- Coronary arteries (right-dominant) and perfusion territories ----
