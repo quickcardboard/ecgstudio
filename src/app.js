@@ -10,7 +10,8 @@
   const ERASE = 140;         // ms blank gap ahead of the sweep cursor
   const SCALES = [0.02, 0.05, 0.1, 0.2, 1 / 3, 0.5, 1];
   const SCALE_LABEL = ['1/50×', '1/20×', '1/10×', '1/5×', '1/3×', '1/2×', '1×'];
-  const MAX_STEPS_PER_FRAME = 250;   // a slow frame drops simulated time instead of catching up (no stutter spiral)
+  const MAX_STEPS_PER_FRAME = 250;
+  const ACQ_MS = 10000;      // after a change of rhythm, block or condition the ECG is acquired this long before it is read   // a slow frame drops simulated time instead of catching up (no stutter spiral)
 
   // Tissue state colours (linear RGB 0..1): spec — pink resting, blue
   // depolarizing, green repolarizing; the conduction system rests in gold.
@@ -66,6 +67,7 @@
       // (cut view), 'RA', 'LA', 'V', or null for empty space
       touchTarget(x, y) {
         const r = $('c3d').getBoundingClientRect(), lx = x - r.left, ly = y - r.top, ray = rayAt(lx, ly);
+        if (pathwayAt(lx, ly)) return 'AP';
         if (ui.view === 'cutaway') { const site = conductionAt(ray, lx, ly); if (site) return site; }
         const c = tissueAt(ray); if (c < 0) return null;
         return A.label[c] === LH.LAB.RA ? 'RA' : A.label[c] === LH.LAB.LA ? 'LA' : 'V';
@@ -129,7 +131,7 @@
     const t0 = ecg.t0;
     S.onSample((t, L) => { const i = (t + t0) % PAGE; for (let k = 0; k < 12; k++) ecg.buf[k][i] = L[k]; });
     ui.acc = 0; ui.ischPending = null;
-    $('rhythm').textContent = 'Acquiring…'; $('chips').innerHTML = ''; $('findings').innerHTML = '';
+    ui.acqUntil = ACQ_MS; showAcquiring();
     if (g3.cor) { recolorIschemia(); renderIschList(); }
   }
 
@@ -177,6 +179,7 @@
       checkAvnrt();
       adaptQuality(behind);
     }
+    stageColour();
     const t1 = performance.now();
     if (++Q.frame % Q.every === 0 || ui.paused) update3D();
     const t2 = performance.now();
@@ -185,6 +188,22 @@
     if ((interpTimer += dt) > 300) { interpTimer = 0; syncRate(); interpret(); updateFloat(); }
     $('clock').textContent = `t ${(S.t / 1000).toFixed(3)} s · ${SCALE_LABEL[ui.scaleIdx]}${ui.paused ? ' · paused' : ''}`;
     requestAnimationFrame(loop);
+  }
+
+  // Background of the heart view: a yellow flash on a shock, and blue fading
+  // over the adenosine effect (from the dose to the end of the AV-nodal block),
+  // in the colours of the phone's Shock and Adenosine buttons
+  const STAGE = [0x13, 0x20, 0x2b], SHOCK_RGB = [0xff, 0xcc, 0x33], ADENO_RGB = [0x38, 0xc6, 0xe8], SHOCK_MS = 700;
+  function stageColour() {
+    if (!g3.renderer) return;
+    let tint = null, k = 0;
+    const since = performance.now() - (ui.shockAt || -1e9);
+    if (since < SHOCK_MS) { tint = SHOCK_RGB; k = 0.85 * (1 - since / SHOCK_MS); }
+    else if (ui.adenoFrom != null && S.adenosine && S.t < S.adenosine.end) {
+      tint = ADENO_RGB; k = 0.45 * Math.max(0, 1 - (S.t - ui.adenoFrom) / Math.max(1, S.adenosine.end - ui.adenoFrom));
+    }
+    const c = tint ? STAGE.map((v, i) => Math.round(v + (tint[i] - v) * k)) : STAGE, hex = (c[0] << 16) | (c[1] << 8) | c[2];
+    if (hex !== ui.stageHex) { ui.stageHex = hex; g3.renderer.setClearColor(hex, 1); }
   }
 
   // ---------------------------------------------------------------------------
@@ -230,6 +249,10 @@
     if (!w || !h || !g3.renderer) return;
     g3.renderer.setSize(w, h, false);
     g3.camera.aspect = w / h;
+    // tall, narrow views (the full-screen heart on a phone) keep the width of the
+    // two-pane framing: the vertical field of view widens instead of cropping the sides
+    const FIT = 0.85;
+    g3.camera.fov = w / h < FIT ? 2 * Math.atan(Math.tan(16 * Math.PI / 180) * FIT / (w / h)) * 180 / Math.PI : 32;
     // keep the heart clear of the floating control panel
     // keep the heart clear of the tab row above and the view bar below: the view
     // is shifted down by the difference of the two insets
@@ -1014,6 +1037,7 @@
   }
 
   function renderBlockList() {
+    markChange();
     const sites = Object.keys(S.blocks);
     $('noBlocks').hidden = !!sites.length;
     $('legendBlock').hidden = !sites.length || ui.view === 'external';
@@ -1059,8 +1083,8 @@
     $('actionNote').textContent = note || '';
   }
   const PHONE_NOTE = {
-    rhythm: 'Tap the heart for a PAC or PVC. Three quick taps on the right atrium start flutter, on the left atrium AF; three on the ventricles start VT and four VF.',
-    blocks: 'Tap the AV node to step through the AV blocks; three quick taps start AVNRT (AVRT with an accessory pathway). Tap the SA node to cycle its blocks, a bundle branch or fascicle to block it or clear it.',
+    rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
+    blocks: 'Tap the conduction system to cycle through blocks.',
     ischemia: 'Press and hold a coronary artery to occlude it. With the heart cut, hold the inner wall or the cut face for subendocardial ischemia.',
   };
 
@@ -1307,7 +1331,7 @@
   }
   // the Arrhythmias buttons
   function startRhythm(type) {
-    ui.avnrt = null;
+    ui.avnrt = null; markChange();
     if (type === 'avnrt') {
       if (S.ap) setCondition('ap', '');
       S.stopArrhythmia();
@@ -1457,6 +1481,11 @@
   // The rhythm statement is the simulator's ground truth (which pacemaker
   // fired, which blocks are active, which beats were stimulated); intervals
   // and the axis are measured from the simulated activation and ECG.
+  // A change restarts acquisition: "Acquiring…" for a full strip (ACQ_MS of
+  // simulated time), then the reading. Outside that window a reading that
+  // cannot be made (too few beats) keeps the last one instead of flickering.
+  function showAcquiring() { $('rhythm').textContent = 'Acquiring…'; $('chips').innerHTML = ''; $('findings').innerHTML = ''; }
+  function markChange() { if (!S) return; ui.acqUntil = S.t + ACQ_MS; showAcquiring(); }
   function interpret() {
     const arr = S.arrhythmia ? S.arrhythmia.type : null;
     if (arr === 'vf') {
@@ -1464,6 +1493,7 @@
       $('chips').innerHTML = '<span class="chip flag"><em>Rhythm</em>chaotic, no QRS complexes</span>'; $('findings').innerHTML = '';
       ui.snap = { rhythm: $('rhythm').textContent, arr: 'vf', B: S.blocks, findings: [] }; if (ui.tab === 'learn') renderLearn(); return;
     }
+    if (S.t < ui.acqUntil) { if ($('rhythm').textContent !== 'Acquiring…') showAcquiring(); return; }
     const V = S.log.vent.filter((b) => S.t > b.repEnd + 60), Aa = S.log.atrial;
     if (V.length < 2) return;
     const vb = V[V.length - 1];
@@ -1476,7 +1506,10 @@
     // window: the last few seconds, never reaching back past a change of rhythm (start, shock)
     const since = (S.rhythmChangedAt || -1e9) + 400;
     const recent = V.filter((b) => b.on > Math.max(since, S.t - (tachy ? (arr === 'af' || arr === 'mat' ? 6000 : 3000) : 10000)));
-    if (recent.length < 2) { $('rhythm').textContent = S.adenosine ? 'Adenosine: transient AV-nodal block, no QRS conducted' : 'Acquiring…'; $('chips').innerHTML = ''; $('findings').innerHTML = ''; return; }
+    if (recent.length < 2) {
+      if (S.adenosine && S.t < S.adenosine.end) { $('rhythm').textContent = 'Adenosine: transient AV-nodal block, no QRS conducted'; $('chips').innerHTML = ''; $('findings').innerHTML = ''; }
+      return;                                                   // otherwise keep the last reading
+    }
     const rrs = recent.slice(1).map((b, i) => b.on - recent[i].on);
     const RR = rrs.length ? rrs.reduce((a, c) => a + c, 0) / rrs.length : vb.on - V[V.length - 2].on, rate = 60000 / RR;
     const aRecent = Aa.filter((a) => a.on > Math.max(since, S.t - (tachy ? 3000 : 10000)));
@@ -1913,7 +1946,7 @@
       ui.rebuilding = true; renderConditions();
       try { await rebuildHeart(prev); } finally { ui.rebuilding = false; }
     } else {
-      c.apply(v); placeAPMarker(); interpret();
+      c.apply(v); placeAPMarker(); markChange(); interpret();
     }
     renderConditions();
   }
@@ -2104,7 +2137,7 @@
   const isM = () => document.body.classList.contains('m');
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
   const SECS = [2500, 5000, 10000];
-  const HOLD_MS = 550, BURST_MS = 500, DOUBLE_MS = 350;
+  const HOLD_MS = 550, BURST_MS = 500, BURST_PX = 40, DOUBLE_MS = 350;
   const ph = { group: 0, peek: null, win: 5000, live: 'II', fsEcg: false, fsHeart: false, flip: false };
   const buzz = (ms = 10) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
   // true the first time a tip key is seen in this browser
@@ -2285,7 +2318,7 @@
   const ARR_NAME = { flutter: 'Atrial flutter', af: 'Atrial fibrillation', vt: 'Ventricular tachycardia', vf: 'Ventricular fibrillation' };
   const AV_CYCLE = [null, ['AVN', 'first'], ['AVN', 'wenckebach'], ['AVN', 'two-to-one'], ['HIS', 'mobitz2'], ['AVN', 'complete'], ['HIS', 'complete']];
   const SA_CYCLE = [null, 'sa-exit', 'pause', 'arrest'];
-  const burst = { region: '', n: 0, t: 0 }, avTaps = { n: 0, timer: 0, last: 0, commit: null };
+  const burst = { region: '', n: 0, t: 0, x: 0, y: 0 }, avTaps = { n: 0, timer: 0, last: 0, commit: null };
   let lastEmpty = null;
   function rayAt(x, y) {
     const r = $('c3d').getBoundingClientRect(), ray = new THREE.Raycaster();
@@ -2330,11 +2363,7 @@
       avTaps.commit = () => {
         clearTimeout(avTaps.timer);
         const n = avTaps.n; avTaps.n = 0;
-        if (n >= 3) {
-          const t = S.ap ? 'avrt' : 'avnrt';
-          setAV(0); startRhythm(t); syncRate(); interpret(); buzz(40);
-          flash(x, y, t === 'avrt' ? 'Inducing AVRT' : 'Inducing AVNRT'); return;
-        }
+        if (n >= 3) { setAV(0); startRhythm('avnrt'); syncRate(); interpret(); buzz(40); flash(x, y, 'Inducing AVNRT'); return; }
         const i = (avStep() + n) % AV_CYCLE.length, e = AV_CYCLE[i];
         setAV(i); flash(x, y, e ? blockText(e[0], e[1]) : 'AV conduction normal');
       };
@@ -2354,18 +2383,42 @@
   }
   // taps on muscle stimulate; three quick ones on an atrium or ventricle start
   // a tachyarrhythmia (as burst pacing does), a fourth on the ventricles VF
+  // taps in one spot (within BURST_PX of the first) count as a burst: in either
+  // atrium three start flutter and a fourth AF; on the ventricles three start VT, a fourth VF
   function burstTap(c, x, y, now) {
-    const lab = A.label[c], region = lab === LH.LAB.RA ? 'RA' : lab === LH.LAB.LA ? 'LA' : 'V';
-    burst.n = burst.region === region && now - burst.t < BURST_MS ? burst.n + 1 : 1;
+    const lab = A.label[c], region = lab === LH.LAB.RA || lab === LH.LAB.LA ? 'A' : 'V';
+    const same = burst.region === region && now - burst.t < BURST_MS && Math.hypot(x - burst.x, y - burst.y) < BURST_PX;
+    if (same) burst.n++; else Object.assign(burst, { n: 1, x, y });
     burst.region = region; burst.t = now;
-    const arr = region === 'V' ? (burst.n === 3 ? 'vt' : burst.n === 4 ? 'vf' : null) : burst.n === 3 ? (region === 'RA' ? 'flutter' : 'af') : null;
+    const arr = burst.n === 3 ? (region === 'A' ? 'flutter' : 'vt') : burst.n === 4 ? (region === 'A' ? 'af' : 'vf') : null;
     if (arr) { startRhythm(arr); syncRate(); interpret(); updateFloat(); flash(x, y, ARR_NAME[arr]); buzz(40); return; }
     stimulateAt(c, x, y); buzz();
+  }
+  // the accessory pathway marker (any view) within a fingertip of the tap
+  function pathwayAt(x, y) {
+    if (!S.ap || !g3.apMark || !g3.apMark.visible) return false;
+    const r = $('c3d').getBoundingClientRect(), scr = (i) => { const v = new THREE.Vector3(...A.p(i)).applyMatrix4(g3.inner.matrixWorld).project(g3.camera); return [(v.x + 1) / 2 * r.width, (1 - v.y) / 2 * r.height]; };
+    const [ax, ay] = scr(S.ap.a), [vx, vy] = scr(S.ap.v), dx = vx - ax, dy = vy - ay;
+    const k = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / Math.max(1, dx * dx + dy * dy)));
+    return Math.hypot(x - ax - k * dx, y - ay - k * dy) < 24;
+  }
+  const apTaps = { n: 0, timer: 0, last: 0 };
+  function pathwayTap(x, y, now) {
+    clearTimeout(apTaps.timer);
+    apTaps.n = apTaps.n && now - apTaps.last < DOUBLE_MS ? apTaps.n + 1 : 1; apTaps.last = now; buzz(8);
+    apTaps.timer = setTimeout(() => {
+      const n = apTaps.n; apTaps.n = 0;
+      if (n < 3) { flash(x, y, 'Accessory pathway: three quick taps start AVRT'); return; }
+      const moved = S.apLocation !== 'left-lateral';                  // (the model induces AVRT over a left lateral pathway)
+      setAV(0); startRhythm('avrt'); syncRate(); interpret(); buzz(40);
+      flash(x, y, moved ? 'Inducing orthodromic AVRT (left lateral pathway)' : 'Inducing orthodromic AVRT');
+    }, DOUBLE_MS);
   }
   // (now: when the finger touched, so a busy main thread does not stretch a burst)
   function mobileTap(x, y, now) {
     hideBlockMenu();
     const ray = rayAt(x, y);
+    if (pathwayAt(x, y)) { lastEmpty = null; pathwayTap(x, y, now); return; }
     if (ui.view === 'cutaway') { const site = conductionAt(ray, x, y); if (site) { lastEmpty = null; conductionTap(site, x, y, now); return; } }
     const c = tissueAt(ray);
     if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }
@@ -2639,8 +2692,8 @@
       syncScrub();
     });
     for (const b of $('arrButtons').querySelectorAll('button')) b.addEventListener('click', () => { startRhythm(b.dataset.arr); syncRate(); interpret(); });
-    $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); });
-    $('btnShock').addEventListener('click', () => { ui.avnrt = null; S.shock(); syncRate(); interpret(); });
+    $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); ui.adenoFrom = S.t; });
+    $('btnShock').addEventListener('click', () => { ui.avnrt = null; S.shock(); ui.shockAt = performance.now(); markChange(); syncRate(); interpret(); });
     initConditions();
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
     initPicking(); updateActionNote();

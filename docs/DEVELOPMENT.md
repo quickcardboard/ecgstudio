@@ -1163,3 +1163,22 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
   running as the installed app.
 - Checked over http://127.0.0.1: no manifest or installability errors in Chrome; after one
   visit the page reloads and simulates offline.
+
+### mobile-1 round 8: steady interpretation, shock/adenosine cues, gesture changes
+
+- Interpretation (all layouts): a change of rhythm, block or condition, a shock, Reset or a new
+  run starts a full 10 s acquisition (`ACQ_MS`, simulated time; `markChange()`) showing only
+  "Acquiring…"; afterwards a reading that cannot be made (too few beats, e.g. a slow escape in
+  complete heart block) keeps the last one instead of flipping back to "Acquiring…". VF is read at
+  once. The phone interpretation bar keeps its height while acquiring.
+- Heart-view background: a yellow flash on a shock (0.7 s) and a blue tint fading from the dose to
+  the end of the adenosine AV-nodal block (`stageColour()`), in the Shock/Adenosine button
+  colours. Shock button text centred.
+- Phone tab notes shortened (Rhythm, Blocks). Gestures: taps count as a burst only within 40 px
+  of the first; either atrium 3 taps = flutter, 4 = AF; ventricles 3 = VT, 4 = VF; AV node 3 taps
+  = AVNRT; accessory pathway marker (any view) 3 taps = orthodromic AVRT, 1–2 taps explain this.
+  The model induces AVRT over a left lateral pathway only (a posteroseptal one does not re-enter
+  from an atrial premature beat, `tools/avrt.js posteroseptal`), so the posteroseptal pathway is
+  switched to left lateral, with a message, as the AVRT button already did.
+- 3D view: panes narrower than 0.85 (width/height) widen the vertical field of view so the heart
+  keeps the two-pane framing (whole heart visible in the full-screen phone view).

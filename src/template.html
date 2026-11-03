@@ -323,7 +323,8 @@ body.m #controls .viewbar .vgroup { flex: 1 1 100%; }
 body.m #controls .viewbar .vgroup > * { flex: 1; text-align: center; }
 body.m #controls .viewbar button, body.m #controls .viewbar .tog { padding: 10px 11px; font-size: 13px; }
 body.m .mfloat { display: flex; gap: 8px; position: absolute; z-index: 3; right: 8px; bottom: 8px; }
-.mfloat button { padding: 11px 15px; font: 600 14px/1 var(--font-ui); border-radius: 21px; border: 0; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+.mfloat button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 96px; padding: 11px 15px; font: 600 14px/1 var(--font-ui); text-align: center; border-radius: 21px; border: 0; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+.mfloat .bolt { font-size: 15px; line-height: 1; }
 .mfloat .shock { background: #ffcc33; color: #1a1300; }
 .mfloat .adeno { background: #38c6e8; color: #04222b; }
 body.m .press { display: block; position: absolute; z-index: 4; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; pointer-events: none;
@@ -347,7 +348,7 @@ body.m .gbar { display: flex; align-items: center; gap: 6px; position: absolute;
 body.m #interp { order: 2; flex: none; flex-wrap: wrap; gap: 6px; padding: 8px 32px 8px 10px; border-bottom: 0; border-top: 1px solid var(--line); cursor: pointer; position: relative; }
 body.m #interp::after { content: "▴"; position: absolute; right: 12px; top: 8px; color: var(--muted); font-size: 13px; }
 body.m #rhythm { flex: 1 1 100%; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.m .chips { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+body.m .chips { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-height: 23px; }
 body.m .chips::-webkit-scrollbar { display: none; }
 body.m .chip { font-size: 11px; padding: 4px 6px; }
 body.m .findings { display: none; }
@@ -574,7 +575,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <div class="rebuild" id="rebuildNote" hidden>Building the heart…</div>
       <button type="button" class="mlearn" id="mLearn" aria-pressed="false">Learn</button>
       <div class="mfloat" id="mFloat">
-        <button type="button" id="mShock" class="shock" hidden>⚡ Shock</button>
+        <button type="button" id="mShock" class="shock" hidden><span class="bolt" aria-hidden="true">⚡</span>Shock</button>
         <button type="button" id="mAdeno" class="adeno" hidden>Adenosine</button>
       </div>
       <div class="mscrub" id="mScrub" hidden>
