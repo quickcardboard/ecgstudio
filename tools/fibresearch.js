@@ -4,12 +4,13 @@ const CWD = '/home/user/ecgstudio', SC = stage === 'all' ? null : 'normal,LAFB,L
 const sh = (args, env = {}) => new Promise((ok) => { const ch = spawn('node', args, { cwd: CWD, env: { ...process.env, ...env } }); let s = ''; ch.stdout.on('data', (d) => (s += d)); ch.on('close', () => ok(s)); });
 const pick = (a, r) => a[Math.floor(r() * a.length)];
 let seed = 7; const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-const space = { sigmaRatio: [3, 4], purkCrossSlow: [6.8, 10, 15], cvPurkinje: [1.82, 2.3, 2.8], lafPhi: [2.75, 2.4, 2.1], lafZ: [0.54, 0.65, 0.75], lpfPhi: [-2.23, -1.9, -1.6], lpfZ: [0.29, 0.4], lpfTerrLo: [-1.54, -1.9, -2.2], heartRotation: [14, 18, 22] };
+const BASE = process.env.BASE ? JSON.parse(process.env.BASE) : { brody: 0 };
+const space = process.env.SPACE ? JSON.parse(process.env.SPACE) : { sigmaRatio: [3, 4], purkCrossSlow: [6.8, 10, 15], cvPurkinje: [1.82, 2.3, 2.8], lafPhi: [2.75, 2.4, 2.1], lafZ: [0.54, 0.65, 0.75], lpfPhi: [-2.23, -1.9, -1.6], lpfZ: [0.29, 0.4], lpfTerrLo: [-1.54, -1.9, -2.2], heartRotation: [14, 18, 22] };
 let V = [];
-if (stage === 'all') V = JSON.parse(fs.readFileSync(process.argv[5])); else for (let i = 0; i < N; i++) { const p = { brody: 0 }; for (const [k, a] of Object.entries(space)) p[k] = pick(a, rnd); V.push(p); }
+if (stage === 'all') V = JSON.parse(fs.readFileSync(process.argv[5])); else for (let i = 0; i < N; i++) { const p = { ...BASE }; for (const [k, a] of Object.entries(space)) p[k] = pick(a, rnd); V.push(p); }
 const res = [];
 async function one(p) {
-  const g = await sh(['-e', `const fs=require('fs'),LH=require('./src/engine.js');const A=new LH.Anatomy(JSON.parse(fs.readFileSync('src/anatomy.json')),{});const M=new LH.Model(A,${JSON.stringify(p)});let ok=true;for(const b of [null,'LAF','LPF']){const S=new LH.Sim(M,{seed:1});if(b)S.setBlock(b,'complete');S.run(3000);const v=S.log.vent;if(v.length<3||v.some(x=>x.last-x.on>200))ok=false;}console.log(ok?'ok':'re')`]);
+  const g = await sh(['-e', `const fs=require('fs'),LH=require('./src/engine.js');if(process.env.TV2)LH.setDefaultTorso2(require(process.env.TV2));const A=new LH.Anatomy(JSON.parse(fs.readFileSync('src/anatomy.json')),{});const M=new LH.Model(A,${JSON.stringify(p)});let ok=true;for(const b of [null,'LAF','LPF']){const S=new LH.Sim(M,{seed:1});if(b)S.setBlock(b,'complete');S.run(3000);const v=S.log.vent;if(v.length<3||v.some(x=>x.last-x.on>200))ok=false;}console.log(ok?'ok':'re')`]);
   if (g.trim() !== 'ok') { res.push({ p, reentry: true }); return; }
   const fc = JSON.parse((await sh(['tools/fullcheck.js', JSON.stringify(p)], { CS_LITE: '1', NOISCH: '1' })).trim().split('\n').pop());
   const q = { ...p, ecgGain: +(0.0143 * fc.gain / 0.0192).toFixed(5) };

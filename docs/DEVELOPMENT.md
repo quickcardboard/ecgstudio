@@ -1011,3 +1011,16 @@ of mid/distal LAD fail; V5 R ~2.5 mV. (The cavity window has no cavity electrode
 pairCoef returns before it, so it only attenuates; a solved cavity lead field would be needed.)
 So the physical conductor alone does not fix the fascicular blocks with today's activation, and
 it loses the anterior Q that the window provided.
+
+Activation re-validated in the torso conductor (tools/fibresearch.js with BASE/SPACE/TV2; results
+tools/data/fibresearch_torso.json). Fixed: fullTorso + chestTorso, anisotropic myocardium,
+sigmaRatio 10 (intracellular), brody 0, cavityWindow 0; heart pose fixed (the field belongs to it).
+64 variants over purkCrossSlow 3–10, cvPurkinje 1.82–2.8, LAF/LPF terminals and LPF territory,
+apexPurkMul 1–2, rbbSeptalFrac 0.3–0.5; no re-entry. Best 3/5 (3 variants): normal, LAFB and RBBB
+read right — LAFB now without the pseudo-infarct (e.g. purkCrossSlow 6.8, lafPhi 2.4, lafZ 0.65,
+lpfPhi −1.9, lpfZ 0.29, lpfTerrLo −2.2, apexPurkMul 2, rbbSeptalFrac 0.3: LAFB −50°, QRS 99 ms) —
+but LPFB reads normal/LVH at 64–86° in every variant and LBBB reads IVCD (QRS 147 ms, V5/V6 R-peak
+time 42–44 ms instead of > 60: the torso near field gives V5/V6 an early peak). Normal axes −13 …
++30°; LVH read in most blocks (V5 R ~2.5 mV). The ~85° LPFB ceiling is the same in the hybrid and
+in the torso conductor, so it comes from the heart (geometry/activation of the posterior territory),
+not the forward model.
