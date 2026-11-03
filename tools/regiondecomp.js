@@ -33,6 +33,14 @@ if (process.env.REG === 'time' && process.env.ZSPLIT) {   // anterior wall and s
     const d = ((A.phi[c] % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI), sec = SEC[Math.min(5, Math.floor(d / (Math.PI / 3)))];
     reg[c] = sec === 'sept' ? (z < zs ? 0 : 2) : sec === 'ant' ? (z < zs ? 1 : 3) : 5; }
 }
+if (process.env.REG === 'rv') {   // RV split by height (apicobasal UVC thirds) and side; LV lumped
+  RN.splice(0, NR, 'rv_apex', 'rv_mid_a', 'rv_mid_p', 'rv_base_a', 'rv_base_p', 'LV', 'oth');
+  const pz = +(process.env.RVPHI || 0.6);   // rotational UVC splitting anterior (phi > RVPHI) from posterior RV
+  for (let c = 0; c < n; c++) { const lab = A.label[c], z = A.zuvc[c];
+    if (lab === LH.LAB.LV && z >= 0) { reg[c] = 5; continue; } if (lab !== LH.LAB.RV) { reg[c] = 6; continue; }
+    const ph = Math.atan2(Math.sin(A.phi[c]), Math.cos(A.phi[c])), ant = ph > pz;
+    reg[c] = z < 0.33 ? 0 : z < 0.66 ? (ant ? 1 : 2) : (ant ? 3 : 4); }
+}
 if (process.env.SUPPLY) {   // regions by supplying artery and position along the LAD
   const C = M.coronary, LADi = new Map(br.LAD.map((id, i) => [id, i / (br.LAD.length - 1)])), cut = process.env.SUPPLY.split(',').map(Number);   // e.g. 0.18,0.3,0.45
   RN.splice(0, NR, `LAD<${cut[0]}`, `LAD${cut[0]}-${cut[1]}`, `LAD${cut[1]}-${cut[2]}`, `LAD>${cut[2]}`, 'LCx', 'RCA/PDA', 'RV/oth');
@@ -145,7 +153,7 @@ if (process.env.REG === 'dead') {
     [1, 4, 0, 6].forEach((i) => console.log(String(w0).padEnd(6) + RN[i].padEnd(7) + sm[i].D.map(f).join(' ') + ' | ' + LI.map((k) => f(sm[i].L[k]).padStart(5)).join(' '))); }
   process.exit(0);
 }
-if (process.env.REG === 'time') {   // normal heart (or BLOCKT=site: with that conduction block): every region per 5 ms
+if (process.env.REG === 'time' || process.env.REG === 'rv') {   // normal heart (or BLOCKT=site: with that conduction block): every region per 5 ms
   const Nn = decompose(process.env.BLOCKT || null);
   console.log('normal heart by region, mean per 5 ms (heart vector X left Y sup Z ant; leads mV)');
   console.log('ms   region   X     Y     Z   | ' + SHOW.map((s) => s.padStart(5)).join(' '));
