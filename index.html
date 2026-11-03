@@ -7,6 +7,8 @@
 <link rel="canonical" href="https://ecgstudio.app/">
 <meta property="og:description" content="A 3D heart that computes its own 12-lead ECG. Rhythms, blocks, ischemia, infarction and more, in real time.">
 <meta name="theme-color" content="#121b26">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="ECG Studio">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28S3 20 3 11a6.5 6.5 0 0 1 13-1 6.5 6.5 0 0 1 13 1c0 9-13 17-13 17z' fill='%23c2304f'/%3E%3Cpath d='M5 15h6l2-4 3 9 2-5h9' stroke='%23fff' stroke-width='2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -303,6 +305,8 @@ body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mplay.holding::after { width: 100%; transition: width 0.7s linear; }
 body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index: 21; right: max(10px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 50px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
 .mmenu button { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
+.mmenu .minstall { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; color: var(--accent); font-weight: 600; }
+.minstall svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 body.m #split { flex-direction: column; gap: 6px; padding: 0 8px 6px; }
 body.m #pane3d { flex: 0 0 60%; --vb: 0px; }
@@ -444,6 +448,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
     <button type="button" role="menuitem" id="mShare">Share this scenario</button>
     <button type="button" role="menuitem" id="mPng">Save ECG image</button>
     <button type="button" role="menuitem" id="mHelp">Help</button>
+    <button type="button" role="menuitem" id="mInstall" class="minstall"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Install app</button>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
@@ -659,7 +664,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-03 (fa82357).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-03 (8f3af87).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
   </div>
@@ -6912,11 +6917,36 @@ THE SOFTWARE.
     });
   }
 
+  // Installable app (PWA). The manifest and service worker are files beside
+  // index.html, so they are added only when the page is served (not from file://).
+  // Android/Chrome offer their own install prompt; iOS Safari installs from the
+  // Share sheet, so the menu item explains that instead.
+  let installPrompt = null;
+  function initInstall() {
+    const served = /^https?:$/.test(location.protocol), item = $('mInstall');
+    const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    if (served) {
+      const l = document.createElement('link'); l.rel = 'manifest'; l.href = 'manifest.webmanifest'; document.head.appendChild(l);
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
+    }
+    item.hidden = standalone;
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; });
+    window.addEventListener('appinstalled', () => { installPrompt = null; item.hidden = true; toast('ECG Studio is installed: open it from your home screen.'); });
+    item.addEventListener('click', async () => {
+      closeLayer('menu');
+      if (installPrompt) { const p = installPrompt; installPrompt = null; p.prompt(); await p.userChoice.catch(() => null); return; }
+      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      toast(!served ? 'Install from the website (ecgstudio.app); a saved copy of the page cannot be installed.'
+        : ios ? 'To install on iPhone or iPad: in Safari, tap the Share button, then <b>Add to Home Screen</b>.'
+          : 'To install: open the browser menu (⋮) and choose <b>Install app</b> or <b>Add to Home screen</b>.', 9000);
+    });
+  }
+
   function initPhone() {
     MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode);
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
-    initTouch(); initEcgTouch(); initSheet();
+    initTouch(); initEcgTouch(); initSheet(); initInstall();
     new ResizeObserver(sizeSheet).observe($('split')); sizeSheet();
     // header: speed, pause (hold to reset), more
     $('mSpeed').addEventListener('click', () => setSpeed(ui.scaleIdx > 0 ? ui.scaleIdx - 1 : SCALES.length - 1));

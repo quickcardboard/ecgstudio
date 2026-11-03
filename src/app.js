@@ -2500,11 +2500,36 @@
     });
   }
 
+  // Installable app (PWA). The manifest and service worker are files beside
+  // index.html, so they are added only when the page is served (not from file://).
+  // Android/Chrome offer their own install prompt; iOS Safari installs from the
+  // Share sheet, so the menu item explains that instead.
+  let installPrompt = null;
+  function initInstall() {
+    const served = /^https?:$/.test(location.protocol), item = $('mInstall');
+    const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    if (served) {
+      const l = document.createElement('link'); l.rel = 'manifest'; l.href = 'manifest.webmanifest'; document.head.appendChild(l);
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
+    }
+    item.hidden = standalone;
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; });
+    window.addEventListener('appinstalled', () => { installPrompt = null; item.hidden = true; toast('ECG Studio is installed: open it from your home screen.'); });
+    item.addEventListener('click', async () => {
+      closeLayer('menu');
+      if (installPrompt) { const p = installPrompt; installPrompt = null; p.prompt(); await p.userChoice.catch(() => null); return; }
+      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      toast(!served ? 'Install from the website (ecgstudio.app); a saved copy of the page cannot be installed.'
+        : ios ? 'To install on iPhone or iPad: in Safari, tap the Share button, then <b>Add to Home Screen</b>.'
+          : 'To install: open the browser menu (⋮) and choose <b>Install app</b> or <b>Add to Home screen</b>.', 9000);
+    });
+  }
+
   function initPhone() {
     MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode);
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
-    initTouch(); initEcgTouch(); initSheet();
+    initTouch(); initEcgTouch(); initSheet(); initInstall();
     new ResizeObserver(sizeSheet).observe($('split')); sizeSheet();
     // header: speed, pause (hold to reset), more
     $('mSpeed').addEventListener('click', () => setSpeed(ui.scaleIdx > 0 ? ui.scaleIdx - 1 : SCALES.length - 1));

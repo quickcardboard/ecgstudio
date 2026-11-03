@@ -1148,3 +1148,18 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
 - Free-wall weighting alone (centre 0.2–0.4 rad, width 0.6–0.8, 6–8 layers) gives axis +124° to +138° with R > S in V1; with `rvCvMul` 0.7–0.8 the R in V1 rises to 0.7–1.2 mV.
 - RVH preset now: 6 layers centred at 0.4 rad (width 0.8), `rvCvMul` 0.8, `rvStrain` 0.7, `rvSourceGain` 1.8. Read: RVH, axis +142°, QRS 84 ms, V1 R/S 0.95/0.09, R in aVR 1.2 mV, T inversion V1–V2. App: "right axis deviation" with the RVH finding.
 - Reader: 18 / 3 / 1 (unchanged; RVH passes with a textbook axis instead of an extreme one). `tools/hyper.js` accepts `an` (extra anatomy options); the CLAUDE.md command now runs the LVH and RVH presets.
+
+### mobile-1 round 7: installable app (PWA)
+
+- `manifest.webmanifest` (name, standalone display, theme colours, icons) and `sw.js` sit beside
+  `index.html` at the site root, with icons in `icons/` (192, 512, maskable 512, Apple touch 180,
+  drawn from the favicon's heart and trace). The app adds the manifest link and registers the
+  service worker only when served over http(s), so `file://` loading is unchanged.
+- Service worker: same-origin requests network-first with the cache as the offline fallback (so
+  a new deploy shows at once); Google Fonts cache-first. Bump `CACHE` in `sw.js` only to drop
+  old caches; updates do not need it.
+- Phone ⋯ menu: **Install app** (download icon). Android/Chrome: the browser's own install
+  prompt. iOS Safari (no prompt API) and other cases: a short how-to. Hidden when already
+  running as the installed app.
+- Checked over http://127.0.0.1: no manifest or installability errors in Chrome; after one
+  visit the page reloads and simulates offline.
