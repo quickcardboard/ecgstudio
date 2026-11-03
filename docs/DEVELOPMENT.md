@@ -1059,3 +1059,11 @@ Frontal tilt with the Durrer-root variant (reader, tools/data/reader_durrer_tilt
 (axis 76–79°) reads IVCD — lead I upright for only 53% of the QRS and aVL mostly negative — (17/22
 each); 20/23: 16/22, 14/22. LPFB and LBBB trade places within one degree: both depend on the same
 balance of lead I, so with this heart one of the two is borderline.
+
+## rebuild-1 round 10: why LBBB swings right
+
+- Across every model so far, LBBB axis minus normal axis is positive (rebuild +26°, full torso +35°, live +59°); textbook LBBB keeps or shifts the axis left. The forward model is therefore not the cause.
+- `BLOCK=LBB ZSPLIT=1 node tools/actgeom.js '{}'`: under LBBB every LV region propagates posteriorly and slightly downward; none propagates superiorly. The LV is entered at the anterior RV–LV junction (LV endo 25 ms, about 8 ms after the RV); the inferior septum activates at about 60 ms. The wave sweeps one way, anterior → lateral → inferior, and ends inferolaterally (110 ms). Mapping studies (Vassallo 1984, Auricchio 2004, ECGI) describe septal entry about 35–48 ms after QRS onset, spread both ways around the LV, and the lateral base last.
+- LV Purkinje distal to the block is entered retrogradely only late (59–90 ms). pmjRetro 3–8 shortens the QRS (136–141 ms) but moves the axis only 3–4°.
+- New option `mbPhi` (moderator-band insertion angle; default off keeps the old placement). Moving the band to 20–30° gives septal LV entry, but the **normal** axis also swings: mbPhi 75 → 34°, 65 → 7°, 55 → −41°, 45 → −55° (default rule 50°). rbbSeptalDelay 10 moves normal to 4° and LBBB to 46°. Placing the RV's early breakthrough a few millimetres differently swings the normal frontal axis by tens of degrees, so the normal limb-lead axis is set by small RV forces rather than by the LV. This is the over-cancellation problem again: the LV's net frontal force is too small.
+- RBBB reads −74° in the rebuild (the reader passes RBBB on morphology); textbook RBBB keeps a normal axis, so this would read as bifascicular block.
