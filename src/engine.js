@@ -169,6 +169,7 @@
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
     atrialFrontalRot: 30,   // degrees the atrial sources are turned back (frontal plane) against the ventricular rotation
     atrialSourceGain: 0.31, // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
+    rvCvMul: 1,           // RV myocardial conduction speed factor (RVH option)
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
     apdVentApexExtra: 20,  // apicobasal APD gradient (+: apex longer; sized so limb-lead T stays within textbook height)
@@ -335,7 +336,11 @@
       if (this.lvApexLayers) this._editLVWall(V, this.lvApexLayers, LAB.LV, lvApexWeight);
       // ventricular hypertrophy (opts.rvWallLayers: RV free wall, outward)
       this.rvWallLayers = opts.rvWallLayers || 0;
-      if (this.rvWallLayers) { const zm = opts.rvThickZmax ?? 0.92; this._editLVWall(V, this.rvWallLayers, LAB.RV, (ph, z) => rvThickenWeight(ph, z, zm)); }
+      if (this.rvWallLayers) {
+        const zm = opts.rvThickZmax ?? 0.92, pc = opts.rvThickPhiC, pw = opts.rvThickPhiW || 0.6;   // optional bias of the thickening around the RV (rotational UVC, rad)
+        const wf = pc == null ? (ph, z) => rvThickenWeight(ph, z, zm) : (ph, z) => { const d = Math.atan2(Math.sin(ph - pc), Math.cos(ph - pc)); return rvThickenWeight(ph, z, zm) * Math.exp(-(d / pw) * (d / pw)); };
+        this._editLVWall(V, this.rvWallLayers, LAB.RV, wf);
+      }
       // atrial wall thickening (opts.raWallLayers / laWallLayers, outward)
       this.raWallLayers = opts.raWallLayers !== undefined ? opts.raWallLayers : 1;   // one extra layer by default (RA force ≈ LA force, see LAE)
       this.laWallLayers = opts.laWallLayers || 0;
@@ -1121,6 +1126,7 @@
               const ts = tl > 1e-6 ? (a * tx + b * ty + e * tz) / (tl * dl) : 0, t2 = Math.min(1 - c2, ts * ts);
               v = 1 / Math.sqrt(c2 / (P.cvVentLong * P.cvVentLong) + t2 / (vS * vS) + Math.max(0, 1 - c2 - t2) / (P.cvVentTrans * P.cvVentTrans));
             } else v = 1 / Math.sqrt(c2 / (P.cvVentLong * P.cvVentLong) + (1 - c2) / (P.cvVentTrans * P.cvVentTrans));
+            if (P.rvCvMul !== 1 && A.label[c] === LAB.RV && Lw === LAB.RV) v *= P.rvCvMul;   // hypertrophied RV muscle conducts more slowly
             src.push(c); dst.push(w); wt.push(d / v);
           } else {
             // atrial: isotropic; specialised tracts speed up via cvScale (harmonic mean)
@@ -2640,8 +2646,10 @@
   // (strain). Validated with tools/hyper.js.
   function hypertrophyOptions({ lvh = false, rvh = false } = {}) {
     return {
-      anatomy: { lvWallLayers: lvh ? 6 : 2, rvWallLayers: rvh ? 5 : 0 },
-      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1 },
+      // RVH: free-wall hypertrophy (thickening centred on the free wall, sparing the septal insertions),
+      // slower conduction in the hypertrophied RV muscle, stronger sources and a strain gradient
+      anatomy: { lvWallLayers: lvh ? 6 : 2, rvWallLayers: rvh ? 6 : 0, ...(rvh ? { rvThickPhiC: 0.4, rvThickPhiW: 0.8 } : {}) },
+      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1, rvCvMul: rvh ? 0.8 : 1 },
     };
   }
 
