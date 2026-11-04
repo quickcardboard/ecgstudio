@@ -30,7 +30,7 @@ Run before and after any engine change and compare:
   at 1 h and 30 days); `tools/physfit.js` is the joint refit that set the current defaults
 - `node tools/hyper.js '[{"lv":6,"P":{"lvStrain":1,"lvSourceGain":1.5}},{"lv":2,"rv":6,"an":{"rvThickPhiC":0.4,"rvThickPhiW":0.8},"P":{"rvStrain":0.7,"rvSourceGain":1.8,"rvCvMul":0.8}}]'` (the LVH and RVH presets of `hypertrophyOptions`)
 - `node tools/ischaudit.js [sites] [hours]`: ST/Q/T per lead for every occlusion site and time
-  stop (`MP='{...}'` overrides parameters)
+  stop (`MP='{...}'` overrides parameters; the marginal branches `OM1,OM2,AM` only when named)
 - `node tools/stcheck.js`, `node tools/arrhythmia.js`, `node tools/avnrt.js`, `node tools/avrt.js`
 - `ISCH_MS=3600 node tools/fullcheck.js '{}'`: ischaemia lead groups (ST at 1 h, Q at 30 days) for seven
   occlusion sites against textbook/MRI criteria, plus axes and QRS shape (`tools/refit.js` adds the
@@ -52,6 +52,8 @@ Known limitations (rebuild-1 rounds 10–17 in docs/DEVELOPMENT.md):
 - LAFB shows a pseudo-infarct (Q/poor R progression) read as old anterior MI
 - distal LCx STEMI at 1 h is not visible; LBBB and RBBB axes are not textbook (read on morphology)
 - old apical (distal-LAD) infarct also shows inferior Q (wrap-around LAD pattern)
+- acute marginal (RV branch) occlusion gives inferior ST elevation and, at 30 days, inferior Q instead of
+  the V1/V4R pattern of isolated RV infarction
 - VT/VF slow the simulation on slower machines
 
 ## Conventions

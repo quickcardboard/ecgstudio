@@ -137,6 +137,18 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .seg label:last-of-type { border-radius: 0 6px 6px 0; border-left: 0; }
 #controls .seg input:checked + label { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .btnrow { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#controls .rsel { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; padding: 9px 11px; font-size: 13.5px; font-weight: 600; }
+.rsel .caret { color: var(--panel-muted); font-size: 12px; }
+.rsel[aria-expanded="true"] .caret { transform: rotate(180deg); }
+.rlist { display: flex; flex-direction: column; gap: 3px; padding: 4px; border: 1px solid var(--panel-line); border-radius: 8px; background: rgba(0,0,0,0.18); }
+.rlist h5 { margin: 6px 6px 2px; font: 600 10.5px/1.2 var(--font-display); letter-spacing: 0.07em; text-transform: uppercase; color: var(--panel-muted); }
+#controls .rlist button { display: flex; justify-content: space-between; gap: 8px; text-align: left; border-color: transparent; background: transparent; padding: 8px 9px; font-size: 13px; }
+#controls .rlist button:hover { background: rgba(255,255,255,0.06); }
+#controls .rlist button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.rlist button i { font-style: normal; color: var(--panel-muted); font-size: 11.5px; }
+.rlist button[aria-selected="true"] i { color: inherit; }
+body.m #controls .rsel { padding: 12px 13px; font-size: 15px; }
+body.m #controls .rlist button { padding: 12px 10px; font-size: 14.5px; }
 .next { font-size: 11.5px; color: var(--panel-muted); border-top: 1px solid var(--panel-line); padding-top: 10px; line-height: 1.45; }
 .next b { color: var(--viewport-fg); font-weight: 500; }
 
@@ -273,6 +285,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .toc button { font-size: 12.5px; padding: 5px 11px; border-radius: 999px; }
 .toc button[aria-selected="true"] { background: var(--fg); color: var(--surface); border-color: var(--fg); }
 .hpage { min-height: 260px; }
+.refs h4 { margin: 14px 0 4px; font: 600 12.5px/1.2 var(--font-display); color: var(--fg); }
+.refs li { font-size: 13px; line-height: 1.45; margin-bottom: 5px; }
 .sheet h3 { scroll-margin-top: 12px; }
 #loading .sheet { max-width: 360px; text-align: center; }
 #loadMsg { color: var(--muted); }
@@ -326,7 +340,6 @@ body.m #controls .viewbar .vgroup > * { flex: 1; text-align: center; }
 body.m #controls .viewbar button, body.m #controls .viewbar .tog { padding: 10px 11px; font-size: 13px; }
 body.m .mfloat { display: flex; gap: 8px; position: absolute; z-index: 3; right: 8px; bottom: 8px; }
 .mfloat button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 96px; padding: 11px 15px; font: 600 14px/1 var(--font-ui); text-align: center; border-radius: 21px; border: 0; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
-.mfloat .bolt { font-size: 15px; line-height: 1; }
 .mfloat .shock { background: #ffcc33; color: #1a1300; }
 .mfloat .adeno { background: #38c6e8; color: #04222b; }
 body.m .press { display: block; position: absolute; z-index: 4; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; pointer-events: none;
@@ -480,15 +493,16 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
 
           <section class="tabpanel" data-panel="rhythm">
             <div class="ctl">
+              <span class="lab" id="rhythmLab">Rhythm</span>
+              <button type="button" class="rsel" id="rhythmBtn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="rhythmLab rhythmCur"><span id="rhythmCur">Sinus rhythm</span><span class="caret" aria-hidden="true">▾</span></button>
+              <div class="rlist" id="rhythmList" role="listbox" aria-labelledby="rhythmLab" hidden></div>
+            </div>
+            <div class="ctl" id="rateCtl">
               <div class="row"><span class="lab" id="rateLab">Sinus rate</span><span class="val" id="rateVal">72 bpm</span></div>
               <input id="rate" type="range" min="30" max="180" step="1" value="72" aria-label="Sinus rate">
             </div>
             <div class="ctl">
-              <span class="lab">Start an arrhythmia</span>
-              <div class="presets" id="arrButtons" role="group" aria-label="Start an arrhythmia">
-                <button type="button" data-arr="af">AF</button><button type="button" data-arr="flutter">Flutter</button><button type="button" data-arr="ectopic" title="Ectopic atrial rhythm">Ectopic</button><button type="button" data-arr="mat">MAT</button><button type="button" data-arr="avnrt">AVNRT</button>
-                <button type="button" data-arr="avrt">AVRT</button><button type="button" data-arr="vt">VT</button><button type="button" data-arr="vf">VF</button>
-              </div>
+              <span class="lab">Therapy</span>
               <div class="btnrow">
                 <button type="button" id="btnAdeno" title="IV adenosine: transient AV-nodal block">Adenosine</button>
                 <button type="button" id="btnShock" title="Cardioversion / defibrillation">Shock</button>
@@ -578,7 +592,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <div class="rebuild" id="rebuildNote" hidden>Building the heart…</div>
       <button type="button" class="mlearn" id="mLearn" aria-pressed="false">Learn</button>
       <div class="mfloat" id="mFloat">
-        <button type="button" id="mShock" class="shock" hidden><span class="bolt" aria-hidden="true">⚡</span>Shock</button>
+        <button type="button" id="mShock" class="shock" hidden>Shock</button>
         <button type="button" id="mAdeno" class="adeno" hidden>Adenosine</button>
       </div>
       <div class="mscrub" id="mScrub" hidden>
@@ -619,7 +633,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
     <button class="close" id="guideClose" type="button">Close</button>
     <h2 id="guideTitle">Help</h2>
     <nav class="toc" role="tablist" aria-label="Help pages">
-      <button type="button" role="tab" data-page="start" aria-selected="true">Getting started</button><button type="button" role="tab" data-page="view" aria-selected="false">View controls</button><button type="button" role="tab" data-page="tabs" aria-selected="false">Control tabs</button><button type="button" role="tab" data-page="about" aria-selected="false">About</button>
+      <button type="button" role="tab" data-page="start" aria-selected="true">Getting started</button><button type="button" role="tab" data-page="view" aria-selected="false">View controls</button><button type="button" role="tab" data-page="tabs" aria-selected="false">Control tabs</button><button type="button" role="tab" data-page="about" aria-selected="false">About</button><button type="button" role="tab" data-page="resources" aria-selected="false">Resources</button>
     </nav>
     <section class="hpage" data-page="start">
       <h3>Getting started</h3>
@@ -663,13 +677,48 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <h3>About</h3>
     <ul>
       <li><b>Anatomy:</b> the average adult four-chamber heart of Rodero et al. (2021), built from CT scans and voxelized at 2 mm. The left ventricular free wall is thickened by about 6 mm and the heart is placed in the chest with its apex behind the 5th intercostal space.</li>
-      <li><b>Electrophysiology:</b> an event-driven cellular automaton with fibre-dependent conduction, AV-node decrement, restitution, transmural and apicobasal repolarization gradients, and a conduction system (SA node, AV node with dual pathways, His bundle, bundle branches, two left fascicles, Purkinje networks).</li>
+      <li><b>Electrophysiology:</b> an event-driven cellular automaton with fibre-dependent conduction, AV-node decrement, restitution, transmural and apicobasal repolarization gradients, and a conduction system (SA node, AV node (dual pathways optional), His bundle, bundle branches, two left fascicles, Purkinje networks).</li>
       <li><b>ECG:</b> limb leads blend the lead field of a computed insulated torso with Einthoven's equilateral triangle; chest leads blend the heart-vector projection with the near-field potential at each electrode.</li>
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p class="credit">Created by {{AUTHOR}}{{CONTACT}}. © {{YEAR}} {{AUTHOR}}. All rights reserved. Version {{VERSION}}.</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
+    </section>
+    <section class="hpage refs" data-page="resources" hidden>
+      <h3>Resources</h3>
+      <p>Papers, datasets and guidelines the model was built from and checked against.</p>
+      <h4>Anatomy and activation</h4>
+      <ul>
+        <li>Rodero C, Strocchi M, Marciniak M, et al. Linking statistical shape models and simulated function in the healthy adult human heart. <i>PLoS Comput Biol</i> 2021;17:e1008851. Mesh data: Zenodo, doi:10.5281/zenodo.4593739 (CC BY 4.0).</li>
+        <li>Durrer D, van Dam RT, Freud GE, Janse MJ, Meijler FL, Arzbaecher RC. Total excitation of the isolated human heart. <i>Circulation</i> 1970;41:899–912.</li>
+        <li>Cardone-Noott L, Bueno-Orovio A, Mincholé A, Zemzemi N, Rodriguez B. Human ventricular activation sequence and the simulation of the electrocardiographic QRS complex and its variability in healthy and intraventricular block conditions. <i>Europace</i> 2016;18(suppl 4):iv4–iv15.</li>
+        <li>Camps J, et al. arXiv:2010.15214 (2020): inferring ventricular activation (root nodes, conduction speeds) from the 12-lead ECG.</li>
+        <li>Camps J, et al. arXiv:2306.13740 (2023): digital twins of ventricular activation from clinical 12-lead ECGs and MRI with realistic Purkinje networks.</li>
+        <li>Zappon E, et al. arXiv:2407.17146 (2024): variability of the simulated ECG in calibrated cardiac digital twins.</li>
+        <li>Grandits T, Gillette K, et al. arXiv:2411.00165 (2024): how well the ECG identifies the cardiac conduction system.</li>
+      </ul>
+      <h4>ECG criteria</h4>
+      <ul>
+        <li>Kligfield P, Gettes LS, Bailey JJ, et al. Recommendations for the standardization and interpretation of the electrocardiogram, part I. <i>Circulation</i> 2007;115:1306–1324.</li>
+        <li>Surawicz B, Childers R, Deal BJ, Gettes LS. AHA/ACCF/HRS recommendations, part III: intraventricular conduction disturbances. <i>Circulation</i> 2009;119:e235–e240.</li>
+        <li>Hancock EW, Deal BJ, Mirvis DM, et al. AHA/ACCF/HRS recommendations, part V: ECG changes associated with cardiac chamber hypertrophy. <i>Circulation</i> 2009;119:e251–e261.</li>
+        <li>Sokolow M, Lyon TP. The ventricular complex in left ventricular hypertrophy as obtained by unipolar precordial and limb leads. <i>Am Heart J</i> 1949;37:161–186.</li>
+        <li>Casale PN, Devereux RB, Alonso DR, Campo E, Kligfield P. Improved sex-specific criteria of left ventricular hypertrophy for clinical and computer interpretation of electrocardiograms (Cornell voltage). <i>Circulation</i> 1987;75:565–572.</li>
+        <li>Wolff L, Parkinson J, White PD. Bundle-branch block with short P-R interval in healthy young people prone to paroxysmal tachycardia. <i>Am Heart J</i> 1930;5:685–704.</li>
+      </ul>
+      <h4>Ischemia and infarction</h4>
+      <ul>
+        <li>Thygesen K, Alpert JS, Jaffe AS, et al. Fourth universal definition of myocardial infarction (2018). <i>Circulation</i> 2018;138:e618–e651.</li>
+        <li>Bayés de Luna A, Wagner G, Birnbaum Y, et al. A new terminology for left ventricular walls and location of myocardial infarcts that present Q wave based on the standard of cardiac magnetic resonance imaging. <i>Circulation</i> 2006;114:1755–1760.</li>
+        <li>Reimer KA, Jennings RB. The “wavefront phenomenon” of myocardial ischemic cell death. II. Transmural progression of necrosis within the framework of ischemic bed size (myocardium at risk) and collateral flow. <i>Lab Invest</i> 1979;40:633–644.</li>
+      </ul>
+      <h4>Pericarditis and Brugada syndrome</h4>
+      <ul>
+        <li>Spodick DH. Acute pericarditis: current concepts and practice. <i>JAMA</i> 2003;289:1150–1153.</li>
+        <li>Ginzton LE, Laks MM. The differential diagnosis of acute pericarditis from the normal variant: new electrocardiographic criteria. <i>Circulation</i> 1982;65:1004–1009.</li>
+        <li>Antzelevitch C, Yan GX, Ackerman MJ, et al. J-wave syndromes expert consensus conference report. <i>Heart Rhythm</i> 2016;13:e295–e324.</li>
+      </ul>
     </section>
   </div>
 </div>
