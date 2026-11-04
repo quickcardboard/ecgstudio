@@ -472,41 +472,13 @@
     return l ? [d[0] / l, d[1] / l, d[2] / l] : [0, 0, 0];
   }
   const MAJOR = { LM: 1.9, LAD: 1.45, LCx: 1.45, RCA: 1.5 };
-  // left coronary ostium: an exposed aortic-wall voxel about 1 cm from the left main's
-  // bifurcation, facing the left (the Lateral view, where the left main shows between
-  // the aorta and the left atrial appendage), lifted off the wall like the other vessels
-  function lmOstium(split) {
-    const s = M.coronary.nodes[split], [nx, ny, nz] = A.dims, R = M.rot, t = [1, 0.4, 0.15]; let best = -1, bs = Infinity;
-    const view = [0, 1, 2].map((j) => R[j] * t[0] + R[3 + j] * t[1] + R[6 + j] * t[2]), vl = Math.hypot(...view);
-    for (let c = 0; c < A.n; c++) {
-      if (A.label[c] !== LH.LAB.AO) continue;
-      const p = A.p(c), d = Math.hypot(p[0] - s.x, p[1] - s.y, p[2] - s.z);
-      if (d < 7 || d > 13) continue;
-      const i = A.ii[c], j = A.jj[c], k = A.kk[c];
-      let open = false;
-      for (const [a, b, e] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) { const ii = i + a, jj = j + b, kk = k + e; if (ii < 0 || jj < 0 || kk < 0 || ii >= nx || jj >= ny || kk >= nz || A.at(ii, jj, kk) < 0) open = true; }
-      if (!open) continue;
-      const o = outwardOf(c), f = (o[0] * view[0] + o[1] * view[1] + o[2] * view[2]) / vl;
-      if (f < 0.4 || p[1] < s.y + 3) continue;                   // (facing the viewer, above the bifurcation: drawn down the aortic root)
-      const sc = Math.abs(d - 11) + 6 * (1 - f);
-      if (sc < bs) { bs = sc; best = c; }
-    }
-    if (best < 0) return null;
-    const o = outwardOf(best), p = A.p(best);
-    return new THREE.Vector3(p[0] + o[0] * 2.4, p[1] + o[1] * 2.4, p[2] + o[2] * 2.4);
-  }
   function buildCoronaries() {
     const cor = M.coronary, grp = g3.cor = new THREE.Group(); g3.inner.add(grp);
     g3.corTubes = []; g3.corPick = [];
     const posOf = cor.nodes.map((n) => { const o = outwardOf(n.vox); return new THREE.Vector3(n.x + o[0] * 2.4, n.y + o[1] * 2.4, n.z + o[2] * 2.4); });
     for (const [name, ids0] of Object.entries(cor.branches)) {
       const par = cor.nodes[ids0[0]].parent;
-      let ids = par >= 0 ? [par].concat(ids0) : ids0, pts = ids.map((id) => posOf[id]);
-      // The model's left main starts on the ventricle a few millimetres from its bifurcation,
-      // which sits against the aortic root: drawn as is it is a stub, almost impossible to
-      // click. It is drawn instead from an ostium on the aortic wall ~1 cm away to the
-      // bifurcation (all of it the left main), with a wider click target.
-      if (name === 'LM') { const o = lmOstium(ids0[ids0.length - 1]); if (o) { pts = [o, o.clone().lerp(posOf[ids0[ids0.length - 1]], 0.5), posOf[ids0[ids0.length - 1]]]; ids = [ids0[0], ids0[0], ids0[0]]; g3.lmLabel = o.clone().lerp(pts[2], 0.3); } }
+      const ids = par >= 0 ? [par].concat(ids0) : ids0, pts = ids.map((id) => posOf[id]);
       if (ids.length < 2) continue;
       const curve = new THREE.CatmullRomCurve3(pts);
       const tub = Math.max(6, (ids.length - 1) * 4), rad = 6, r = MAJOR[name] || 1.0;
@@ -788,8 +760,7 @@
       // left (lateral view), so its label shows only within ~60° of a left, slightly superior view
       const R = M.rot, t = [1, 0.4, 0.15], lm = b === 'LM';
       const nrm = lm ? V3([0, 1, 2].map((j) => R[j] * t[0] + R[3 + j] * t[1] + R[6 + j] * t[2])).normalize() : V3(o);
-      const at = lm && g3.lmLabel ? g3.lmLabel.toArray() : [n.x + o[0] * 3, n.y + o[1] * 3, n.z + o[2] * 3];   // (the left main: on its drawn trunk)
-      add(text, at, 'external', 'cor', nrm, lm ? 0.5 : 0);
+      add(text, [n.x + o[0] * 3, n.y + o[1] * 3, n.z + o[2] * 3], 'external', 'cor', nrm, lm ? 0.5 : 0);
     }
     // cut views: chamber/wall names are placed on the current plane by placeCutLabels()
     for (const key of ['RA', 'LA', 'RV', 'LV', 'Septum', 'Anterior wall', 'Lateral wall', 'Inferior wall', 'Mitral valve', 'Tricuspid valve']) {
@@ -2146,6 +2117,19 @@
   // ---------------------------------------------------------------------------
   const STRUCT_KEYS = CONDITIONS.filter((c) => !c.options).map((c) => c.id);
   const ARR_TYPES = ['af', 'flutter', 'ectopic', 'mat', 'avnrt', 'avrt', 'vt', 'vf'];
+  // Coronary node numbers in share links. Links made before the left main was lengthened
+  // (no c=2) number the nodes of the old tree: each is mapped to the same branch, at the
+  // same fraction along it, in the current tree.
+  const CORONARY_VERSION = '2';
+  const LEGACY_TREE = [['LM', 3], ['LAD', 31], ['D1', 13], ['D2', 13], ['LCx', 16], ['OM1', 21], ['OM2', 19], ['RCA', 29], ['AM', 8], ['PDA', 23], ['PLV', 16]];
+  function legacyNode(id) {
+    let k = id;
+    for (const [b, n] of LEGACY_TREE) {
+      if (k < n) { const ids = M.coronary.allBranches[b]; return ids && ids.length ? ids[Math.round(k / Math.max(1, n - 1) * (ids.length - 1))] : -1; }
+      k -= n;
+    }
+    return -1;
+  }
   function scenarioLink() {
     const q = new URLSearchParams();
     q.set('r', ui.rate);
@@ -2158,6 +2142,7 @@
     const occ = S.insults.filter((x) => x.kind === 'occlusion').map((x) => x.node), sub = S.insults.filter((x) => x.kind === 'subendo').map((x) => x.cell);
     if (occ.length) q.set('o', occ.join(','));
     if (sub.length) q.set('se', sub.join(','));
+    if (occ.length) q.set('c', CORONARY_VERSION);
     if (S.insults.length) q.set('h', ui.ischH);
     const st = STRUCT_KEYS.filter((k) => ui.struct[k]);
     if (st.length) q.set('s', st.join(','));
@@ -2178,12 +2163,12 @@
     return {
       arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null,
       blocks: (q.get('b') || '').split(',').map((x) => x.split('.')).filter(([site, type]) => BLOCK_MENU[site] && BLOCK_MENU[site].some((m) => m[0] === type)),
-      occ: ints('o'), sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
+      occ: ints('o'), legacyCor: q.get('c') !== CORONARY_VERSION, sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
     };
   }
   function applyScenario(sc) {
     const nodes = M.coronary.nodes.length, sub = !SUBENDO_ON ? [] : sc.sub.filter((c) => c < A.n && (A.label[c] === LH.LAB.LV || A.label[c] === LH.LAB.RV));
-    const cor = M.coronary, occ = sc.occ.filter((n) => n < nodes && cor.branches[cor.nodes[n].branch]);   // offered vessels only (links made before an anatomy change may name side branches)
+    const cor = M.coronary, occ = (sc.legacyCor ? sc.occ.map(legacyNode) : sc.occ).filter((n) => n >= 0).filter((n) => n < nodes && cor.branches[cor.nodes[n].branch]);   // offered vessels only (links made before an anatomy change may name side branches)
     // a healthy stretch first, so the interpretation has this heart's normal beat to compare with
     if (sc.blocks.length || occ.length || sub.length) { S.run(2600); captureRef(); ecg.full = true; }
     for (const [site, type] of sc.blocks) { const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type, m[2] || {}); }

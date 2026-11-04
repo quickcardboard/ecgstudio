@@ -1237,3 +1237,10 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
 
 - The Resources tab is gone from the top of Help (desktop and phone); Resources opens from a link on the About page (both layouts).
 - Round 32's tap-to-remove on the occlusion marker is reverted: on phones a marker is removed by press and hold, as before (a tap stimulates a beat). The "Tap the yellow marker" line is removed from the phone Help.
+
+## Round 34: a longer left main (anatomy), share-link compatibility
+
+- The left main was 7 mm and ran the wrong way: from the ventricle to a split against the aortic root. Round 31 drew a separate tube from the aortic wall to make it clickable, which looked odd. That drawing is removed.
+- The engine now routes the left main from the aortic root about 1 cm leftward before the LAD and circumflex leave it (`lmRoute` in `DEFAULTS`: start and split as offsets from the aortic-valve centre; `null` restores the old trunk). Path 11.3 mm, 4 nodes (typical adult left main about 10 mm). In the Lateral view the left main's click area is about three times larger, above and beside the bifurcation.
+- Effect on the ECG: the normal ECG (`evalecg`) and `fullcheck` are identical; reader 18 pass / 3 partial / 1 wrong (unchanged). `ischaudit`: territories change by 1–2% (pLAD 7738 → 7863 dead cells, pLCx 8133 → 7964, RCA sites +44). Lead patterns are the same, except proximal LAD at 1 h also shows ST elevation in aVR (and T inversion in II).
+- Share links: node numbers change with the tree. New links carry `c=2`. Links without it (made on the live site before this change) are mapped by branch and position along it, through `coronary.allBranches` and a table of the old tree's branch sizes (`legacyNode`). Checked: old `o=0` → left main, `o=3` → proximal LAD, `o=18` → mid LAD, `o=60,130` → proximal circumflex and mid RCA, `o=153` → PDA.

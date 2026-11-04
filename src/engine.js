@@ -228,6 +228,7 @@
     ladProxFreeWallPhi: 2.0,
     apexTipZ: 0.06,           // apical tip (apicobasal UVC below this) is LAD; the apical inferior wall above it is PDA  // proximal-LAD nodes lateral of this (rotational UVC) supply no free wall
     ladRvMm: 0,            // RV muscle within this distance (mm) of the LAD is supplied by it (RV branches)
+    lmRoute: [[6, 11, -10], [17, 11, -8]],   // left main: from the aortic root ~1 cm leftward to the LAD/LCx split (offsets from the aortic-valve centre, mm; null = the old 7 mm trunk)
     d1Path: null, d2Path: null,   // diagonal waypoints [[rotational UVC, apicobasal UVC], ...] (null = built-in)
     septalPerf: [0.14, 0.3, 0.45, 0.6],      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
@@ -828,7 +829,9 @@
       const along = (ids, f) => ids[Math.min(ids.length - 1, Math.floor(f * (ids.length - 1)))];
       const ao = lm.AoV.c;
       // left main: from the left-posterior aortic sinus to the LAD/LCx split
-      const lmStart = A.nearest(add(ao, [12, -4, -6]), epiV), split = lvEpi(1.55, 0.95);
+      // (lmRoute: [start, split] offsets from the aortic-valve centre, mm; null = the
+      // original short trunk, from the ventricle to a split against the aortic root)
+      const lmStart = A.nearest(add(ao, P.lmRoute ? P.lmRoute[0] : [12, -4, -6]), epiV), split = P.lmRoute ? A.nearest(add(ao, P.lmRoute[1]), epiV) : lvEpi(1.55, 0.95);
       const LM = addBranch('LM', -1, [lmStart, split]);
       // LAD down the anterior interventricular groove: waypoints on the LV
       // epicardium where it meets the RV anteriorly (the rotational coordinate is
@@ -912,8 +915,9 @@
       const MAIN = ['LM', 'LAD', 'LCx', 'RCA', 'PDA', 'OM1', 'OM2', 'AM'];
       const mainOf = (id) => { while (id >= 0 && !MAIN.includes(nodes[id].branch)) id = nodes[id].parent; return id; };
       for (let c = 0; c < A.n; c++) if (voxNode[c] >= 0) voxNode[c] = mainOf(voxNode[c]);
+      const allBranches = Object.assign({}, branches);                  // (every branch, offered or not: maps old share-link node numbers)
       for (const b of Object.keys(branches)) if (!MAIN.includes(b)) delete branches[b];
-      this.coronary = { nodes, branches, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
+      this.coronary = { nodes, branches, allBranches, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
     }
 
     // Flutter circuit geometry: every right-atrial voxel's angle around the
