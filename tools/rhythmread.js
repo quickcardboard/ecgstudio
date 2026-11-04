@@ -126,7 +126,9 @@ function classify(o, beats) {
     if (pOk && !dissoc) return o.pII >= 0 ? rateTxt('sinus').replace('sinus rhythm', 'sinus rhythm') : 'ectopic atrial rhythm';
     if (dissoc && o.prSd !== null && o.prSd <= 25 && Math.abs(o.pCount / beats.length - 2) < 0.4) return 'sinus rhythm, 2:1 AV block';
     if (dissoc) return `sinus rhythm, complete AV block (${o.width >= 120 ? 'ventricular' : 'junctional'} escape)`;
-    if (o.rate >= 130 && o.prAllShare < 0.5) return 'SVT (no P before the QRS: AVNRT or AVRT)';
+    // narrow regular tachycardia without a P before the QRS: told apart by rate (AVNRT typically 140–180,
+    // orthodromic AVRT faster, above 200)
+    if (o.rate >= 130 && o.prAllShare < 0.5) return o.rate >= 200 ? 'AVRT (SVT, no visible P, rate ≥ 200)' : 'AVNRT (SVT, no visible P, rate < 200)';
     return rateTxt('regular');
   }
   // irregular

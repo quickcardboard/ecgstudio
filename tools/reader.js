@@ -51,6 +51,13 @@ function read(rec, hint, rr) {
     pAmp[n] = +a.toFixed(3); let sg = 0; for (let t = on - 20; t < on - 10; t++) sg += x(t, k) / 10; prSeg[n] = +sg.toFixed(3);
   }
   if (pOn !== null) { const k = K('V1'); for (let t = pOn; t <= pOff; t++) if (x(t, k) < 0) ptfV1 += -x(t, k) * 10 * 0.001; }   // mm × s
+  // P mitrale notch: two humps in II (5 ms smoothing) with a dip of ≥ 0.02 mV between them; the gap in ms
+  let pNotch = 0;
+  if (pOn !== null) {
+    const k = K('II'), sm = []; for (let t = pOn; t <= pOff; t++) { let a = 0; for (let u = -2; u <= 2; u++) a += x(t + u, k) / 5; sm.push(a); }
+    const pk = []; for (let i = 3; i < sm.length - 3; i++) if (sm[i] > 0.03 && sm[i] >= sm[i - 3] && sm[i] > sm[i + 3] && sm[i] >= sm[i - 1] && sm[i] >= sm[i + 1]) pk.push(i);
+    for (let a = 0; a < pk.length; a++) for (let b = a + 1; b < pk.length; b++) { let lo = Infinity; for (let i = pk[a]; i <= pk[b]; i++) lo = Math.min(lo, sm[i]); if (Math.min(sm[pk[a]], sm[pk[b]]) - lo >= 0.02) pNotch = Math.max(pNotch, pk[b] - pk[a]); }
+  }
   // T wave end: after the T peak, where the magnitude falls under 10% of the peak
   let tpk = off + 60, tmx = 0; for (let t = off + 40; t < off + 420; t++) if (mag(t) > tmx) { tmx = mag(t); tpk = t; }
   let tend = tpk; while (tend < tpk + 250 && mag(tend) > 0.1 * tmx) tend++;
@@ -81,7 +88,7 @@ function read(rec, hint, rr) {
   const qrs = off - on, axis = Math.round(Math.atan2((2 / Math.sqrt(3)) * L.aVF.net, L.I.net) * 180 / Math.PI);
   // delta wave: slow initial QRS (largest-R lead: time from QRS onset to half its R peak)
   const big = LEADS.reduce((b, n) => (L[n].R > L[b].R ? n : b), 'I'), kb = K(big); let up = 0; while (up < 120 && x(on + up, kb) < 0.5 * L[big].R) up++;
-  const m = { qrs, pr, pdur, qt, qtc: Math.round(qtc), axis, rate: Math.round(60000 / (rr || 833)), pAmp, prSeg, ptfV1: +ptfV1.toFixed(3), upstroke: up, upLead: big };
+  const m = { qrs, pr, pdur, qt, qtc: Math.round(qtc), axis, rate: Math.round(60000 / (rr || 833)), pAmp, prSeg, ptfV1: +ptfV1.toFixed(3), pNotch, upstroke: up, upLead: big };
   return { m, L, interpret };
   function interpret() { return diagnose(m, L); }
 }
@@ -98,8 +105,9 @@ function diagnose(m, L) {
   // pre-excitation (WPW pattern): PR < 120 ms, QRS ≥ 110 ms, slurred initial QRS (delta wave). The
   // abnormal activation makes axis, bundle-branch, hypertrophy and infarct criteria invalid: not read.
   const wpw = m.pr !== null && m.pr < 120 && m.qrs >= 110 && m.upstroke >= 50;
-  // atrial enlargement: P ≥ 0.25 mV in II (right), P ≥ 120 ms or V1 terminal force ≥ 0.04 mm·s (left)
-  const rae = m.pAmp && m.pAmp.II >= 0.25, lae = m.pdur !== null && (m.pdur >= 120 || m.ptfV1 >= 0.04);
+  // atrial enlargement: P ≥ 0.25 mV in II (right, P pulmonale)
+  // (left: P mitrale — broad, ≥ 120 ms, and notched in II with humps ≥ 40 ms apart)
+  const rae = m.pAmp && m.pAmp.II >= 0.25, lae = m.pdur !== null && m.pdur >= 120 && m.pNotch >= 40;
   if (rae && lae) dx.push('biatrial enlargement'); else if (rae) dx.push('RAE'); else if (lae) dx.push('LAE');
   if (wpw) { dx.push('WPW pattern'); f.axis = 'n/a'; return { dx, f }; }
   // axis

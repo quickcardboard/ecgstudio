@@ -183,7 +183,7 @@
     restA: 0.70, restTau: 450,
     // CV restitution (slowing in partially recovered tissue)
     cvRestK: 0.6, cvRestTau: 30,
-    avnCvRestK: 4, avnCvRestTau: 150,  // AV-node decremental conduction
+    avnCvRestK: 2.4, avnCvRestTau: 150,  // AV-node decremental conduction (2.4: AVNRT ~175 bpm, orthodromic AVRT > 200 bpm)
     avnErpExtra: 180,      // post-repolarisation refractoriness of AV node (ms)
     electrotonicK: 1.4,    // APD shortening per ms of later activation (cardiac memory)
     erpFrac: 0.92,         // ERP as fraction of APD (myocardium)
@@ -208,8 +208,8 @@
     apDelay: 6, apErp: 280,
 
     // Atrial enlargement (see Sim.setAtrialEnlargement)
-    raeGain: 2.4, raeSlow: 0.85,
-    laeGain: 2.6, laeSlow: 0.85, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 28,
+    raeGain: 2.6, raeSlow: 0.85,
+    laeGain: 2.0, laeSlow: 0.85, laeAvnMul: 1.35, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 28,
 
     // Ischaemia (see Sim._ischemicState)
     ischBorderMm: 9,       // border-zone width over which severity rises to the core value
@@ -1669,7 +1669,7 @@
     _applyAvn() {
       const tone = this._avnTone || 1;
       for (const c of this.M.avn) {
-        this.cvMul[c] = tone * (this.avnBlockMul || 1) * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
+        this.cvMul[c] = tone * (this.avnBlockMul || 1) * (this._avnLae || 1) * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
         // nodal refractoriness also follows autonomic tone (vagal lengthens, sympathetic shortens)
         // (AV-nodal ischaemia also lengthens nodal refractoriness: 1st-degree block, Wenckebach)
         if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone * (1 + this.P.ischAvnErp * (this._avnIschemia || 0));
@@ -1723,6 +1723,9 @@
       // wave. (Only RA→LA: the way back meets refractory RA, so no re-entry.)
       if (!this._atrialSide) { this._atrialSide = new Int8Array(M.nVox); for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.ATRIAL) this._atrialSide[c] = A.label[c] === LAB.RA ? 1 : -1; }
       this._iaSlow = la ? P.laeInteratrialEdgeSlow : 0;
+      // (with the LA activated late, the PR lengthens a little so the broad P ends before the QRS, as in
+      // P mitrale on paper: PR upper-normal, short PR segment)
+      this._avnLae = la ? P.laeAvnMul : 1; if (this._applyAvn) this._applyAvn();
       for (let c = 0; c < M.nVox; c++) {
         if (M.kind[c] !== KIND.ATRIAL) continue;
         const isRA = A.label[c] === LAB.RA, on = isRA ? ra : la;

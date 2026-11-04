@@ -25,9 +25,9 @@ const RHY = {
   flutter4: { make: (LH, M) => { const S = new LH.Sim(M, { seed: 3 }); S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(75); return S; }, expect: { rhythm: 'atrial flutter' } },
   ectopicAtrial: { make: (LH, M) => { const S = new LH.Sim(M, { seed: 3 }); S.run(2000); S.startArrhythmia('ectopic'); return S; }, expect: { rhythm: 'ectopic atrial rhythm' } },
   MAT: { make: (LH, M) => { const S = new LH.Sim(M, { seed: 3 }); S.setRate(120); S.run(2000); S.startArrhythmia('mat'); return S; }, expect: { rhythm: 'multifocal atrial tachycardia' } },
-  // AVNRT and AVRT: read as SVT; the ideal read names the circuit (AVRT: retrograde P in the ST, RP > 70 ms)
-  AVNRT: { make: (LH, M, A) => induce(LH, M, A, (S) => S.setDualAVN(true), A.nearest(A.landmarks.SVC.c, (c) => A.label[c] === LH.LAB.RA), [280, 260, 240, 220, 200, 180, 160]), expect: { rhythm: 'SVT' } },
-  AVRT: { make: (LH, M, A) => induce(LH, M, A, (S) => S.setAccessoryPathway('left-lateral'), A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === LH.LAB.LA), [270, 250, 290, 230, 310]), expect: { rhythm: 'SVT', ideal: 'AVRT' } },
+  // AVNRT and AVRT, told apart by rate (AVNRT 140–180 bpm, orthodromic AVRT above 200)
+  AVNRT: { make: (LH, M, A) => induce(LH, M, A, (S) => S.setDualAVN(true), A.nearest(A.landmarks.SVC.c, (c) => A.label[c] === LH.LAB.RA), [280, 260, 240, 220, 200, 180, 160]), expect: { rhythm: 'AVNRT' } },
+  AVRT: { make: (LH, M, A) => induce(LH, M, A, (S) => S.setAccessoryPathway('left-lateral'), A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === LH.LAB.LA), [270, 250, 290, 230, 310]), expect: { rhythm: 'AVRT' } },
   VT: { make: (LH, M, A) => { const S = new LH.Sim(M, { seed: 3 }); S.run(2000); S.startArrhythmia('vt', { cell: vtCell(A) }); return S; }, expect: { rhythm: 'ventricular tachycardia' } },
   VF: { make: (LH, M) => { const S = new LH.Sim(M, { seed: 3 }); S.run(2000); S.startArrhythmia('vf'); return S; }, expect: { rhythm: 'ventricular fibrillation' } },
   mobitz1: { make: (LH, M) => { const S = new LH.Sim(M, { seed: 1 }); S.setBlock('AVN', 'wenckebach'); return S; }, expect: { rhythm: 'Mobitz I' } },

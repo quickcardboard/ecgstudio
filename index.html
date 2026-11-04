@@ -690,7 +690,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-04 (e3a37b4).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-04 (727ef86).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -734,7 +734,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-04 (e3a37b4).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-04 (727ef86).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -2042,7 +2042,7 @@ THE SOFTWARE.
     restA: 0.70, restTau: 450,
     // CV restitution (slowing in partially recovered tissue)
     cvRestK: 0.6, cvRestTau: 30,
-    avnCvRestK: 4, avnCvRestTau: 150,  // AV-node decremental conduction
+    avnCvRestK: 2.4, avnCvRestTau: 150,  // AV-node decremental conduction (2.4: AVNRT ~175 bpm, orthodromic AVRT > 200 bpm)
     avnErpExtra: 180,      // post-repolarisation refractoriness of AV node (ms)
     electrotonicK: 1.4,    // APD shortening per ms of later activation (cardiac memory)
     erpFrac: 0.92,         // ERP as fraction of APD (myocardium)
@@ -2067,8 +2067,8 @@ THE SOFTWARE.
     apDelay: 6, apErp: 280,
 
     // Atrial enlargement (see Sim.setAtrialEnlargement)
-    raeGain: 2.4, raeSlow: 0.85,
-    laeGain: 2.6, laeSlow: 0.85, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 28,
+    raeGain: 2.6, raeSlow: 0.85,
+    laeGain: 2.0, laeSlow: 0.85, laeAvnMul: 1.35, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 28,
 
     // Ischaemia (see Sim._ischemicState)
     ischBorderMm: 9,       // border-zone width over which severity rises to the core value
@@ -3528,7 +3528,7 @@ THE SOFTWARE.
     _applyAvn() {
       const tone = this._avnTone || 1;
       for (const c of this.M.avn) {
-        this.cvMul[c] = tone * (this.avnBlockMul || 1) * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
+        this.cvMul[c] = tone * (this.avnBlockMul || 1) * (this._avnLae || 1) * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
         // nodal refractoriness also follows autonomic tone (vagal lengthens, sympathetic shortens)
         // (AV-nodal ischaemia also lengthens nodal refractoriness: 1st-degree block, Wenckebach)
         if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone * (1 + this.P.ischAvnErp * (this._avnIschemia || 0));
@@ -3582,6 +3582,9 @@ THE SOFTWARE.
       // wave. (Only RA→LA: the way back meets refractory RA, so no re-entry.)
       if (!this._atrialSide) { this._atrialSide = new Int8Array(M.nVox); for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.ATRIAL) this._atrialSide[c] = A.label[c] === LAB.RA ? 1 : -1; }
       this._iaSlow = la ? P.laeInteratrialEdgeSlow : 0;
+      // (with the LA activated late, the PR lengthens a little so the broad P ends before the QRS, as in
+      // P mitrale on paper: PR upper-normal, short PR segment)
+      this._avnLae = la ? P.laeAvnMul : 1; if (this._applyAvn) this._applyAvn();
       for (let c = 0; c < M.nVox; c++) {
         if (M.kind[c] !== KIND.ATRIAL) continue;
         const isRA = A.label[c] === LAB.RA, on = isRA ? ra : la;
@@ -6310,8 +6313,8 @@ THE SOFTWARE.
     flutter: { t: 'Atrial flutter', f: ['Sawtooth flutter (F) waves, about 300/min, best seen in II, III, aVF (negative in typical counterclockwise flutter) and V1.', 'Fixed AV conduction gives a regular rhythm: 2:1 (≈150 bpm), 3:1, 4:1; variable conduction gives an irregular one.'], p: ['2:1 flutter at 150 bpm hides every other F wave in the QRS or T: suspect it whenever a regular narrow tachycardia runs at ~150.', 'Adenosine slows the ventricular response and unmasks the F waves; it does not stop flutter.'] },
     ectopic: { t: 'Ectopic atrial rhythm', f: ['A P wave before each QRS but with an abnormal axis: here inverted in II, III and aVF (low right-atrial focus).', 'PR often short (the focus lies close to the AV node); P shape constant, unlike MAT.'], p: ['Inverted inferior P waves with a short PR can also be junctional rhythm with retrograde P: in junctional rhythm the PR is usually < 120 ms or the P falls after the QRS.'] },
     mat: { t: 'Multifocal atrial tachycardia', f: ['At least three different P-wave shapes in one lead, each followed by a QRS.', 'Varying PR and RR intervals: irregular, rate > 100 (below 100: wandering atrial pacemaker).'], p: ['Easily mistaken for AF: look for a distinct P before every QRS. Classically seen in severe lung disease.'] },
-    avnrt: { t: 'AVNRT', f: ['Regular narrow-complex tachycardia, usually 140–250 bpm, starting abruptly (often after a PAC with a long PR).', 'No visible P before the QRS: the retrograde P is buried in the QRS or seen as a pseudo-r′ in V1 / pseudo-S in II.'], p: ['Adenosine (or vagal manoeuvres) terminates it, unlike atrial flutter or atrial tachycardia.'] },
-    avrt: { t: 'Orthodromic AVRT', f: ['Regular narrow-complex tachycardia; retrograde P after the QRS with RP > 70 ms (the impulse returns up the accessory pathway).', 'In sinus rhythm the same patient may show pre-excitation (short PR, delta wave).'], p: ['RP > 70 ms favours AVRT over typical AVNRT (where the P hides in the QRS).'] },
+    avnrt: { t: 'AVNRT', f: ['Regular narrow-complex tachycardia, typically 140–180 bpm, starting abruptly (often after a PAC with a long PR).', 'No visible P before the QRS: the retrograde P is buried in the QRS or seen as a pseudo-r′ in V1 / pseudo-S in II.'], p: ['Adenosine (or vagal manoeuvres) terminates it, unlike atrial flutter or atrial tachycardia.'] },
+    avrt: { t: 'Orthodromic AVRT', f: ['Regular narrow-complex tachycardia, typically faster than AVNRT (often above 200 bpm); retrograde P after the QRS with RP > 70 ms (the impulse returns up the accessory pathway).', 'In sinus rhythm the same patient may show pre-excitation (short PR, delta wave).'], p: ['A rate above 200 bpm and RP > 70 ms favour AVRT over typical AVNRT (140–180 bpm, the P hidden in the QRS).'] },
     vt: { t: 'Ventricular tachycardia', f: ['Regular broad-complex tachycardia (QRS ≥ 120 ms), rate > 100.', 'AV dissociation: P waves march through at their own slower rate; capture and fusion beats prove it.', 'Concordance (all chest leads positive or all negative) and extreme axis favour VT.'], p: ['A broad regular tachycardia is VT until proven otherwise, even if the patient looks well.'] },
     vf: { t: 'Ventricular fibrillation', f: ['Chaotic, irregular deflections of varying amplitude; no identifiable QRS, P or T waves.'], p: ['Check leads and the patient: artefact can mimic VF, but if pulseless, defibrillate now.'] },
     first: { t: '1st-degree AV block', f: ['PR > 200 ms and constant; every P is followed by a QRS.'], p: [] },
