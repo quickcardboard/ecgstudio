@@ -25,7 +25,7 @@
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', struct: { rae: false, lae: false, lvh: false, rvh: false, ap: '', dual: true }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, leadSet: 'book', scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', struct: { rae: false, lae: false, lvh: false, rvh: false, ap: false, dual: false }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, leadSet: 'book', scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const bufIdx = (t) => (((Math.round(t) + ecg.t0) % PAGE) + PAGE) % PAGE;   // sim time → paper sample
   const ecg = { t0: 0, buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
@@ -123,14 +123,14 @@
     if (keepEcg && S) ecg.t0 = (ecg.t0 + S.t) % PAGE; else ecg.t0 = 0;
     S = new LH.Sim(M, { seed: 1 });
     S.setRate(ui.rate);
-    S.setDualAVN(ui.struct.dual);
+    S.setDualAVN(!!ui.struct.dual);                                  // (off unless the condition is on: the slow pathway is open by default in the engine)
     for (const c of CONDITIONS) if (c.apply && ui.struct[c.id]) c.apply(ui.struct[c.id]);
     if (!keepEcg) for (const b of ecg.buf) b.fill(NaN);
     ecg.full = true;
     if (g3.apMark) placeAPMarker();
     const t0 = ecg.t0;
     S.onSample((t, L) => { const i = (t + t0) % PAGE; for (let k = 0; k < 12; k++) ecg.buf[k][i] = L[k]; });
-    ui.acc = 0; ui.ischPending = null;
+    ui.acc = 0; ui.ischPending = null; ui.rhythmFrom = 0; ui.rhythmShown = null;
     ui.acqUntil = ACQ_MS; showAcquiring();
     if (g3.cor) { recolorIschemia(); renderIschList(); }
   }
@@ -161,6 +161,7 @@
   function loop(now) {
     const raw = now - ui.last, dt = Math.min(250, raw); ui.last = now;
     if (ui.ischPending !== null) { S.setIschemiaTime(ui.ischPending); ui.ischPending = null; recolorIschemia(); interpret(true); }
+    if (ui.necTween) animateNecrosis(now);
     // frames slower than ~30 fps (GPU-bound 3D included) count as falling behind
     let behind = raw > 34;
     if (!ui.paused) {
@@ -185,7 +186,7 @@
     const t2 = performance.now();
     drawECG(); drawPhone();
     perf.t3d += t2 - t1; perf.tEcg += performance.now() - t2; perf.frames++;
-    if ((interpTimer += dt) > 300) { interpTimer = 0; syncRate(); interpret(); updateFloat(); }
+    if ((interpTimer += dt) > 300) { interpTimer = 0; syncRate(); interpret(); updateFloat(); syncRhythmUI(); }
     $('clock').textContent = `t ${(S.t / 1000).toFixed(3)} s · ${SCALE_LABEL[ui.scaleIdx]}${ui.paused ? ' · paused' : ''}`;
     requestAnimationFrame(loop);
   }
@@ -470,15 +471,44 @@
     const l = Math.hypot(d[0], d[1], d[2]);
     return l ? [d[0] / l, d[1] / l, d[2] / l] : [0, 0, 0];
   }
-  const MAJOR = { LM: 1.7, LAD: 1.45, LCx: 1.45, RCA: 1.5 };
+  const MAJOR = { LM: 1.9, LAD: 1.45, LCx: 1.45, RCA: 1.5 };
+  // left coronary ostium: an exposed aortic-wall voxel about 1 cm from the left main's
+  // bifurcation, facing the left (the Lateral view, where the left main shows between
+  // the aorta and the left atrial appendage), lifted off the wall like the other vessels
+  function lmOstium(split) {
+    const s = M.coronary.nodes[split], [nx, ny, nz] = A.dims, R = M.rot, t = [1, 0.4, 0.15]; let best = -1, bs = Infinity;
+    const view = [0, 1, 2].map((j) => R[j] * t[0] + R[3 + j] * t[1] + R[6 + j] * t[2]), vl = Math.hypot(...view);
+    for (let c = 0; c < A.n; c++) {
+      if (A.label[c] !== LH.LAB.AO) continue;
+      const p = A.p(c), d = Math.hypot(p[0] - s.x, p[1] - s.y, p[2] - s.z);
+      if (d < 7 || d > 13) continue;
+      const i = A.ii[c], j = A.jj[c], k = A.kk[c];
+      let open = false;
+      for (const [a, b, e] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) { const ii = i + a, jj = j + b, kk = k + e; if (ii < 0 || jj < 0 || kk < 0 || ii >= nx || jj >= ny || kk >= nz || A.at(ii, jj, kk) < 0) open = true; }
+      if (!open) continue;
+      const o = outwardOf(c), f = (o[0] * view[0] + o[1] * view[1] + o[2] * view[2]) / vl;
+      if (f < 0.4 || p[1] < s.y + 3) continue;                   // (facing the viewer, above the bifurcation: drawn down the aortic root)
+      const sc = Math.abs(d - 11) + 6 * (1 - f);
+      if (sc < bs) { bs = sc; best = c; }
+    }
+    if (best < 0) return null;
+    const o = outwardOf(best), p = A.p(best);
+    return new THREE.Vector3(p[0] + o[0] * 2.4, p[1] + o[1] * 2.4, p[2] + o[2] * 2.4);
+  }
   function buildCoronaries() {
     const cor = M.coronary, grp = g3.cor = new THREE.Group(); g3.inner.add(grp);
     g3.corTubes = []; g3.corPick = [];
     const posOf = cor.nodes.map((n) => { const o = outwardOf(n.vox); return new THREE.Vector3(n.x + o[0] * 2.4, n.y + o[1] * 2.4, n.z + o[2] * 2.4); });
     for (const [name, ids0] of Object.entries(cor.branches)) {
-      const par = cor.nodes[ids0[0]].parent, ids = par >= 0 ? [par].concat(ids0) : ids0;
+      const par = cor.nodes[ids0[0]].parent;
+      let ids = par >= 0 ? [par].concat(ids0) : ids0, pts = ids.map((id) => posOf[id]);
+      // The model's left main starts on the ventricle a few millimetres from its bifurcation,
+      // which sits against the aortic root: drawn as is it is a stub, almost impossible to
+      // click. It is drawn instead from an ostium on the aortic wall ~1 cm away to the
+      // bifurcation (all of it the left main), with a wider click target.
+      if (name === 'LM') { const o = lmOstium(ids0[ids0.length - 1]); if (o) { pts = [o, o.clone().lerp(posOf[ids0[ids0.length - 1]], 0.5), posOf[ids0[ids0.length - 1]]]; ids = [ids0[0], ids0[0], ids0[0]]; g3.lmLabel = o.clone().lerp(pts[2], 0.3); } }
       if (ids.length < 2) continue;
-      const curve = new THREE.CatmullRomCurve3(ids.map((id) => posOf[id]));
+      const curve = new THREE.CatmullRomCurve3(pts);
       const tub = Math.max(6, (ids.length - 1) * 4), rad = 6, r = MAJOR[name] || 1.0;
       const geo = new THREE.TubeGeometry(curve, tub, r, rad, false);
       const nv = geo.attributes.position.count, col = new Float32Array(nv * 3), map = new Int32Array(nv);
@@ -488,7 +518,7 @@
       const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x553333 }));
       g3.clipMats.push(mesh.material);
       grp.add(mesh); g3.corTubes.push({ geo, col, map });
-      const pick = new THREE.Mesh(new THREE.TubeGeometry(curve, tub, 3.6, rad, false), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      const pick = new THREE.Mesh(new THREE.TubeGeometry(curve, tub, name === 'LM' ? 5 : 3.6, rad, false), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
       pick.userData.map = map; grp.add(pick); g3.corPick.push(pick);
     }
     g3.corPos = posOf;
@@ -517,15 +547,32 @@
     if (!S.insults.length) setIschTime(0);
     recolorIschemia(); renderIschList(); interpret(true);
   }
-  function recolorIschemia() {
-    ui.ischChangedAt = S.t;                                       // beats before this no longer reflect the tissue
-    const rc = g3.restCol, lv = S.ischLevel, occl = S.insults.filter((x) => x.kind === 'occlusion');
+  // Tissue colour: ischemic tint by injury level, blended toward the necrotic colour by
+  // how far into necrosis the cell is at hours h (S.necrosisDisplay: the infarct grows
+  // from the centre of the territory outward). A change of time stop animates h from
+  // the shown time to the new one, so the infarct is seen spreading (or receding).
+  function paintTissue(h) {
+    const rc = g3.restCol, lv = S.ischLevel, nec = S.insults.length ? S.necrosisDisplay(h) : null, cov = S.necCover;
     for (let c = 0; c < M.nVox; c++) {
       const l = lv ? lv[c] : 0, o = 3 * c;
-      if (l >= 2) { rc[o] = C.necrotic[0]; rc[o + 1] = C.necrotic[1]; rc[o + 2] = C.necrotic[2]; continue; }
-      const k = Math.min(1, l * 1.4);
-      for (let d = 0; d < 3; d++) rc[o + d] = C.rest[d] + (C.ischemic[d] - C.rest[d]) * k;
+      const n = nec && cov[c] ? nec[c] : l >= 2 ? 1 : 0, k = l >= 2 ? 1 : Math.min(1, l * 1.4);
+      for (let d = 0; d < 3; d++) { const isch = C.rest[d] + (C.ischemic[d] - C.rest[d]) * k; rc[o + d] = isch + (C.necrotic[d] - isch) * n; }
     }
+    ui.necShown = h;
+  }
+  function animateNecrosis(now) {
+    const tw = ui.necTween; if (!tw) return;
+    const f = Math.min(1, (now - tw.t0) / tw.ms), e = f * f * (3 - 2 * f);
+    paintTissue(Math.expm1(Math.log1p(tw.from) + (Math.log1p(tw.to) - Math.log1p(tw.from)) * e));
+    if (f >= 1) ui.necTween = null;
+  }
+  function recolorIschemia() {
+    ui.ischChangedAt = S.t;                                       // beats before this no longer reflect the tissue
+    const occl = S.insults.filter((x) => x.kind === 'occlusion');
+    const from = ui.necShown, to = ui.ischH;
+    if (occl.length && from != null && from !== to && from > 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      ui.necTween = { from, to, t0: performance.now(), ms: 1200 }; paintTissue(from);
+    } else { ui.necTween = null; paintTissue(to); }
     for (const tb of g3.corTubes) {
       for (let v = 0; v < tb.map.length; v++) {
         const dn = occl.some((x) => M.isDownstream(tb.map[v], x.node)), cc = dn ? C.occluded : C.artery;
@@ -734,14 +781,15 @@
     add('IVC', A.landmarks.IVC.c, 'external');
     add('SA node', [M.x[M.sanCell], M.y[M.sanCell], M.z[M.sanCell]], 'both', 'cs');
     // coronary arteries (external view): a point along each named branch, lifted off the surface
-    for (const [b, text, f] of [['LM', 'Left main', 0.5], ['LAD', 'LAD', 0.45], ['D1', 'Diagonal', 0.6], ['LCx', 'Circumflex', 0.5], ['OM1', 'Obtuse marginal', 0.6], ['RCA', 'RCA', 0.4], ['PDA', 'PDA', 0.5]]) {
+    for (const [b, text, f] of [['LM', 'Left main', 0.5], ['LAD', 'LAD', 0.45], ['D1', 'Diagonal', 0.6], ['LCx', 'Circumflex', 0.5], ['OM1', 'OM1', 0.6], ['OM2', 'OM2', 0.6], ['RCA', 'RCA', 0.4], ['AM', 'Acute marginal', 0.7], ['PDA', 'PDA', 0.5]]) {
       const ids = M.coronary.branches[b]; if (!ids || !ids.length) continue;
       const n = M.coronary.nodes[ids[Math.floor((ids.length - 1) * f)]], o = outwardOf(n.vox);
       // the left main runs behind the pulmonary trunk to the left atrial appendage: it is seen from the
       // left (lateral view), so its label shows only within ~60° of a left, slightly superior view
       const R = M.rot, t = [1, 0.4, 0.15], lm = b === 'LM';
       const nrm = lm ? V3([0, 1, 2].map((j) => R[j] * t[0] + R[3 + j] * t[1] + R[6 + j] * t[2])).normalize() : V3(o);
-      add(text, [n.x + o[0] * 3, n.y + o[1] * 3, n.z + o[2] * 3], 'external', 'cor', nrm, lm ? 0.5 : 0);
+      const at = lm && g3.lmLabel ? g3.lmLabel.toArray() : [n.x + o[0] * 3, n.y + o[1] * 3, n.z + o[2] * 3];   // (the left main: on its drawn trunk)
+      add(text, at, 'external', 'cor', nrm, lm ? 0.5 : 0);
     }
     // cut views: chamber/wall names are placed on the current plane by placeCutLabels()
     for (const key of ['RA', 'LA', 'RV', 'LV', 'Septum', 'Anterior wall', 'Lateral wall', 'Inferior wall', 'Mitral valve', 'Tricuspid valve']) {
@@ -1340,17 +1388,81 @@
     const tachy = rr.length >= 2 && rr.every((x) => x < 450);
     if (tachy || ui.avnrt.c <= 160 || S.arrhythmia) ui.avnrt = null; else avnrtTrial(ui.avnrt.c - 20);
   }
-  // the Arrhythmias buttons
+  // Rhythm menu (Rhythm tab): shows the rhythm running now (sinus after a shock or
+  // adenosine, VF after an R-on-T PVC…) and starts the one chosen. The rate slider
+  // applies to sinus and the atrial rhythms only.
+  const RHYTHMS = [
+    ['sinus', 'Sinus rhythm', ''],
+    ['af', 'Atrial fibrillation', 'Atrial'], ['flutter', 'Atrial flutter', 'Atrial'], ['ectopic', 'Ectopic atrial rhythm', 'Atrial'], ['mat', 'Multifocal atrial tachycardia', 'Atrial'],
+    ['avnrt', 'AVNRT', 'Re-entry through the AV node'], ['avrt', 'Orthodromic AVRT', 'Re-entry through the AV node'],
+    ['vt', 'Ventricular tachycardia', 'Ventricular'], ['vf', 'Ventricular fibrillation', 'Ventricular'],
+  ];
+  const RATE_RHYTHMS = ['sinus', 'af', 'flutter', 'ectopic', 'mat'];
+  function currentRhythm() {
+    const arr = S.arrhythmia && S.arrhythmia.type;
+    if (arr) return arr;
+    if (ui.avnrt) return 'avnrt';                                  // induction under way
+    if (ui.pendingRhythm && S.t < ui.pendingRhythm.until) return ui.pendingRhythm.type;
+    const from = Math.max(S.t - 3000, ui.rhythmFrom || 0);          // (beats before a return to sinus or a shock do not count)
+    const apWin = (S.apLog || []).filter((x) => x.t > from);
+    if (S.ap && apWin.filter((x) => x.dir === 'retrograde').length >= 4 && !apWin.some((x) => x.dir === 'antegrade')) return 'avrt';
+    if (S.dualAVN && (S.retroLog || []).filter((x) => x.t > from).length >= 4) return 'avnrt';
+    return 'sinus';
+  }
+  function syncRhythmUI() {
+    const cur = currentRhythm();
+    if (cur === ui.rhythmShown) return;
+    ui.rhythmShown = cur;
+    $('rhythmCur').textContent = RHYTHMS.find((r) => r[0] === cur)[1];
+    $('rateCtl').hidden = !RATE_RHYTHMS.includes(cur);
+    for (const b of $('rhythmList').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.arr === cur));
+  }
+  function showRhythmList(open) {
+    $('rhythmList').hidden = !open; $('rhythmBtn').setAttribute('aria-expanded', String(open));
+    if (open && isM()) { setSheetFull(true); requestAnimationFrame(() => $('rhythmBtn').scrollIntoView({ block: 'start' })); }   // phones: room for the whole list
+    if (open) { const b = $('rhythmList').querySelector('[aria-selected="true"]') || $('rhythmList').querySelector('button'); if (b && !matchMedia('(pointer: coarse)').matches) b.focus(); }
+  }
+  function initRhythmMenu() {
+    let html = '', grp = null;
+    for (const [id, name, g] of RHYTHMS) {
+      if (g !== grp) { grp = g; if (g) html += `<h5>${esc(g)}</h5>`; }
+      html += `<button type="button" role="option" data-arr="${id}" aria-selected="${id === 'sinus'}">${esc(name)}</button>`;
+    }
+    $('rhythmList').innerHTML = html;
+    $('rhythmBtn').addEventListener('click', () => showRhythmList($('rhythmList').hidden));
+    $('rhythmList').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-arr]'); if (!b) return;
+      showRhythmList(false); chooseRhythm(b.dataset.arr); $('rhythmBtn').focus({ preventScroll: true });
+      if (isM()) setSheetFull(false);                              // phones: back to the half sheet, the heart in view
+    });
+    $('rhythmList').addEventListener('keydown', (e) => {
+      const items = [...$('rhythmList').querySelectorAll('button')], i = items.indexOf(document.activeElement);
+      if (e.key === 'Escape') { e.stopPropagation(); showRhythmList(false); $('rhythmBtn').focus(); }
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus(); }
+    });
+    syncRhythmUI();
+  }
+  function chooseRhythm(type) {
+    if (type === 'sinus') {
+      const cur = currentRhythm();
+      ui.avnrt = null; ui.pendingRhythm = null; ui.rhythmFrom = S.t; S.stopArrhythmia(); markChange();
+      if (cur === 'avnrt' || cur === 'avrt') S.shock();             // (re-entry has no driver to stop: end it as a pace-terminated circuit would)
+    } else startRhythm(type);
+    syncRate(); interpret(); updateFloat(); syncRhythmUI();
+  }
+  // start a rhythm (Rhythm menu and the heart gestures)
   function startRhythm(type) {
-    ui.avnrt = null; markChange();
+    ui.avnrt = null; ui.pendingRhythm = null; markChange();
     if (type === 'avnrt') {
-      if (S.ap) setCondition('ap', '');
+      if (S.ap) setCondition('ap', false);
+      if (!ui.struct.dual) setCondition('dual', true);             // AVNRT needs dual AV-nodal pathways (as AVRT needs a pathway)
       S.stopArrhythmia();
       avnrtTrial(280);
       return;
     }
     if (type === 'avrt') {
-      if (!S.ap || S.apLocation !== 'left-lateral') setCondition('ap', 'left-lateral');
+      if (!S.ap || S.apLocation !== 'left-lateral') setCondition('ap', true);
+      ui.pendingRhythm = { type: 'avrt', until: S.t + 3000 };
       S.stopArrhythmia();
       S.stimulateAt(A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === 3), S.nextSinus() + 270);
       return;
@@ -1939,9 +2051,11 @@
     { id: 'lae', cat: 'Chambers', label: 'LAE', name: 'Left atrial enlargement', also: 'LAE P mitrale atrium notched P', apply: atrialSize },
     { id: 'lvh', cat: 'Chambers', label: 'LVH', name: 'Left ventricular hypertrophy', also: 'LVH ventricle voltage strain', rebuild: true },
     { id: 'rvh', cat: 'Chambers', label: 'RVH', name: 'Right ventricular hypertrophy', also: 'RVH ventricle right axis deviation', rebuild: true },
-    // WPW: left lateral only for now (the engine's setAccessoryPathway has other sites)
-    { id: 'ap', cat: 'Accessory pathways', label: 'WPW', name: 'Accessory pathway (WPW)', also: 'Wolff-Parkinson-White pre-excitation bypass tract delta wave short PR',
-      options: [['left-lateral', 'Left lateral', '~55%']], apply: (v) => S.setAccessoryPathway(v || null) },
+    // WPW: a left lateral pathway (the engine's setAccessoryPathway has other sites)
+    { id: 'ap', cat: 'Conduction abnormalities', label: 'WPW', name: 'Accessory pathway (WPW)', also: 'Wolff-Parkinson-White pre-excitation bypass tract delta wave short PR left lateral',
+      apply: (v) => S.setAccessoryPathway(v ? 'left-lateral' : null) },
+    { id: 'dual', cat: 'Conduction abnormalities', label: 'Dual AV-node pathways', name: 'Dual AV-nodal pathways', also: 'AVNRT slow pathway fast pathway dual AV node physiology',
+      apply: (v) => S.setDualAVN(!!v) },
     { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
     { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
   ];
@@ -1966,7 +2080,11 @@
   const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
 
   // recently used (this browser only): 'peri' or 'ap:left-lateral'
-  function readRecent() { try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; } catch (e) { return []; } }
+  function readRecent() {
+    let list = []; try { list = JSON.parse(localStorage.getItem(RECENT_KEY)) || []; } catch (e) { /* storage unavailable */ }
+    // (entries saved when a condition still had options, e.g. 'ap:left-lateral', read as the plain condition)
+    return [...new Set(list.map((k) => { const id = String(k).split(':')[0]; return COND[id] && !COND[id].options ? id : k; }))];
+  }
   function noteRecent(id, v) {
     const key = COND[id].options ? `${id}:${v}` : id;
     const list = [key].concat(readRecent().filter((k) => k !== key && !k.startsWith(`${id}:`))).slice(0, 4);
@@ -2011,6 +2129,8 @@
       const c = COND[b.dataset.id];
       if (c.options) choose(c.id, ui.struct[c.id] === b.dataset.v ? '' : b.dataset.v);
       else choose(c.id, !ui.struct[c.id]);
+      showCatalog(false); $('btnAddCond').focus({ preventScroll: true });   // back to the active list
+      $('controls').scrollTop = 0;
     });
     $('btnAddCond').addEventListener('click', () => showCatalog(true));
     $('btnCondDone').addEventListener('click', () => { showCatalog(false); $('btnAddCond').focus(); });
@@ -2053,6 +2173,7 @@
     if (r >= 30 && r <= 180) { ui.rate = Math.round(r); $('rate').value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`; }
     for (const k of (q.get('s') || '').split(',')) if (STRUCT_KEYS.includes(k)) ui.struct[k] = true;
     for (const c of CONDITIONS) { const v = q.get(c.id); if (c.options && c.options.some((o) => o[0] === v)) ui.struct[c.id] = v; }
+    if (q.get('ap')) ui.struct.ap = true;                                // links made when WPW had a site option (ap=left-lateral)
     const a = q.get('a'), v = +q.get('v'), h = +q.get('h');
     return {
       arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null,
@@ -2195,7 +2316,27 @@
     if (i === layers.length - 1) history.back();                // popstate closes it
     else layers.splice(i, 1)[0].close();
   }
+  // replace the top layer (e.g. the ⋯ menu) by another (Help) on the same history entry:
+  // going back and pushing would let the late popstate close the new layer at once
+  function swapLayer(from, name, close) {
+    const top = layers[layers.length - 1];
+    if (!top || top.name !== from) { closeLayer(from); openLayer(name, close); return; }
+    layers.pop().close(); layers.push({ name, close }); history.replaceState({ ecgLayer: layers.length }, '');
+  }
   const hasLayer = (name) => layers.some((l) => l.name === name);
+  // Help: phones have their own Getting started, Control panel and About pages (.mo),
+  // larger screens the original ones (.dk); Resources is shared
+  function guidePage(page) {
+    for (const x of document.querySelectorAll('#guide .toc button')) x.setAttribute('aria-selected', String(x.dataset.page === page));
+    for (const pg of document.querySelectorAll('#guide .hpage')) pg.hidden = pg.dataset.page !== page;
+    const tab = document.querySelector(`#guide .toc button[data-page="${page}"]`); if (tab) tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    $('guide').querySelector('.sheet').scrollTop = 0;
+  }
+  function showGuide() {
+    $('guide').hidden = false;
+    const cur = document.querySelector('#guide .toc button[aria-selected="true"]');
+    if (!cur || getComputedStyle(cur).display === 'none') guidePage(isM() ? 'mstart' : 'start');   // (layout changed since last opened)
+  }
   function hideGuide() { if (hasLayer('help')) closeLayer('help'); else $('guide').hidden = true; }
 
   // the controls sheet
@@ -2230,8 +2371,9 @@
   function updateFloat() {
     if (!isM()) return;
     const arr = S.arrhythmia && S.arrhythmia.type, s = ui.snap || {};
-    $('mShock').hidden = !(arr === 'vt' || arr === 'vf');
-    $('mAdeno').hidden = !(s.avnrt || s.avrt || arr === 'flutter');
+    const cur = currentRhythm();
+    $('mShock').hidden = !['af', 'flutter', 'vt', 'vf', 'ectopic', 'mat'].includes(arr);
+    $('mAdeno').hidden = !(s.avnrt || s.avrt || cur === 'avnrt' || cur === 'avrt');
   }
 
   // ECG strips for phones: a lead group (or the one live lead under the
@@ -2617,14 +2759,14 @@
       shareScenario();
     });
     $('mPng').addEventListener('click', () => { closeLayer('menu'); saveEcgPng(); });
-    $('mHelp').addEventListener('click', () => { closeLayer('menu'); $('guide').hidden = false; openLayer('help', () => { $('guide').hidden = true; }); });
+    $('mHelp').addEventListener('click', () => { showGuide(); swapLayer('menu', 'help', () => { $('guide').hidden = true; }); });
     // heart: view options, floating actions, live lead
     $('mLearn').addEventListener('click', () => { if (sheetOpen() && ui.tab === 'learn') closeLayer('sheet'); else openSheet('learn'); });
     $('mScrubR').addEventListener('input', (e) => {
       if (+e.target.value === +$('ischTime').value) return;
       $('ischTime').value = e.target.value; $('ischTime').dispatchEvent(new Event('input')); buzz(8);
     });
-    $('mShock').addEventListener('click', () => { buzz(40); $('btnShock').click(); updateFloat(); });
+    $('mShock').addEventListener('click', () => { buzz(40); $('btnShock').click(); updateFloat(); syncRhythmUI(); });
     $('mAdeno').addEventListener('click', () => { buzz(); $('btnAdeno').click(); });
     // live lead: its label opens a lead menu; a double-tap on the strip returns to two panes
     let liveTap = null;
@@ -2686,7 +2828,7 @@
     $('btnPause').addEventListener('click', () => setPaused(!ui.paused));
     // Reset: normal sinus rhythm at 72 bpm with no abnormalities
     $('btnReset').addEventListener('click', async () => {
-      ui.avnrt = null; ui.preAtrRate = null; ui.vRate = null;
+      ui.avnrt = null; ui.pendingRhythm = null; ui.preAtrRate = null; ui.vRate = null;
       ui.rate = 72; $('rate').value = 72;
       const prev = heartKey(), rebuild = CONDITIONS.some((c) => c.rebuild && ui.struct[c.id]);
       for (const c of CONDITIONS) ui.struct[c.id] = c.options ? '' : false;
@@ -2699,9 +2841,9 @@
       ui.ischPending = ui.ischH;                                  // applied once per frame
       syncScrub();
     });
-    for (const b of $('arrButtons').querySelectorAll('button')) b.addEventListener('click', () => { startRhythm(b.dataset.arr); syncRate(); interpret(); });
+    initRhythmMenu();
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); ui.adenoFrom = S.t; });
-    $('btnShock').addEventListener('click', () => { ui.avnrt = null; S.shock(); ui.shockAt = performance.now(); markChange(); syncRate(); interpret(); });
+    $('btnShock').addEventListener('click', () => { ui.avnrt = null; ui.pendingRhythm = null; ui.rhythmFrom = S.t; S.shock(); ui.shockAt = performance.now(); markChange(); syncRate(); interpret(); syncRhythmUI(); });
     initConditions();
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
     initPicking(); updateActionNote();
@@ -2713,15 +2855,13 @@
     g3.controls.addEventListener('change', () => { if (ui.view === 'cutaway') g3.planeDirty = true; });
     if (isM()) toggleControls(false);   // phones: the sheet opens from the tab bar
     initPhone();
-    $('btnHelp').addEventListener('click', () => { $('guide').hidden = false; });
+    $('btnHelp').addEventListener('click', showGuide);
     $('btnShare').addEventListener('click', shareScenario);
     window.addEventListener('hashchange', () => location.reload());   // a scenario link pasted into an open tab
     $('btnSavePng').addEventListener('click', saveEcgPng);
     $('guideClose').addEventListener('click', hideGuide);
-    for (const b of document.querySelectorAll('#guide .toc button')) b.addEventListener('click', () => {
-      for (const x of document.querySelectorAll('#guide .toc button')) x.setAttribute('aria-selected', String(x === b));
-      for (const pg of document.querySelectorAll('#guide .hpage')) pg.hidden = pg.dataset.page !== b.dataset.page;
-    });
+    for (const b of document.querySelectorAll('#guide .toc button')) b.addEventListener('click', () => guidePage(b.dataset.page));
+    for (const b of document.querySelectorAll('#guide [data-goto]')) b.addEventListener('click', () => guidePage(b.dataset.goto));
     $('guide').addEventListener('click', (e) => { if (e.target.id === 'guide') hideGuide(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideGuide(); });
 

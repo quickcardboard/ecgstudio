@@ -233,7 +233,7 @@
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
-    pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.4, pericardSag: -0.55, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
+    pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.3, pericardSag: -0.55, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
     ischBlockInj: 0.7,     // injury level above which living ischaemic muscle (after 2 h) no longer conducts
     ischHaloMm: 10, ischHaloLate: 0.45,   // zone of ischaemia around the infarct: width (mm) and late APD prolongation (T inversion)
@@ -905,10 +905,11 @@
         else voxNode[c] = nearestOf(lvSurface, c, uvcDist);
       }
       // nodal arteries (right-dominant): SA-node artery from the proximal RCA, AV-node artery from the crux
-      // Only the main vessels are offered (LM trunk, LAD, LCx, RCA, PDA): the
-      // side branches' territories go to the point where each branch leaves
-      // its parent, so an occlusion proximal to that point still takes them.
-      const MAIN = ['LM', 'LAD', 'LCx', 'RCA', 'PDA'];
+      // Offered vessels: the LM trunk, LAD, LCx, RCA, PDA and the marginal branches
+      // (obtuse marginals OM1/OM2 of the LCx, acute marginal AM of the RCA). The other
+      // side branches' territories go to the point where each branch leaves its
+      // parent, so an occlusion proximal to that point still takes them.
+      const MAIN = ['LM', 'LAD', 'LCx', 'RCA', 'PDA', 'OM1', 'OM2', 'AM'];
       const mainOf = (id) => { while (id >= 0 && !MAIN.includes(nodes[id].branch)) id = nodes[id].parent; return id; };
       for (let c = 0; c < A.n; c++) if (voxNode[c] >= 0) voxNode[c] = mainOf(voxNode[c]);
       for (const b of Object.keys(branches)) if (!MAIN.includes(b)) delete branches[b];
@@ -1676,7 +1677,9 @@
         if (this.erpExtra) this.erpExtra[c] = this.P.slowPathErpExtra * tone;
         if (this.cvK) this.cvK[c] = this.P.slowPathCvK;
         // (an ischaemic AV node conducts no slow-pathway echoes: inferior MI gives AV block, not AVNRT)
-        this.blocked[c] = this.dualAVN && !this.blocks.AVN && !(this._avnIschemia > 0.05) ? 0 : 1;
+        // (nor during VT/VF: retrograde VA conduction would otherwise start slow-pathway re-entry faster
+        // than the VT, which then takes over the ventricles as a narrow-complex tachycardia)
+        this.blocked[c] = this.dualAVN && !this.blocks.AVN && !(this._avnIschemia > 0.05) && !this._ventArr ? 0 : 1;
       }
     }
     setDualAVN(on) { this.dualAVN = !!on; this._applyAvn(); }
@@ -1909,6 +1912,47 @@
         amp: dead ? 0 : 1 - P.ischAmpDrop * inj,
         cv: 1 + P.ischCvSlow * inj,
       };
+    }
+
+    // Display only: how far each occluded-territory cell is into necrosis at h hours
+    // (0–1; the ECG does not use it). Dead cells (inside the endocardial-to-epicardial
+    // necrosis front) are 1. Muscle that will die (severity above ischDeadS) darkens
+    // from the centre of the territory outward between ~1 h and 12 h (the infarct
+    // grows from the core of the risk zone toward its border), so the surface shows the
+    // infarct spreading instead of turning necrotic all at once when the front completes.
+    necrosisDisplay(h) {
+      const M = this.M, A = M.A, P = this.P, out = this._necDisp || (this._necDisp = new Float32Array(A.n));
+      const cover = this.necCover || (this.necCover = new Uint8Array(A.n));   // 1: an occluded territory's cell (coloured by out)
+      const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+      out.fill(0); cover.fill(0);
+      const front = sm((h - 0.4) / P.ischNecrosisH) * P.ischFrontMax;
+      const g = h <= 0.5 ? 0 : Math.min(1, Math.log(h / 0.5) / Math.log(24));   // 0 at 30 min, 1 at 12 h
+      for (const ins of this.insults) {
+        if (ins.kind !== 'occlusion') continue;
+        const depth = ins._depth || (ins._depth = this._territoryDepth(ins.cells));
+        for (let q = 0; q < ins.cells.length; q++) {
+          const c = ins.cells[q], sv = ins.sev[q]; cover[c] = 1; if (sv <= P.ischDeadS) continue;
+          const tm = A.label[c] === LAB.RV ? 0.5 : A.tm[c] < 0 ? 0.5 : A.tm[c];
+          const n = (tm > 0.06 || h > 8) && tm < front ? 1 : sm((1.3 * g - (1 - depth[q])) / 0.3);
+          if (n > out[c]) out[c] = n;
+        }
+      }
+      return out;
+    }
+    // normalised depth of each territory cell from the territory's border (0 border, 1 centre)
+    _territoryDepth(cells) {
+      const M = this.M, idx = new Map(), d = new Float32Array(cells.length).fill(-1), q = [];
+      cells.forEach((c, i) => idx.set(c, i));
+      cells.forEach((c, i) => {
+        for (let e = M.start[c]; e < M.start[c + 1]; e++) { const w = M.nbr[e]; if (w < M.nVox && M.kind[w] === KIND.VENT && !idx.has(w)) { d[i] = 0; q.push(i); break; } }
+      });
+      for (let k = 0; k < q.length; k++) {
+        const c = cells[q[k]];
+        for (let e = M.start[c]; e < M.start[c + 1]; e++) { const j = idx.get(M.nbr[e]); if (j !== undefined && d[j] < 0) { d[j] = d[q[k]] + 1; q.push(j); } }
+      }
+      let mx = 1; for (const v of d) if (v > mx) mx = v;
+      for (let i = 0; i < d.length; i++) d[i] = d[i] < 0 ? 1 : d[i] / mx;
+      return d;
     }
 
     _applyIschemia() {
@@ -2170,6 +2214,7 @@
       } else throw new Error('unknown arrhythmia ' + type);
       this.arrhythmia = { type, t: this.t, cell: opts.cell, clockwise: !!opts.clockwise };
       this.rhythmChangedAt = this.t;
+      if (type === 'vt' || type === 'vf') { this._ventArr = true; this._applyAvn(); }
     }
     // substrate for R-on-T ventricular fibrillation: acute ischaemia (minutes
     // to ~2 days after onset)
@@ -2197,6 +2242,7 @@
       for (const d of this.drivers) if (d.slowed) for (const [c, v] of d.slowed) this.cvMul[c] = v;
       if (this.drivers.length) this.rhythmChangedAt = this.t;
       this.drivers = []; this.arrhythmia = null; this._flutterGate = null; this._flutterRatio = null;
+      if (this._ventArr) { this._ventArr = false; this._applyAvn(); }
     }
 
     _runDrivers(t) {

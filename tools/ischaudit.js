@@ -4,7 +4,8 @@ const fs = require('fs'); const LH = require('../src/engine.js');
 const A = new LH.Anatomy(JSON.parse(fs.readFileSync(__dirname + '/../src/anatomy.json')));
 const M = new LH.Model(A, JSON.parse(process.env.MP || '{}')); const C = M.coronary, br = C.branches;
 const SITES = { LM: br.LM[0], pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * +(process.env.MLAD_F || 0.22))], dLAD: br.LAD[Math.round(br.LAD.length * 0.7)],
-  pLCx: br.LCx[0], dLCx: br.LCx[Math.round(br.LCx.length * 0.6)], pRCA: br.RCA[0], mRCA: br.RCA[Math.round(br.RCA.length * 0.45)], dRCA: br.RCA[Math.round(br.RCA.length * 0.8)], PDA: br.PDA[0] };
+  pLCx: br.LCx[0], dLCx: br.LCx[Math.round(br.LCx.length * 0.6)], pRCA: br.RCA[0], mRCA: br.RCA[Math.round(br.RCA.length * 0.45)], dRCA: br.RCA[Math.round(br.RCA.length * 0.8)], PDA: br.PDA[0],
+  OM1: br.OM1[0], OM2: br.OM2[0], AM: br.AM[0] };
 const L = LH.LEADS;
 function beat(S) {
   const rec = []; S.onSample((t, v) => rec.push(Array.from(v))); S.run(3600);
@@ -22,7 +23,7 @@ function beat(S) {
   return m;
 }
 const ref = beat(new LH.Sim(M, { seed: 1 }));
-const sites = (process.argv[2] || Object.keys(SITES).join(',')).split(','), hours = (process.argv[3] || '1,12,48,720').split(',').map(Number);
+const sites = (process.argv[2] || Object.keys(SITES).filter((k) => !['OM1', 'OM2', 'AM'].includes(k)).join(',')).split(','), hours = (process.argv[3] || '1,12,48,720').split(',').map(Number);
 for (const site of sites) for (const h of hours) {
   const S = new LH.Sim(M, { seed: 1 }); S.addOcclusion(SITES[site]); S.setIschemiaTime(h);
   const m = beat(S);
