@@ -2316,7 +2316,27 @@
     if (i === layers.length - 1) history.back();                // popstate closes it
     else layers.splice(i, 1)[0].close();
   }
+  // replace the top layer (e.g. the ⋯ menu) by another (Help) on the same history entry:
+  // going back and pushing would let the late popstate close the new layer at once
+  function swapLayer(from, name, close) {
+    const top = layers[layers.length - 1];
+    if (!top || top.name !== from) { closeLayer(from); openLayer(name, close); return; }
+    layers.pop().close(); layers.push({ name, close }); history.replaceState({ ecgLayer: layers.length }, '');
+  }
   const hasLayer = (name) => layers.some((l) => l.name === name);
+  // Help: phones have their own Getting started, Control panel and About pages (.mo),
+  // larger screens the original ones (.dk); Resources is shared
+  function guidePage(page) {
+    for (const x of document.querySelectorAll('#guide .toc button')) x.setAttribute('aria-selected', String(x.dataset.page === page));
+    for (const pg of document.querySelectorAll('#guide .hpage')) pg.hidden = pg.dataset.page !== page;
+    const tab = document.querySelector(`#guide .toc button[data-page="${page}"]`); if (tab) tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    $('guide').querySelector('.sheet').scrollTop = 0;
+  }
+  function showGuide() {
+    $('guide').hidden = false;
+    const cur = document.querySelector('#guide .toc button[aria-selected="true"]');
+    if (!cur || getComputedStyle(cur).display === 'none') guidePage(isM() ? 'mstart' : 'start');   // (layout changed since last opened)
+  }
   function hideGuide() { if (hasLayer('help')) closeLayer('help'); else $('guide').hidden = true; }
 
   // the controls sheet
@@ -2553,6 +2573,10 @@
     hideBlockMenu();
     const ray = rayAt(x, y);
     if (pathwayAt(x, y)) { lastEmpty = null; pathwayTap(x, y, now); return; }
+    // a tap on an occlusion marker removes that occlusion
+    let clot = g3.clots && g3.clots.children.length && ray.intersectObjects(g3.clots.children, false)[0], wall = clot && ray.intersectObjects(g3.pickTissue, false)[0];
+    if (clot && wall && clot.distance > wall.distance + 3) clot = null;   // (a marker behind the heart)
+    if (clot) { const v = S.insults.find((q) => q.id === clot.object.userData.insult); if (v) { lastEmpty = null; removeIschemia(v.id); flash(x, y, 'Occlusion removed'); buzz(); return; } }
     if (ui.view === 'cutaway') { const site = conductionAt(ray, x, y); if (site) { lastEmpty = null; conductionTap(site, x, y, now); return; } }
     const c = tissueAt(ray);
     if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }
@@ -2739,7 +2763,7 @@
       shareScenario();
     });
     $('mPng').addEventListener('click', () => { closeLayer('menu'); saveEcgPng(); });
-    $('mHelp').addEventListener('click', () => { closeLayer('menu'); $('guide').hidden = false; openLayer('help', () => { $('guide').hidden = true; }); });
+    $('mHelp').addEventListener('click', () => { showGuide(); swapLayer('menu', 'help', () => { $('guide').hidden = true; }); });
     // heart: view options, floating actions, live lead
     $('mLearn').addEventListener('click', () => { if (sheetOpen() && ui.tab === 'learn') closeLayer('sheet'); else openSheet('learn'); });
     $('mScrubR').addEventListener('input', (e) => {
@@ -2835,15 +2859,13 @@
     g3.controls.addEventListener('change', () => { if (ui.view === 'cutaway') g3.planeDirty = true; });
     if (isM()) toggleControls(false);   // phones: the sheet opens from the tab bar
     initPhone();
-    $('btnHelp').addEventListener('click', () => { $('guide').hidden = false; });
+    $('btnHelp').addEventListener('click', showGuide);
     $('btnShare').addEventListener('click', shareScenario);
     window.addEventListener('hashchange', () => location.reload());   // a scenario link pasted into an open tab
     $('btnSavePng').addEventListener('click', saveEcgPng);
     $('guideClose').addEventListener('click', hideGuide);
-    for (const b of document.querySelectorAll('#guide .toc button')) b.addEventListener('click', () => {
-      for (const x of document.querySelectorAll('#guide .toc button')) x.setAttribute('aria-selected', String(x === b));
-      for (const pg of document.querySelectorAll('#guide .hpage')) pg.hidden = pg.dataset.page !== b.dataset.page;
-    });
+    for (const b of document.querySelectorAll('#guide .toc button')) b.addEventListener('click', () => guidePage(b.dataset.page));
+    for (const b of document.querySelectorAll('#guide [data-goto]')) b.addEventListener('click', () => guidePage(b.dataset.goto));
     $('guide').addEventListener('click', (e) => { if (e.target.id === 'guide') hideGuide(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideGuide(); });
 
