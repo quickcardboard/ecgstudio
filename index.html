@@ -640,7 +640,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
     <button class="close" id="guideClose" type="button">Close</button>
     <h2 id="guideTitle">Help</h2>
     <nav class="toc" role="tablist" aria-label="Help pages">
-      <button type="button" role="tab" class="dk" data-page="start" aria-selected="true">Getting started</button><button type="button" role="tab" class="dk" data-page="view" aria-selected="false">View controls</button><button type="button" role="tab" class="dk" data-page="tabs" aria-selected="false">Control tabs</button><button type="button" role="tab" class="dk" data-page="about" aria-selected="false">About</button><button type="button" role="tab" class="mo" data-page="mstart" aria-selected="false">Getting started</button><button type="button" role="tab" class="mo" data-page="mpanel" aria-selected="false">Control panel</button><button type="button" role="tab" class="mo" data-page="mabout" aria-selected="false">About</button><button type="button" role="tab" data-page="resources" aria-selected="false">Resources</button>
+      <button type="button" role="tab" class="dk" data-page="start" aria-selected="true">Getting started</button><button type="button" role="tab" class="dk" data-page="view" aria-selected="false">View controls</button><button type="button" role="tab" class="dk" data-page="tabs" aria-selected="false">Control tabs</button><button type="button" role="tab" class="dk" data-page="about" aria-selected="false">About</button><button type="button" role="tab" class="mo" data-page="mstart" aria-selected="false">Getting started</button><button type="button" role="tab" class="mo" data-page="mpanel" aria-selected="false">Control panel</button><button type="button" role="tab" class="mo" data-page="mabout" aria-selected="false">About</button>
     </nav>
     <section class="hpage" data-page="start">
       <h3>Getting started</h3>
@@ -689,7 +689,8 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Calibration:</b> parameters were tuned against textbook values for intervals, axes, voltages, bundle and fascicular blocks, hypertrophy criteria and the course of infarction. Some features are simplified or slightly exaggerated for teaching; the model is an aid to understanding, not a substitute for clinical ECGs.</li>
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-04 (2e51106).</p>
+      <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-04 (b3185f8).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -722,7 +723,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         </li>
         <li><b>Blocks:</b> opens the four-chamber cut. Tap the conduction system to cycle through its blocks.</li>
         <li><b>View:</b> External ↔ Cut slider, the Anterior / 4-chamber / Lateral / Apex views, and the Labels, Leads and Legend switches.</li>
-        <li><b>Ischemia:</b> press and hold a coronary artery to occlude it, and use the time scrubber on the heart to follow the infarct from onset to one month. Tap the yellow marker to remove the occlusion.</li>
+        <li><b>Ischemia:</b> press and hold a coronary artery to occlude it, and use the time scrubber on the heart to follow the infarct from onset to one month.</li>
         <li><b>Conditions:</b> add or remove chronic and acute heart conditions.</li>
       </ul>
     </section>
@@ -733,7 +734,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-04 (2e51106).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-04 (b3185f8).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -7136,10 +7137,6 @@ THE SOFTWARE.
     hideBlockMenu();
     const ray = rayAt(x, y);
     if (pathwayAt(x, y)) { lastEmpty = null; pathwayTap(x, y, now); return; }
-    // a tap on an occlusion marker removes that occlusion
-    let clot = g3.clots && g3.clots.children.length && ray.intersectObjects(g3.clots.children, false)[0], wall = clot && ray.intersectObjects(g3.pickTissue, false)[0];
-    if (clot && wall && clot.distance > wall.distance + 3) clot = null;   // (a marker behind the heart)
-    if (clot) { const v = S.insults.find((q) => q.id === clot.object.userData.insult); if (v) { lastEmpty = null; removeIschemia(v.id); flash(x, y, 'Occlusion removed'); buzz(); return; } }
     if (ui.view === 'cutaway') { const site = conductionAt(ray, x, y); if (site) { lastEmpty = null; conductionTap(site, x, y, now); return; } }
     const c = tissueAt(ray);
     if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }

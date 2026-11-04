@@ -2573,10 +2573,6 @@
     hideBlockMenu();
     const ray = rayAt(x, y);
     if (pathwayAt(x, y)) { lastEmpty = null; pathwayTap(x, y, now); return; }
-    // a tap on an occlusion marker removes that occlusion
-    let clot = g3.clots && g3.clots.children.length && ray.intersectObjects(g3.clots.children, false)[0], wall = clot && ray.intersectObjects(g3.pickTissue, false)[0];
-    if (clot && wall && clot.distance > wall.distance + 3) clot = null;   // (a marker behind the heart)
-    if (clot) { const v = S.insults.find((q) => q.id === clot.object.userData.insult); if (v) { lastEmpty = null; removeIschemia(v.id); flash(x, y, 'Occlusion removed'); buzz(); return; } }
     if (ui.view === 'cutaway') { const site = conductionAt(ray, x, y); if (site) { lastEmpty = null; conductionTap(site, x, y, now); return; } }
     const c = tissueAt(ray);
     if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }

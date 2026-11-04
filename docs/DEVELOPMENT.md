@@ -1232,3 +1232,8 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
 - **Help tabs** sit in one row (no wrapping; scrolls sideways if ever too narrow). On a 390 px phone the four tabs fit (33–364 px).
 - **Phones:** a tap on the yellow occlusion marker removes that occlusion, as the Help says (before, only press-and-hold did; a tap stimulated a beat). Markers behind the heart are ignored.
 - **Fix:** Help opened from the ⋯ menu closed again at once: the menu's `history.back()` popstate arrived after Help had pushed its own entry and closed it. `swapLayer()` now replaces the menu's history entry with Help's.
+
+## Round 33: Resources from About only; markers removed by press and hold
+
+- The Resources tab is gone from the top of Help (desktop and phone); Resources opens from a link on the About page (both layouts).
+- Round 32's tap-to-remove on the occlusion marker is reverted: on phones a marker is removed by press and hold, as before (a tap stimulates a beat). The "Tap the yellow marker" line is removed from the phone Help.
