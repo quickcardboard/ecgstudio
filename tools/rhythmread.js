@@ -40,7 +40,7 @@ function readRhythm(rec) {
   // isoelectric share: time the signal is quiet (no activity) — VF has none
   let quietN = 0; for (let t = 0; t < N; t++) if (svs[t] < 0.04 * top) quietN++;
   Object.assign(out, { rate, rrCv: +rrCv.toFixed(3), width, morph: +morph.toFixed(2), iso: +(quietN / N).toFixed(2) });
-  if (morph < 0.7 || out.iso < 0.05) return { ...out, rhythm: 'ventricular fibrillation' };
+  if (morph < 0.7) return { ...out, rhythm: 'ventricular fibrillation' };   // (no consistent QRS shape)
   // ---- QRST template subtraction → atrial residual
   // template window: from just before the QRS to the end of the T wave (from the median beat), so a
   // conducted P wave before the QRS, or the next beat's P after the T, is not part of it
@@ -106,8 +106,21 @@ function readRhythm(rec) {
     const pk = []; for (let j = 30; j < m.length - 30; j++) { if (m[j] < 0.025) continue; let mx = true; for (let u = j - 60; u <= j + 60; u++) if (u >= 0 && u < m.length && m[u] > m[j]) { mx = false; break; } if (mx && (!pk.length || j - pk[pk.length - 1] >= 120)) pk.push(j); }
     for (let j = 1; j < pk.length; j++) dI.push(pk[j] - pk[j - 1]);
   }
+  // flutter: periodicity of the raw atrial leads in the diastolic stretches (T end to the next QRS):
+  // the best lag (150–300 ms) of the windows' pooled autocorrelation. A sawtooth repeats; fibrillatory
+  // waves, P waves and baseline do not.
+  { let best = 0, bestL = 0;
+    const wins = []; for (let i = 0; i + 1 < beats.length; i++) { const a = beats[i].p + tEnd + 20, b = beats[i + 1].on - 25; if (b - a >= 320) wins.push([a, b]); }
+    if (wins.length) for (let L = 150; L <= 300; L += 2) {
+      let num = 0, d1 = 0, d2 = 0;
+      for (const [a, b] of wins) { const mu = AL.map((k) => { let m = 0; for (let t = a; t < b; t++) m += rec[t][k]; return m / (b - a); });
+        for (let t = a; t + L < b; t++) for (let j = 0; j < 3; j++) { const u = rec[t][AL[j]] - mu[j], v = rec[t + L][AL[j]] - mu[j]; num += u * v; d1 += u * u; d2 += v * v; } }
+      const r = num / Math.sqrt(d1 * d2 || 1); if (r > best) { best = r; bestL = L; }
+    }
+    out.flutterAc = wins.length ? { r: +best.toFixed(2), cl: bestL, windows: wins.length } : null; }
   out.aRate25 = pp.length ? Math.round(60000 / pct(pp, 0.25)) : 0;
-  out.diastAtrial = dI.length ? { n: dI.length, cl: Math.round(pct(dI, 0.5)), cv: +(sd(dI) / mean(dI)).toFixed(2) } : null;
+  // (regularity: share of intervals within 15% of the median, robust to a missed or extra wave)
+  out.diastAtrial = dI.length ? { n: dI.length, cl: Math.round(pct(dI, 0.5)), cv: +(sd(dI) / mean(dI)).toFixed(2), reg: +(dI.filter((v) => Math.abs(v - pct(dI, 0.5)) <= 0.15 * pct(dI, 0.5)).length / dI.length).toFixed(2) } : null;
   out.rhythm = classify(out, beats);
   return out;
 }
@@ -119,7 +132,7 @@ function classify(o, beats) {
   const regular = o.rrCv < 0.08, pOk = o.prAllShare >= 0.8 && o.prAllSd !== null && o.prAllSd <= 35;
   // more atrial waves than QRS complexes (counted, or the atrial rate from the shorter P–P intervals)
   const dissoc = o.pCount >= beats.length * 1.25 || (o.aRate25 > o.rate * 1.2 && o.pCount > beats.length);
-  const flutterWaves = o.diastAtrial && o.diastAtrial.n >= 2 && o.diastAtrial.cl >= 170 && o.diastAtrial.cl <= 260 && o.diastAtrial.cv < 0.25;
+  const flutterWaves = o.flutterAc && o.flutterAc.r >= 0.6 && o.flutterAc.cl >= 170 && o.flutterAc.cl <= 280;
   if (o.width >= 120 && o.rate >= 100 && regular && !pOk) return 'ventricular tachycardia';
   if (flutterWaves) return 'atrial flutter';
   if (regular) {
@@ -137,7 +150,8 @@ function classify(o, beats) {
     return o.prSd > 15 ? 'sinus rhythm, Mobitz I (Wenckebach) AV block' : 'sinus rhythm, Mobitz II AV block';
   }
   if (pOk) return o.rate > 100 ? 'sinus tachycardia (irregular)' : 'sinus rhythm with pauses (SA block or sinus arrhythmia)';
-  if (o.rate > 100 && o.pShapes >= 3 && o.prAllShare >= 0.6 && o.prAllSd !== null && o.prAllSd <= 80) return 'multifocal atrial tachycardia';
+  // (MAT: a P before most QRS, PR varying with the focus; AF: no organised P and a more irregular RR)
+  if (o.rate > 100 && o.pShapes >= 3 && o.prAllShare >= 0.6 && o.prAllSd !== null && o.prAllSd <= 95 && o.rrCv < 0.2) return 'multifocal atrial tachycardia';
   return 'atrial fibrillation';
 }
 module.exports = { readRhythm };
