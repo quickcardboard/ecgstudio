@@ -26,8 +26,10 @@ Run before and after any engine change and compare:
 - `node tools/evalecg.js`: normal intervals, axis, per-lead R/S/T/P
 - `node tools/fascsearch.js '[{}]'`: normal, LAFB, LPFB, LBBB axes and amplitudes
 - `node tools/blocks.js`, `node tools/wpw.js`, `node tools/pwave.js` (also `'{"atria":{"ra":true}}'`)
-- `node tools/reader.js`: blind cardiologist-style read of 22 scenarios (blocks, hypertrophy, seven occlusions
-  at 1 h and 30 days); `tools/physfit.js` is the joint refit that set the current defaults
+- `node tools/reader.js`: blind cardiologist-style read of 57 scenarios: single-beat reads (blocks, hypertrophy,
+  WPW, pericarditis, Brugada, atrial enlargement, thirteen occlusion sites at 1 h and 30 days) and 10 s rhythm
+  reads (`tools/rhythmread.js` on the strips of `tools/rhythmscen.js`: sinus, AF, flutter, ectopic, MAT,
+  AVNRT, AVRT, VT, VF, AV and SA blocks); `tools/physfit.js` is the joint refit that set the current defaults
 - `node tools/hyper.js '[{"lv":6,"P":{"lvStrain":1,"lvSourceGain":1.5}},{"lv":2,"rv":6,"an":{"rvThickPhiC":0.4,"rvThickPhiW":0.8},"P":{"rvStrain":0.7,"rvSourceGain":1.8,"rvCvMul":0.8}}]'` (the LVH and RVH presets of `hypertrophyOptions`)
 - `node tools/ischaudit.js [sites] [hours]`: ST/Q/T per lead for every occlusion site and time
   stop (`MP='{...}'` overrides parameters; the marginal branches `OM1,OM2,AM` only when named)

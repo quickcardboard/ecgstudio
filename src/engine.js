@@ -2229,17 +2229,24 @@
       this.vResponse = bpm || null;
       if (this.arrhythmia && this.arrhythmia.type === 'flutter') this._setFlutterRatio();
     }
-    // flutter: the AV node conducts one in N flutter waves (N from the set ventricular rate)
+    // flutter: the AV node conducts one in N flutter waves (N from the set ventricular rate). The gate
+    // passes the first wave arriving once the target RR has nearly elapsed since the last one it passed,
+    // so waves blocked in the node are not counted twice. The gate sits at the top of the node, ahead of
+    // its natural 2:1 block (counted lower down, a 4:1 setting gave 8:1 and odd ratios were impossible)
     _setFlutterRatio() {
       const d = this.drivers.find((x) => x.kind === 'watch');
       const cl = d && d.cls.length ? d.cls.reduce((a, b) => a + b, 0) / d.cls.length : 175;
       const n = this.vResponse ? Math.max(2, Math.round(60000 / this.vResponse / cl)) : 0;
-      this._flutterRatio = n ? { cell: this.M.avn[this.M.avn.length - 2], n, count: 0, lastT: -1e9, last: true } : null;
+      // (the slow pathway enters the node lower down: its last cell is gated by the same rule)
+      const slow = this.M.avnSlow || [];
+      this._flutterRatio = n ? { cell: this.M.avn[0], cells: new Set([this.M.avn[0]].concat(slow.length ? [slow[slow.length - 1]] : [])), n, rr: n * cl, cl, lastPass: -1e9, lastT: -1e9, last: true } : null;
     }
     _flutterPass(ta) {
       const g = this._flutterRatio;
       if (ta - g.lastT < 60) return g.last;                    // converging wavelets share one decision
-      g.lastT = ta; g.last = (++g.count % g.n) === 0; return g.last;
+      g.lastT = ta; g.last = ta - g.lastPass >= g.rr - 0.5 * g.cl;
+      if (g.last) g.lastPass = ta;
+      return g.last;
     }
 
     stopArrhythmia() {
@@ -2534,7 +2541,7 @@
         if (ta !== this.arrive[c]) continue;          // superseded
         if (this._pOn && this.blocked[c] && this.phantom[c]) { this.arrive[c] = Infinity; this._phantomActivate(c, ta); continue; }
         if (this.blocked[c] || ta < this.refEnd[c] || (adeno && this.M.kind[c] === KIND.AVN)) { this.arrive[c] = Infinity; continue; }
-        if (this._flutterRatio && c === this._flutterRatio.cell && !this._flutterPass(ta)) { this.arrive[c] = Infinity; continue; }
+        if (this._flutterRatio && this._flutterRatio.cells.has(c) && !this._flutterPass(ta)) { this.arrive[c] = Infinity; continue; }
         const gate = this.gates.get(c);
         if (gate && !this._gatePass(gate, ta)) { this.arrive[c] = Infinity; this.blockLog.push({ t: ta, at: gate.site }); if (this.blockLog.length > 40) this.blockLog.shift(); continue; }
         this._activate(c, ta);

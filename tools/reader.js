@@ -28,6 +28,9 @@ function read(rec, hint, rr) {
   let vmax = 0, tmaxV = hint; for (let t = hint - 40; t < hint + 160; t++) { const v = sv(t); if (v > vmax) { vmax = v; tmaxV = t; } }
   const quiet = (t, n, f) => { for (let i = 0; i < n; i++) if (sv(t + i) >= f * vmax) return false; return true; };
   let on = hint - 40; while (on < tmaxV && quiet(on, 3, 0.05)) on++;
+  // (a search that starts inside a long P wave reaching the QRS stops at once: then the onset is the
+  // last quiet stretch before the steepest point)
+  if (on === hint - 40) { on = tmaxV; while (on > hint - 120 && !quiet(on - 3, 3, 0.05)) on--; }
   // QRS end: the first point after the main activity where the signal stays quiet for 8 ms
   let off = tmaxV; while (off < on + 220 && !quiet(off, 8, 0.05)) off++;
   // P wave: spatial magnitude above 0.02 mV before the QRS
@@ -40,6 +43,14 @@ function read(rec, hint, rr) {
   let pOn = null, pOff = null;
   if (ppk !== null && pmx > 0.02) { pOn = ppk; while (pOn > on - 400 && mag(pOn - 1) > pth) pOn--; pOff = ppk; while (pOff < on - 5 && mag(pOff + 1) > pth) pOff++; }
   const pr = pOn !== null ? on - pOn : null, pdur = pOn !== null ? pOff - pOn : null;
+  // P amplitude per lead (largest excursion between P onset and end), V1 terminal negativity (mm·s, PTF),
+  // PR-segment level (10–20 ms before the QRS, against the TP baseline)
+  const pAmp = {}, prSeg = {}; let ptfV1 = 0;
+  for (const n of LEADS) {
+    const k = K(n); let a = 0; if (pOn !== null) for (let t = pOn; t <= pOff; t++) if (Math.abs(x(t, k)) > Math.abs(a)) a = x(t, k);
+    pAmp[n] = +a.toFixed(3); let sg = 0; for (let t = on - 20; t < on - 10; t++) sg += x(t, k) / 10; prSeg[n] = +sg.toFixed(3);
+  }
+  if (pOn !== null) { const k = K('V1'); for (let t = pOn; t <= pOff; t++) if (x(t, k) < 0) ptfV1 += -x(t, k) * 10 * 0.001; }   // mm × s
   // T wave end: after the T peak, where the magnitude falls under 10% of the peak
   let tpk = off + 60, tmx = 0; for (let t = off + 40; t < off + 420; t++) if (mag(t) > tmx) { tmx = mag(t); tpk = t; }
   let tend = tpk; while (tend < tpk + 250 && mag(tend) > 0.1 * tmx) tend++;
@@ -65,11 +76,14 @@ function read(rec, hint, rr) {
     const posShare = s.filter((v) => v > 0.05).length / s.length;
     const sWide = (() => { let n2 = 0; for (let i = rpt; i < s.length; i++) if (s[i] < -0.05) n2++; return n2; })();
     L[n] = { q: { dur: qDur, amp: +qAmp.toFixed(2) }, R: +maxP.toFixed(2), S: +(-S).toFixed(2), neg: +(-minN).toFixed(2), net: +(maxP + minN).toFixed(2), rpt, qs, rFirst: +rFirst.toFixed(2), rPrime: +rPrime.toFixed(2), posShare: +posShare.toFixed(2), sWide,
-      stJ: +x(off, k).toFixed(2), st40: +x(off + 40, k).toFixed(2), T: +(() => { let b2 = 0; for (let t = off + 40; t < tend; t++) if (Math.abs(x(t, k)) > Math.abs(b2)) b2 = x(t, k); return b2; })().toFixed(2) };
+      stJ: +x(off, k).toFixed(2), st40: +x(off + 40, k).toFixed(2), st80: +x(off + 80, k).toFixed(2), tTerm: +x(tend - 40, k).toFixed(2), T: +(() => { let b2 = 0; for (let t = off + 40; t < tend; t++) if (Math.abs(x(t, k)) > Math.abs(b2)) b2 = x(t, k); return b2; })().toFixed(2) };
   }
   const qrs = off - on, axis = Math.round(Math.atan2((2 / Math.sqrt(3)) * L.aVF.net, L.I.net) * 180 / Math.PI);
-  return { m: { qrs, pr, pdur, qt, qtc: Math.round(qtc), axis, rate: Math.round(60000 / (rr || 833)) }, L, interpret };
-  function interpret() { return diagnose({ qrs, pr, qtc, axis }, L); }
+  // delta wave: slow initial QRS (largest-R lead: time from QRS onset to half its R peak)
+  const big = LEADS.reduce((b, n) => (L[n].R > L[b].R ? n : b), 'I'), kb = K(big); let up = 0; while (up < 120 && x(on + up, kb) < 0.5 * L[big].R) up++;
+  const m = { qrs, pr, pdur, qt, qtc: Math.round(qtc), axis, rate: Math.round(60000 / (rr || 833)), pAmp, prSeg, ptfV1: +ptfV1.toFixed(3), upstroke: up, upLead: big };
+  return { m, L, interpret };
+  function interpret() { return diagnose(m, L); }
 }
 
 // ---------------------------------------------------------------- criteria
@@ -81,6 +95,13 @@ const contiguous = (set) => set.filter((n) => (NEXT[n] || []).some((m) => set.in
 const territories = (leads) => Object.entries(GROUPS).filter(([, g]) => g.some((n) => leads.includes(n))).map(([t]) => t);
 function diagnose(m, L) {
   const dx = [], f = {};
+  // pre-excitation (WPW pattern): PR < 120 ms, QRS ≥ 110 ms, slurred initial QRS (delta wave). The
+  // abnormal activation makes axis, bundle-branch, hypertrophy and infarct criteria invalid: not read.
+  const wpw = m.pr !== null && m.pr < 120 && m.qrs >= 110 && m.upstroke >= 50;
+  // atrial enlargement: P ≥ 0.25 mV in II (right), P ≥ 120 ms or V1 terminal force ≥ 0.04 mm·s (left)
+  const rae = m.pAmp && m.pAmp.II >= 0.25, lae = m.pdur !== null && (m.pdur >= 120 || m.ptfV1 >= 0.04);
+  if (rae && lae) dx.push('biatrial enlargement'); else if (rae) dx.push('RAE'); else if (lae) dx.push('LAE');
+  if (wpw) { dx.push('WPW pattern'); f.axis = 'n/a'; return { dx, f }; }
   // axis
   // axis: normal −30..90, LAD −30..−90, RAD 90..180, extreme ('northwest') −90..−180
   f.axis = m.axis < -90 ? 'extreme' : m.axis < -30 ? 'LAD' : m.axis > 90 ? 'RAD' : 'normal';
@@ -117,7 +138,20 @@ function diagnose(m, L) {
     const Q = contiguous(LEADS.filter(qLead));
     const twi = contiguous(LEADS.filter((n) => !['aVR', 'III', 'V1'].includes(n) && L[n].T <= -0.1));
     f.ste = ste; f.std = std; f.Q = Q; f.twi = twi; f.steT = territories(ste); f.qT = territories(Q);
-    if (ste.length) dx.push('STEMI ' + f.steT.join('+'));
+    // posterior STEMI equivalent (4th UDMI; ESC 2023 ACS): ST depression ≥ 0.05 mV in two of V1–V3, the
+    // deepest ST depression of the 12 leads in V1–V4 and at least 0.1 mV (mirror image of posterior ST
+    // elevation; with inferior or lateral elevation it marks posterior extension)
+    const antDep = Math.min(...['V1', 'V2', 'V3', 'V4'].map((n) => L[n].stJ)), allDep = Math.min(...LEADS.filter((n) => n !== 'aVR').map((n) => L[n].stJ));
+    if (['V1', 'V2', 'V3'].filter((n) => L[n].stJ <= -0.05).length >= 2 && antDep <= -0.1 && antDep <= allDep + 1e-9) f.steT.push('posterior');
+    // acute pericarditis: ST elevation in ≥ 4 leads over ≥ 2 territories, ST depression in aVR, no
+    // reciprocal depression outside aVR and V1, PR depression (II ≤ −0.08 mV or aVR ≥ +0.08 mV)
+    const recip = std.filter((n) => n !== 'V1');
+    const peri = ste.length >= 4 && f.steT.filter((t) => t !== 'posterior').length >= 2 && L.aVR.stJ <= -0.05 && !recip.length && m.prSeg && (m.prSeg.II <= -0.08 || m.prSeg.aVR >= 0.08);
+    // Brugada type 1: coved J elevation ≥ 0.2 mV in V1 or V2, the ST descending into a negative T
+    const brug = ['V1', 'V2'].filter((n) => L[n].stJ >= 0.2 && L[n].stJ > L[n].st40 && L[n].st40 > L[n].st80 && L[n].tTerm < -0.03);
+    if (peri) dx.push('pericarditis');
+    else if (brug.length) dx.push('Brugada type 1');
+    else if (f.steT.length) dx.push('STEMI ' + f.steT.join('+'));
     if (Q.length) dx.push('old MI ' + f.qT.join('+'));
     if (twi.length) dx.push('T inversion');
   }
@@ -128,7 +162,13 @@ function diagnose(m, L) {
 // expect: required diagnoses (all), forbidden (none of), and for ischaemia required / allowed territories
 const NOT_ISCH = ['STEMI', 'old MI'];
 const SCEN = {
-  normal: { expect: { none: ['LAFB', 'LPFB', 'LBBB', 'RBBB', 'IVCD', 'LVH', 'RVH', '1st-degree AVB', 'long QT', 'STEMI', 'old MI', 'T inversion', 'poor R progression'], axis: 'normal' } },
+  normal: { expect: { none: ['LAFB', 'LPFB', 'LBBB', 'RBBB', 'IVCD', 'LVH', 'RVH', '1st-degree AVB', 'long QT', 'STEMI', 'old MI', 'T inversion', 'poor R progression', 'WPW', 'RAE', 'LAE', 'biatrial', 'pericarditis', 'Brugada'], axis: 'normal' } },
+  WPW: { set: (S) => S.setAccessoryPathway('left-lateral'), expect: { all: ['WPW pattern'], none: ['LBBB', 'RBBB', ...NOT_ISCH] } },
+  pericarditis: { set: (S) => S.setPericarditis(true), expect: { all: ['pericarditis'], none: ['STEMI', 'old MI', 'LBBB', 'RBBB'] } },
+  Brugada: { set: (S) => S.setBrugada(true), expect: { all: ['Brugada type 1'], none: ['STEMI', 'old MI', 'RBBB', 'LBBB'] } },
+  RAE: { set: (S) => S.setAtrialEnlargement({ ra: true }), expect: { all: ['RAE'], none: ['LAE', 'biatrial', 'IVCD', ...NOT_ISCH] } },
+  LAE: { set: (S) => S.setAtrialEnlargement({ la: true }), expect: { all: ['LAE'], none: ['RAE', 'biatrial', 'IVCD', ...NOT_ISCH] } },
+  BAE: { set: (S) => S.setAtrialEnlargement({ ra: true, la: true }), expect: { all: ['biatrial enlargement'], none: ['IVCD', ...NOT_ISCH] } },
   avb1: { set: (S) => S.setBlock('AVN', 'first'), expect: { all: ['1st-degree AVB'], none: ['LBBB', 'RBBB', 'STEMI', 'poor R progression'] } },
   LAFB: { set: (S) => S.setBlock('LAF', 'complete'), expect: { all: ['LAFB'], none: ['LBBB', 'RBBB', 'IVCD', 'LPFB', ...NOT_ISCH] } },
   LPFB: { set: (S) => S.setBlock('LPF', 'complete'), expect: { all: ['LPFB'], none: ['LBBB', 'RBBB', 'IVCD', 'LAFB', 'RVH', 'poor R progression', ...NOT_ISCH] } },
@@ -144,10 +184,20 @@ const MI = {
   pLAD: { f: (b) => b.LAD[0], ste: { req: ['anterior'], ok: ['septal', 'lowLateral', 'highLateral'] }, q: { req: ['anterior'], ok: ['septal', 'lowLateral', 'highLateral'] } },
   mLAD: { f: (b) => b.LAD[Math.round(b.LAD.length * 0.22)], ste: { req: ['anterior'], ok: ['septal', 'lowLateral'] }, q: { req: ['anterior'], ok: ['septal', 'lowLateral'] } },
   dLAD: { f: (b) => b.LAD[Math.round(b.LAD.length * 0.45)], ste: { req: ['anterior'], ok: ['septal', 'lowLateral'] }, q: { req: ['anterior'], ok: ['septal', 'lowLateral'] } },
-  pLCx: { f: (b) => b.LCx[0], ste: { req: ['lateral'], ok: ['lowLateral', 'highLateral'] }, q: { req: ['lateral'], ok: ['lowLateral', 'highLateral'] } },
-  dLCx: { f: (b) => b.LCx[Math.round(b.LCx.length * 0.6)], ste: { req: ['lateral'], ok: ['lowLateral', 'highLateral', 'inferior'] }, q: { req: ['lateral'], ok: ['lowLateral', 'highLateral', 'inferior'] } },
-  pRCA: { f: (b) => b.RCA[0], ste: { req: ['inferior'], ok: ['septal'] }, q: { req: ['inferior'], ok: ['septal'] } },
-  PDA: { f: (b) => b.PDA[0], ste: { req: ['inferior'], ok: [] }, q: { req: ['inferior'], ok: [] } },
+  // (circumflex and RCA territories include the posterior wall: ST depression in V1–V3 is posterior involvement;
+  // a distal circumflex STEMI is often posterior only)
+  pLCx: { f: (b) => b.LCx[0], ste: { req: ['lateral'], ok: ['lowLateral', 'highLateral', 'posterior'] }, q: { req: ['lateral'], ok: ['lowLateral', 'highLateral'] } },
+  dLCx: { f: (b) => b.LCx[Math.round(b.LCx.length * 0.6)], ste: { req: ['lateral|posterior'], ok: ['lowLateral', 'highLateral', 'inferior', 'posterior'] }, q: { req: ['lateral'], ok: ['lowLateral', 'highLateral', 'inferior'] } },
+  pRCA: { f: (b) => b.RCA[0], ste: { req: ['inferior'], ok: ['septal', 'posterior'] }, q: { req: ['inferior'], ok: ['septal'] } },
+  PDA: { f: (b) => b.PDA[0], ste: { req: ['inferior'], ok: ['posterior'] }, q: { req: ['inferior'], ok: [] } },
+  // more sites (expanded set): left main, marginal branches, mid and distal RCA
+  LM: { f: (b) => b.LM[0], ste: { req: ['anterior'], ok: ['septal', 'lowLateral', 'highLateral'] }, q: { req: ['anterior'], ok: ['septal', 'lowLateral', 'highLateral'] } },
+  OM1: { f: (b) => b.OM1[0], ste: { req: ['lateral'], ok: ['lowLateral', 'highLateral', 'posterior'] }, q: { req: ['lateral'], ok: ['lowLateral', 'highLateral'] } },
+  OM2: { f: (b) => b.OM2[0], ste: { req: ['lateral|inferior'], ok: ['lowLateral', 'highLateral', 'inferior', 'posterior'] }, q: { req: ['lateral|inferior'], ok: ['lowLateral', 'highLateral', 'inferior'] } },
+  // isolated RV infarction (acute marginal): ST elevation in V1 (V4R) ± inferior; Q waves are not expected
+  AM: { f: (b) => b.AM[0], ste: { req: ['septal|inferior'], ok: ['septal', 'inferior'] }, q: { req: [], ok: [] } },
+  mRCA: { f: (b) => b.RCA[Math.round(b.RCA.length * 0.45)], ste: { req: ['inferior'], ok: ['posterior', 'lowLateral'] }, q: { req: ['inferior'], ok: ['lowLateral'] } },
+  dRCA: { f: (b) => b.RCA[Math.round(b.RCA.length * 0.8)], ste: { req: ['inferior'], ok: ['posterior', 'lowLateral'] }, q: { req: ['inferior'], ok: ['lowLateral'] } },
 };
 
 function run(LH, JA, params, names) {
@@ -175,10 +225,21 @@ function run(LH, JA, params, names) {
     const r = record(M0, (S) => { S.addOcclusion(mi.f(M0.coronary.branches)); S.setIschemiaTime(h); }), { dx, f } = r.interpret();
     const got0 = key === 'ste' ? (f.steT || []) : (f.qT || []), ex = mi[key];
     const got = got0.some((t) => t.endsWith('ateral')) ? [...got0, 'lateral'] : got0;   // 'lateral' = either lateral group
-    const miss = ex.req.filter((t) => !got.includes(t)), extra = got0.filter((t) => !ex.req.includes(t) && !ex.ok.includes(t));
-    const okDx = [...MI_OK.all, ...(site.includes('LAD') ? ['poor R progression'] : []), ...(site.includes('LAD') && site !== 'dLAD' ? MI_OK.LAD : []), ...(site === 'pRCA' || site === 'PDA' ? MI_OK.RCA : [])];
+    const alt = (t) => t.split('|');                                   // 'lateral|posterior': either
+    const miss = ex.req.filter((t) => !alt(t).some((a) => got.includes(a))), extra = got0.filter((t) => !ex.req.some((r) => alt(r).includes(t)) && !ex.ok.includes(t));
+    const okDx = [...MI_OK.all, ...(site.includes('LAD') ? ['poor R progression'] : []), ...(site.includes('LAD') && site !== 'dLAD' ? MI_OK.LAD : []), ...(/RCA|PDA/.test(site) ? MI_OK.RCA : [])];
     for (const d of dx) if (!d.startsWith('STEMI') && !d.startsWith('old MI') && !okDx.includes(d)) extra.push(d);
     out.push({ scen: `${site} ${label}`, pass: !miss.length && !extra.length, grade: miss.length ? 'fail' : extra.length ? 'partial' : 'pass', dx, axis: r.m.axis, qrs: r.m.qrs, simQRS: r.simQRS, miss, extra, leads: key === 'ste' ? f.ste : f.Q });
+  }
+  // rhythms (10 s strips, blind rhythm reader: tools/rhythmread.js; scenarios: tools/rhythmscen.js)
+  const { RHY, SETTLE, STRIP } = require('./rhythmscen.js'), { readRhythm } = require('./rhythmread.js');
+  for (const [name, sc] of Object.entries(RHY)) {
+    if (!want(name)) continue;
+    const S = sc.make(LH, M0, M0.A);
+    if (!S) { out.push({ scen: name, grade: 'fail', dx: ['(not induced)'], miss: [sc.expect.rhythm], extra: [] }); continue; }
+    S.run(SETTLE); const rec = []; S.onSample((t, v) => rec.push(Array.from(v))); S.run(STRIP);
+    const r = readRhythm(rec), e = sc.expect, ok = r.rhythm.includes(e.rhythm), ideal = !e.ideal || r.rhythm.startsWith(e.ideal);
+    out.push({ scen: name, grade: ok ? (ideal ? 'pass' : 'partial') : 'fail', dx: [r.rhythm], rate: r.rate, qrs: r.width, miss: ok ? (ideal ? [] : [e.ideal]) : [e.rhythm], extra: [], hard: e.hard });
   }
   return out;
 }
@@ -192,7 +253,7 @@ if (require.main === module) {
   const params = JSON.parse(process.argv[3] || '{}'), names = process.argv[4] ? process.argv[4].split(',') : null;
   const res = run(LH, JA, params, names);
   if (process.env.JSON) { console.log(JSON.stringify(res)); process.exit(0); }
-  for (const r of res) console.log(`${r.grade.padEnd(8)}${r.scen.padEnd(10)} reads: ${r.dx.join(', ') || 'normal'}  [axis ${r.axis}°, QRS ${r.qrs} ms (sim ${r.simQRS || '-'})${r.pr ? ', PR ' + r.pr : ''}${r.leads ? ', leads ' + r.leads.join(' ') : ''}]${r.miss.length ? '  missing: ' + r.miss.join(', ') : ''}${r.extra.length ? '  unexpected: ' + r.extra.join(', ') : ''}`);
+  for (const r of res) console.log(`${r.grade.padEnd(8)}${r.scen.padEnd(13)} reads: ${r.dx.join(', ') || 'normal'}  [${r.rate ? `rate ${r.rate}, QRS ${r.qrs} ms` : `axis ${r.axis}°, QRS ${r.qrs} ms (sim ${r.simQRS || '-'})${r.pr ? ', PR ' + r.pr : ''}${r.leads ? ', leads ' + r.leads.join(' ') : ''}`}]${r.miss.length ? '  missing: ' + r.miss.join(', ') : ''}${r.extra.length ? '  unexpected: ' + r.extra.join(', ') : ''}${r.hard && r.grade !== 'pass' ? '  (hard for readers)' : ''}`);
   const n = res.length, p = res.filter((r) => r.grade === 'pass').length, pa = res.filter((r) => r.grade === 'partial').length;
   console.log(`\n${p}/${n} read as the simulated pathology, ${pa} partial, ${n - p - pa} wrong`);
 }
