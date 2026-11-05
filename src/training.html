@@ -86,7 +86,8 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .hskills button { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 12px; }
 .hskills small { font: 500 12px/1 var(--font-data); color: var(--muted); }
 .hrow { display: flex; gap: 8px; } .hrow button { flex: 1; padding: 12px; }
-.hsim { color: var(--muted); text-decoration: none; font-size: 14px; padding: 10px 2px; }
+.hsim { display: flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; font: 600 15px/1.2 var(--font-ui); padding: 12px 14px; border-radius: 10px; background: var(--raised); border: 1px solid #3a4a59; }
+.hsim span { color: var(--accent); font-size: 22px; line-height: 0.8; }
 header h1 { margin: 0; font: 600 18px/1 var(--font-display); letter-spacing: 0.01em; flex: 1; }
 header h1 span { color: var(--accent); }
 .proto { font: 500 10px/1 var(--font-ui); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; text-transform: uppercase; letter-spacing: 0.06em; margin-left: 6px; vertical-align: 2px; }
@@ -253,6 +254,7 @@ body.land #fsClose { display: none; }
   <div class="page" id="home">
     <div class="phead"><h2>ECG <span class="red">Studio</span> Training</h2><span class="proto">Prototype · all unlocked</span></div>
     <div class="pbody hbody">
+      <a class="hsim" href="../index.html"><span>‹</span> Back to the ECG Studio simulator</a>
       <div class="hstats">
         <div><b id="hRating">1500</b><span>Rating</span></div>
         <div><b id="hStreak">0</b><span>Day streak</span></div>
@@ -264,7 +266,6 @@ body.land #fsClose { display: none; }
       <h3>Practice by skill</h3>
       <div class="hskills" id="hSkills"></div>
       <div class="hrow"><button type="button" id="btnStats">Statistics</button><button type="button" id="btnHelp">How it works</button></div>
-      <a class="hsim" href="../index.html">‹ ECG Studio simulator</a>
     </div>
   </div>
   <div class="page" id="stats" hidden>

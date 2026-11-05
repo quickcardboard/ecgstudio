@@ -1414,3 +1414,6 @@ linked from the menu yet.
   score, the measurements, the reader's checks, the generator recipe and the build version.
 - Scoring fix: on an ECG whose only abnormality is the rhythm, the rhythm is the whole score (a wrong
   rhythm scored 60% before: the findings' share was given for naming no finding).
+- Round 5 changes: the simulator link is at the top of the home screen; a day counts for the streak
+  with one ECG; levels Clerk, Nursing student, Medical student, Intern, Resident, Cardiology fellow,
+  Cardiologist, Electrophysiologist, Professor of cardiology (same XP thresholds).

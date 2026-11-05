@@ -251,15 +251,16 @@
   // ------------------------------------------------------------------ days, streak, levels, reviews
   const DAY = 864e5, dayKey = (t = Date.now()) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const today = () => st.days[dayKey()] || (st.days[dayKey()] = { n: 0 });
-  // a day counts for the streak with the daily ECG or 5 practice ECGs; today not yet done does not break it
+  // a day counts for the streak with one ECG answered (the daily ECG or any other); today not yet done does
+  // not break it
   function streak() {
-    const done = (k) => st.days[k] && (st.days[k].daily !== undefined || st.days[k].n >= 5);
+    const done = (k) => st.days[k] && (st.days[k].daily !== undefined || st.days[k].n >= 1);
     let n = 0, t = Date.now(); if (!done(dayKey(t))) t -= DAY;
     while (done(dayKey(t))) { n++; t -= DAY; }
     return n;
   }
   // levels: clinical roles; experience for every answered ECG (score × difficulty); levels never go down
-  const LEVELS = [[0, 'Medical student'], [150, 'Clerk'], [400, 'Intern'], [900, 'Resident'], [1800, 'Registrar'], [3200, 'Cardiology fellow'], [5500, 'Cardiologist'], [9000, 'Electrophysiologist'], [14000, 'Professor of cardiology']];
+  const LEVELS = [[0, 'Clerk'], [150, 'Nursing student'], [400, 'Medical student'], [900, 'Intern'], [1800, 'Resident'], [3200, 'Cardiology fellow'], [5500, 'Cardiologist'], [9000, 'Electrophysiologist'], [14000, 'Professor of cardiology']];
   function level() { let i = 0; while (i + 1 < LEVELS.length && st.xp >= LEVELS[i + 1][0]) i++; const [lo, name] = LEVELS[i], hi = LEVELS[i + 1] ? LEVELS[i + 1][0] : null; return { name, i, frac: hi ? (st.xp - lo) / (hi - lo) : 1, next: hi && LEVELS[i + 1][1], toNext: hi ? hi - st.xp : 0 }; }
   // spaced repetition: a missed or partly right ECG returns after 1, 3, 7, 16 and 35 days (rebuilt from its recipe)
   const BOXES = [1, 3, 7, 16, 35];
