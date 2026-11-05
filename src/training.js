@@ -239,9 +239,6 @@
     requestAnimationFrame(drawAll);
   }
 
-  // the ECG keeps the paper scale (5 s across the width) with the leads 17 mm apart: 4 rows
-  const ROW_MM = 17;
-  function sizeEcg() { const v = $('ecgView'), w = v.clientWidth; if (w) v.style.height = `${Math.round(w / 125 * ROW_MM * 4)}px`; }
 
   // ------------------------------------------------------------------ statistics (this session)
   function renderStats() {
@@ -313,23 +310,17 @@
   // ------------------------------------------------------------------ keyboard and type-ahead
   function buildKeyboard() {
     const el = $('kbd'), keys = (r) => [...r].map((c) => `<button type="button" data-k="${c}">${c}</button>`).join('');
-    el.innerHTML = `<div class="row num">${keys('1234567890')}</div><div class="row">${keys('qwertyuiop')}</div><div class="row mid">${keys('asdfghjkl')}</div>`
-      + `<div class="row"><span class="fn" style="visibility:hidden"></span>${keys('zxcvbnm')}<button type="button" class="fn" data-k="del" aria-label="Delete">⌫</button></div>`
+    el.innerHTML = `<div class="row">${keys('qwertyuiop')}</div><div class="row">${keys('asdfghjkl')}</div>`
+      + `<div class="row"><button type="button" class="wide add" data-k="add" aria-label="Add the first suggestion">Add</button>${keys('zxcvbnm')}<button type="button" class="wide" data-k="del" aria-label="Delete">⌫</button></div>`
       + '<div class="row"><button type="button" class="space" data-k=" ">space</button></div>';
-    // pointerdown (not click): typing feels immediate; a letter shows a magnified preview; holding delete repeats
-    let rep = null, pop = null;
-    const unpop = () => { if (pop) { pop.remove(); pop = null; } };
+    // pointerdown (not click): typing feels immediate; holding delete repeats
+    let rep = null;
     el.addEventListener('pointerdown', (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      e.preventDefault(); b.classList.add('down'); setTimeout(() => b.classList.remove('down'), 110);
+      e.preventDefault(); b.classList.add('down'); setTimeout(() => b.classList.remove('down'), 120);
       const k = b.dataset.k;
+      if (k === 'add') { const first = $('suggest').querySelector('button[data-id]'); if (first) pick(first.dataset.id); return; }
       if (k === 'del') { del(); clearInterval(rep); const t0 = Date.now(); rep = setInterval(() => { if (Date.now() - t0 > 400) del(); }, 70); return; }
-      if (k.trim()) {
-        unpop(); const r = b.getBoundingClientRect(), kr = el.getBoundingClientRect();
-        pop = document.createElement('div'); pop.className = 'pop'; pop.textContent = k;
-        Object.assign(pop.style, { left: `${r.left - kr.left - 6}px`, top: `${r.top - kr.top - 52}px`, width: `${r.width + 12}px`, height: '50px' });
-        el.appendChild(pop); setTimeout(unpop, 160);
-      }
       type(k);
     });
     const stop = () => clearInterval(rep);
@@ -337,7 +328,7 @@
     // a hardware keyboard works too (desktop testing)
     addEventListener('keydown', (e) => {
       if (st.phase !== 'answer' || e.metaKey || e.ctrlKey || e.altKey || !$('menu').hidden) return;
-      if (/^[a-z0-9 ]$/i.test(e.key)) type(e.key.toLowerCase());
+      if (/^[a-z ]$/i.test(e.key)) type(e.key.toLowerCase());
       else if (e.key === 'Backspace') del();
       else if (e.key === 'Enter') { const first = $('suggest').querySelector('button[data-id]'); if (first) pick(first.dataset.id); else submit(); }
       else return;
@@ -457,7 +448,7 @@
       history.replaceState(null, '', `#i=${(st.pos + 1) % ORDER.length}`);
       location.href = `../index.html#${st.item.link}`;
     });
-    addEventListener('resize', () => { sizeEcg(); syncFs(); });
+    addEventListener('resize', syncFs);
     $('submit').addEventListener('click', submit);
     // menu: statistics, help, restart, the simulator
     const menu = $('menu'), showMenu = (on) => { menu.hidden = !on; $('menuBtn').setAttribute('aria-expanded', String(on)); };
@@ -475,7 +466,7 @@
     for (const b of document.querySelectorAll('.page [data-close]')) b.addEventListener('click', () => { b.closest('.page').hidden = true; });
     window.ECGTraining = { st, pick, submit, toggleRegion, endRegion, setPage, setFs, score, ITEMS, VOCAB };   // (automated tests)
     for (const it of ITEMS) for (const id of [it.key.rhythm, ...(it.key.alt || []), ...it.key.findings.map((f) => f.id), ...(it.key.optional || [])]) if (!BY_ID[id]) console.warn(`training: ${it.id} uses "${id}", not in the vocabulary`);
-    sizeEcg(); loadItem(); syncFs();
+    loadItem(); syncFs();
     if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(drawAll));
   }
   init();

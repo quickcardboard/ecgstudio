@@ -1307,3 +1307,11 @@ linked from the menu yet.
 - Vocabulary ordered by how common each term is (file order = suggestion order); an exact abbreviation
   goes first ("af", "chb", "3avb"). More synonyms and numbered forms (1AVB, 2AVB1, 3AVB, 2:1 as "21");
   "old MI" and "STEMI" are synonyms of Q waves and ST elevation, so they ask for the location.
+
+## training-1 round 3: the first keyboard back, ECG fills the screen
+
+- Keyboard as in round 1 (three letter rows across the full width, no number row) plus a space bar row.
+  The key left of z, where Submit was, is now **Add**: it adds the first suggestion (Enter on a hardware
+  keyboard does the same).
+- The ECG takes all the height between the measurements and the answer area (rows a quarter of it each;
+  the paper scale stays 5 s across the width), also on the result screen.

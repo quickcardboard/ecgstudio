@@ -76,7 +76,7 @@ header h1 span { color: var(--accent); }
 .chip em { font-style: normal; color: var(--muted); margin-right: 4px; font-family: var(--font-ui); }
 
 /* the ECG: two pages (limb leads 0–5 s, chest leads 5–10 s) side by side, swiped */
-#ecgView { position: relative; flex: none; height: 240px; margin: 0 8px; border-radius: 6px; overflow: hidden; background: #fff; touch-action: none; }
+#ecgView { position: relative; flex: 1 1 auto; min-height: 200px; margin: 0 8px; border-radius: 6px; overflow: hidden; background: #fff; touch-action: none; }
 #track { position: absolute; inset: 0; width: 200%; display: flex; will-change: transform; }
 #track.slide { transition: transform 0.24s cubic-bezier(0.2, 0.7, 0.3, 1); }
 #track canvas { width: 50%; height: 100%; display: block; }
@@ -113,21 +113,15 @@ header h1 span { color: var(--accent); }
 #suggest button small { color: var(--muted); font-size: 11.5px; margin-left: 6px; }
 #suggest .hint { color: var(--muted); font-size: 12.5px; padding-left: 2px; white-space: nowrap; }
 
-/* in-app keyboard, styled like a phone's own: number row, QWERTY, delete, space bar; a key shows a
-   magnified preview while pressed; room below for the home indicator */
-#spacer { flex: 1 1 0; min-height: 0; }
-#kbd { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 8px 3px calc(env(safe-area-inset-bottom, 0px) + 22px); background: #17222c; border-top: 1px solid #22303c; }
-#kbd .row { display: flex; gap: 6px; justify-content: center; padding: 0 3px; }
-#kbd .row.mid { padding: 0 5%; }
-#kbd button { flex: 1 1 0; min-width: 0; height: 44px; padding: 0; border: 0; border-radius: 6px; background: #4a5866; color: #fff;
-  box-shadow: 0 1px 0 rgba(0,0,0,0.55); font: 400 22px/1 var(--font-ui); text-transform: lowercase; }
-#kbd .num button { height: 38px; font-size: 19px; background: #34424f; }
-#kbd button.down { background: #6a7a8a; }
-#kbd .fn { flex: 1.45 1 0; background: #2f3c48; font-size: 20px; }
-#kbd .fn.down { background: #4a5866; }
-#kbd .space { flex: 1 1 auto; max-width: 62%; font-size: 15px; color: #c9d3dc; text-transform: none; }
-#kbd .pop { position: absolute; pointer-events: none; z-index: 5; background: #5d6d7d; color: #fff; border-radius: 8px; font: 400 30px/1 var(--font-ui);
-  display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+/* in-app keyboard: QWERTY across the full width, Add (the first suggestion) and delete beside z–m,
+   a space bar below */
+#kbd { display: flex; flex-direction: column; gap: 7px; padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 6px); background: #0f1922; border-top: 1px solid var(--line); }
+#kbd .row { display: flex; gap: 5px; }
+#kbd button { flex: 1 1 0; min-width: 0; height: 46px; padding: 0; border-radius: 6px; background: var(--key); border-color: #2f3f4e; font: 500 19px/1 var(--font-ui); text-transform: lowercase; }
+#kbd button:active, #kbd button.down { background: #3a4d5f; }
+#kbd .wide { flex: 1.6 1 0; font-size: 14px; text-transform: none; }
+#kbd .add { color: var(--accent); border-color: rgba(239,91,122,0.6); font-weight: 600; }
+#kbd .space { font-size: 14px; color: var(--muted); text-transform: none; }
 
 /* region mode: pick the lead groups of a finding */
 #region { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px 10px; background: #0f1922; border-top: 1px solid var(--line); }
@@ -207,7 +201,6 @@ body.land #fsClose { display: none; }
     <div id="fieldRow"><div id="field"><span class="typed" id="typed"></span><span class="caret"></span><span class="ph" id="ph">Name the rhythm</span></div><button type="button" class="primary" id="submit">Submit</button></div>
     <div id="suggest"></div>
   </div>
-  <div id="spacer"></div>
   <div id="kbd" aria-label="Keyboard"></div>
 
   <div id="region" hidden>
@@ -500,9 +493,6 @@ body.land #fsClose { display: none; }
     requestAnimationFrame(drawAll);
   }
 
-  // the ECG keeps the paper scale (5 s across the width) with the leads 17 mm apart: 4 rows
-  const ROW_MM = 17;
-  function sizeEcg() { const v = $('ecgView'), w = v.clientWidth; if (w) v.style.height = `${Math.round(w / 125 * ROW_MM * 4)}px`; }
 
   // ------------------------------------------------------------------ statistics (this session)
   function renderStats() {
@@ -574,23 +564,17 @@ body.land #fsClose { display: none; }
   // ------------------------------------------------------------------ keyboard and type-ahead
   function buildKeyboard() {
     const el = $('kbd'), keys = (r) => [...r].map((c) => `<button type="button" data-k="${c}">${c}</button>`).join('');
-    el.innerHTML = `<div class="row num">${keys('1234567890')}</div><div class="row">${keys('qwertyuiop')}</div><div class="row mid">${keys('asdfghjkl')}</div>`
-      + `<div class="row"><span class="fn" style="visibility:hidden"></span>${keys('zxcvbnm')}<button type="button" class="fn" data-k="del" aria-label="Delete">⌫</button></div>`
+    el.innerHTML = `<div class="row">${keys('qwertyuiop')}</div><div class="row">${keys('asdfghjkl')}</div>`
+      + `<div class="row"><button type="button" class="wide add" data-k="add" aria-label="Add the first suggestion">Add</button>${keys('zxcvbnm')}<button type="button" class="wide" data-k="del" aria-label="Delete">⌫</button></div>`
       + '<div class="row"><button type="button" class="space" data-k=" ">space</button></div>';
-    // pointerdown (not click): typing feels immediate; a letter shows a magnified preview; holding delete repeats
-    let rep = null, pop = null;
-    const unpop = () => { if (pop) { pop.remove(); pop = null; } };
+    // pointerdown (not click): typing feels immediate; holding delete repeats
+    let rep = null;
     el.addEventListener('pointerdown', (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      e.preventDefault(); b.classList.add('down'); setTimeout(() => b.classList.remove('down'), 110);
+      e.preventDefault(); b.classList.add('down'); setTimeout(() => b.classList.remove('down'), 120);
       const k = b.dataset.k;
+      if (k === 'add') { const first = $('suggest').querySelector('button[data-id]'); if (first) pick(first.dataset.id); return; }
       if (k === 'del') { del(); clearInterval(rep); const t0 = Date.now(); rep = setInterval(() => { if (Date.now() - t0 > 400) del(); }, 70); return; }
-      if (k.trim()) {
-        unpop(); const r = b.getBoundingClientRect(), kr = el.getBoundingClientRect();
-        pop = document.createElement('div'); pop.className = 'pop'; pop.textContent = k;
-        Object.assign(pop.style, { left: `${r.left - kr.left - 6}px`, top: `${r.top - kr.top - 52}px`, width: `${r.width + 12}px`, height: '50px' });
-        el.appendChild(pop); setTimeout(unpop, 160);
-      }
       type(k);
     });
     const stop = () => clearInterval(rep);
@@ -598,7 +582,7 @@ body.land #fsClose { display: none; }
     // a hardware keyboard works too (desktop testing)
     addEventListener('keydown', (e) => {
       if (st.phase !== 'answer' || e.metaKey || e.ctrlKey || e.altKey || !$('menu').hidden) return;
-      if (/^[a-z0-9 ]$/i.test(e.key)) type(e.key.toLowerCase());
+      if (/^[a-z ]$/i.test(e.key)) type(e.key.toLowerCase());
       else if (e.key === 'Backspace') del();
       else if (e.key === 'Enter') { const first = $('suggest').querySelector('button[data-id]'); if (first) pick(first.dataset.id); else submit(); }
       else return;
@@ -718,7 +702,7 @@ body.land #fsClose { display: none; }
       history.replaceState(null, '', `#i=${(st.pos + 1) % ORDER.length}`);
       location.href = `../index.html#${st.item.link}`;
     });
-    addEventListener('resize', () => { sizeEcg(); syncFs(); });
+    addEventListener('resize', syncFs);
     $('submit').addEventListener('click', submit);
     // menu: statistics, help, restart, the simulator
     const menu = $('menu'), showMenu = (on) => { menu.hidden = !on; $('menuBtn').setAttribute('aria-expanded', String(on)); };
@@ -736,7 +720,7 @@ body.land #fsClose { display: none; }
     for (const b of document.querySelectorAll('.page [data-close]')) b.addEventListener('click', () => { b.closest('.page').hidden = true; });
     window.ECGTraining = { st, pick, submit, toggleRegion, endRegion, setPage, setFs, score, ITEMS, VOCAB };   // (automated tests)
     for (const it of ITEMS) for (const id of [it.key.rhythm, ...(it.key.alt || []), ...it.key.findings.map((f) => f.id), ...(it.key.optional || [])]) if (!BY_ID[id]) console.warn(`training: ${it.id} uses "${id}", not in the vocabulary`);
-    sizeEcg(); loadItem(); syncFs();
+    loadItem(); syncFs();
     if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(drawAll));
   }
   init();
