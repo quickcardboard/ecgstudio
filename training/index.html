@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-05 (d08b7a7)">
+<meta name="version" content="2026-11-05 (5374023)">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28S3 20 3 11a6.5 6.5 0 0 1 13-1 6.5 6.5 0 0 1 13 1c0 9-13 17-13 17z' fill='%23c2304f'/%3E%3Cpath d='M5 15h6l2-4 3 9 2-5h9' stroke='%23fff' stroke-width='2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -3589,12 +3589,14 @@ return module.exports; })();
     rvh: { group: 'hyp', skill: 'conditions', rating: 60, dx: 'RVH', hyp: 'rvh', struct: 'rvh', leads: ['V1', 'I'], line: 'Right axis with a dominant R in V1: right ventricular hypertrophy.' },
     stemi: { group: 'isch', skill: 'ischemia', rating: 0, isch: 1, excl: ['peri', 'brugada'], id: 'ste' },
     oldmi: { group: 'isch', skill: 'ischemia', rating: 20, isch: 720, excl: ['peri', 'brugada'], id: 'qwaves' },
+    // hyperacute phase (15 min): tall, broad T waves over the territory before the ST rises
+    hyper: { group: 'isch', skill: 'ischemia', rating: 140, isch: 0.25, excl: ['peri', 'brugada'], id: 'hyperacute' },
     // a recent infarct (2 days): Q waves with T inversion over the territory, ST elevation mostly resolved
     recent: { group: 'isch', skill: 'ischemia', rating: 120, isch: 48, excl: ['peri', 'brugada'], id: 'qwaves' },
     peri: { group: 'peri', skill: 'conditions', rating: 80, id: 'pericarditis', dx: 'pericarditis', peri: true, struct: 'peri', excl: ['isch', 'brugada'], leads: ['I', 'II', 'aVF', 'V5', 'V6', 'aVR'], line: 'Diffuse concave ST elevation with PR depression and ST depression in aVR: pericarditis.' },
     brugada: { group: 'brugada', skill: 'conditions', rating: 80, dx: 'Brugada type 1', brugada: true, struct: 'brugada', excl: ['isch', 'peri'], leads: ['V1', 'V2'], line: 'Coved ST elevation ≥ 2 mm in V1–V2 into a negative T: Brugada pattern.' },
   };
-  const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 2.5, recent: 2.5, peri: 1, brugada: 0.7 };
+  const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 2.5, recent: 2.5, hyper: 1.5, peri: 1, brugada: 0.7 };
   const ITEM_BASE = 1200, PER_ABN = 180;
 
   // Combination rules (the author's clinical calls; see docs/DEVELOPMENT.md training-1):
@@ -3619,9 +3621,9 @@ return module.exports; })();
     }
     const q = all.filter((x) => QRS.includes(x));
     if (q.length > 2 || (q.length === 2 && !BIFASC.some(([x, y]) => q.includes(x) && q.includes(y)))) return false;
-    const isch = has('stemi') || has('oldmi') || has('recent');
+    const isch = has('stemi') || has('oldmi') || has('recent') || has('hyper');
     if (has('lbbb') && (isch || has('peri'))) return false;
-    if (has('rbbb') && (has('oldmi') || has('recent') || has('peri'))) return false;
+    if (has('rbbb') && (has('oldmi') || has('recent') || has('hyper') || has('peri'))) return false;   // (RBBB's own T waves)
     if (has('peri') && all.some((x) => x !== 'peri' && !['rae', 'lae', 'bae', 'avb1'].includes(x))) return false;
     if (has('wpw') && all.some((x) => ['rae', 'lae', 'bae', 'avb1', 'peri'].includes(x))) return false;
     return true;
@@ -3784,6 +3786,13 @@ return module.exports; })();
         case 'wpw': return yes(m.pr !== null && m.pr < 120 && m.qrs >= 110 && m.upstroke >= 50, `PR ${m.pr}, QRS ${m.qrs}, upstroke ${m.upstroke}`);
         case 'lvh': { const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S; return yes(sok >= 3.5 || corn > 2.8 || L.aVL.R >= 1.1, `Sokolow ${sok.toFixed(2)}, Cornell ${corn.toFixed(2)}`); }
         case 'rvh': return yes((m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7), `axis ${m.axis}°, R V1 ${L.V1.R}`);
+        case 'hyper': {
+          // textbook: T ≥ 5 mm in a limb lead or ≥ 10 mm in a chest lead, in two contiguous leads of the
+          // territory, with no ST elevation criteria met (the rise over the same heart's T is checked on the twin)
+          const ex = MI_SITES[a.site].ste, terrLeads = ex.req.concat(ex.ok).flatMap((t) => RL[t]);
+          const tall = contiguous(LEADS.filter((n) => terrLeads.includes(n) && L[n].T >= (n.startsWith('V') ? 1.0 : 0.5)));
+          return yes(tall.length >= 2 && !steLeads(L).length, `T ${tall.map((n) => `${n} ${(L[n].T * 10).toFixed(0)} mm`).join(', ') || 'not tall'}${steLeads(L).length ? ', ST elevation already' : ''}`, tall);
+        }
         case 'recent': {
           const q = qLeads(L), terr = terrOf(q), ex = MI_SITES[a.site].q, twi = contiguous(LEADS.filter((n) => !['aVR', 'III', 'V1'].includes(n) && L[n].T <= -0.1));
           return yes(ex.req.some((t) => terr.includes(t)) && twi.length >= 2, `Q waves in ${q.join(' ') || 'none'}, T inversion in ${twi.join(' ') || 'none'}`, q, twi);
@@ -3850,7 +3859,15 @@ return module.exports; })();
         const twinRec = { ...rec, abn: rec.abn.filter((x) => x !== a) }, tsim = simulate(twinRec), tmed = tsim && medianBeat(tsim);
         let tw = null;
         if (tmed) { tw = twinDiff(med, tmed, a.k); if (!tw.ok) return fail(`${a.k} barely changes the tracing (${tw.max} mV)`, 'twin'); }
-        if (a.k === 'recent') {
+        if (a.k === 'hyper') {
+          // (the T waves must be taller than this heart's own: at least 1.5× the twin's in those leads)
+          if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr).L, risen = c.leads.filter((n) => r.L[n].T >= 1.5 * Math.max(0.05, tr[n].T)); if (risen.length < 2) return fail(`hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); c.leads = risen; }
+          const site = MI_SITES[a.site], ex = site.ste, terr = terrOf(c.leads), req = ex.req.filter((t) => terr.includes(t)).length ? ex.req.filter((t) => terr.includes(t)) : terr.slice(0, 1);
+          findings.push({ id: 'hyperacute', skill: d.skill, regions: req, okRegions: [...new Set([...terr, ...ex.req, ...ex.ok])].filter((t) => !req.includes(t)) });
+          c.leads.forEach((l) => hl.add(l));
+          lines.hyperacute = `Tall, broad T waves in ${c.leads.join(', ')} with no ST elevation yet: hyperacute ${req.join('/')} ischemia (minutes after a ${site.name} occlusion). Repeat the ECG: STEMI may follow.`;
+          ['twi', 'reciprocal'].forEach((x) => optional.add(x));
+        } else if (a.k === 'recent') {
           const site = MI_SITES[a.site], ex = site.q, terr = terrOf(c.leads), tt = terrOf(c.leads2);
           findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
           const tReq = tt.filter((t) => ex.req.includes(t)).length ? tt.filter((t) => ex.req.includes(t)) : tt.slice(0, 1);
@@ -3888,6 +3905,11 @@ return module.exports; })();
           if (dx.startsWith('old MI') && ks.includes('lafb') && !ks.includes('oldmi') && !ks.includes('recent')) { optional.add('qwaves'); continue; }   // (LAFB pseudo-infarct)
           if (dx === '1st-degree AVB' && rca) { optional.add('avb1'); continue; }
           if (dx.startsWith('STEMI') && ks.includes('recent')) { optional.add('ste'); continue; }   // (residual ST elevation at 2 days)
+          // (an infarct moves the axis and the R waves: lateral and posterior loss gives right axis and a tall R
+          // in V1, inferior loss a tall R in aVL; the reader's RVH/LVH voltage rules have no infarct exception, so
+          // these reads are not findings of the ECG. Clinically: "tall R in V1: posterior MI or RVH?")
+          if (dx === 'RVH' && !ks.includes('rvh') && rec.abn.some((a) => ABN[a.k].isch && ABN[a.k].isch >= 24)) { optional.add('dominantRV1'); optional.add('posteriorMI'); continue; }
+          if (dx === 'LVH' && !ks.includes('lvh') && rec.abn.some((a) => ABN[a.k].isch && ABN[a.k].isch >= 24)) continue;
           if (dx.startsWith('STEMI posterior') && ks.includes('stemi')) { optional.add('posteriorMI'); continue; }
           if (dx === 'IVCD' && ks.some((k) => ['lvh', 'rvh', 'lpfb', 'lafb'].includes(k))) { optional.add('ivcd'); continue; }
           // (the blind read's chained rules: a block it called instead of an intended one is not "extra")
@@ -4355,20 +4377,30 @@ self.onmessage = (e) => {
       + (n ? `<h3>Last ${Math.min(5, n)} ECGs</h3><div class="hist">${recent}</div>` : '<p class="empty">No answers yet.</p>')
       + '<p class="empty" style="margin-top:16px">Ratings start at 1500 and settle after about 20 ECGs. Progress is kept on this phone only.</p>';
   }
-  // skill radar: one axis per skill, 1100 at the centre to 2100 at the edge (more is clamped); 1500 (the start) dashed
+  // speed: the median time of the last 20 well-answered ECGs (score ≥ 80%), on the rating scale so it can sit
+  // on the radar: 10 s or less = 2100 (the edge), 60 s or more = 1100 (the centre), log scale between
+  function speed() {
+    const t = st.hist.filter((x) => x.score >= 0.8 && x.time).slice(-20).map((x) => x.time).sort((a, b) => a - b);
+    if (t.length < 3) return null;
+    const med = t[t.length >> 1], f = Math.max(0, Math.min(1, Math.log(60 / med) / Math.log(6)));
+    return { r: 1100 + 1000 * f, s: Math.round(med) };
+  }
+  // skill radar: one axis per skill plus speed, 1100 at the centre to 2100 at the edge (more is clamped);
+  // 1500 (the start) dashed
   function radar() {
+    const sp = speed(), AX = [...SKILLS.map((k) => ({ name: SKILL_NAME[k], r: st.skills[k].r, txt: Math.round(st.skills[k].r) })), { name: 'Speed', r: sp ? sp.r : 1100, txt: sp ? `${sp.s} s` : '—' }];
     const W = 360, H = 270, cx = W / 2, cy = H / 2, R = 84, lo = 1100, hi = 2100;
-    const ang = (i) => -Math.PI / 2 + i * 2 * Math.PI / SKILLS.length, pt = (i, v) => { const f = Math.max(0.04, Math.min(1, (v - lo) / (hi - lo))); return [cx + R * f * Math.cos(ang(i)), cy + R * f * Math.sin(ang(i))]; };
+    const ang = (i) => -Math.PI / 2 + i * 2 * Math.PI / AX.length, pt = (i, v) => { const f = Math.max(0.04, Math.min(1, (v - lo) / (hi - lo))); return [cx + R * f * Math.cos(ang(i)), cy + R * f * Math.sin(ang(i))]; };
     const poly = (vals) => vals.map((v, i) => pt(i, v).map((x) => x.toFixed(1)).join(',')).join(' ');
-    let svg = `<svg class="radar" viewBox="0 0 ${W} ${H}" role="img" aria-label="Skill ratings: ${SKILLS.map((k) => `${SKILL_NAME[k]} ${Math.round(st.skills[k].r)}`).join(', ')}">`;
-    for (const v of [1350, 1600, 1850, 2100]) svg += `<polygon points="${poly(SKILLS.map(() => v))}" fill="none" stroke="var(--line)"/>`;
-    svg += `<polygon points="${poly(SKILLS.map(() => 1500))}" fill="none" stroke="var(--muted)" stroke-dasharray="3 3"/>`;
-    SKILLS.forEach((k, i) => { const [x, y] = pt(i, hi); svg += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)"/>`; });
-    svg += `<polygon points="${poly(SKILLS.map((k) => st.skills[k].r))}" fill="rgba(239,91,122,0.25)" stroke="var(--accent)" stroke-width="2"/>`;
-    SKILLS.forEach((k, i) => {
-      const [x, y] = pt(i, st.skills[k].r); svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="var(--accent)"/>`;
+    let svg = `<svg class="radar" viewBox="0 0 ${W} ${H}" role="img" aria-label="Skills: ${AX.map((a) => `${a.name} ${a.txt}`).join(', ')}">`;
+    for (const v of [1350, 1600, 1850, 2100]) svg += `<polygon points="${poly(AX.map(() => v))}" fill="none" stroke="var(--line)"/>`;
+    svg += `<polygon points="${poly(AX.map(() => 1500))}" fill="none" stroke="var(--muted)" stroke-dasharray="3 3"/>`;
+    AX.forEach((k, i) => { const [x, y] = pt(i, hi); svg += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)"/>`; });
+    svg += `<polygon points="${poly(AX.map((a) => a.r))}" fill="rgba(239,91,122,0.25)" stroke="var(--accent)" stroke-width="2"/>`;
+    AX.forEach((ax, i) => {
+      const [x, y] = pt(i, ax.r); svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="var(--accent)"/>`;
       const a = ang(i), lx = cx + (R + 14) * Math.cos(a), ly = cy + (R + 18) * Math.sin(a) + (Math.sin(a) > 0.5 ? 8 : 0), anchor = Math.abs(Math.cos(a)) < 0.2 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end';
-      svg += `<text x="${lx.toFixed(1)}" y="${(ly - 2).toFixed(1)}" text-anchor="${anchor}" fill="var(--fg)" font-size="13" font-weight="600">${SKILL_NAME[k]}</text><text x="${lx.toFixed(1)}" y="${(ly + 13).toFixed(1)}" text-anchor="${anchor}" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono, monospace">${Math.round(st.skills[k].r)}</text>`;
+      svg += `<text x="${lx.toFixed(1)}" y="${(ly - 2).toFixed(1)}" text-anchor="${anchor}" fill="var(--fg)" font-size="13" font-weight="600">${ax.name}</text><text x="${lx.toFixed(1)}" y="${(ly + 13).toFixed(1)}" text-anchor="${anchor}" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono, monospace">${ax.txt}</text>`;
     });
     return svg + '</svg>';
   }

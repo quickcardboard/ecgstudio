@@ -1435,3 +1435,20 @@ linked from the menu yet.
   rated). Home: Statistics and How it works set apart below a divider. How it works: the author's text.
 - Ratings already weigh the ECG's difficulty (Glicko-2 against the item rating): at 1500, right on a
   1900 ECG +33, wrong −3; wrong on a 1200 ECG −30 (a 2300 player −37).
+
+## training-1 round 7: hyperacute T, circumflex infarcts, speed
+
+- Hyperacute T (occlusion at 15 min) in the generator, with a checker rule: T ≥ 5 mm (limb) or ≥ 10 mm
+  (chest) in two contiguous leads of the territory, no ST-elevation criteria met, and at least 1.5× the
+  same heart's T without the occlusion (twin). LAD and RCA sites pass (V3–V4 ~10 mm; III 12 mm, aVF
+  9 mm); circumflex fails (its lateral T barely grows). Answer: hyperacute T waves with the region.
+- Circumflex (and mid RCA) old and 2-day infarcts were rejected for "RVH"/"LVH" in the blind read: the
+  infarct moves the axis and the R waves (lateral/posterior loss: right axis and a tall R in V1; inferior
+  loss: tall R in aVL) and the reader's voltage rules have no infarct exception. With an old or recent
+  infarct these reads are no longer findings; tall R in V1 / posterior MI are accepted as optional.
+- Radar: a fifth axis, speed (median time of the last 20 answers scored ≥ 80%; 10 s = edge, 60 s =
+  centre, log scale).
+- Probed for later: subendocardial ischemia over a whole artery territory ("tight narrowing", partial
+  flow) instead of a clicked patch: LAD 1 h gives ST depression 1.5–2 mm in I, aVL, V4–V6, lateral T
+  inversion and ST elevation in aVR, fading over 4–12 h; circumflex similar; RCA too strong (8 mm, with
+  reciprocal ST elevation in aVL).

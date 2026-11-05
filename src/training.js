@@ -387,20 +387,30 @@
       + (n ? `<h3>Last ${Math.min(5, n)} ECGs</h3><div class="hist">${recent}</div>` : '<p class="empty">No answers yet.</p>')
       + '<p class="empty" style="margin-top:16px">Ratings start at 1500 and settle after about 20 ECGs. Progress is kept on this phone only.</p>';
   }
-  // skill radar: one axis per skill, 1100 at the centre to 2100 at the edge (more is clamped); 1500 (the start) dashed
+  // speed: the median time of the last 20 well-answered ECGs (score ≥ 80%), on the rating scale so it can sit
+  // on the radar: 10 s or less = 2100 (the edge), 60 s or more = 1100 (the centre), log scale between
+  function speed() {
+    const t = st.hist.filter((x) => x.score >= 0.8 && x.time).slice(-20).map((x) => x.time).sort((a, b) => a - b);
+    if (t.length < 3) return null;
+    const med = t[t.length >> 1], f = Math.max(0, Math.min(1, Math.log(60 / med) / Math.log(6)));
+    return { r: 1100 + 1000 * f, s: Math.round(med) };
+  }
+  // skill radar: one axis per skill plus speed, 1100 at the centre to 2100 at the edge (more is clamped);
+  // 1500 (the start) dashed
   function radar() {
+    const sp = speed(), AX = [...SKILLS.map((k) => ({ name: SKILL_NAME[k], r: st.skills[k].r, txt: Math.round(st.skills[k].r) })), { name: 'Speed', r: sp ? sp.r : 1100, txt: sp ? `${sp.s} s` : '—' }];
     const W = 360, H = 270, cx = W / 2, cy = H / 2, R = 84, lo = 1100, hi = 2100;
-    const ang = (i) => -Math.PI / 2 + i * 2 * Math.PI / SKILLS.length, pt = (i, v) => { const f = Math.max(0.04, Math.min(1, (v - lo) / (hi - lo))); return [cx + R * f * Math.cos(ang(i)), cy + R * f * Math.sin(ang(i))]; };
+    const ang = (i) => -Math.PI / 2 + i * 2 * Math.PI / AX.length, pt = (i, v) => { const f = Math.max(0.04, Math.min(1, (v - lo) / (hi - lo))); return [cx + R * f * Math.cos(ang(i)), cy + R * f * Math.sin(ang(i))]; };
     const poly = (vals) => vals.map((v, i) => pt(i, v).map((x) => x.toFixed(1)).join(',')).join(' ');
-    let svg = `<svg class="radar" viewBox="0 0 ${W} ${H}" role="img" aria-label="Skill ratings: ${SKILLS.map((k) => `${SKILL_NAME[k]} ${Math.round(st.skills[k].r)}`).join(', ')}">`;
-    for (const v of [1350, 1600, 1850, 2100]) svg += `<polygon points="${poly(SKILLS.map(() => v))}" fill="none" stroke="var(--line)"/>`;
-    svg += `<polygon points="${poly(SKILLS.map(() => 1500))}" fill="none" stroke="var(--muted)" stroke-dasharray="3 3"/>`;
-    SKILLS.forEach((k, i) => { const [x, y] = pt(i, hi); svg += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)"/>`; });
-    svg += `<polygon points="${poly(SKILLS.map((k) => st.skills[k].r))}" fill="rgba(239,91,122,0.25)" stroke="var(--accent)" stroke-width="2"/>`;
-    SKILLS.forEach((k, i) => {
-      const [x, y] = pt(i, st.skills[k].r); svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="var(--accent)"/>`;
+    let svg = `<svg class="radar" viewBox="0 0 ${W} ${H}" role="img" aria-label="Skills: ${AX.map((a) => `${a.name} ${a.txt}`).join(', ')}">`;
+    for (const v of [1350, 1600, 1850, 2100]) svg += `<polygon points="${poly(AX.map(() => v))}" fill="none" stroke="var(--line)"/>`;
+    svg += `<polygon points="${poly(AX.map(() => 1500))}" fill="none" stroke="var(--muted)" stroke-dasharray="3 3"/>`;
+    AX.forEach((k, i) => { const [x, y] = pt(i, hi); svg += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)"/>`; });
+    svg += `<polygon points="${poly(AX.map((a) => a.r))}" fill="rgba(239,91,122,0.25)" stroke="var(--accent)" stroke-width="2"/>`;
+    AX.forEach((ax, i) => {
+      const [x, y] = pt(i, ax.r); svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="var(--accent)"/>`;
       const a = ang(i), lx = cx + (R + 14) * Math.cos(a), ly = cy + (R + 18) * Math.sin(a) + (Math.sin(a) > 0.5 ? 8 : 0), anchor = Math.abs(Math.cos(a)) < 0.2 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end';
-      svg += `<text x="${lx.toFixed(1)}" y="${(ly - 2).toFixed(1)}" text-anchor="${anchor}" fill="var(--fg)" font-size="13" font-weight="600">${SKILL_NAME[k]}</text><text x="${lx.toFixed(1)}" y="${(ly + 13).toFixed(1)}" text-anchor="${anchor}" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono, monospace">${Math.round(st.skills[k].r)}</text>`;
+      svg += `<text x="${lx.toFixed(1)}" y="${(ly - 2).toFixed(1)}" text-anchor="${anchor}" fill="var(--fg)" font-size="13" font-weight="600">${ax.name}</text><text x="${lx.toFixed(1)}" y="${(ly + 13).toFixed(1)}" text-anchor="${anchor}" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono, monospace">${ax.txt}</text>`;
     });
     return svg + '</svg>';
   }
