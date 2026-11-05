@@ -44,7 +44,9 @@ function readRhythm(rec) {
   // ---- QRST template subtraction → atrial residual
   // template window: from just before the QRS to the end of the T wave (from the median beat), so a
   // conducted P wave before the QRS, or the next beat's P after the T, is not part of it
-  const pre = 45, minRR = Math.min(...rr);
+  // (the window starts 15 ms before the QRS onset: with a slurred delta wave (WPW) the peak is late, and a
+  // fixed 45 ms before it leaves the delta wave in the residual, larger than the P waves)
+  const pre = Math.max(45, Math.round(pct(beats.map((b) => b.p - b.on), 0.5)) + 15), minRR = Math.min(...rr);
   const mb = (i) => { let s = 0; for (let k = 0; k < NL; k++) { const v = pct(beats.slice(1, -1).map((b) => rec[Math.max(0, Math.min(N - 1, b.p + i))][k]), 0.5) - pct(beats.slice(1, -1).map((b) => rec[Math.max(0, Math.min(N - 1, b.on - 20))][k]), 0.5); s += v * v; } return Math.sqrt(s); };
   const offRel = pct(beats.map((b) => b.off - b.p), 0.5);
   let tpk = offRel + 40, tmx = 0; for (let i = offRel + 40; i < Math.min(offRel + 420, minRR - 60); i += 4) { const v = mb(i); if (v > tmx) { tmx = v; tpk = i; } }
@@ -52,6 +54,10 @@ function readRhythm(rec) {
   const post = Math.max(offRel + 20, Math.min(tEnd + 20, minRR - 110));
   out.qt = tEnd + (beats[0].p - beats[0].on);
   const tmpl = []; for (let i = -pre; i <= post; i++) { const vals = []; for (let k = 0; k < NL; k++) vals.push(pct(beats.slice(1, -1).map((b) => rec[Math.max(0, Math.min(N - 1, b.p + i))][k]), 0.5)); tmpl.push(vals); }
+  // (relative to the template's own baseline, its last sample after the T wave: a TP segment shifted off
+  // zero, as by the injury current of pericarditis, would otherwise leave a step at the window edges)
+  const t0f = post >= tEnd + 10 ? tmpl[tmpl.length - 1].slice() : new Array(NL).fill(0);
+  for (const v of tmpl) for (let k = 0; k < NL; k++) v[k] -= t0f[k];
   const res = rec.map((r) => r.slice());
   for (const b of beats) {
     if (cors[beats.indexOf(b)] < 0.85) continue;
@@ -62,12 +68,14 @@ function readRhythm(rec) {
   const AL = [K('II'), K('aVF'), K('V1')];
   const base = AL.map((k) => { const b = new Float64Array(N); for (let t = 0; t < N; t += 20) { const w = []; for (let u = Math.max(0, t - 200); u < Math.min(N, t + 200); u += 5) w.push(res[u][k]); const m = pct(w, 0.5); for (let v = t; v < Math.min(N, t + 20); v++) b[v] = m; } return b; });
   const aSig = (t, j) => res[t][AL[j]] - base[j][t];
+  out._aSig = aSig;
   const amag = new Float64Array(N); for (let t = 0; t < N; t++) { let s = 0; for (let j = 0; j < 3; j++) s += aSig(t, j) ** 2; amag[t] = Math.sqrt(s); }
   const asm = new Float64Array(N); { let acc = 0; for (let t = 0; t < N; t++) { acc += amag[t]; if (t >= 15) acc -= amag[t - 15]; asm[t] = acc / 15; } }
   // QRS cores are not searched (residual is least reliable there)
   const inQrs = new Uint8Array(N); for (const b of beats) for (let t = b.on - 25; t <= b.off + 5; t++) if (t >= 0 && t < N) inQrs[t] = 1;
   // T-wave zones (QRS end to T end): the residual of a T wave changed by the preceding RR lives here
-  const inT = new Uint8Array(N); for (const b of beats) for (let t = b.off + 5; t <= b.p + tEnd; t++) if (t >= 0 && t < N) inT[t] = 1;
+  // (to 40 ms past the measured T end: the tail of a long T wave leaves a residual that reads as a small P)
+  const inT = new Uint8Array(N); for (const b of beats) for (let t = b.off + 5; t <= b.p + tEnd + 40; t++) if (t >= 0 && t < N) inT[t] = 1;
   const aTop = pct(Array.from(asm).filter((_, t) => !inQrs[t]), 0.98), ath = Math.max(0.03, 0.4 * aTop);
   const P = [];
   for (let t = 60; t < N - 60; t++) {
@@ -75,7 +83,10 @@ function readRhythm(rec) {
     let isMax = true; for (let u = t - 70; u <= t + 70; u++) if (asm[u] > asm[t]) { isMax = false; break; }
     if (!isMax) continue;
     if (P.length && t - P[P.length - 1].t < 140) continue;
-    P.push({ t, II: +aSig(t, 0).toFixed(3), aVF: +aSig(t, 1).toFixed(3), V1: +aSig(t, 2).toFixed(3), amp: +asm[t].toFixed(3), inT: !!inT[t] });
+    // polarity from the first lobe of the atrial complex (80 ms before the peak to 40 ms after): the
+    // largest point can be the atrial repolarisation wave after the P (PR depression, opposite sign)
+    const lobe = (j) => { const aS = (u, k) => aSig(Math.max(0, Math.min(N - 1, u)), k); let mx = 0; for (let u = t - 80; u <= t + 40; u++) mx = Math.max(mx, Math.abs(aS(u, j))); for (let u = t - 80; u <= t + 40; u++) if (Math.abs(aS(u, j)) >= 0.6 * mx) { let e = aS(u, j); for (let v = u; v <= t + 40 && Math.sign(aS(v, j)) === Math.sign(e); v++) if (Math.abs(aS(v, j)) > Math.abs(e)) e = aS(v, j); return e; } return aS(t, j); };
+    P.push({ t, II: +lobe(0).toFixed(3), aVF: +lobe(1).toFixed(3), V1: +aSig(t, 2).toFixed(3), amp: +asm[t].toFixed(3), inT: !!inT[t] });
   }
   const Pall = P.slice();
   // a wave inside a T wave counts only when it is as large as the waves seen outside T waves

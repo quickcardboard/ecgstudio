@@ -17,7 +17,8 @@ function read(rec, hint, rr) {
   const NL = 12, at = (t, k) => rec[Math.max(0, Math.min(rec.length - 1, t))][k];
   // baseline: the flattest 40 ms before the P wave (TP segment)
   let base = null, bestVar = Infinity;
-  for (let t0 = hint - 480; t0 <= hint - 160; t0 += 10) {
+  // (at fast rates the search starts after the previous T wave: RR − 330 ms before the QRS)
+  for (let t0 = hint - Math.round(Math.min(480, Math.max(200, (rr || 833) - 330))); t0 <= hint - 160; t0 += 10) {
     let v = 0; const m = new Array(NL).fill(0);
     for (let t = t0; t < t0 + 40; t++) for (let k = 0; k < NL; k++) m[k] += at(t, k) / 40;
     for (let t = t0; t < t0 + 40; t++) for (let k = 0; k < NL; k++) v += (at(t, k) - m[k]) ** 2;
@@ -36,9 +37,15 @@ function read(rec, hint, rr) {
   // P wave: spatial magnitude above 0.02 mV before the QRS
   const mag = (t) => { let s = 0; for (let k = 0; k < NL; k++) s += x(t, k) ** 2; return Math.sqrt(s); };
   // (threshold relative to the P wave's own size: 25% of its peak, at least 0.01 mV)
-  // P wave: the deflection around the largest atrial peak before the QRS, extended while above
-  // 8% of that peak (at least 0.006 mV)
-  let pmx = 0, ppk = null; for (let t = on - 360; t < on - 30; t++) { const v = mag(t); if (v > pmx) { pmx = v; ppk = t; } }
+  // P wave: the deflection around the last clear atrial peak before the QRS (a local maximum of at least
+  // 30% of the largest one: the end of the previous T wave can be larger at fast rates or with a short
+  // PR), extended while above 8% of that peak (at least 0.006 mV)
+  // (from at most RR − 330 ms before the QRS: at fast rates the previous T wave is closer than 360 ms)
+  let pmx = 0, ppk = null;
+  { const w0 = on - Math.round(Math.min(360, Math.max(150, (rr || 833) - 330))), w1 = on - 15, pk = []; let gmx = 0;
+    for (let t = w0; t < w1; t++) { const v = mag(t); gmx = Math.max(gmx, v); let isMax = true; for (let u = t - 20; u <= Math.min(t + 20, w1 - 1); u++) if (u !== t && mag(u) > v) { isMax = false; break; } if (isMax) pk.push(t); }   // (clipped at the window end: a P running into a delta wave peaks there)
+    for (const t of pk) if (mag(t) >= Math.max(0.02, 0.3 * gmx)) { ppk = t; pmx = mag(t); }
+    if (ppk === null) for (let t = w0; t < w1; t++) { const v = mag(t); if (v > pmx) { pmx = v; ppk = t; } } }
   const pth = Math.max(0.006, 0.08 * pmx);
   let pOn = null, pOff = null;
   if (ppk !== null && pmx > 0.02) { pOn = ppk; while (pOn > on - 400 && mag(pOn - 1) > pth) pOn--; pOff = ppk; while (pOff < on - 5 && mag(pOff + 1) > pth) pOff++; }
