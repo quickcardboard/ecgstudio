@@ -454,7 +454,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
     <div class="spacer"></div>
     <div class="simctl" role="group" aria-label="Simulation">
       <label class="tsrow" for="timescale"><span class="lab">Speed</span>
-        <input id="timescale" type="range" min="0" max="6" step="1" value="6" aria-label="Time scale">
+        <input id="timescale" type="range" min="0" max="5" step="1" value="5" aria-label="Time scale">
         <span class="val" id="tsVal">1×</span></label>
       <button id="btnPause" type="button">Pause</button>
       <button id="btnReset" type="button">Reset</button>
@@ -469,6 +469,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
     </div>
   </header>
   <div class="mmenu" id="mMenu" role="menu" hidden>
+    <button type="button" role="menuitem" id="mTraining">Training</button>
     <button type="button" role="menuitem" id="mShare">Share this scenario</button>
     <button type="button" role="menuitem" id="mPng">Save ECG image</button>
     <button type="button" role="menuitem" id="mHelp">Help</button>
@@ -653,7 +654,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <li><b>Mobile</b> (landscape only): the Heart | ECG switch at the top shows one pane at a time.</li>
         <li><b>Simulation controls:</b>
           <ul>
-            <li><b>Speed</b> slows the whole simulation down to 1/50 of real time.</li>
+            <li><b>Speed</b> slows the whole simulation down to 1/20 of real time.</li>
             <li><b>Pause</b> freezes the animation.</li>
             <li><b>Reset</b> returns to normal sinus rhythm at 72 bpm with no abnormalities.</li>
           </ul>
@@ -700,7 +701,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <ul>
         <li><b>Introduction:</b> ECG Studio computes the ECG from a beating 3D heart.</li>
         <li><b>Panels:</b> tap a tab at the bottom to open its panel.</li>
-        <li><b>Simulation speed:</b> <b>1×</b> cycles the speed from 1× down to 1/50×. the pause button <svg class="hicon" viewBox="0 0 24 24" aria-label="pause"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg> pauses; press and hold it to reset to sinus rhythm at 72 bpm.</li>
+        <li><b>Simulation speed:</b> <b>1×</b> cycles the speed from 1× down to 1/20×. the pause button <svg class="hicon" viewBox="0 0 24 24" aria-label="pause"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg> pauses; press and hold it to reset to sinus rhythm at 72 bpm.</li>
         <li><b>Gestures:</b>
           <ul>
             <li>Swipe the ECG to change lead group, and tap <b>5 s</b> to change paper speed.</li>

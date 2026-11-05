@@ -8,8 +8,8 @@
 
   const PAGE = 10000;        // ms of ECG on one sheet (10 s)
   const ERASE = 140;         // ms blank gap ahead of the sweep cursor
-  const SCALES = [0.02, 0.05, 0.1, 0.2, 1 / 3, 0.5, 1];
-  const SCALE_LABEL = ['1/50×', '1/20×', '1/10×', '1/5×', '1/3×', '1/2×', '1×'];
+  const SCALES = [0.05, 0.1, 0.2, 1 / 3, 0.5, 1];
+  const SCALE_LABEL = ['1/20×', '1/10×', '1/5×', '1/3×', '1/2×', '1×'];
   const MAX_STEPS_PER_FRAME = 250;
   const ACQ_MS = 10000;      // after a change of rhythm, block or condition the ECG is acquired this long before it is read   // a slow frame drops simulated time instead of catching up (no stutter spiral)
 
@@ -25,7 +25,7 @@
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', struct: { rae: false, lae: false, lvh: false, rvh: false, ap: false, dual: false, fib: false }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, leadSet: 'book', scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', struct: { rae: false, lae: false, lvh: false, rvh: false, ap: false, dual: false, fib: false }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, leadSet: 'book', scaleIdx: 5, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const bufIdx = (t) => (((Math.round(t) + ecg.t0) % PAGE) + PAGE) % PAGE;   // sim time → paper sample
   const ecg = { t0: 0, buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
@@ -2867,6 +2867,7 @@
     initPhone();
     $('btnHelp').addEventListener('click', showGuide);
     $('btnShare').addEventListener('click', shareScenario);
+    $('mTraining').addEventListener('click', () => { location.href = 'training/index.html'; });   // (the training page, beside this one)
     window.addEventListener('hashchange', () => location.reload());   // a scenario link pasted into an open tab
     $('btnSavePng').addEventListener('click', saveEcgPng);
     $('guideClose').addEventListener('click', hideGuide);
