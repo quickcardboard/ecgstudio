@@ -1269,3 +1269,7 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
 - Side effects (before → after): sinus PR 141 → 140 ms; first-degree PR 259 → 256 ms; Wenckebach PR steps 272–449 → 269–433 ms; AF at 107 bpm RR SD 191 → 145 ms (still irregularly irregular); flutter, MAT, VT, VF, WPW, axes (fascsearch), hypertrophy and fullcheck practically unchanged; `ischaudit`: proximal LAD 48 h loses the last V4 ST elevation, old distal LAD loses R loss in aVL, proximal circumflex Q also in aVL.
 - **Rhythm reader:** VF only on incoherent QRS shape (the "no quiet baseline" rule called VT VF once VT conducted back to the atria); flutter from the autocorrelation of the raw atrial leads in diastole (best lag 150–300 ms; 4:1 flutter 0.79 at 220 ms, AF 0.31, other rhythms ≤ 0.21); MAT also needs RR irregularity below AF's (RR CV < 0.2) and PR SD ≤ 95 ms.
 - **Reader: 46 pass / 10 partial / 1 wrong of 57** (wrong: flutter at 2:1, waves hidden in the QRS and T). Partial: extra findings beside correct diagnoses (poor R progression, LVH/RVH beside old infarcts, LAFB pseudo-infarct).
+
+## Round 37: live-lead menu in the 12-lead layout
+
+- Phone full-screen heart: the live-lead menu lists the leads as on a standard 12-lead ECG (rows I aVR V1 V4 / II aVL V2 V5 / III aVF V3 V6, from `LAYOUT`) instead of I–III, aVR–aVF, V1–V6 in reading order.

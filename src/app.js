@@ -2762,7 +2762,8 @@
     const lm = $('leadMenu'), lb = $('leadBtn');
     const showLeads = (on) => {
       lm.hidden = !on; lb.setAttribute('aria-expanded', String(on));
-      if (on) lm.innerHTML = LH.LEADS.map((n) => `<button type="button" role="menuitemradio" aria-checked="${n === ph.live}" data-lead="${n}">${n}</button>`).join('');
+      // (in the standard 12-lead layout: rows I aVR V1 V4 / II aVL V2 V5 / III aVF V3 V6)
+      if (on) lm.innerHTML = LAYOUT.flat().map((n) => `<button type="button" role="menuitemradio" aria-checked="${n === ph.live}" data-lead="${n}">${n}</button>`).join('');
     };
     lb.addEventListener('click', () => { if (lm.hidden) { showLeads(true); openLayer('leads', () => showLeads(false)); } else closeLayer('leads'); });
     lm.addEventListener('click', (e) => {
