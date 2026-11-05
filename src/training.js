@@ -648,7 +648,7 @@
     $('hSkills').addEventListener('click', (e) => { const b = e.target.closest('[data-skill]'); if (b) startMode('skill', b.dataset.skill); });
     $('btnStats').addEventListener('click', () => { renderStats(); $('stats').hidden = false; });
     $('btnHelp').addEventListener('click', () => { $('help').hidden = false; });
-    // Show me why: the simulator on the same scenario; coming back starts a new ECG (progress is saved)
+    // Model ("show me why"): the simulator on the same scenario; coming back starts a new ECG (progress is saved)
     $('why').addEventListener('click', () => { if (!justShown()) location.href = `../index.html#${st.item.link}`; });
     addEventListener('resize', syncFs);
     $('submit').addEventListener('click', submit);

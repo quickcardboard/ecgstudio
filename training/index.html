@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-05 (ce48493)">
+<meta name="version" content="2026-11-05 (1ffd945)">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28S3 20 3 11a6.5 6.5 0 0 1 13-1 6.5 6.5 0 0 1 13 1c0 9-13 17-13 17z' fill='%23c2304f'/%3E%3Cpath d='M5 15h6l2-4 3 9 2-5h9' stroke='%23fff' stroke-width='2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -233,7 +233,7 @@ body.land #fsClose { display: none; }
     <div id="rchips"></div>
     <div class="legend"><span class="l-ok">correct</span><span class="l-part">partly correct</span><span class="l-miss">missed</span><span class="l-bad">not present</span></div>
     <div id="rline"></div>
-    <div class="acts"><button type="button" class="why" id="why">Show me why</button><button type="button" class="why" id="share" hidden>Share</button><button type="button" class="primary" id="next">Next</button></div>
+    <div class="acts"><button type="button" class="why" id="why">Model</button><button type="button" class="why" id="share" hidden>Share</button><button type="button" class="primary" id="next">Next</button></div>
     <button type="button" class="report" id="report">⚑ Report a problem with this ECG</button>
   </div>
 
@@ -293,7 +293,7 @@ body.land #fsClose { display: none; }
         <li>The rhythm is 40% of the score; the findings share the other 60% (the location is half of a finding). When the rhythm is the only abnormality, it is the whole score.</li>
         <li><b>⚑ Report a problem</b> (under the result, or in the ⋯ menu) sends the author everything needed to check that ECG.</li>
         <li>True but secondary findings earn a small bonus; findings that are not there cost 10%.</li>
-        <li><b>Show me why</b> opens the simulator on the same heart, so you can see what produced the ECG.</li>
+        <li><b>Model</b> opens the simulator on the same heart, so you can see what produced the ECG.</li>
       </ul>
       <h3>About these ECGs</h3>
       <p>Every ECG is generated on your phone by the ECG Studio heart model: a rhythm and up to four abnormalities chosen for your level. Before it is shown, an independent automated reader reads it blind; only ECGs whose reading matches the answer are used, so every abnormality is visible on the tracing.</p>
@@ -4592,7 +4592,7 @@ self.onmessage = (e) => {
     $('hSkills').addEventListener('click', (e) => { const b = e.target.closest('[data-skill]'); if (b) startMode('skill', b.dataset.skill); });
     $('btnStats').addEventListener('click', () => { renderStats(); $('stats').hidden = false; });
     $('btnHelp').addEventListener('click', () => { $('help').hidden = false; });
-    // Show me why: the simulator on the same scenario; coming back starts a new ECG (progress is saved)
+    // Model ("show me why"): the simulator on the same scenario; coming back starts a new ECG (progress is saved)
     $('why').addEventListener('click', () => { if (!justShown()) location.href = `../index.html#${st.item.link}`; });
     addEventListener('resize', syncFs);
     $('submit').addEventListener('click', submit);
