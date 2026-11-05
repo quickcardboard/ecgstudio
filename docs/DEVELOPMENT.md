@@ -1481,3 +1481,10 @@ replaces the clicked subendocardial patch (still off, Round 27) as the way to sh
   change optional. Checker: ST depression ≥ 0.5 mm in two contiguous leads (not aVR or V1), no ST-elevation
   criteria met. Not combined with LBBB, RBBB, LVH/RVH (strain), WPW, pericarditis or Brugada. "Model"
   opens the simulator with the narrowing (`n=`).
+
+## Round 41: reader option for the QRS end
+
+`read(rec, hint, rr, { minOff })`: the earliest QRS end when the true end of ventricular activation is
+known (the training generator passes the simulation's own timing). With RBBB and ST elevation the slow R′
+runs into the raised ST segment and was taken as the end of the QRS (74 ms instead of ~130 ms; the R′ was
+then outside the measured QRS and read as a coved Brugada ST). Off by default: validation identical.

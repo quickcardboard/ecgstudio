@@ -13,7 +13,10 @@ const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V
 
 // ---------------------------------------------------------------- reader
 // rec: array of 12-lead samples (mV, 1 ms); hint: approximate QRS onset index of the beat to read; rr: RR (ms)
-function read(rec, hint, rr) {
+// opts.minOff: the earliest QRS end (sample index) when the true end of ventricular activation is known (the
+// simulation's own timing): a slow terminal deflection running into an elevated ST segment (RBBB with ST
+// elevation) is quiet enough to read as the end of the QRS
+function read(rec, hint, rr, opts = {}) {
   const NL = 12, at = (t, k) => rec[Math.max(0, Math.min(rec.length - 1, t))][k];
   // baseline: the flattest 40 ms before the P wave (TP segment)
   let base = null, bestVar = Infinity;
@@ -34,6 +37,7 @@ function read(rec, hint, rr) {
   if (on === hint - 40) { on = tmaxV; while (on > hint - 120 && !quiet(on - 3, 3, 0.05)) on--; }
   // QRS end: the first point after the main activity where the signal stays quiet for 8 ms
   let off = tmaxV; while (off < on + 220 && !quiet(off, 8, 0.05)) off++;
+  if (opts.minOff > off) off = Math.min(on + 220, Math.round(opts.minOff));
   // P wave: spatial magnitude above 0.02 mV before the QRS
   const mag = (t) => { let s = 0; for (let k = 0; k < NL; k++) s += x(t, k) ** 2; return Math.sqrt(s); };
   // (threshold relative to the P wave's own size: 25% of its peak, at least 0.01 mV)
