@@ -183,7 +183,7 @@
     restA: 0.70, restTau: 450,
     // CV restitution (slowing in partially recovered tissue)
     cvRestK: 0.6, cvRestTau: 30,
-    avnCvRestK: 4, avnCvRestTau: 150,  // AV-node decremental conduction
+    avnCvRestK: 2.4, avnCvRestTau: 150,  // AV-node decremental conduction (2.4: AVNRT ~175 bpm, orthodromic AVRT > 200 bpm)
     avnErpExtra: 180,      // post-repolarisation refractoriness of AV node (ms)
     electrotonicK: 1.4,    // APD shortening per ms of later activation (cardiac memory)
     erpFrac: 0.92,         // ERP as fraction of APD (myocardium)
@@ -208,8 +208,8 @@
     apDelay: 6, apErp: 280,
 
     // Atrial enlargement (see Sim.setAtrialEnlargement)
-    raeGain: 2.4, raeSlow: 0.85,
-    laeGain: 2.6, laeSlow: 0.85, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 28,
+    raeGain: 2.6, raeSlow: 0.85,
+    laeGain: 2.0, laeSlow: 0.85, laeAvnMul: 1.35, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 28,
 
     // Ischaemia (see Sim._ischemicState)
     ischBorderMm: 9,       // border-zone width over which severity rises to the core value
@@ -228,6 +228,7 @@
     ladProxFreeWallPhi: 2.0,
     apexTipZ: 0.06,           // apical tip (apicobasal UVC below this) is LAD; the apical inferior wall above it is PDA  // proximal-LAD nodes lateral of this (rotational UVC) supply no free wall
     ladRvMm: 0,            // RV muscle within this distance (mm) of the LAD is supplied by it (RV branches)
+    lmRoute: [[6, 11, -10], [17, 11, -8]],   // left main: from the aortic root ~1 cm leftward to the LAD/LCx split (offsets from the aortic-valve centre, mm; null = the old 7 mm trunk)
     d1Path: null, d2Path: null,   // diagonal waypoints [[rotational UVC, apicobasal UVC], ...] (null = built-in)
     septalPerf: [0.14, 0.3, 0.45, 0.6],      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
@@ -828,7 +829,9 @@
       const along = (ids, f) => ids[Math.min(ids.length - 1, Math.floor(f * (ids.length - 1)))];
       const ao = lm.AoV.c;
       // left main: from the left-posterior aortic sinus to the LAD/LCx split
-      const lmStart = A.nearest(add(ao, [12, -4, -6]), epiV), split = lvEpi(1.55, 0.95);
+      // (lmRoute: [start, split] offsets from the aortic-valve centre, mm; null = the
+      // original short trunk, from the ventricle to a split against the aortic root)
+      const lmStart = A.nearest(add(ao, P.lmRoute ? P.lmRoute[0] : [12, -4, -6]), epiV), split = P.lmRoute ? A.nearest(add(ao, P.lmRoute[1]), epiV) : lvEpi(1.55, 0.95);
       const LM = addBranch('LM', -1, [lmStart, split]);
       // LAD down the anterior interventricular groove: waypoints on the LV
       // epicardium where it meets the RV anteriorly (the rotational coordinate is
@@ -912,8 +915,9 @@
       const MAIN = ['LM', 'LAD', 'LCx', 'RCA', 'PDA', 'OM1', 'OM2', 'AM'];
       const mainOf = (id) => { while (id >= 0 && !MAIN.includes(nodes[id].branch)) id = nodes[id].parent; return id; };
       for (let c = 0; c < A.n; c++) if (voxNode[c] >= 0) voxNode[c] = mainOf(voxNode[c]);
+      const allBranches = Object.assign({}, branches);                  // (every branch, offered or not: maps old share-link node numbers)
       for (const b of Object.keys(branches)) if (!MAIN.includes(b)) delete branches[b];
-      this.coronary = { nodes, branches, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
+      this.coronary = { nodes, branches, allBranches, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
     }
 
     // Flutter circuit geometry: every right-atrial voxel's angle around the
@@ -1665,7 +1669,7 @@
     _applyAvn() {
       const tone = this._avnTone || 1;
       for (const c of this.M.avn) {
-        this.cvMul[c] = tone * (this.avnBlockMul || 1) * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
+        this.cvMul[c] = tone * (this.avnBlockMul || 1) * (this._avnLae || 1) * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
         // nodal refractoriness also follows autonomic tone (vagal lengthens, sympathetic shortens)
         // (AV-nodal ischaemia also lengthens nodal refractoriness: 1st-degree block, Wenckebach)
         if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone * (1 + this.P.ischAvnErp * (this._avnIschemia || 0));
@@ -1719,6 +1723,9 @@
       // wave. (Only RA→LA: the way back meets refractory RA, so no re-entry.)
       if (!this._atrialSide) { this._atrialSide = new Int8Array(M.nVox); for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.ATRIAL) this._atrialSide[c] = A.label[c] === LAB.RA ? 1 : -1; }
       this._iaSlow = la ? P.laeInteratrialEdgeSlow : 0;
+      // (with the LA activated late, the PR lengthens a little so the broad P ends before the QRS, as in
+      // P mitrale on paper: PR upper-normal, short PR segment)
+      this._avnLae = la ? P.laeAvnMul : 1; if (this._applyAvn) this._applyAvn();
       for (let c = 0; c < M.nVox; c++) {
         if (M.kind[c] !== KIND.ATRIAL) continue;
         const isRA = A.label[c] === LAB.RA, on = isRA ? ra : la;
@@ -2225,17 +2232,24 @@
       this.vResponse = bpm || null;
       if (this.arrhythmia && this.arrhythmia.type === 'flutter') this._setFlutterRatio();
     }
-    // flutter: the AV node conducts one in N flutter waves (N from the set ventricular rate)
+    // flutter: the AV node conducts one in N flutter waves (N from the set ventricular rate). The gate
+    // passes the first wave arriving once the target RR has nearly elapsed since the last one it passed,
+    // so waves blocked in the node are not counted twice. The gate sits at the top of the node, ahead of
+    // its natural 2:1 block (counted lower down, a 4:1 setting gave 8:1 and odd ratios were impossible)
     _setFlutterRatio() {
       const d = this.drivers.find((x) => x.kind === 'watch');
       const cl = d && d.cls.length ? d.cls.reduce((a, b) => a + b, 0) / d.cls.length : 175;
       const n = this.vResponse ? Math.max(2, Math.round(60000 / this.vResponse / cl)) : 0;
-      this._flutterRatio = n ? { cell: this.M.avn[this.M.avn.length - 2], n, count: 0, lastT: -1e9, last: true } : null;
+      // (the slow pathway enters the node lower down: its last cell is gated by the same rule)
+      const slow = this.M.avnSlow || [];
+      this._flutterRatio = n ? { cell: this.M.avn[0], cells: new Set([this.M.avn[0]].concat(slow.length ? [slow[slow.length - 1]] : [])), n, rr: n * cl, cl, lastPass: -1e9, lastT: -1e9, last: true } : null;
     }
     _flutterPass(ta) {
       const g = this._flutterRatio;
       if (ta - g.lastT < 60) return g.last;                    // converging wavelets share one decision
-      g.lastT = ta; g.last = (++g.count % g.n) === 0; return g.last;
+      g.lastT = ta; g.last = ta - g.lastPass >= g.rr - 0.5 * g.cl;
+      if (g.last) g.lastPass = ta;
+      return g.last;
     }
 
     stopArrhythmia() {
@@ -2530,7 +2544,7 @@
         if (ta !== this.arrive[c]) continue;          // superseded
         if (this._pOn && this.blocked[c] && this.phantom[c]) { this.arrive[c] = Infinity; this._phantomActivate(c, ta); continue; }
         if (this.blocked[c] || ta < this.refEnd[c] || (adeno && this.M.kind[c] === KIND.AVN)) { this.arrive[c] = Infinity; continue; }
-        if (this._flutterRatio && c === this._flutterRatio.cell && !this._flutterPass(ta)) { this.arrive[c] = Infinity; continue; }
+        if (this._flutterRatio && this._flutterRatio.cells.has(c) && !this._flutterPass(ta)) { this.arrive[c] = Infinity; continue; }
         const gate = this.gates.get(c);
         if (gate && !this._gatePass(gate, ta)) { this.arrive[c] = Infinity; this.blockLog.push({ t: ta, at: gate.site }); if (this.blockLog.length > 40) this.blockLog.shift(); continue; }
         this._activate(c, ta);
