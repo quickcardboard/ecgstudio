@@ -1,6 +1,8 @@
-// ECG Studio Training (prototype). A fixed bank of pre-generated, blind-read ECGs (tools/trainbank.js);
+// ECG Studio Training (prototype). ECGs are generated live in a background worker (src/training_gen.js:
+// a random scenario near the user's level, simulated, read blind and kept only when the reading matches);
 // the user names the rhythm and the findings with an in-app keyboard and type-ahead, locates findings
-// by tapping lead groups, and gets a one-screen result. No storage: the session rating is not kept.
+// by tapping lead groups, and gets a one-screen result. Glicko-2 ratings per skill and the history are
+// kept on the phone (localStorage).
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
@@ -38,14 +40,71 @@
     return best;
   }
 
-  // ------------------------------------------------------------------ bank
-  const ITEMS = BANK.map((it) => ({
-    ...it,
-    data: it.leads.map((b) => { const bin = atob(b), a = new Int16Array(bin.length / 2); for (let i = 0; i < a.length; i++) a[i] = (bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8)) << 16 >> 16; return a; }),
-  }));
-  // interleaved order (confusable pairs close together); open-ended: wraps around
-  const ORDER = ['normal', 'avnrt', 'lbbb', 'avrt', 'oldInf', 'mobitz1', 'af', 'antSTEMI', 'chb', 'flutter'].map((id) => ITEMS.findIndex((x) => x.id === id)).filter((i) => i >= 0);
-  for (let i = 0; i < ITEMS.length; i++) if (!ORDER.includes(i)) ORDER.push(i);
+  // ------------------------------------------------------------------ live ECGs (background worker)
+  const decode = (it) => ({ ...it, data: it.leads.map((b) => { const bin = atob(b), a = new Int16Array(bin.length / 2); for (let i = 0; i < a.length; i++) a[i] = (bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8)) << 16 >> 16; return a; }) });
+  const QUEUE_N = 2;
+  const gen = { worker: null, ready: false, queue: [], pending: 0, waiting: false, req: 0, failed: 0 };
+  function startWorker() {
+    const src = document.getElementById('worker-src').textContent;
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+    try { gen.worker = new Worker(url); } catch (e) { gen.worker = inlineWorker(src); }
+    gen.worker.onmessage = onWorker;
+    gen.worker.onerror = (e) => { console.warn('training worker', e.message); if (!gen.ready) { gen.worker = inlineWorker(src); gen.worker.onmessage = onWorker; initWorker(); } };
+    initWorker();
+  }
+  function initWorker() { gen.worker.postMessage({ type: 'init', anatomy: $('anatomy-data').textContent, torso: $('torso-data').textContent }); }
+  // (no Worker, as on some file:// pages: the same code on the page, between frames)
+  function inlineWorker(src) {
+    const w = { onmessage: null }, self = { postMessage: (d) => setTimeout(() => w.onmessage && w.onmessage({ data: d }), 0) };
+    const scope = new Function('self', 'postMessage', `${src}\nreturn self;`)(self, self.postMessage);
+    w.postMessage = (d) => setTimeout(() => scope.onmessage({ data: d }), 30);
+    return w;
+  }
+  function onWorker(e) {
+    const d = e.data;
+    if (d.type === 'ready') { gen.ready = true; fill(); return; }
+    if (d.type === 'log') { console.debug('training gate:', d.msg); return; }
+    if (d.type !== 'item') return;
+    gen.pending--;
+    if (d.err) console.warn('training generator', d.err);
+    const unknown = d.item && [d.item.key.rhythm, ...d.item.key.findings.map((f) => f.id), ...d.item.key.optional, ...(d.item.key.alt || [])].filter((id) => !BY_ID[id]);
+    if (unknown && unknown.length) { console.warn('training: not in the vocabulary:', unknown.join(', ')); d.item.key.optional = d.item.key.optional.filter((id) => BY_ID[id]); d.item.key.alt = (d.item.key.alt || []).filter((id) => BY_ID[id]); if (!BY_ID[d.item.key.rhythm] || d.item.key.findings.some((f) => !BY_ID[f.id])) d.item = null; }
+    if (d.item) { gen.failed = 0; gen.queue.push(decode(d.item)); console.debug(`training: ${d.item.title} (${Math.round(d.ms)} ms)`); }
+    else gen.failed++;
+    if (gen.waiting && gen.queue.length) { gen.waiting = false; nextItem(); }
+    fill();
+  }
+  // keep two ECGs ready, chosen for this user's level: about 70–75% expected success (Glicko-2), half the
+  // time on the weakest skill
+  function fill() {
+    if (!gen.ready || gen.failed > 4) { if (gen.failed > 4) setLoading('Could not prepare an ECG. Reload the page to try again.'); return; }
+    while (gen.queue.length + gen.pending < QUEUE_N) {
+      const weakest = SKILLS.slice().sort((a, b) => st.skills[a].r - st.skills[b].r)[0];
+      const target = overall() - 168 + (Math.random() - 0.5) * 160;
+      gen.pending++;
+      gen.worker.postMessage({ type: 'make', req: ++gen.req, target, focus: Math.random() < 0.5 ? weakest : null, seed: (Math.random() * 2 ** 31) | 0 });
+    }
+  }
+  function setLoading(msg) {
+    const el = $('loading'); el.hidden = !msg; if (msg) $('loadingMsg').textContent = msg;
+  }
+
+  // ------------------------------------------------------------------ ratings (Glicko-2, one per skill)
+  const SKILLS = ['rhythm', 'conduction', 'ischemia', 'conditions'];
+  const SKILL_NAME = { rhythm: 'Rhythm', conduction: 'Conduction', ischemia: 'Ischemia', conditions: 'Conditions' };
+  function glicko(p, opp, s) {
+    const q = 173.7178, mu = (p.r - 1500) / q, phi = p.rd / q, muj = (opp.r - 1500) / q, phij = opp.rd / q, tau = 0.5;
+    const g = 1 / Math.sqrt(1 + 3 * phij * phij / (Math.PI * Math.PI)), E = 1 / (1 + Math.exp(-g * (mu - muj)));
+    const v = 1 / (g * g * E * (1 - E)), delta = v * g * (s - E), a = Math.log(p.v * p.v);
+    const f = (x) => (Math.exp(x) * (delta * delta - phi * phi - v - Math.exp(x))) / (2 * (phi * phi + v + Math.exp(x)) ** 2) - (x - a) / (tau * tau);
+    let A = a, B;
+    if (delta * delta > phi * phi + v) B = Math.log(delta * delta - phi * phi - v); else { let k = 1; while (f(a - k * tau) < 0 && k < 50) k++; B = a - k * tau; }
+    let fA = f(A), fB = f(B);
+    for (let i = 0; i < 60 && Math.abs(B - A) > 1e-6; i++) { const C = A + (A - B) * fA / (fB - fA), fC = f(C); if (fC * fB <= 0) { A = B; fA = fB; } else fA /= 2; B = C; fB = fC; }
+    const vol = Math.exp(A / 2), phiStar = Math.sqrt(phi * phi + vol * vol), phiNew = 1 / Math.sqrt(1 / (phiStar * phiStar) + 1 / v);
+    return { r: (mu + phiNew * phiNew * g * (s - E)) * q + 1500, rd: Math.max(40, phiNew * q), v: vol };
+  }
+  const overall = () => SKILLS.reduce((a, k) => a + st.skills[k].r, 0) / SKILLS.length;
 
   // ------------------------------------------------------------------ ECG drawing
   const REGIONS = [
@@ -157,27 +216,29 @@
   }
 
   // ------------------------------------------------------------------ state
+  const fresh = () => ({ r: 1500, rd: 350, v: 0.06 });
   const st = {
-    pos: 0, item: null, page: 0, picked: [], typed: '', phase: 'answer',   // answer | region | result
-    region: null, t0: 0, rating: 1500, fs: false, hist: [],
+    item: null, page: 0, picked: [], typed: '', phase: 'answer',   // answer | region | result
+    region: null, t0: 0, fs: false, hist: [], skills: Object.fromEntries(SKILLS.map((k) => [k, fresh()])),
   };
-  // session (this browser tab only; the prototype keeps nothing longer): survives "Show me why" and back
-  function saveSession() { try { sessionStorage.setItem('ecgTraining', JSON.stringify({ hist: st.hist, rating: st.rating })); } catch (e) { /* storage blocked */ } }
-  try { const j = JSON.parse(sessionStorage.getItem('ecgTraining') || 'null'); if (j) { st.hist = j.hist || []; st.rating = j.rating || 1500; } } catch (e) { /* none */ }
-  {
-    const m = /(?:^|[#&])i=(\d+)/.exec(location.hash); if (m) st.pos = (+m[1]) % ORDER.length;
-  }
+  // progress on the phone: ratings and the last 300 answers (export/import comes later)
+  const STORE = 'ecgTraining.v1';
+  function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify({ skills: st.skills, hist: st.hist.slice(-300) })); } catch (e) { /* storage blocked */ } }
+  try { const j = JSON.parse(localStorage.getItem(STORE) || 'null'); if (j) { st.hist = j.hist || []; for (const k of SKILLS) if (j.skills && j.skills[k]) st.skills[k] = j.skills[k]; } } catch (e) { /* none */ }
   const rhythmPick = () => st.picked.find((p) => BY_ID[p.id].kind === 'rhythm');
 
-  function loadItem() {
-    st.item = ITEMS[ORDER[st.pos % ORDER.length]];
-    st.picked = []; st.typed = ''; st.phase = 'answer'; st.region = null; st.t0 = performance.now(); st.score = null;
+  function nextItem() {
+    st.picked = []; st.typed = ''; st.phase = 'answer'; st.region = null; st.score = null;
+    if (!gen.queue.length) { gen.waiting = true; st.item = null; setLoading(gen.ready ? 'Preparing the next ECG…' : 'Building the heart…'); render(); return; }
+    setLoading(null);
+    st.item = gen.queue.shift(); fill(); st.t0 = performance.now();
     setPage(0, false); render();
   }
 
   // ------------------------------------------------------------------ rendering
   function measChips(el) {
     // (rate in /min, intervals in ms)
+    if (!st.item) { el.innerHTML = ''; return; }
     const m = st.item.m, v = (x, u = '') => (x === null || x === undefined ? '—' : `${x}${u}`);
     el.innerHTML = [['Rate', v(m.rate)], ['PR', v(m.pr)], ['QRS', v(m.qrs)], ['QTc', v(m.qtc)], ['Axis', v(m.axis, '°')]]
       .map(([k, x]) => `<span class="chip"><em>${k}</em>${x}</span>`).join('');
@@ -221,6 +282,7 @@
     $('regionDone').disabled = !p.regions.length;
   }
   function drawAll() {
+    if (!st.item) { for (const id of ['c0', 'c1']) { const c = $(id), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); } return; }
     const it = st.item, res = st.phase === 'result', reg = st.phase === 'region';
     const opts = res ? { highlight: it.highlight, caliper: it.caliper } : reg ? { regions: true, picked: new Set(st.region.regions) } : {};
     drawEcg($('c0'), it, PAGES[0], opts); drawEcg($('c1'), it, PAGES[1], opts);
@@ -228,7 +290,7 @@
   }
   function render() {
     measChips($('meas')); measChips($('fsMeas'));
-    $('rating').innerHTML = `<em>Rating</em>${Math.round(st.rating)}`;
+    $('rating').innerHTML = `<em>Rating</em>${Math.round(overall())}`;
     const ph = st.phase;
     $('answer').hidden = ph === 'result'; $('kbd').hidden = ph !== 'answer'; $('region').hidden = ph !== 'region'; $('result').hidden = ph !== 'result';
     renderPicked();
@@ -240,15 +302,15 @@
   }
 
 
-  // ------------------------------------------------------------------ statistics (this session)
+  // ------------------------------------------------------------------ statistics
   function renderStats() {
     const h = st.hist, n = h.length, avg = (f) => (n ? h.reduce((a, x) => a + f(x), 0) / n : 0);
-    const el = $('statsBody');
-    if (!n) { el.innerHTML = '<p class="empty">No answers yet. Statistics fill in as you answer.</p><p class="empty">Prototype: statistics are kept for this browser tab only.</p>'; return; }
-    const tile = (v, l) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`;
-    el.innerHTML = `<div class="tiles">${tile(Math.round(st.rating), 'Rating')}${tile(n, 'ECGs answered')}${tile(`${Math.round(avg((x) => x.score) * 100)}%`, 'Average score')}${tile(`${Math.round(avg((x) => (x.rhythm === 'ok' ? 1 : 0)) * 100)}%`, 'Rhythm correct')}${tile(`${Math.round(avg((x) => x.time))} s`, 'Average time')}${tile(`${h.filter((x) => x.score >= 0.999).length}`, 'Perfect answers')}</div>`
-      + '<h3>By ECG</h3><div class="hist">' + h.slice().reverse().map((x) => `<div><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="tm">${Math.round(x.time)} s</span></div>`).join('') + '</div>'
-      + '<p class="empty" style="margin-top:16px">Prototype: statistics are kept for this browser tab only. The skill radar, rating history and accuracy by topic come with saved progress.</p>';
+    const el = $('statsBody'), tile = (v, l) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`;
+    const bars = SKILLS.map((k) => { const r = st.skills[k], w = Math.max(4, Math.min(100, (r.r - 1000) / 12)); return `<div class="skill"><span>${SKILL_NAME[k]}</span><div class="sbar"><i style="width:${w}%"></i></div><b>${Math.round(r.r)}</b><small>±${Math.round(r.rd * 2)}</small></div>`; }).join('');
+    el.innerHTML = `<div class="tiles">${tile(Math.round(overall()), 'Rating')}${tile(n, 'ECGs answered')}${tile(n ? `${Math.round(avg((x) => x.score) * 100)}%` : '—', 'Average score')}${tile(n ? `${Math.round(avg((x) => (x.rhythm === 'ok' ? 1 : 0)) * 100)}%` : '—', 'Rhythm correct')}${tile(n ? `${Math.round(avg((x) => x.time))} s` : '—', 'Average time')}${tile(`${h.filter((x) => x.score >= 0.999).length}`, 'Perfect answers')}</div>`
+      + `<h3>Skills</h3><div class="skills">${bars}</div>`
+      + (n ? '<h3>Recent ECGs</h3><div class="hist">' + h.slice(-50).reverse().map((x) => `<div><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="tm">${Math.round(x.time)} s</span></div>`).join('') + '</div>' : '<p class="empty">No answers yet.</p>')
+      + '<p class="empty" style="margin-top:16px">Ratings start at 1500 and settle after about 20 ECGs (± is the uncertainty). Progress is kept on this phone only.</p>';
   }
 
   // ------------------------------------------------------------------ the ECG pages: swipe, double-tap, region taps
@@ -361,17 +423,18 @@
     setTimeout(() => t.remove(), 1800);
   }
   function submit() {
-    if (st.phase !== 'answer') return;
+    if (st.phase !== 'answer' || !st.item) return;
     if (!rhythmPick()) { const f = $('field'); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); toast('Name the rhythm first'); return; }
     st.time = (performance.now() - st.t0) / 1000;
     st.score = score(st.item.key, st.picked);
-    // session rating (Elo-style; the prototype keeps nothing): item rating from its number of findings
-    const k = st.item.key, ir = 1400 + 120 * k.findings.length + (['avnrt', 'avrt', 'mobitz1', 'flutter'].includes(st.item.id) ? 120 : 0);
-    const exp = 1 / (1 + 10 ** ((ir - st.rating) / 400));
-    st.delta = 32 * (st.score.total - exp); st.rating += st.delta;
+    // Glicko-2 per skill against the item's rating (from its rhythm and the number and type of its
+    // abnormalities): the rhythm skill on the rhythm, each other skill on its findings (location half)
+    const before = overall(), opp = { r: st.item.rating, rd: 60 }, sub = st.score.skill;
+    for (const k of SKILLS) if (sub[k] !== undefined) st.skills[k] = glicko(st.skills[k], opp, sub[k]);
+    st.delta = overall() - before;
     st.phase = 'result'; st.typed = ''; st.shownAt = performance.now();
-    st.hist.push({ id: st.item.id, title: st.item.title, score: st.score.total, time: st.time, rhythm: st.score.rhythm, delta: st.delta });
-    saveSession();
+    st.hist.push({ id: st.item.id, title: itemTitle(st.item.key), score: st.score.total, time: st.time, rhythm: st.score.rhythm, delta: st.delta, at: Date.now() });
+    saveProgress();
     // show the half of the ECG that carries the answer
     const hl = st.item.highlight || [], chest = hl.filter((l) => l.startsWith('V')).length, limb = hl.length - chest;
     setPage(st.item.caliper && st.item.caliper.lead.startsWith('V') ? 1 : chest > limb ? 1 : 0);
@@ -383,7 +446,8 @@
   // finding's share); optional findings +5% each; a finding not present −10% (on an ECG with no other
   // abnormality: −20%); clamped to 0–100%
   function score(key, picked) {
-    const out = { rows: [], total: 0 }, rp = picked.find((p) => BY_ID[p.id].kind === 'rhythm');
+    const out = { rows: [], total: 0, skill: {} }, rp = picked.find((p) => BY_ID[p.id].kind === 'rhythm'), fs = {};
+    const credit = (f, v) => { const k = f.skill || 'conditions'; (fs[k] = fs[k] || []).push(v); };
     let s = 0;
     if (rp && rp.id === key.rhythm) { s += 0.4; out.rows.push({ id: rp.id, cls: 'ok', label: BY_ID[rp.id].name }); out.rhythm = 'ok'; }
     else if (rp && (key.alt || []).includes(rp.id)) { s += 0.2; out.rows.push({ id: rp.id, cls: 'part', label: BY_ID[rp.id].name, tag: `more exactly: ${BY_ID[key.rhythm].name}` }); out.rhythm = 'part'; }
@@ -393,10 +457,10 @@
     let wrong = 0;
     for (const f of req) {
       const p = fp.find((x) => x.id === f.id);
-      if (!p) { out.rows.push({ id: f.id, cls: 'miss', label: f.regions ? `${BY_ID[f.id].name}, ${regionText(f.regions)}` : BY_ID[f.id].name }); out.missed = out.missed || f; continue; }
-      if (!f.regions) { s += share; out.rows.push({ id: f.id, cls: 'ok', label: chipLabel(p) }); continue; }
+      if (!p) { credit(f, 0); out.rows.push({ id: f.id, cls: 'miss', label: f.regions ? `${BY_ID[f.id].name}, ${regionText(f.regions)}` : BY_ID[f.id].name }); out.missed = out.missed || f; continue; }
+      if (!f.regions) { credit(f, 1); s += share; out.rows.push({ id: f.id, cls: 'ok', label: chipLabel(p) }); continue; }
       const allowed = [...f.regions, ...(f.okRegions || [])], regOk = f.regions.every((r) => p.regions.includes(r)) && p.regions.every((r) => allowed.includes(r));
-      s += regOk ? share : share / 2;
+      s += regOk ? share : share / 2; credit(f, regOk ? 1 : 0.5);
       out.rows.push({ id: f.id, cls: regOk ? 'ok' : 'part', label: chipLabel(p), tag: regOk ? '' : `leads: ${regionText(f.regions)}` });
       if (!regOk) out.regionMiss = out.regionMiss || f;
     }
@@ -407,15 +471,26 @@
     }
     if (!req.length) s += Math.max(0, 0.6 - 0.2 * wrong); else s -= 0.1 * wrong;
     out.total = Math.max(0, Math.min(1, s));
+    out.skill.rhythm = out.rhythm === 'ok' ? 1 : out.rhythm === 'part' ? 0.5 : 0;
+    for (const [k, v] of Object.entries(fs)) out.skill[k] = v.reduce((a, b) => a + b, 0) / v.length;
     return out;
   }
   // the one line: the single most important miss (rhythm, then a missed finding, then its location,
   // then a finding that is not there); a short confirmation when all is right
+  // (the findings that matter most first: acute infarct, then the rest in the key's order)
   function oneLine(sc, it) {
-    if (sc.rhythm === 'bad') { const n = BY_ID[sc.wrongRhythm].name; return `Not ${/^[A-Z][a-z]/.test(n) ? n[0].toLowerCase() + n.slice(1) : n}. ${it.line}`; }
-    if (sc.missed || sc.regionMiss || sc.rhythm === 'part') return it.line;
-    if (sc.wrong) return `${chipLabel(sc.wrong)}: not present. ${it.line}`;
-    return `Correct. ${it.line}`;
+    const L = it.lines || {}, main = it.key.findings.slice().sort((a, b) => (b.id === 'ste') - (a.id === 'ste'))[0];
+    const top = main ? L[main.id] : L.rhythm;
+    if (sc.rhythm === 'bad') { const n = BY_ID[sc.wrongRhythm].name; return `Not ${/^[A-Z][a-z]/.test(n) ? n[0].toLowerCase() + n.slice(1) : n}. ${L.rhythm}`; }
+    if (sc.missed) return L[sc.missed.id] || top;
+    if (sc.regionMiss) return L[sc.regionMiss.id] || top;
+    if (sc.rhythm === 'part') return L.rhythm;
+    if (sc.wrong) return `${chipLabel(sc.wrong)}: not present. ${top}`;
+    return `Correct. ${top}`;
+  }
+  // a readable name for the history: the key's rhythm and findings
+  function itemTitle(key) {
+    return [BY_ID[key.rhythm].name, ...key.findings.map((f) => (f.regions ? `${BY_ID[f.id].name} ${regionText(f.regions)}` : BY_ID[f.id].name))].join(' · ');
   }
   function renderResult() {
     const sc = st.score, pct = Math.round(sc.total * 100);
@@ -440,14 +515,10 @@
     $('regionDone').addEventListener('click', () => endRegion(true));
     $('regionCancel').addEventListener('click', () => endRegion(false));
     // (the tap that submitted must not land on the result's buttons, which open under the finger)
-    const fresh = () => performance.now() - (st.shownAt || 0) < 450;
-    $('next').addEventListener('click', () => { if (fresh()) return; st.pos = (st.pos + 1) % ORDER.length; history.replaceState(null, '', `#i=${st.pos}`); loadItem(); });
-    // Show me why: the simulator on the same scenario; coming back continues at the next item
-    $('why').addEventListener('click', () => {
-      if (fresh()) return;
-      history.replaceState(null, '', `#i=${(st.pos + 1) % ORDER.length}`);
-      location.href = `../index.html#${st.item.link}`;
-    });
+    const justShown = () => performance.now() - (st.shownAt || 0) < 450;
+    $('next').addEventListener('click', () => { if (!justShown()) nextItem(); });
+    // Show me why: the simulator on the same scenario; coming back starts a new ECG (progress is saved)
+    $('why').addEventListener('click', () => { if (!justShown()) location.href = `../index.html#${st.item.link}`; });
     addEventListener('resize', syncFs);
     $('submit').addEventListener('click', submit);
     // menu: statistics, help, restart, the simulator
@@ -459,14 +530,13 @@
       showMenu(false);
       if (b.dataset.go === 'stats') { renderStats(); $('stats').hidden = false; }
       if (b.dataset.go === 'help') $('help').hidden = false;
-      if (b.dataset.go === 'restart' && confirm('Start again? This clears the session statistics and rating.')) {
-        st.hist = []; st.rating = 1500; saveSession(); st.pos = 0; history.replaceState(null, '', '#i=0'); loadItem();
+      if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {
+        st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); saveProgress(); render();
       }
     });
     for (const b of document.querySelectorAll('.page [data-close]')) b.addEventListener('click', () => { b.closest('.page').hidden = true; });
-    window.ECGTraining = { st, pick, submit, toggleRegion, endRegion, setPage, setFs, score, ITEMS, VOCAB };   // (automated tests)
-    for (const it of ITEMS) for (const id of [it.key.rhythm, ...(it.key.alt || []), ...it.key.findings.map((f) => f.id), ...(it.key.optional || [])]) if (!BY_ID[id]) console.warn(`training: ${it.id} uses "${id}", not in the vocabulary`);
-    loadItem(); syncFs();
+    window.ECGTraining = { st, gen, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, VOCAB, BY_ID };   // (automated tests)
+    startWorker(); nextItem(); syncFs();
     if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(drawAll));
   }
   init();

@@ -70,7 +70,7 @@
     rvh: { group: 'hyp', skill: 'conditions', rating: 60, dx: 'RVH', hyp: 'rvh', struct: 'rvh', leads: ['V1', 'I'], line: 'Right axis with a dominant R in V1: right ventricular hypertrophy.' },
     stemi: { group: 'isch', skill: 'ischemia', rating: 0, isch: 1, excl: ['peri', 'brugada'], id: 'ste' },
     oldmi: { group: 'isch', skill: 'ischemia', rating: 20, isch: 720, excl: ['peri', 'brugada'], id: 'qwaves' },
-    peri: { group: 'peri', skill: 'conditions', rating: 80, dx: 'pericarditis', peri: true, struct: 'peri', excl: ['isch', 'brugada'], leads: ['I', 'II', 'aVF', 'V5', 'V6', 'aVR'], line: 'Diffuse concave ST elevation with PR depression and ST depression in aVR: pericarditis.' },
+    peri: { group: 'peri', skill: 'conditions', rating: 80, id: 'pericarditis', dx: 'pericarditis', peri: true, struct: 'peri', excl: ['isch', 'brugada'], leads: ['I', 'II', 'aVF', 'V5', 'V6', 'aVR'], line: 'Diffuse concave ST elevation with PR depression and ST depression in aVR: pericarditis.' },
     brugada: { group: 'brugada', skill: 'conditions', rating: 80, dx: 'Brugada type 1', brugada: true, struct: 'brugada', excl: ['isch', 'peri'], leads: ['V1', 'V2'], line: 'Coved ST elevation ≥ 2 mm in V1–V2 into a negative T: Brugada pattern.' },
   };
   const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 3, peri: 1, brugada: 0.7 };
@@ -191,7 +191,10 @@
     // else unexpected (or a scenario finding not read) rejects the ECG
     function gate(rec, rr, b) {
       const R = RHYTHMS[rec.rhythm], fail = (why) => ({ ok: false, why });
-      if (!R.read(rr.rhythm)) return fail(`rhythm read "${rr.rhythm}"`);
+      // (WPW: the P runs into the delta wave and the rhythm reader finds no separate P; the beat reader
+      // measures it, with a short PR: regular with a P before every QRS is sinus rhythm)
+      const wpwP = rec.abn.some((a) => a.k === 'wpw') && rr.rhythm === 'regular rhythm' && b.m && b.m.pr !== null && b.m.pr < 120 && rr.rrCv < 0.08;
+      if (!R.read(rr.rhythm) && !wpwP) return fail(`rhythm read "${rr.rhythm}"`);
       let rhythm = rec.rhythm;
       if (SINUS.includes(rhythm)) rhythm = rr.rate < 60 ? 'sinusBrady' : rr.rate > 100 ? 'sinusTachy' : 'sinus';
       const dx = b.dx.slice(), f = b.f, used = new Set(), findings = [], optional = new Set(), hl = new Set(), lines = {};
@@ -207,25 +210,29 @@
           if (!ex.req.some((t) => terr.includes(t))) return fail(`${a.k} ${a.site} read in ${terr.join('+')}`);
           const ok = [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t));
           const leads = acute ? f.ste : f.Q;
-          findings.push({ id: d.id, regions: ex.req, okRegions: ok });
+          findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: ok });
           leads.forEach((l) => hl.add(l)); ex.req.forEach((t) => RL[t].forEach((l) => hl.add(l)));
           lines[d.id] = acute ? `ST elevation in ${leads.join(', ')}: acute ${ex.req.join('/')} STEMI (${site.name} occlusion).` : `Q waves in ${leads.join(', ')}: old ${ex.req.join('/')} infarct.`;
           if (acute) { optional.add('std'); optional.add('reciprocal'); optional.add('hyperacute'); optional.add('posteriorMI'); }
           continue;
         }
         if (!take(d.dx)) return fail(`${a.k} not read`);
-        findings.push({ id: a.k });
-        d.leads.forEach((l) => hl.add(l)); lines[a.k] = d.line;
+        findings.push({ id: d.id || a.k, skill: d.skill });
+        d.leads.forEach((l) => hl.add(l)); lines[d.id || a.k] = d.line;
       }
       // extras the reader made
-      const lad = ks.some((k) => k === 'stemi' || k === 'oldmi') && rec.abn.some((a) => /LAD/.test(a.site || ''));
       const rca = rec.abn.some((a) => /RCA/.test(a.site || ''));
       for (let i = 0; i < dx.length; i++) {
         if (used.has(i)) continue;
         const d = dx[i];
+        // the single-beat reader assumes a P wave before the QRS: its P-wave readings mean nothing without
+        // 1:1 P waves (AF, flutter, AV block, tachycardias); in VT it reads the ventricular beat as a block
+        if (!R.pRhythm && ['RAE', 'LAE', 'biatrial enlargement', '1st-degree AVB'].includes(d)) { if (d === '1st-degree AVB' && rec.rhythm === 'mobitz1') optional.add('avb1'); continue; }
+        if (R.vt) continue;
+        if (d === 'poor R progression') { optional.add('poorR'); continue; }   // (borderline in this heart: R in V3 near 0.3 mV)
+        if (d === 'LVH' && ks.includes('lafb')) { optional.add('lvh'); continue; }   // (LAFB raises R in aVL: voltage criterion)
         if (d === 'T inversion' && ks.length) { optional.add('twi'); continue; }
         if (d === 'long QT' && ks.length) { optional.add('longqt'); continue; }
-        if (d === 'poor R progression' && (ks.includes('lafb') || ks.includes('lvh') || ks.includes('rvh') || lad)) { optional.add('poorR'); continue; }
         if (d.startsWith('old MI') && ks.includes('lafb') && !ks.includes('oldmi')) { optional.add('qwaves'); continue; }   // (LAFB pseudo-infarct)
         if (d === '1st-degree AVB' && rca) { optional.add('avb1'); continue; }
         if (d.startsWith('STEMI posterior') && ks.includes('stemi')) { optional.add('posteriorMI'); continue; }
@@ -262,12 +269,12 @@
       const V = S.log.vent.filter((v) => v.on - t0 > 500 && v.on - t0 < STRIP - 800);
       if (V.length < 2) return { ok: false, why: 'too few beats' };
       const vb = V[V.length - 1], vp = V[V.length - 2];
-      const r = read(rec12, Math.round(vb.on - t0), vb.on - vp.on), b = r.interpret();
+      const r = read(rec12, Math.round(vb.on - t0), Math.round(vb.on - vp.on)), b = { ...r.interpret(), m: r.m };
       const g = gate(rec, rr, b);
       if (!g.ok) return g;
       const noPR = !R.pRhythm, sm = R.tachy ? sinusRead(M).m : r.m;
-      const m = { rate: rr.rate, pr: noPR ? null : r.m.pr, qrs: R.vt ? r.m.qrs : sm.qrs, qtc: R.tachy ? null : r.m.qtc, axis: R.vt ? null : sm.axis };
-      if (R.tachy && !R.vt) { /* (axis and QRS from the same heart in sinus rhythm) */ }
+      const m = { rate: rr.rate, pr: noPR ? null : r.m.pr, qrs: R.vt ? r.m.qrs : sm.qrs, qtc: R.tachy || ['af', 'flutter'].includes(rec.rhythm) || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc,   // (one beat's QT means nothing in AF or flutter)
+        axis: R.vt ? null : sm.axis };
       // caliper on the interval that decides it
       const within = (lo, hi) => V.filter((v) => v.on - t0 > lo && v.on - t0 < hi);
       let caliper = null;
