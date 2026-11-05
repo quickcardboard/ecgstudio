@@ -1336,3 +1336,29 @@ linked from the menu yet.
   keyboard does the same).
 - The ECG takes all the height between the measurements and the answer area (rows a quarter of it each;
   the paper scale stays 5 s across the width), also on the result screen.
+
+## training-1 round 4: live ECG generation, what a student would see
+
+- No question bank: `src/training_gen.js` builds each ECG on the phone in a background worker (engine,
+  `tools/reader.js`, `tools/rhythmread.js` and the generator, assembled by `tools/build.py`), two ahead
+  of the user. A scenario is a rhythm plus 0–4 abnormalities, chosen near the user's level: Glicko-2 per
+  skill (rhythm, conduction, ischemia, conditions), item rating from the rhythm and the number and type of
+  abnormalities (+60 when P waves are hidden), aiming at about 72% expected success.
+- The check, "how would a student see this?":
+  - rhythm and rate from the engine's activation times; P waves must not lie inside a QRS or T wave
+    (≤ 20% of them for sinus rhythms, ≤ 50% for AV block rhythms). The blind rhythm reader runs for the
+    record only (it misread Mobitz I/II as AF and sinus rhythm as flutter on visible P waves).
+  - morphology on the median beat (all beats aligned at the engine's ventricular onset): each abnormality
+    on its own published criteria (no chained rules), and a twin run without it must differ by ≥ 1 mm
+    (0.5 mm for P waves). Highlights: the textbook leads where the twin shows the change.
+  - the blind beat read of the median beat must not show a finding that was not put in.
+- Combination rules (author's clinical calls): at most one QRS-changing condition (LBBB, RBBB, LAFB, LPFB,
+  LVH, RVH, Brugada, WPW) except RBBB + LAFB/LPFB; LBBB without ischemia; RBBB with acute STEMI but not
+  old infarct or pericarditis; pericarditis only with atrial enlargement or first-degree block; WPW with
+  ischemia but not atrial enlargement or first-degree block; LAFB not with an inferior infarct, LPFB not
+  with an LAD or circumflex one; at 106–125/min no first-degree block, WPW, BBB, pericarditis or BAE.
+- Audit: `node tools/trainlive.js [N] [seed]` (pass rate by rhythm, abnormality, pair, and the stage
+  that rejected). Before the median-beat and twin check 25/60 passed; after it 40/60 (every
+  single-abnormality ECG), before the combination rules above.
+- Open: AF looks organised (11 fixed-rate foci, mostly left atrial: waves repeat every 160–176 ms, tiny
+  in V1) and flutter's inferior sawtooth is small and uneven: proposed engine work on milestone-1.

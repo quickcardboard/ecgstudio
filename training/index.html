@@ -3501,7 +3501,7 @@ return module.exports; })();
     lpfb: { group: 'fasc', skill: 'conduction', rating: 100, dx: 'LPFB', block: ['LPF', 'complete'], leads: ['I', 'aVL', 'III', 'aVF'], line: 'Right axis with rS in I and qR in III, no RVH: left posterior fascicular block.' },
     lbbb: { group: 'bbb', skill: 'conduction', rating: 0, dx: 'LBBB', block: ['LBB', 'complete'], excl: ['fasc', 'hyp', 'isch', 'wpw', 'brugada'], leads: ['I', 'V1', 'V6'], caliper: 'qrs', line: 'QRS ≥ 120 ms, broad notched R in I and V6, deep QS in V1: LBBB.' },
     rbbb: { group: 'bbb', skill: 'conduction', rating: 0, dx: 'RBBB', block: ['RBB', 'complete'], excl: ['hyp', 'wpw', 'brugada'], leads: ['V1', 'V2', 'I', 'V6'], caliper: 'qrs', line: 'QRS ≥ 120 ms, rsR′ in V1 and a broad S in I and V6: RBBB.' },
-    wpw: { group: 'wpw', skill: 'conduction', needP: true, rating: 40, dx: 'WPW pattern', ap: true, struct: 'ap', excl: ['av', 'fasc', 'bbb', 'hyp', 'isch', 'peri', 'brugada'], leads: ['I', 'II', 'V4', 'V5'], caliper: 'pr', line: 'Short PR, slurred delta wave and broad QRS: WPW pattern.' },
+    wpw: { group: 'wpw', skill: 'conduction', needP: true, rating: 40, dx: 'WPW pattern', ap: true, struct: 'ap', excl: ['av', 'fasc', 'bbb', 'hyp', 'peri', 'brugada', 'atria'], leads: ['I', 'II', 'V4', 'V5'], caliper: 'pr', line: 'Short PR, slurred delta wave and broad QRS: WPW pattern.' },
     lvh: { group: 'hyp', skill: 'conditions', rating: 0, dx: 'LVH', hyp: 'lvh', struct: 'lvh', leads: ['V1', 'V5', 'V6', 'aVL'], line: 'S in V1 plus R in V5/V6 ≥ 35 mm: left ventricular hypertrophy.' },
     rvh: { group: 'hyp', skill: 'conditions', rating: 60, dx: 'RVH', hyp: 'rvh', struct: 'rvh', leads: ['V1', 'I'], line: 'Right axis with a dominant R in V1: right ventricular hypertrophy.' },
     stemi: { group: 'isch', skill: 'ischemia', rating: 0, isch: 1, excl: ['peri', 'brugada'], id: 'ste' },
@@ -3512,8 +3512,17 @@ return module.exports; })();
   const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 3, peri: 1, brugada: 0.7 };
   const ITEM_BASE = 1200, PER_ABN = 180;
 
+  // Combination rules (the author's clinical calls; see docs/DEVELOPMENT.md training-1):
+  // - at most one QRS-changing condition, except RBBB with LAFB or LPFB (bifascicular block)
+  // - LBBB: no ischemia, no pericarditis; RBBB: acute STEMI yes, old infarct and pericarditis no
+  // - pericarditis only with the rhythm, atrial enlargement or first-degree block
+  // - WPW: with ischemia, not with atrial enlargement (the P runs into the delta wave) or 1st-degree block
+  // - fascicular block and infarct: LAFB not with an inferior infarct, LPFB not with an LAD or circumflex one
+  //   (the infarct moves the axis: see siteOk)
+  const QRS = ['lbbb', 'rbbb', 'lafb', 'lpfb', 'lvh', 'rvh', 'brugada', 'wpw'];
+  const BIFASC = [['rbbb', 'lafb'], ['rbbb', 'lpfb']];
   function compatible(rh, list, k) {
-    const a = ABN[k], R = RHYTHMS[rh];
+    const a = ABN[k], R = RHYTHMS[rh], all = [...list, k], has = (x) => all.includes(x);
     if (!R.open) return false;
     if (a.needP && !R.pRhythm) return false;
     if (a.group === 'av' && R.block) return false;
@@ -3523,8 +3532,16 @@ return module.exports; })();
       if (b.group === a.group) return false;
       if ((a.excl || []).includes(b.group) || (b.excl || []).includes(a.group)) return false;
     }
+    const q = all.filter((x) => QRS.includes(x));
+    if (q.length > 2 || (q.length === 2 && !BIFASC.some(([x, y]) => q.includes(x) && q.includes(y)))) return false;
+    const isch = has('stemi') || has('oldmi');
+    if (has('lbbb') && (isch || has('peri'))) return false;
+    if (has('rbbb') && (has('oldmi') || has('peri'))) return false;
+    if (has('peri') && all.some((x) => x !== 'peri' && !['rae', 'lae', 'bae', 'avb1'].includes(x))) return false;
+    if (has('wpw') && all.some((x) => ['rae', 'lae', 'bae', 'avb1', 'peri'].includes(x))) return false;
     return true;
   }
+  const siteOk = (site, list) => !(list.includes('lafb') && /RCA/.test(site)) && !(list.includes('lpfb') && /LAD|LCx/.test(site));
   function itemRating(rec) {
     return ITEM_BASE + RHYTHMS[rec.rhythm].rating + rec.abn.reduce((s, a) => s + PER_ABN + ABN[a.k].rating, 0);
   }
@@ -3546,7 +3563,7 @@ return module.exports; })();
       }
       const abn = list.map((k) => {
         const a = { k };
-        if (ABN[k].isch) { const sites = Object.keys(MI_SITES); a.site = sites[Math.floor(rand() * sites.length)]; }
+        if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list)); a.site = sites[Math.floor(rand() * sites.length)]; }
         return a;
       });
       const r = RHYTHMS[rhythm];
