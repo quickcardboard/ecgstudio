@@ -1452,3 +1452,23 @@ linked from the menu yet.
   flow) instead of a clicked patch: LAD 1 h gives ST depression 1.5–2 mm in I, aVL, V4–V6, lateral T
   inversion and ST elevation in aVR, fading over 4–12 h; circumflex similar; RCA too strong (8 mm, with
   reciprocal ST elevation in aVL).
+
+## Round 40: coronary narrowing (partial flow)
+
+A narrowed artery is now modelled beside the occlusion. `Sim.addStenosis(node)`: the territory downstream
+of the node becomes ischaemic in its inner wall only (the subendocardial time course: injury current that
+eases from 3 h and is gone by about a day and a half, no transmural necrosis), at severity `stenosisSev`
+0.4 (the injury of a whole territory saturates at full severity; 0.4 brings it to textbook size). This
+replaces the clicked subendocardial patch (still off, Round 27) as the way to show demand ischaemia.
+
+- ECG at 1 h (mm): proximal LAD: ST depression I 1.4, aVL 1.1, V4 1.2, V5 0.9, ST elevation aVR 1.0
+  (interpretation: "subendocardial ischemia (NSTEMI pattern)"); circumflex: ST depression I/II ~2, aVR
+  +2; RCA: inferior ST depression ~4 with inferior T inversion and ~2 mm ST elevation in aVL (still
+  deep, and the reciprocal aVL elevation of Round 27 remains: open).
+- App: desktop click on an artery narrows it, double-click occludes it (the single click waits 350 ms);
+  phone: hold until the ring fills once and release to narrow, keep holding until it fills again in red to
+  occlude. The same gesture on a marked artery removes it, the other switches narrowing ↔ occlusion.
+  Narrowing: orange marker, orange vessel downstream, "Narrowing" in the legend and the ischemia list;
+  share links `n=` (with `c=2`). Tab notes, Help (Control tabs, Gestures) and the Learn entry on
+  subendocardial ischemia updated.
+- Checks: `evalecg` identical (nothing changes without a narrowing).

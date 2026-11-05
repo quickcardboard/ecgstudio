@@ -352,6 +352,7 @@ body.m .mfloat { display: flex; gap: 8px; position: absolute; z-index: 3; right:
 body.m .press { display: block; position: absolute; z-index: 4; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; pointer-events: none;
   background: conic-gradient(#b48ae8 var(--p, 0%), rgba(255,255,255,0.18) 0);
   -webkit-mask: radial-gradient(circle, transparent 55%, #000 57%); mask: radial-gradient(circle, transparent 55%, #000 57%); }
+body.m .press.stage2 { background: conic-gradient(#e0303f var(--p, 0%), #b48ae8 0); }   /* second fill: occlusion */
 
 /* ECG: one lead group at a time */
 body.m #ecgWrap { order: 1; touch-action: none; }
@@ -576,7 +577,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <span><i style="background:var(--rep)"></i>Repolarizing</span>
         <span id="legendCs" hidden><i style="background:var(--cs)"></i>Conduction system</span>
         <span id="legendBlock" hidden><i style="background:var(--blocked)"></i>Blocked <i style="background:var(--partial); margin-left:8px"></i>Partial block</span>
-        <span id="legendIsch" hidden><i style="background:var(--ischemic)"></i>Ischemic <i style="background:var(--necrotic); margin-left:8px"></i>Necrotic <i style="background:#ffd84a; margin-left:8px"></i>Occlusion</span>
+        <span id="legendIsch" hidden><i style="background:var(--ischemic)"></i>Ischemic <i style="background:var(--necrotic); margin-left:8px"></i>Necrotic <i style="background:#ffd84a; margin-left:8px"></i>Occlusion <i style="background:#ff8a2a; margin-left:8px"></i>Narrowing</span>
         <span id="legendFib" hidden><i style="background:#9e8c78"></i>Atrial fibrosis</span>
         <span id="legendAP" hidden><i style="background:var(--chest)"></i>Accessory pathway</span>
         <span id="legendLeads" hidden><i style="background:var(--limb)"></i>Limb leads <i style="background:var(--chest); margin-left:8px"></i>Chest leads <i style="background:#ffffff; margin-left:8px"></i>Heart vector <button type="button" id="leadSetBtn" class="leadset" title="Switch between the textbook lead axes and the lead vectors this model computes with">Textbook axes</button></span>
@@ -677,7 +678,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <ul>
         <li><b>Rhythm:</b> adjust the heart rate and toggle persistent arrhythmias. Click on the heart to stimulate an ectopic beat.</li>
         <li><b>Blocks:</b> only useful during a cutaway view. Click on the conduction system to start a block.</li>
-        <li><b>Ischemia:</b> click a coronary artery to occlude it there. Use the time slider to see progression of the injury.</li>
+        <li><b>Ischemia:</b> click a coronary artery to narrow it there (partial flow: subendocardial ischemia, ST depression and T changes that resolve), or double-click to occlude it (STEMI, then infarction). Use the time slider to see progression of the injury.</li>
         <li><b>Conditions:</b> add conditions such as chamber enlargement, WPW or pericarditis from the searchable list; remove them from the active list.</li>
         <li><b>Learn:</b> a review of the key features of this ECG and common pitfalls.</li>
       </ul>
@@ -725,7 +726,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         </li>
         <li><b>Blocks:</b> opens the four-chamber cut. Tap the conduction system to cycle through its blocks.</li>
         <li><b>View:</b> External ↔ Cut slider, the Anterior / 4-chamber / Lateral / Apex views, and the Labels, Leads and Legend switches.</li>
-        <li><b>Ischemia:</b> press and hold a coronary artery to occlude it, and use the time scrubber on the heart to follow the infarct from onset to one month.</li>
+        <li><b>Ischemia:</b> hold a coronary artery: a short hold narrows it (partial flow: ST depression and T changes), a long hold, until the ring turns red, occludes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
         <li><b>Conditions:</b> add or remove chronic and acute heart conditions.</li>
       </ul>
     </section>

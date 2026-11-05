@@ -20,7 +20,7 @@
     rep: [0.14, 0.72, 0.38], cs: [0.93, 0.71, 0.16],
     blocked: [0.88, 0.19, 0.25], partial: [1.0, 0.54, 0.12],
     ischemic: [0.56, 0.36, 0.80], necrotic: [0.40, 0.33, 0.37],
-    artery: [0.84, 0.17, 0.20], occluded: [0.30, 0.24, 0.32], fibrosis: [0.62, 0.55, 0.47],
+    artery: [0.84, 0.17, 0.20], occluded: [0.30, 0.24, 0.32], narrowed: [0.95, 0.55, 0.20], fibrosis: [0.62, 0.55, 0.47],
   };
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
@@ -51,6 +51,7 @@
     window.ECGStudioApp = {
       get sim() { return S; }, model: M, perf, quality: Q,
       ischemia: {
+        narrow(node) { captureRef(); const id = S.addStenosis(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
         occlude(node) { captureRef(); const id = S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
         subendo(cell, r = 55) { captureRef(); const id = S.addSubendocardial(cell, r); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); return id; },
         hours(h) { setIschTime(h); recolorIschemia(); },
@@ -560,14 +561,14 @@
   }
   function recolorIschemia() {
     ui.ischChangedAt = S.t;                                       // beats before this no longer reflect the tissue
-    const occl = S.insults.filter((x) => x.kind === 'occlusion');
+    const occl = S.insults.filter((x) => x.kind === 'occlusion'), narrow = S.insults.filter((x) => x.stenosis);
     const from = ui.necShown, to = ui.ischH;
     if (occl.length && from != null && from !== to && from > 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
       ui.necTween = { from, to, t0: performance.now(), ms: 1200 }; paintTissue(from);
     } else { ui.necTween = null; paintTissue(to); }
     for (const tb of g3.corTubes) {
       for (let v = 0; v < tb.map.length; v++) {
-        const dn = occl.some((x) => M.isDownstream(tb.map[v], x.node)), cc = dn ? C.occluded : C.artery;
+        const dn = occl.some((x) => M.isDownstream(tb.map[v], x.node)), nw = !dn && narrow.some((x) => M.isDownstream(tb.map[v], x.node)), cc = dn ? C.occluded : nw ? C.narrowed : C.artery;
         tb.col[3 * v] = cc[0]; tb.col[3 * v + 1] = cc[1]; tb.col[3 * v + 2] = cc[2];
       }
       tb.geo.attributes.color.needsUpdate = true;
@@ -575,6 +576,10 @@
     g3.clots.clear();
     for (const x of occl) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(2.8, 14, 10), new THREE.MeshPhongMaterial({ color: 0xffd84a, emissive: 0x6a5200 }));
+      m.position.copy(g3.corPos[x.node]); m.userData.insult = x.id; g3.clots.add(m);
+    }
+    for (const x of narrow) {                                     // a narrowing: a smaller orange plaque marker
+      const m = new THREE.Mesh(new THREE.SphereGeometry(2.1, 14, 10), new THREE.MeshPhongMaterial({ color: 0xff8a2a, emissive: 0x5a2a00 }));
       m.position.copy(g3.corPos[x.node]); m.userData.insult = x.id; g3.clots.add(m);
     }
     const any = S.insults.length > 0;
@@ -1124,20 +1129,20 @@
   }
 
   function updateActionNote() {
-    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click on a coronary artery to start ischemia' }[ui.action];
+    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click a coronary artery to narrow it (partial flow), double-click to occlude it' }[ui.action];
     $('actionNote').hidden = !note || ui.tab === 'learn';
     $('actionNote').textContent = note || '';
   }
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
     blocks: 'Tap the conduction system to cycle through blocks.',
-    ischemia: 'Press and hold a coronary artery to occlude it.',
+    ischemia: 'Hold a coronary artery: a short hold narrows it (partial flow), a long hold occludes it.',
   };
 
   // pointer handling on the 3D canvas: a click (not a drag) acts
   function initPicking() {
     const canvas = $('c3d'), ray = new THREE.Raycaster();
-    let down = null;
+    let down = null, ischClick = null;
     canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });
     canvas.addEventListener('pointerup', (e) => {
       if (isM()) { down = null; return; }                       // phones: see initTouch
@@ -1146,7 +1151,14 @@
       const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
       hideBlockMenu();
-      if (ui.action === 'block') pickBlock(ray, x, y); else if (ui.action === 'ischemia') pickIschemia(ray, x, y); else if (ui.action === 'stimulate') pickStimulus(ray, x, y);
+      if (ui.action === 'ischemia') {
+        // a click narrows the artery (after a moment, so a double-click can occlude it instead)
+        const now = performance.now(), r0 = new THREE.Raycaster(); r0.ray.copy(ray.ray);
+        if (ischClick && now - ischClick.t < DOUBLE_MS && Math.hypot(x - ischClick.x, y - ischClick.y) < 12) { clearTimeout(ischClick.timer); ischClick = null; pickIschemia(r0, x, y, 'occlude'); return; }
+        ischClick = { t: now, x, y, timer: setTimeout(() => { ischClick = null; pickIschemia(r0, x, y, 'narrow'); }, DOUBLE_MS) };
+        return;
+      }
+      if (ui.action === 'block') pickBlock(ray, x, y); else if (ui.action === 'stimulate') pickStimulus(ray, x, y);
     });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideBlockMenu(); });
     $('blockMenuCancel').addEventListener('click', hideBlockMenu);
@@ -1215,7 +1227,7 @@
   // Ischemia clicks: an artery (or the outer surface near one) occludes it; with
   // the heart cut, the cut face or the inner (endocardial) wall of a ventricle
   // starts a subendocardial patch.
-  function pickIschemia(ray, x, y) {
+  function pickIschemia(ray, x, y, mode = 'occlude') {
     const cut = ui.view !== 'external';
     let added = null;
     // first surface the ray meets: tissue, or the cut face where it has muscle (the
@@ -1228,7 +1240,8 @@
     const p = front ? g3.inner.worldToLocal(front.point.clone()) : null;
     // a click on an occlusion marker removes that occlusion
     const clot = ray.intersectObjects(g3.clots.children, false).find((h) => !front || h.distance <= front.distance + 3);
-    if (clot) { const v = S.insults.find((x) => x.id === clot.object.userData.insult); if (v) { removeIschemia(v.id); flash(x, y, 'Occlusion removed'); return; } }
+    // a marker: the same gesture removes it, the other switches narrowing ↔ occlusion (below, by its node)
+    const clotOf = clot && S.insults.find((v) => v.id === clot.object.userData.insult);
     let subCell = -1;
     if (SUBENDO_ON && !corHit && cut && front) {
       if (front.object === g3.slab.im) { const c = nearestTissue(p.x, p.y, p.z, 1); if (c >= 0 && (A.label[c] === 1 || A.label[c] === 2)) subCell = c; else { flash(x, y, `${isM() ? 'Hold' : 'Click'} ventricular muscle`); return; } }
@@ -1239,7 +1252,8 @@
       flash(x, y, 'Subendocardial ischemia');
     } else {
       let node = -1;
-      if (corHit) node = corHit.object.userData.map[corHit.face.a];
+      if (clotOf) node = clotOf.node;
+      else if (corHit) node = corHit.object.userData.map[corHit.face.a];
       else if (front) {                                         // a click on the surface near an artery counts
         let bd = 100;
         const cor = M.coronary;                                   // (only the vessels offered: side-branch nodes are not)
@@ -1247,10 +1261,16 @@
       }
       const verb = isM() ? 'Hold' : 'Click';
       if (node < 0) { flash(x, y, SUBENDO_ON && cut ? `${verb} an artery, the cut face or the inner wall` : `${verb} a coronary artery`); return; }
-      const same = S.insults.find((v) => v.kind === 'occlusion' && v.node === node);
-      if (same) { removeIschemia(same.id); flash(x, y, 'Occlusion removed'); return; }
-      captureRef(); added = S.addOcclusion(node);
-      flash(x, y, `Occluded: ${segmentName(node)}`);
+      // the same artery again: the same action removes it, the other one replaces it (narrowing ↔ occlusion)
+      const same = S.insults.find((v) => (v.kind === 'occlusion' || v.stenosis) && v.node === node);
+      if (same) {
+        const was = same.stenosis ? 'narrow' : 'occlude';
+        removeIschemia(same.id);
+        if (was === mode) { flash(x, y, mode === 'narrow' ? 'Narrowing removed' : 'Occlusion removed'); return; }
+      }
+      captureRef();
+      if (mode === 'narrow') { added = S.addStenosis(node); flash(x, y, `Narrowed: ${segmentName(node)}`); }
+      else { added = S.addOcclusion(node); flash(x, y, `Occluded: ${segmentName(node)}`); }
     }
     if (ui.ischH === 0) setIschTime(1);                         // start an hour in, so the change is visible
     else S.setIschemiaTime(ui.ischH);
@@ -1259,6 +1279,7 @@
 
   function insultLabel(v) {
     if (v.kind === 'occlusion') return `Occlusion: ${segmentName(v.node)}`;
+    if (v.stenosis) return `Narrowing: ${segmentName(v.node)}`;
     const c = v.cell, wall = A.label[c] === 2 ? 'RV' : Math.abs(A.phi[c]) < 0.4 ? 'septal' : A.phi[c] > 0.7 && A.phi[c] < 2.2 ? 'anterior' : A.phi[c] < -0.7 && A.phi[c] > -2.2 ? 'inferior' : 'lateral';
     return `Subendocardial: ${wall} wall`;
   }
@@ -1788,7 +1809,7 @@
     hyper: { t: 'Hyperacute phase', f: ['The first minutes: tall, broad, symmetric T waves over the territory before ST elevation develops.'], p: ['Compare with the patient’s baseline: hyperacute T waves are easy to miss on a single ECG.'] },
     evolving: { t: 'Evolving infarct', f: ['Q waves (≥ 40 ms or ≥ 1 mm deep in two contiguous leads) or QS complexes appear within hours.', 'ST elevation resolves over days while T waves invert.', 'Lost R waves (poor R-wave progression) are the precordial equivalent of Q waves.'], p: ['Persistent ST elevation weeks after an infarct suggests a ventricular aneurysm.'] },
     old: { t: 'Old (healed) infarct', f: ['Q waves remain; ST is at baseline; T inversion often persists for months but may normalise.'], p: ['Q waves alone cannot date an infarct.'] },
-    subendo: { t: 'Subendocardial ischemia (NSTEMI pattern)', f: ['Horizontal or down-sloping ST depression, often widest in V4–V6 and II, with ST elevation in aVR.', 'No Q waves; the ECG may normalise after the episode.'], p: ['ST depression does not localise the ischemic region; ST elevation in aVR with widespread depression suggests left main or three-vessel disease.'] },
+    subendo: { t: 'Subendocardial ischemia (NSTEMI pattern)', f: ['Horizontal or down-sloping ST depression, often widest in V4–V6 and II, with ST elevation in aVR.', 'T waves may flatten or invert; no Q waves; the ECG may normalise after the episode.'], p: ['Caused by a narrowed artery or by demand outstripping supply: flow is reduced, not stopped, so the inner wall (farthest from the epicardial arteries, under the highest wall stress) suffers first. A complete occlusion makes the whole wall ischemic instead: ST elevation.', 'ST depression does not localise the ischemic region well; ST elevation in aVR with widespread depression suggests left main or three-vessel disease.'] },
   };
   function learnHTML(snap) {
     const s = snap || {}, B = s.B || {}, keys = [], ischK = [];
@@ -2164,10 +2185,11 @@
     if (arr && (arr === 'af' || arr === 'flutter') && S.vResponse) q.set('v', Math.round(S.vResponse));
     const blocks = Object.entries(S.blocks).map(([site, b]) => `${site}.${b.type}`);
     if (blocks.length) q.set('b', blocks.join(','));
-    const occ = S.insults.filter((x) => x.kind === 'occlusion').map((x) => x.node), sub = S.insults.filter((x) => x.kind === 'subendo').map((x) => x.cell);
+    const occ = S.insults.filter((x) => x.kind === 'occlusion').map((x) => x.node), sub = S.insults.filter((x) => x.kind === 'subendo' && !x.stenosis).map((x) => x.cell), nar = S.insults.filter((x) => x.stenosis).map((x) => x.node);
     if (occ.length) q.set('o', occ.join(','));
+    if (nar.length) q.set('n', nar.join(','));
     if (sub.length) q.set('se', sub.join(','));
-    if (occ.length) q.set('c', CORONARY_VERSION);
+    if (occ.length || nar.length) q.set('c', CORONARY_VERSION);
     if (S.insults.length) q.set('h', ui.ischH);
     const st = STRUCT_KEYS.filter((k) => ui.struct[k]);
     if (st.length) q.set('s', st.join(','));
@@ -2188,18 +2210,20 @@
     return {
       arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null,
       blocks: (q.get('b') || '').split(',').map((x) => x.split('.')).filter(([site, type]) => BLOCK_MENU[site] && BLOCK_MENU[site].some((m) => m[0] === type)),
-      occ: ints('o'), legacyCor: q.get('c') !== CORONARY_VERSION, sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
+      occ: ints('o'), nar: ints('n'), legacyCor: q.get('c') !== CORONARY_VERSION, sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
     };
   }
   function applyScenario(sc) {
     const nodes = M.coronary.nodes.length, sub = !SUBENDO_ON ? [] : sc.sub.filter((c) => c < A.n && (A.label[c] === LH.LAB.LV || A.label[c] === LH.LAB.RV));
-    const cor = M.coronary, occ = (sc.legacyCor ? sc.occ.map(legacyNode) : sc.occ).filter((n) => n >= 0).filter((n) => n < nodes && cor.branches[cor.nodes[n].branch]);   // offered vessels only (links made before an anatomy change may name side branches)
+    const cor = M.coronary, offered = (list) => (sc.legacyCor ? list.map(legacyNode) : list).filter((n) => n >= 0).filter((n) => n < nodes && cor.branches[cor.nodes[n].branch]);   // offered vessels only (links made before an anatomy change may name side branches)
+    const occ = offered(sc.occ), nar = offered(sc.nar);
     // a healthy stretch first, so the interpretation has this heart's normal beat to compare with
-    if (sc.blocks.length || occ.length || sub.length) { S.run(2600); captureRef(); ecg.full = true; }
+    if (sc.blocks.length || occ.length || nar.length || sub.length) { S.run(2600); captureRef(); ecg.full = true; }
     for (const [site, type] of sc.blocks) { const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type, m[2] || {}); }
     renderBlockList();
-    if (occ.length || sub.length) {
+    if (occ.length || nar.length || sub.length) {
       for (const n of occ) S.addOcclusion(n);
+      for (const n of nar) S.addStenosis(n);
       if (SUBENDO_ON) for (const c of sub) S.addSubendocardial(c, 55);
       setIschTime(sc.h); recolorIschemia(); renderIschList();
     }
@@ -2280,7 +2304,7 @@
   const isM = () => document.body.classList.contains('m');
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
   const SECS = [2500, 5000, 10000];
-  const HOLD_MS = 550, BURST_MS = 500, BURST_PX = 40, DOUBLE_MS = 350;
+  const HOLD_MS = 550, HOLD2_MS = 1300, BURST_MS = 500, BURST_PX = 40, DOUBLE_MS = 350;   // (hold: narrowing at HOLD_MS, occlusion at HOLD2_MS)
   const ph = { group: 0, peek: null, win: 5000, live: 'II', fsEcg: false, fsHeart: false, flip: false };
   const buzz = (ms = 10) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
   // true the first time a tip key is seen in this browser
@@ -2590,9 +2614,9 @@
     if (lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
     else lastEmpty = { x, y, t: now };
   }
-  function mobileHold(x, y) {
+  function mobileHold(x, y, mode) {
     const n = S.insults.length;
-    pickIschemia(rayAt(x, y), x, y);
+    pickIschemia(rayAt(x, y), x, y, mode);
     if (S.insults.length > n) openSheet('ischemia');
   }
   function initTouch() {
@@ -2605,13 +2629,19 @@
       if (!isM()) return;
       if (++pointers > 1) { down = null; stop(); return; }           // pinch
       const p = at(e), t0 = performance.now();
-      down = { x: p.x, y: p.y, held: false };
-      timer = setTimeout(() => { if (!down) return; down.held = true; stop(); buzz(25); mobileHold(p.x, p.y); }, HOLD_MS);
+      // a short hold narrows an artery (released after the ring fills once), a long hold occludes it (the ring
+      // fills a second time, in red, and the occlusion acts at once)
+      down = { x: p.x, y: p.y, held: false, stage: 0 };
+      timer = setTimeout(() => {
+        if (!down) return; down.stage = 1; buzz(15);
+        timer = setTimeout(() => { if (!down) return; down.held = true; stop(); buzz(35); mobileHold(p.x, p.y, 'occlude'); }, HOLD2_MS - HOLD_MS);
+      }, HOLD_MS);
       // the ring appears after a moment and fills until the hold acts
       const grow = () => {
         if (!down || down.held) return;
-        const k = (performance.now() - t0 - 150) / (HOLD_MS - 150);
-        if (k > 0) { ring.hidden = false; ring.style.left = `${p.x}px`; ring.style.top = `${p.y}px`; ring.style.setProperty('--p', `${Math.min(100, k * 100)}%`); }
+        const el = performance.now() - t0, k = down.stage ? (el - HOLD_MS) / (HOLD2_MS - HOLD_MS) : (el - 150) / (HOLD_MS - 150);
+        ring.classList.toggle('stage2', !!down.stage);
+        if (k > 0 || down.stage) { ring.hidden = false; ring.style.left = `${p.x}px`; ring.style.top = `${p.y}px`; ring.style.setProperty('--p', `${Math.max(0, Math.min(100, k * 100))}%`); }
         raf = requestAnimationFrame(grow);
       };
       raf = requestAnimationFrame(grow);
@@ -2624,6 +2654,7 @@
       if (!isM()) return;
       pointers = Math.max(0, pointers - 1); stop();
       const d = down; down = null;
+      if (d && !d.held && d.stage && e.type === 'pointerup') { buzz(25); mobileHold(d.x, d.y, 'narrow'); return; }   // (released after the first fill)
       if (d && !d.held && e.type === 'pointerup') mobileTap(d.x, d.y, e.timeStamp);
     };
     canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
