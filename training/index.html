@@ -3456,7 +3456,7 @@ return module.exports; })();
   const RHYTHMS = {
     sinus: { w: 8, rate: [62, 95], pRhythm: true, open: true, rating: 0, read: (r) => /^sinus (rhythm|bradycardia|tachycardia)$/.test(r) },
     sinusBrady: { w: 2, rate: [44, 55], pRhythm: true, open: true, rating: 20, read: (r) => /^sinus (rhythm|bradycardia)$/.test(r) },
-    sinusTachy: { w: 2, rate: [106, 125], pRhythm: true, open: true, rating: 20, read: (r) => /^sinus (rhythm|tachycardia)$/.test(r) },
+    sinusTachy: { w: 2, rate: [106, 125], pRhythm: true, open: true, rating: 20, notWith: ['avb1', 'wpw', 'lbbb', 'rbbb', 'peri', 'bae'], read: (r) => /^sinus (rhythm|tachycardia)$/.test(r) },
     af: { w: 3, open: true, rating: 60, link: 'a=af', start: (S) => { S.run(2000); S.startArrhythmia('af'); }, read: (r) => r === 'atrial fibrillation' },
     flutter: { w: 2, open: true, rating: 150, link: 'a=flutter&v=75', start: (S) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(75); }, read: (r) => r === 'atrial flutter' },
     avnrt: { w: 2, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
@@ -3517,6 +3517,7 @@ return module.exports; })();
     if (!R.open) return false;
     if (a.needP && !R.pRhythm) return false;
     if (a.group === 'av' && R.block) return false;
+    if ((R.notWith || []).includes(k)) return false;   // (at 106–125/min the P sits on the previous T: hidden or not read)
     for (const j of list) {
       const b = ABN[j];
       if (b.group === a.group) return false;
@@ -3629,7 +3630,7 @@ return module.exports; })();
       const R = RHYTHMS[rec.rhythm], fail = (why) => ({ ok: false, why });
       // (WPW: the P runs into the delta wave and the rhythm reader finds no separate P; the beat reader
       // measures it, with a short PR: regular with a P before every QRS is sinus rhythm)
-      const wpwP = rec.abn.some((a) => a.k === 'wpw') && rr.rhythm === 'regular rhythm' && b.m && b.m.pr !== null && b.m.pr < 120 && rr.rrCv < 0.08;
+      const wpwP = rec.abn.some((a) => a.k === 'wpw') && /^regular (rhythm|bradycardia|tachycardia)$/.test(rr.rhythm) && b.m && b.m.pr !== null && b.m.pr < 120 && rr.rrCv < 0.08;
       if (!R.read(rr.rhythm) && !wpwP) return fail(`rhythm read "${rr.rhythm}"`);
       let rhythm = rec.rhythm;
       if (SINUS.includes(rhythm)) rhythm = rr.rate < 60 ? 'sinusBrady' : rr.rate > 100 ? 'sinusTachy' : 'sinus';
@@ -3663,6 +3664,7 @@ return module.exports; })();
         const d = dx[i];
         // the single-beat reader assumes a P wave before the QRS: its P-wave readings mean nothing without
         // 1:1 P waves (AF, flutter, AV block, tachycardias); in VT it reads the ventricular beat as a block
+        if (!R.pRhythm && (d === 'long QT' && (R.tachy || ['af', 'flutter'].includes(rec.rhythm)))) continue;   // (one beat's QT: not read in AF or flutter)
         if (!R.pRhythm && ['RAE', 'LAE', 'biatrial enlargement', '1st-degree AVB'].includes(d)) { if (d === '1st-degree AVB' && rec.rhythm === 'mobitz1') optional.add('avb1'); continue; }
         if (R.vt) continue;
         if (d === 'poor R progression') { optional.add('poorR'); continue; }   // (borderline in this heart: R in V3 near 0.3 mV)
