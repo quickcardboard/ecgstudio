@@ -6,6 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
+<meta name="version" content="{{VERSION}}">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28S3 20 3 11a6.5 6.5 0 0 1 13-1 6.5 6.5 0 0 1 13 1c0 9-13 17-13 17z' fill='%23c2304f'/%3E%3Cpath d='M5 15h6l2-4 3 9 2-5h9' stroke='%23fff' stroke-width='2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -61,6 +62,7 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .hist .pc { font: 600 14px/1 var(--font-data); min-width: 44px; text-align: right; }
 .hist .tm { font: 400 12px/1 var(--font-data); color: var(--muted); min-width: 34px; text-align: right; }
 .empty { color: var(--muted); }
+#result .report { align-self: center; background: transparent; border: 0; color: var(--muted); font-size: 13px; padding: 6px 10px; }
 #homeBtn { font-size: 22px; line-height: 1; padding: 4px 10px 6px; border-radius: 999px; background: var(--surface); }
 .red { color: var(--accent); }
 #home { z-index: 23; }
@@ -214,6 +216,7 @@ body.land #fsClose { display: none; }
   </header>
   <div class="menu" id="menu" hidden>
     <button type="button" data-go="home">Training home</button>
+    <button type="button" data-go="report">Report a problem with this ECG</button>
     <button type="button" data-go="stats">Statistics</button>
     <button type="button" data-go="help">How training works</button>
     <button type="button" data-go="restart">Reset progress</button>
@@ -231,6 +234,7 @@ body.land #fsClose { display: none; }
     <div class="legend"><span class="l-ok">correct</span><span class="l-part">partly correct</span><span class="l-miss">missed</span><span class="l-bad">not present</span></div>
     <div id="rline"></div>
     <div class="acts"><button type="button" class="why" id="why">Show me why</button><button type="button" class="why" id="share" hidden>Share</button><button type="button" class="primary" id="next">Next</button></div>
+    <button type="button" class="report" id="report">⚑ Report a problem with this ECG</button>
   </div>
 
   <div id="answer">
@@ -286,7 +290,8 @@ body.land #fsClose { display: none; }
       </ul>
       <h3>Scoring</h3>
       <ul>
-        <li>The rhythm is 40% of the score; the findings share the other 60% (the location is half of a finding).</li>
+        <li>The rhythm is 40% of the score; the findings share the other 60% (the location is half of a finding). When the rhythm is the only abnormality, it is the whole score.</li>
+        <li><b>⚑ Report a problem</b> (under the result, or in the ⋯ menu) sends the author everything needed to check that ECG.</li>
         <li>True but secondary findings earn a small bonus; findings that are not there cost 10%.</li>
         <li><b>Show me why</b> opens the simulator on the same heart, so you can see what produced the ECG.</li>
       </ul>

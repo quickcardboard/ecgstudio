@@ -1409,3 +1409,8 @@ linked from the menu yet.
   Electrophysiologist, Professor of cardiology (0, 150, 400, 900, 1800, 3200, 5500, 9000, 14000 XP).
 - Stored on the phone (localStorage `ecgTraining.v1`): ratings, last 300 answers, reviews, days, XP.
 - The simulator's phone menu links to Training (milestone-1).
+- Testers' bug report (round 5): "⚑ Report a problem with this ECG" under the result and in the ⋯ menu
+  opens the share sheet (or copies to the clipboard) with the simulator link, the key, the answer and
+  score, the measurements, the reader's checks, the generator recipe and the build version.
+- Scoring fix: on an ECG whose only abnormality is the rhythm, the rhythm is the whole score (a wrong
+  rhythm scored 60% before: the findings' share was given for naming no finding).

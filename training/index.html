@@ -6,6 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
+<meta name="version" content="2026-11-05 (9820063)">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28S3 20 3 11a6.5 6.5 0 0 1 13-1 6.5 6.5 0 0 1 13 1c0 9-13 17-13 17z' fill='%23c2304f'/%3E%3Cpath d='M5 15h6l2-4 3 9 2-5h9' stroke='%23fff' stroke-width='2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -61,6 +62,7 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .hist .pc { font: 600 14px/1 var(--font-data); min-width: 44px; text-align: right; }
 .hist .tm { font: 400 12px/1 var(--font-data); color: var(--muted); min-width: 34px; text-align: right; }
 .empty { color: var(--muted); }
+#result .report { align-self: center; background: transparent; border: 0; color: var(--muted); font-size: 13px; padding: 6px 10px; }
 #homeBtn { font-size: 22px; line-height: 1; padding: 4px 10px 6px; border-radius: 999px; background: var(--surface); }
 .red { color: var(--accent); }
 #home { z-index: 23; }
@@ -214,6 +216,7 @@ body.land #fsClose { display: none; }
   </header>
   <div class="menu" id="menu" hidden>
     <button type="button" data-go="home">Training home</button>
+    <button type="button" data-go="report">Report a problem with this ECG</button>
     <button type="button" data-go="stats">Statistics</button>
     <button type="button" data-go="help">How training works</button>
     <button type="button" data-go="restart">Reset progress</button>
@@ -231,6 +234,7 @@ body.land #fsClose { display: none; }
     <div class="legend"><span class="l-ok">correct</span><span class="l-part">partly correct</span><span class="l-miss">missed</span><span class="l-bad">not present</span></div>
     <div id="rline"></div>
     <div class="acts"><button type="button" class="why" id="why">Show me why</button><button type="button" class="why" id="share" hidden>Share</button><button type="button" class="primary" id="next">Next</button></div>
+    <button type="button" class="report" id="report">⚑ Report a problem with this ECG</button>
   </div>
 
   <div id="answer">
@@ -286,7 +290,8 @@ body.land #fsClose { display: none; }
       </ul>
       <h3>Scoring</h3>
       <ul>
-        <li>The rhythm is 40% of the score; the findings share the other 60% (the location is half of a finding).</li>
+        <li>The rhythm is 40% of the score; the findings share the other 60% (the location is half of a finding). When the rhythm is the only abnormality, it is the whole score.</li>
+        <li><b>⚑ Report a problem</b> (under the result, or in the ⋯ menu) sends the author everything needed to check that ECG.</li>
         <li>True but secondary findings earn a small bonus; findings that are not there cost 10%.</li>
         <li><b>Show me why</b> opens the simulator on the same heart, so you can see what produced the ECG.</li>
       </ul>
@@ -4456,8 +4461,8 @@ self.onmessage = (e) => {
 
   // ------------------------------------------------------------------ scoring
   // rhythm 40% (an accepted alternative: half); required findings share 60% (the region is half of a
-  // finding's share); optional findings +5% each; a finding not present −10% (on an ECG with no other
-  // abnormality: −20%); clamped to 0–100%
+  // finding's share); optional findings +5% each; a finding not present −10%; clamped to 0–100%. With no
+  // abnormality besides the rhythm, the rhythm is 100% and a finding not present −20%.
   function score(key, picked) {
     const out = { rows: [], total: 0, skill: {} }, rp = picked.find((p) => BY_ID[p.id].kind === 'rhythm'), fs = {};
     const credit = (f, v) => { const k = f.skill || 'conditions'; (fs[k] = fs[k] || []).push(v); };
@@ -4482,7 +4487,10 @@ self.onmessage = (e) => {
       if (opt.includes(p.id)) { s += 0.05; out.rows.push({ id: p.id, cls: 'ok', label: chipLabel(p), tag: 'also true' }); continue; }
       wrong++; out.rows.push({ id: p.id, cls: 'bad', label: chipLabel(p) }); out.wrong = out.wrong || p;
     }
-    if (!req.length) s += Math.max(0, 0.6 - 0.2 * wrong); else s -= 0.1 * wrong;
+    // (an ECG whose only abnormality is its rhythm: the rhythm is the whole answer, so it carries the score;
+    // a finding that is not there costs 20%)
+    if (!req.length) s = (out.rhythm === 'ok' ? 1 : out.rhythm === 'part' ? 0.5 : 0) + (s - (out.rhythm === 'ok' ? 0.4 : out.rhythm === 'part' ? 0.2 : 0)) - 0.2 * wrong;
+    else s -= 0.1 * wrong;
     out.total = Math.max(0, Math.min(1, s));
     out.skill.rhythm = out.rhythm === 'ok' ? 1 : out.rhythm === 'part' ? 0.5 : 0;
     for (const [k, v] of Object.entries(fs)) out.skill[k] = v.reduce((a, b) => a + b, 0) / v.length;
@@ -4540,6 +4548,27 @@ self.onmessage = (e) => {
     else toast(text);
   }
 
+  // ------------------------------------------------------------------ bug report (testers)
+  // Opens the share sheet (or copies to the clipboard) with everything needed to rebuild and check the ECG:
+  // the simulator link, the key, the tester's answer, the reader's checks and the generator recipe.
+  function reportProblem() {
+    const it = st.item;
+    if (!it) { toast('No ECG on screen to report'); return; }
+    const k = it.key, name = (id) => (BY_ID[id] ? BY_ID[id].name : id);
+    const keyTxt = [name(k.rhythm), ...k.findings.map((f) => (f.regions ? `${name(f.id)} (${f.regions.join(', ')})` : name(f.id)))].join('; ');
+    const ans = st.picked.map(chipLabel).join('; ') || '(no answer yet)';
+    const link = new URL(`../index.html#${it.link}`, location.href).href;
+    const ver = (document.querySelector('meta[name="version"]') || {}).content || '';
+    const text = ['ECG Studio Training: problem report', '', 'What looks wrong: ', '',
+      `Scenario in the simulator: ${link}`, `Answer key: ${keyTxt}`, `Also accepted: ${(k.optional || []).map(name).join(', ') || 'none'}`,
+      `My answer: ${ans}${st.score ? ` (score ${Math.round(st.score.total * 100)}%)` : ''}`, `Measurements: ${JSON.stringify(it.m)}`,
+      `Reader: ${it.read.rhythm}; ${(it.read.dx || []).join(', ') || 'no findings'}; ${(it.read.checks || []).join('; ')}`,
+      `Recipe: ${JSON.stringify(it.recipe)}`, `Mode: ${st.mode}; version ${ver}`].join('\n');
+    if (navigator.share) navigator.share({ title: 'ECG Studio Training: problem report', text }).catch(() => {});
+    else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast('Report copied: paste it into a message to the author'), () => toast('Could not copy the report'));
+    else toast('Sharing is not available in this browser');
+  }
+
   // ------------------------------------------------------------------ wiring
   function init() {
     buildKeyboard(); initEcgTouch();
@@ -4555,6 +4584,7 @@ self.onmessage = (e) => {
     const justShown = () => performance.now() - (st.shownAt || 0) < 450;
     $('next').addEventListener('click', () => { if (justShown()) return; if ($('next').textContent === 'Done') goHome(); else nextItem(); });
     $('share').addEventListener('click', () => { if (!justShown()) shareDaily(); });
+    $('report').addEventListener('click', () => { if (!justShown()) reportProblem(); });
     $('homeBtn').addEventListener('click', goHome);
     $('btnTrain').addEventListener('click', () => startMode('train'));
     $('btnDaily').addEventListener('click', () => startMode('daily'));
@@ -4574,6 +4604,7 @@ self.onmessage = (e) => {
       const b = e.target.closest('[data-go]'); if (!b) return;
       showMenu(false);
       if (b.dataset.go === 'home') goHome();
+      if (b.dataset.go === 'report') reportProblem();
       if (b.dataset.go === 'stats') { renderStats(); $('stats').hidden = false; }
       if (b.dataset.go === 'help') $('help').hidden = false;
       if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {

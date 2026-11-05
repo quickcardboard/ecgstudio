@@ -517,8 +517,8 @@
 
   // ------------------------------------------------------------------ scoring
   // rhythm 40% (an accepted alternative: half); required findings share 60% (the region is half of a
-  // finding's share); optional findings +5% each; a finding not present −10% (on an ECG with no other
-  // abnormality: −20%); clamped to 0–100%
+  // finding's share); optional findings +5% each; a finding not present −10%; clamped to 0–100%. With no
+  // abnormality besides the rhythm, the rhythm is 100% and a finding not present −20%.
   function score(key, picked) {
     const out = { rows: [], total: 0, skill: {} }, rp = picked.find((p) => BY_ID[p.id].kind === 'rhythm'), fs = {};
     const credit = (f, v) => { const k = f.skill || 'conditions'; (fs[k] = fs[k] || []).push(v); };
@@ -543,7 +543,10 @@
       if (opt.includes(p.id)) { s += 0.05; out.rows.push({ id: p.id, cls: 'ok', label: chipLabel(p), tag: 'also true' }); continue; }
       wrong++; out.rows.push({ id: p.id, cls: 'bad', label: chipLabel(p) }); out.wrong = out.wrong || p;
     }
-    if (!req.length) s += Math.max(0, 0.6 - 0.2 * wrong); else s -= 0.1 * wrong;
+    // (an ECG whose only abnormality is its rhythm: the rhythm is the whole answer, so it carries the score;
+    // a finding that is not there costs 20%)
+    if (!req.length) s = (out.rhythm === 'ok' ? 1 : out.rhythm === 'part' ? 0.5 : 0) + (s - (out.rhythm === 'ok' ? 0.4 : out.rhythm === 'part' ? 0.2 : 0)) - 0.2 * wrong;
+    else s -= 0.1 * wrong;
     out.total = Math.max(0, Math.min(1, s));
     out.skill.rhythm = out.rhythm === 'ok' ? 1 : out.rhythm === 'part' ? 0.5 : 0;
     for (const [k, v] of Object.entries(fs)) out.skill[k] = v.reduce((a, b) => a + b, 0) / v.length;
@@ -601,6 +604,27 @@
     else toast(text);
   }
 
+  // ------------------------------------------------------------------ bug report (testers)
+  // Opens the share sheet (or copies to the clipboard) with everything needed to rebuild and check the ECG:
+  // the simulator link, the key, the tester's answer, the reader's checks and the generator recipe.
+  function reportProblem() {
+    const it = st.item;
+    if (!it) { toast('No ECG on screen to report'); return; }
+    const k = it.key, name = (id) => (BY_ID[id] ? BY_ID[id].name : id);
+    const keyTxt = [name(k.rhythm), ...k.findings.map((f) => (f.regions ? `${name(f.id)} (${f.regions.join(', ')})` : name(f.id)))].join('; ');
+    const ans = st.picked.map(chipLabel).join('; ') || '(no answer yet)';
+    const link = new URL(`../index.html#${it.link}`, location.href).href;
+    const ver = (document.querySelector('meta[name="version"]') || {}).content || '';
+    const text = ['ECG Studio Training: problem report', '', 'What looks wrong: ', '',
+      `Scenario in the simulator: ${link}`, `Answer key: ${keyTxt}`, `Also accepted: ${(k.optional || []).map(name).join(', ') || 'none'}`,
+      `My answer: ${ans}${st.score ? ` (score ${Math.round(st.score.total * 100)}%)` : ''}`, `Measurements: ${JSON.stringify(it.m)}`,
+      `Reader: ${it.read.rhythm}; ${(it.read.dx || []).join(', ') || 'no findings'}; ${(it.read.checks || []).join('; ')}`,
+      `Recipe: ${JSON.stringify(it.recipe)}`, `Mode: ${st.mode}; version ${ver}`].join('\n');
+    if (navigator.share) navigator.share({ title: 'ECG Studio Training: problem report', text }).catch(() => {});
+    else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast('Report copied: paste it into a message to the author'), () => toast('Could not copy the report'));
+    else toast('Sharing is not available in this browser');
+  }
+
   // ------------------------------------------------------------------ wiring
   function init() {
     buildKeyboard(); initEcgTouch();
@@ -616,6 +640,7 @@
     const justShown = () => performance.now() - (st.shownAt || 0) < 450;
     $('next').addEventListener('click', () => { if (justShown()) return; if ($('next').textContent === 'Done') goHome(); else nextItem(); });
     $('share').addEventListener('click', () => { if (!justShown()) shareDaily(); });
+    $('report').addEventListener('click', () => { if (!justShown()) reportProblem(); });
     $('homeBtn').addEventListener('click', goHome);
     $('btnTrain').addEventListener('click', () => startMode('train'));
     $('btnDaily').addEventListener('click', () => startMode('daily'));
@@ -635,6 +660,7 @@
       const b = e.target.closest('[data-go]'); if (!b) return;
       showMenu(false);
       if (b.dataset.go === 'home') goHome();
+      if (b.dataset.go === 'report') reportProblem();
       if (b.dataset.go === 'stats') { renderStats(); $('stats').hidden = false; }
       if (b.dataset.go === 'help') $('help').hidden = false;
       if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {
