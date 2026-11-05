@@ -231,6 +231,7 @@
         if (!R.pRhythm && (d === 'long QT' && (R.tachy || ['af', 'flutter'].includes(rec.rhythm)))) continue;   // (one beat's QT: not read in AF or flutter)
         if (!R.pRhythm && ['RAE', 'LAE', 'biatrial enlargement', '1st-degree AVB'].includes(d)) { if (d === '1st-degree AVB' && rec.rhythm === 'mobitz1') optional.add('avb1'); continue; }
         if (R.vt) continue;
+        if (R.tachy && (d.startsWith('STEMI posterior') || d === 'T inversion')) { optional.add('std'); continue; }   // (rate-related ST depression in SVT)
         if (d === 'poor R progression') { optional.add('poorR'); continue; }   // (borderline in this heart: R in V3 near 0.3 mV)
         if (d === 'LVH' && ks.includes('lafb')) { optional.add('lvh'); continue; }   // (LAFB raises R in aVL: voltage criterion)
         if (d === 'T inversion' && ks.length) { optional.add('twi'); continue; }
