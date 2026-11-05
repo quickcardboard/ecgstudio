@@ -128,6 +128,7 @@
     if (!keepEcg) for (const b of ecg.buf) b.fill(NaN);
     ecg.full = true;
     if (g3.apMark) placeAPMarker();
+    if (g3.slowPath) g3.slowPath.visible = !!ui.struct.dual;   // (Reset: conditions off are not applied)
     const t0 = ecg.t0;
     S.onSample((t, L) => { const i = (t + t0) % PAGE; for (let k = 0; k < 12; k++) ecg.buf[k][i] = L[k]; });
     ui.acc = 0; ui.ischPending = null; ui.rhythmFrom = 0; ui.rhythmShown = null;
@@ -433,6 +434,21 @@
       const pgeo = new THREE.TubeGeometry(curve, tub, isM() ? 5 : 3.2, rad, false);
       const pick = new THREE.Mesh(pgeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
       pick.userData.map = map; grp.add(pick); g3.pickTubes.push(pick);
+    }
+    // slow AV-nodal pathway (dual AV-node physiology): from the coronary-sinus ostium to the lower compact
+    // node, yellow like the rest of the conduction system (the compact node above it is the fast pathway);
+    // shown with the condition, so AVNRT
+    // is seen going down the slow pathway and back up the fast one
+    {
+      const ids = M.avnSlow.concat([M.avn[M.avn.length - 2]]), pts = ids.map((id) => new THREE.Vector3(...nodePos(id)));
+      const curve = new THREE.CatmullRomCurve3(pts), tub = (pts.length - 1) * 4, rad = 6;
+      const geo = new THREE.TubeGeometry(curve, tub, isM() ? 2.2 : 1.4, rad, false);
+      const nv = geo.attributes.position.count, col = new Float32Array(nv * 3), map = new Int32Array(nv);
+      for (let v = 0; v < nv; v++) { const ring = Math.floor(v / (rad + 1)); map[v] = ids[Math.round(ring / tub * (ids.length - 1))]; }
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const mesh = g3.slowPath = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 50, emissive: 0x222222 }));
+      grp.add(mesh); g3.tubes.push({ geo, col, map });
+      mesh.visible = !!ui.struct.dual;
     }
     // accessory pathway marker (shown when one is set)
     g3.apMark = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 1, 10), new THREE.MeshPhongMaterial({ color: 0x38c6e8, emissive: 0x0a3a48 }));
@@ -2031,7 +2047,7 @@
     { id: 'ap', cat: 'Conduction abnormalities', label: 'WPW', name: 'Accessory pathway (WPW)', also: 'Wolff-Parkinson-White pre-excitation bypass tract delta wave short PR left lateral',
       apply: (v) => S.setAccessoryPathway(v ? 'left-lateral' : null) },
     { id: 'dual', cat: 'Conduction abnormalities', label: 'Dual AV-node pathways', name: 'Dual AV-nodal pathways', also: 'AVNRT slow pathway fast pathway dual AV node physiology',
-      apply: (v) => S.setDualAVN(!!v) },
+      apply: (v) => { S.setDualAVN(!!v); if (g3.slowPath) g3.slowPath.visible = !!v; } },
     // atrial fibrosis: the substrate of AF (uneven atrial refractoriness, so AF breaks into wavelets); a
     // structural condition, so it stays after a shock; starting AF adds it
     { id: 'fib', cat: 'Chambers', label: 'Atrial fibrosis', name: 'Atrial fibrosis (AF substrate)', also: 'fibrosis remodelling scar substrate atrial fibrillation AF',

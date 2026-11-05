@@ -1314,3 +1314,12 @@ Testers saw AF that looked like flutter and flutter that looked like AF.
 - Checks: `evalecg` identical; reader 46/57 as before (2:1 flutter, a known hard case, now read as AVNRT
   instead of "regular tachycardia"); `arrhythmia.js af,flutter` rates unchanged; app: AF adds fibrosis,
   shock keeps it, share link `#r=72&s=fib`.
+
+## Round 39: dual AV-nodal pathways drawn
+
+The slow AV-nodal pathway (`Model.avnSlow`, coronary-sinus ostium to the lower compact node) was modelled
+but not drawn. It is now a tube of its own beside the compact node (the fast pathway), yellow like the
+rest of the conduction system (not a colour of its own: teal could be taken for a WPW pathway), coloured
+by the activation of its own segments, and shown only with the condition "Dual AV-nodal pathways" (also
+switched on by AVNRT). In AVNRT the activation front is seen going down the slow pathway and back up the
+fast one. Reset hides it again. Checked: page loads without errors, AVNRT turns the pathway on, Reset off.
