@@ -341,8 +341,10 @@
     $('ph').textContent = st.typed ? '' : wantRhythm ? 'Type the rhythm' : 'Add a finding';
     const { list, q } = suggestions(), el = $('suggest');
     let html = '';
+    // (the suggestions take the chips' place while typing)
+    const typing = st.typed.length > 0; el.hidden = !typing; $('picked').hidden = typing;
     if (q.replace(/ /g, '').length < 2) {
-      html += `<span class="hint">${q.length ? 'one more letter…' : wantRhythm ? 'Suggestions after 2 letters' : 'Add every abnormality you see, then Submit'}</span>`;
+      html += `<span class="hint">${q.length ? 'one more letter…' : ''}</span>`;
     } else if (!list.length) html = `<span class="hint">No ${wantRhythm ? 'rhythm' : 'finding'} starts with “${st.typed}”</span>`;
     else html = list.map(({ t, via }) => `<button type="button" data-id="${t.id}">${t.name}${via ? `<small>${via}</small>` : ''}</button>`).join('');
     el.innerHTML = html; el.scrollLeft = 0;
@@ -356,7 +358,9 @@
   function drawAll() {
     if (!st.item) { for (const id of ['c0', 'c1']) { const c = $(id), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); } return; }
     const it = st.item, res = st.phase === 'result', reg = st.phase === 'region';
-    const opts = res ? { highlight: it.highlight, caliper: it.caliper } : reg ? { regions: true, picked: new Set(st.region.regions) } : {};
+    // (a result chip tapped: only that finding's leads; the rhythm: the caliper alone)
+    const sel = res && st.selRow, hlSel = sel ? (sel.rhythm ? [] : (it.hlBy || {})[sel.id] || []) : it.highlight;
+    const opts = res ? { highlight: hlSel, caliper: !sel || sel.rhythm ? it.caliper : null } : reg ? { regions: true, picked: new Set(st.region.regions) } : {};
     drawEcg($('c0'), it, PAGES[0], opts); drawEcg($('c1'), it, PAGES[1], opts);
     if (st.fs || document.body.classList.contains('land')) drawEcg($('cfull'), it, FULL, res ? opts : {});
   }
@@ -367,6 +371,7 @@
     $('answer').hidden = ph === 'result'; $('kbd').hidden = ph !== 'answer'; $('region').hidden = ph !== 'region'; $('result').hidden = ph !== 'result';
     renderPicked();
     if (ph === 'answer') renderField();
+    if (ph !== 'answer') { $('suggest').hidden = true; $('picked').hidden = false; }
     if (ph === 'region') { $('suggest').innerHTML = ''; $('fieldRow').hidden = true; renderRegion(); } else $('fieldRow').hidden = false;
     if (ph === 'region') $('answer').hidden = false;
     if (ph === 'result') renderResult();
@@ -388,11 +393,11 @@
       + '<p class="empty" style="margin-top:16px">Ratings start at 1500 and settle after about 20 ECGs. Progress is kept on this phone only.</p>';
   }
   // speed: the median time of the last 20 well-answered ECGs (score ≥ 80%), on the rating scale so it can sit
-  // on the radar: 10 s or less = 2100 (the edge), 60 s or more = 1100 (the centre), log scale between
+  // on the radar: 15 s or less = 2100 (the edge), 60 s or more = 1100 (the centre), log scale between
   function speed() {
     const t = st.hist.filter((x) => x.score >= 0.8 && x.time).slice(-20).map((x) => x.time).sort((a, b) => a - b);
     if (t.length < 3) return null;
-    const med = t[t.length >> 1], f = Math.max(0, Math.min(1, Math.log(60 / med) / Math.log(6)));
+    const med = t[t.length >> 1], f = Math.max(0, Math.min(1, Math.log(60 / med) / Math.log(4)));
     return { r: 1100 + 1000 * f, s: Math.round(med) };
   }
   // skill radar: one axis per skill plus speed, 1100 at the centre to 2100 at the edge (more is clamped);
@@ -529,7 +534,7 @@
     if (st.phase !== 'answer' || !st.item) return;
     if (!rhythmPick()) { const f = $('field'); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); toast('Name the rhythm first'); return; }
     st.time = (performance.now() - st.t0) / 1000;
-    st.score = score(st.item.key, st.picked);
+    st.score = score(st.item.key, st.picked); st.selRow = null;
     // Glicko-2 per skill against the item's rating (from its rhythm and the number and type of its
     // abnormalities): the rhythm skill on the rhythm, each other skill on its findings (location half)
     const before = overall(), opp = { r: st.item.rating, rd: 60 }, sub = st.score.skill;
@@ -550,18 +555,22 @@
   // rhythm 40% (an accepted alternative: half); required findings share 60% (the region is half of a
   // finding's share); optional findings +5% each; a finding not present −10%; clamped to 0–100%. With no
   // abnormality besides the rhythm, the rhythm is 100% and a finding not present −20%.
+  // answers that count as the key's own (full credit): a more specific or more serious reading of the same thing
+  const SAME_FINDING = { lvh: ['lvhStrain'], rbbb: ['bifascicular'], lafb: ['bifascicular'] };
+  const SAME_RHYTHM = { avb2to1: ['mobitz2'] };   // (2:1 block: go with the more serious reading, Mobitz II)
   function score(key, picked) {
     const out = { rows: [], total: 0, skill: {} }, rp = picked.find((p) => BY_ID[p.id].kind === 'rhythm'), fs = {};
     const credit = (f, v) => { const k = f.skill || 'conditions'; (fs[k] = fs[k] || []).push(v); };
     let s = 0;
-    if (rp && rp.id === key.rhythm) { s += 0.4; out.rows.push({ id: rp.id, cls: 'ok', label: BY_ID[rp.id].name }); out.rhythm = 'ok'; }
-    else if (rp && (key.alt || []).includes(rp.id)) { s += 0.2; out.rows.push({ id: rp.id, cls: 'part', label: BY_ID[rp.id].name, tag: `more exactly: ${BY_ID[key.rhythm].name}` }); out.rhythm = 'part'; }
-    else { out.rows.push({ id: rp.id, cls: 'bad', label: BY_ID[rp.id].name }); out.rows.push({ id: key.rhythm, cls: 'miss', label: BY_ID[key.rhythm].name }); out.rhythm = 'bad'; out.wrongRhythm = rp.id; }
+    if (rp && (rp.id === key.rhythm || (SAME_RHYTHM[key.rhythm] || []).includes(rp.id))) { s += 0.4; out.rows.push({ id: rp.id, rhythm: true, cls: 'ok', label: BY_ID[rp.id].name }); out.rhythm = 'ok'; }
+    else if (rp && (key.alt || []).includes(rp.id)) { s += 0.2; out.rows.push({ id: rp.id, rhythm: true, cls: 'part', label: BY_ID[rp.id].name, tag: `more exactly: ${BY_ID[key.rhythm].name}` }); out.rhythm = 'part'; }
+    else { out.rows.push({ id: rp.id, rhythm: true, cls: 'bad', label: BY_ID[rp.id].name }); out.rows.push({ id: key.rhythm, rhythm: true, cls: 'miss', label: BY_ID[key.rhythm].name }); out.rhythm = 'bad'; out.wrongRhythm = rp.id; }
     const req = key.findings, share = req.length ? 0.6 / req.length : 0, opt = key.optional || [];
     const fp = picked.filter((p) => BY_ID[p.id].kind === 'finding');
     let wrong = 0;
     for (const f of req) {
-      const p = fp.find((x) => x.id === f.id);
+      const p = fp.find((x) => x.id === f.id || (SAME_FINDING[f.id] || []).includes(x.id));
+      if (p) p.matched = true;
       if (!p) { credit(f, 0); out.rows.push({ id: f.id, cls: 'miss', label: f.regions ? `${BY_ID[f.id].name}, ${regionText(f.regions)}` : BY_ID[f.id].name }); out.missed = out.missed || f; continue; }
       if (!f.regions) { credit(f, 1); s += share; out.rows.push({ id: f.id, cls: 'ok', label: chipLabel(p) }); continue; }
       const allowed = [...f.regions, ...(f.okRegions || [])], regOk = f.regions.every((r) => p.regions.includes(r)) && p.regions.every((r) => allowed.includes(r));
@@ -570,7 +579,7 @@
       if (!regOk) out.regionMiss = out.regionMiss || f;
     }
     for (const p of fp) {
-      if (req.some((f) => f.id === p.id)) continue;
+      if (p.matched || req.some((f) => f.id === p.id)) { delete p.matched; continue; }
       if (opt.includes(p.id)) { s += 0.05; out.rows.push({ id: p.id, cls: 'ok', label: chipLabel(p), tag: 'also true' }); continue; }
       wrong++; out.rows.push({ id: p.id, cls: 'bad', label: chipLabel(p) }); out.wrong = out.wrong || p;
     }
@@ -609,8 +618,23 @@
     $('share').hidden = !daily;
     $('next').textContent = daily || (st.mode === 'review' && !st.reviewRun.length) ? 'Done' : 'Next';
     $('rtime').textContent = `${Math.round(st.time)} s`;
-    $('rchips').innerHTML = sc.rows.map((r) => `<span class="achip ${r.cls}">${r.label}${r.tag ? ` <span class="tag">${r.tag}</span>` : ''}</span>`).join('');
-    $('rline').textContent = oneLine(sc, st.item);
+    $('rchips').innerHTML = sc.rows.map((r, i) => `<button type="button" class="achip ${r.cls}${st.selRow === r ? ' sel' : ''}" data-i="${i}">${r.label}${r.tag ? ` <span class="tag">${r.tag}</span>` : ''}</button>`).join('');
+    $('rline').textContent = st.selRow ? rowLine(st.selRow, st.item) : oneLine(sc, st.item);
+  }
+  // a result chip tapped: what that finding is on this ECG (its own line; not present; a true secondary finding)
+  function rowLine(r, it) {
+    const L = it.lines || {}, name = BY_ID[r.id] ? BY_ID[r.id].name : r.label;
+    if (r.rhythm) return r.cls === 'bad' ? `Not ${name.toLowerCase()}. ${L.rhythm}` : L.rhythm;
+    if (r.cls === 'bad') return `${r.label}: not present on this ECG.`;
+    if (L[r.id]) return L[r.id];
+    return `${name}: also true on this ECG (a secondary finding), credited but not required.`;
+  }
+  function selectRow(i) {
+    const r = st.score.rows[i]; st.selRow = st.selRow === r ? null : r;
+    if (st.selRow && !st.selRow.rhythm && (st.item.hlBy || {})[r.id]) {   // (show the half of the ECG with its leads)
+      const ls = st.item.hlBy[r.id], chest = ls.filter((l) => l.startsWith('V')).length; setPage(chest > ls.length - chest ? 1 : 0);
+    }
+    renderResult(); requestAnimationFrame(drawAll);
   }
 
   // ------------------------------------------------------------------ home
@@ -670,6 +694,7 @@
     const justShown = () => performance.now() - (st.shownAt || 0) < 450;
     $('next').addEventListener('click', () => { if (justShown()) return; if ($('next').textContent === 'Done') goHome(); else nextItem(); });
     $('share').addEventListener('click', () => { if (!justShown()) shareDaily(); });
+    $('rchips').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b && !justShown()) selectRow(+b.dataset.i); });
     $('report').addEventListener('click', () => { if (!justShown()) reportProblem(); });
     $('homeBtn').addEventListener('click', goHome);
     $('btnTrain').addEventListener('click', () => startMode('train'));
