@@ -1488,3 +1488,13 @@ replaces the clicked subendocardial patch (still off, Round 27) as the way to sh
 known (the training generator passes the simulation's own timing). With RBBB and ST elevation the slow R′
 runs into the raised ST segment and was taken as the end of the QRS (74 ms instead of ~130 ms; the R′ was
 then outside the measured QRS and read as a coved Brugada ST). Off by default: validation identical.
+
+## training-1 round 9: audit fixes
+
+- The generator passes the engine's end of ventricular activation to the reader (`minOff`, Round 41):
+  RBBB with ST elevation measured 74 ms (the R′ ran into the raised ST) and now ~125 ms.
+- Q waves read beside an acute STEMI are optional (they form within hours), not a rejection.
+- Rules: LAFB not with a circumflex infarct; first-degree block not with an RCA infarct (nodal
+  ischemia sinks the P into the T); hyperacute T not with WPW or hypertrophy, judged in the territory's
+  own leads, rise ≥ 1.4× the twin's T; flutter without ischemia (flutter waves on the ST segment);
+  complete AV block may have up to 65% of P waves hidden.

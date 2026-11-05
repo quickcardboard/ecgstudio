@@ -23,7 +23,8 @@
     sinusTachy: { w: 2, rate: [106, 125], pRhythm: true, open: true, rating: 20, notWith: ['avb1', 'wpw', 'lbbb', 'rbbb', 'peri', 'bae'], read: (r) => /^sinus (rhythm|tachycardia)$/.test(r) },
     af: { w: 3, open: true, rating: 60, link: 'a=af', struct: 'fib', start: (S) => { S.setAtrialFibrosis(true); S.run(2000); S.startArrhythmia('af'); },   // (AF on its substrate, as in the app)
     read: (r) => r === 'atrial fibrillation' },
-    flutter: { w: 2, open: true, rating: 150, link: 'a=flutter&v=75', start: (S) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(75); }, read: (r) => r === 'atrial flutter' },
+    flutter: { w: 2, open: true, notWith: ['stemi', 'oldmi', 'recent', 'hyper', 'narrow'],   // (flutter waves sit on the ST segment)
+      rating: 150, link: 'a=flutter&v=75', start: (S) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(75); }, read: (r) => r === 'atrial flutter' },
     avnrt: { w: 2, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
     avrt: { w: 2, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
     mobitz1: { w: 2, open: true, rating: 150, block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
@@ -74,7 +75,7 @@
     // narrowing (partial flow, 1 h): subendocardial ischemia, ST depression (with ST elevation in aVR)
     narrow: { group: 'isch', skill: 'ischemia', rating: 100, isch: 1, stenosis: true, excl: ['peri', 'brugada', 'hyp', 'wpw'], id: 'std' },
     // hyperacute phase (15 min): tall, broad T waves over the territory before the ST rises
-    hyper: { group: 'isch', skill: 'ischemia', rating: 140, isch: 0.25, excl: ['peri', 'brugada'], id: 'hyperacute' },
+    hyper: { group: 'isch', skill: 'ischemia', rating: 140, isch: 0.25, excl: ['peri', 'brugada', 'hyp', 'wpw'], id: 'hyperacute' },
     // a recent infarct (2 days): Q waves with T inversion over the territory, ST elevation mostly resolved
     recent: { group: 'isch', skill: 'ischemia', rating: 120, isch: 48, excl: ['peri', 'brugada'], id: 'qwaves' },
     peri: { group: 'peri', skill: 'conditions', rating: 80, id: 'pericarditis', dx: 'pericarditis', peri: true, struct: 'peri', excl: ['isch', 'brugada'], leads: ['I', 'II', 'aVF', 'V5', 'V6', 'aVR'], line: 'Diffuse concave ST elevation with PR depression and ST depression in aVR: pericarditis.' },
@@ -112,7 +113,8 @@
     if (has('wpw') && all.some((x) => ['rae', 'lae', 'bae', 'avb1', 'peri'].includes(x))) return false;
     return true;
   }
-  const siteOk = (site, list) => !(list.includes('lafb') && /RCA/.test(site)) && !(list.includes('lpfb') && /LAD|LCx/.test(site));
+  const siteOk = (site, list) => !(list.includes('lafb') && /RCA|LCx/.test(site)) && !(list.includes('lpfb') && /LAD|LCx/.test(site))
+    && !(list.includes('avb1') && /RCA/.test(site));   // (a proximal RCA occlusion slows the AV node too: with first-degree block the P sinks into the T)
   function itemRating(rec) {
     return ITEM_BASE + RHYTHMS[rec.rhythm].rating + rec.abn.reduce((s, a) => s + PER_ABN + ABN[a.k].rating, 0);
   }
@@ -206,7 +208,7 @@
       S.onSample((t, v) => { if (t0 === null) t0 = t; rec12.push(Array.from(v)); });
       for (let t = 0; t < STRIP; t += 500) { S.run(500); S.log.atrial.forEach((x) => atr.add(x)); S.log.vent.forEach((x) => ven.add(x)); }   // (the logs keep 50 entries)
       const inStrip = (x) => x.on - t0 >= 0 && x.on - t0 < STRIP;
-      const rel = (x) => ({ on: x.on - t0, last: x.last - t0, end: x.repEnd ? x.repEnd - t0 : null });
+      const rel = (x) => ({ on: x.on - t0, last: x.last - t0, end: x.repEnd ? x.repEnd - t0 : null, n: x.n });
       return { S, M, rec12, t0, A: [...atr].filter(inStrip).sort((a, b) => a.on - b.on).map(rel), V: [...ven].filter(inStrip).sort((a, b) => a.on - b.on).map(rel) };
     }
     // a 3.6 s sinus beat of the same heart (measurements for the fast tachycardias, whose T runs into the next QRS)
@@ -227,7 +229,9 @@
         for (let k = 0; k < 12; k++) { for (let j = 0; j < ons.length; j++) col[j] = rec12[ons[j] - pre + i][k]; const sorted = Array.from(col).sort((a, b) => a - b); row[k] = sorted[sorted.length >> 1]; }
         out.push(row);
       }
-      return { rec: out, hint: pre, rr, n: ons.length };
+      // (the end of ventricular activation, from the engine: the earliest QRS end the reader may take)
+      const dur = V.map((v) => v.last - v.on).sort((a, b) => a - b), qrsEnd = pre + dur[dur.length >> 1] + 5;
+      return { rec: out, hint: pre, rr, n: ons.length, qrsEnd };
     }
 
     // ---------------------------------------------------------------- what a student would see
@@ -278,8 +282,8 @@
         }
         case 'hyper': {
           // textbook: T ≥ 5 mm in a limb lead or ≥ 10 mm in a chest lead, in two contiguous leads of the
-          // territory, with no ST elevation criteria met (the rise over the same heart's T is checked on the twin)
-          const ex = MI_SITES[a.site].ste, terrLeads = ex.req.concat(ex.ok).flatMap((t) => RL[t]);
+          // territory, with no ST elevation criteria met (the rise over the same heart's T, ≥ 1.4×, is checked on the twin)
+          const ex = MI_SITES[a.site].ste, terrLeads = ex.req.flatMap((t) => RL[t]);
           const tall = contiguous(LEADS.filter((n) => terrLeads.includes(n) && L[n].T >= (n.startsWith('V') ? 1.0 : 0.5)));
           return yes(tall.length >= 2 && !steLeads(L).length, `T ${tall.map((n) => `${n} ${(L[n].T * 10).toFixed(0)} mm`).join(', ') || 'not tall'}${steLeads(L).length ? ', ST elevation already' : ''}`, tall);
         }
@@ -334,12 +338,12 @@
       if (SINUS.includes(rhythm)) rhythm = rate < 60 ? 'sinusBrady' : rate > 100 ? 'sinusTachy' : 'sinus';
       const pv = pVisibility(sim);
       if (R.pRhythm && pv.share > 0.2) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
-      if (R.block && pv.share > 0.5) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
+      if (R.block && pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.5)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
       const rr = readRhythm(rec12);   // (blind rhythm read: kept for the record and the audit, not the gate)
       // morphology on the median beat
       const med = R.tachy ? null : medianBeat(sim);
       if (!R.tachy && !med) return fail('too few beats for a median beat', 'rhythm');
-      const r = med ? read(med.rec, med.hint, med.rr) : null, b = r ? r.interpret() : { dx: [], f: {} };
+      const r = med ? read(med.rec, med.hint, med.rr, { minOff: med.qrsEnd }) : null, b = r ? r.interpret() : { dx: [], f: {} };
       const findings = [], optional = new Set(), hl = new Set(), lines = {}, checks = [];
       for (const a of rec.abn) {
         const d = ABN[a.k], c = criteria(a.k, a, r.m, r.L);
@@ -360,7 +364,7 @@
           ['twi', 'reciprocal', 'flatT'].forEach((x) => optional.add(x));
         } else if (a.k === 'hyper') {
           // (the T waves must be taller than this heart's own: at least 1.5× the twin's in those leads)
-          if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr).L, risen = c.leads.filter((n) => r.L[n].T >= 1.5 * Math.max(0.05, tr[n].T)); if (risen.length < 2) return fail(`hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); c.leads = risen; }
+          if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr, { minOff: tmed.qrsEnd }).L, risen = c.leads.filter((n) => r.L[n].T >= 1.4 * Math.max(0.05, tr[n].T)); if (risen.length < 2) return fail(`hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); c.leads = risen; }
           const site = MI_SITES[a.site], ex = site.ste, terr = terrOf(c.leads), req = ex.req.filter((t) => terr.includes(t)).length ? ex.req.filter((t) => terr.includes(t)) : terr.slice(0, 1);
           findings.push({ id: 'hyperacute', skill: d.skill, regions: req, okRegions: [...new Set([...terr, ...ex.req, ...ex.ok])].filter((t) => !req.includes(t)) });
           c.leads.forEach((l) => hl.add(l));
@@ -404,6 +408,7 @@
           if (dx.startsWith('old MI') && ks.includes('lafb') && !ks.includes('oldmi') && !ks.includes('recent')) { optional.add('qwaves'); continue; }   // (LAFB pseudo-infarct)
           if (dx === '1st-degree AVB' && rca) { optional.add('avb1'); continue; }
           if (dx.startsWith('STEMI') && ks.includes('recent')) { optional.add('ste'); continue; }   // (residual ST elevation at 2 days)
+          if (dx.startsWith('old MI') && ks.includes('stemi')) { optional.add('qwaves'); continue; }   // (Q waves form within hours of a STEMI)
           // (an infarct moves the axis and the R waves: lateral and posterior loss gives right axis and a tall R
           // in V1, inferior loss a tall R in aVL; the reader's RVH/LVH voltage rules have no infarct exception, so
           // these reads are not findings of the ECG. Clinically: "tall R in V1: posterior MI or RVH?")
