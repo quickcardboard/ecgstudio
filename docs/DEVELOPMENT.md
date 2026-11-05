@@ -1269,3 +1269,25 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
 - Side effects (before → after): sinus PR 141 → 140 ms; first-degree PR 259 → 256 ms; Wenckebach PR steps 272–449 → 269–433 ms; AF at 107 bpm RR SD 191 → 145 ms (still irregularly irregular); flutter, MAT, VT, VF, WPW, axes (fascsearch), hypertrophy and fullcheck practically unchanged; `ischaudit`: proximal LAD 48 h loses the last V4 ST elevation, old distal LAD loses R loss in aVL, proximal circumflex Q also in aVL.
 - **Rhythm reader:** VF only on incoherent QRS shape (the "no quiet baseline" rule called VT VF once VT conducted back to the atria); flutter from the autocorrelation of the raw atrial leads in diastole (best lag 150–300 ms; 4:1 flutter 0.79 at 220 ms, AF 0.31, other rhythms ≤ 0.21); MAT also needs RR irregularity below AF's (RR CV < 0.2) and PR SD ≤ 95 ms.
 - **Reader: 46 pass / 10 partial / 1 wrong of 57** (wrong: flutter at 2:1, waves hidden in the QRS and T). Partial: extra findings beside correct diagnoses (poor R progression, LVH/RVH beside old infarcts, LAFB pseudo-infarct).
+
+## Round 37: reader fixes for combined abnormalities (P waves)
+
+Found while generating training ECGs that combine several abnormalities; the 57 validation scenarios
+grade the same before and after (PR moves by 1–10 ms in WPW, pericarditis, RAE, BAE and first-degree block).
+
+- `tools/rhythmread.js`
+  - P polarity from the first lobe of the atrial complex, not its largest point: the atrial repolarisation
+    wave after the P (PR depression of pericarditis) is larger and opposite, and made sinus rhythm read
+    as ectopic atrial rhythm.
+  - The QRS-T template is subtracted relative to its own baseline (its last sample, after the T wave):
+    a TP segment shifted off zero (pericarditis injury current) left a step at the window edges.
+  - The T-wave zone runs 40 ms past the measured T end: the tail of a long T wave read as a second P
+    wave per beat (LAE read as 2:1 AV block).
+  - The template window starts 15 ms before the QRS onset (at least 45 ms before the peak): with a
+    delta wave the peak is late and the delta wave stayed in the residual, larger than the P waves.
+- `tools/reader.js` (single-beat read)
+  - At fast rates the baseline search and the P search start at most RR − 330 ms before the QRS (sinus
+    tachycardia at 115/min read the previous T wave as a tall P: RAE and first-degree block).
+  - The P wave is the last clear atrial peak before the QRS (a local maximum of at least 30% of the
+    largest), up to 15 ms before the onset, not the largest: WPW above 75/min read the previous T wave
+    as the P (P running into the delta wave).
