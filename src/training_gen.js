@@ -115,7 +115,8 @@
     if (a.needP && !R.pRhythm) return false;
     if (a.group === 'av' && R.block) return false;
     if ((R.notWith || []).includes(k)) return false;
-    if (a.ectopy && !['sinus', 'sinusBrady'].includes(rh)) return false;   // (ectopy is timed from sinus beats)   // (at 106–125/min the P sits on the previous T: hidden or not read)
+    if (a.ectopy && !['sinus', 'sinusBrady'].includes(rh)) return false;   // (ectopy is timed from sinus beats)
+    if (has('wpw') && all.some((x) => ABN[x].ectopy)) return false;   // (at 106–125/min the P sits on the previous T: hidden or not read)
     for (const j of list) {
       const b = ABN[j];
       if (b.group === a.group) return false;
@@ -131,7 +132,8 @@
     return true;
   }
   const siteOk = (site, list) => !(list.includes('lafb') && /RCA|LCx/.test(site)) && !(list.includes('lpfb') && /LAD|LCx/.test(site))
-    && !(list.includes('avb1') && /RCA/.test(site));   // (a proximal RCA occlusion slows the AV node too: with first-degree block the P sinks into the T)
+    && !(list.includes('avb1') && /RCA/.test(site))
+    && !(list.includes('wpw') && /LCx/.test(site));   // (the left-lateral pathway inserts in circumflex territory: an infarct there removes the pre-excitation)   // (a proximal RCA occlusion slows the AV node too: with first-degree block the P sinks into the T)
   function itemRating(rec) {
     return ITEM_BASE + RHYTHMS[rec.rhythm].rating + rec.abn.reduce((s, a) => s + PER_ABN + ABN[a.k].rating, 0);
   }
@@ -491,6 +493,7 @@
           if (words.some((w) => dx === w || dx.startsWith(w + ' '))) continue;
           if (!R.pRhythm && ['RAE', 'LAE', 'biatrial enlargement', '1st-degree AVB'].includes(dx)) { if (dx === '1st-degree AVB' && rec.rhythm === 'mobitz1') optional.add('avb1'); continue; }
           if (dx === 'long QT' && ['af', 'flutter'].includes(rec.rhythm)) continue;
+          if (rec.rhythm === 'flutter' && /^(STEMI|old MI|T inversion)/.test(dx)) continue;   // (flutter waves on the ST segment; flutter carries no ischemia)
           if (dx === 'long QT' && (R.block || R.at || rec.abn.some((x) => ABN[x.k].ectopy))) continue;   // (QT after a pause is longer: QTc is not read across pauses)
           if (dx === 'poor R progression') { optional.add('poorR'); continue; }
           if (dx === 'LVH' && ks.includes('lafb')) { optional.add('lvh'); continue; }

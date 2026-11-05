@@ -1570,3 +1570,7 @@ uniform part), and the plateau sags by up to `nssttSag` 0.06. No territory, no n
 - Rules: no hypertrophy with STEMI (the hypertrophy source gain also amplifies the injury current: ST
   elevation far too tall); no fascicular block with hyperacute T (the territory repolarises in two waves:
   an M-shaped T); Q waves named with an acute STEMI are true (optional).
+- Audit (30 scenarios, seed 21): 22 passed, no errors (VF, couplets, PACs, AVRT/AVNRT and narrowings
+  among them). From the rejections: no WPW with a circumflex infarct (the left-lateral pathway's insertion
+  dies: pre-excitation lost) or with ectopy; flutter's ST/T reads ignored (flutter waves on the ST segment,
+  no ischemia in flutter).
