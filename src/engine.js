@@ -223,7 +223,10 @@
     ischApdShort: 0.45, ischApdLate: 0.9, ischLateH: 3,
     ischSubendoGain: 1.6, subendoInj: 0.6, subendoRVGain: 0.5, subendoSpanPhi: 1.6, subendoSpanZ: 0.5,  // demand ischaemia: the inner wall is the most severely injured
     ischStResolve: 0.6,    // subendocardial: fraction of the injury current gone by 8 h
-    stenosisSev: 0.4,      // narrowing (Sim.addStenosis): severity of the partial-flow ischaemia in the territory's inner wall
+    // narrowing (Sim.addStenosis): severity of the partial-flow ischaemia in the territory's inner wall, per
+    // artery family (the injury of a territory saturates: these give 1.5–2 mm of horizontal ST depression at
+    // J+80 in two contiguous leads at 1 h for the proximal artery; a mid-LAD territory reaches ~1 mm at most)
+    stenosisSev: { LAD: 0.65, LCx: 0.55, RCA: 0.17, LM: 0.5 },
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
@@ -1780,7 +1783,9 @@
       const M = this.M, A = M.A, vn = M.coronary.voxNode, aff = new Uint8Array(A.n);
       for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
       const ins = this._makeInsult('subendo', aff, this.P.ischBorderMm);
-      for (let q = 0; q < ins.sev.length; q++) ins.sev[q] *= this.P.stenosisSev * (A.label[ins.cells[q]] === LAB.RV ? this.P.subendoRVGain : 1);   // (thin, low-pressure RV: milder)
+      const br = M.coronary.nodes[node].branch, fam = /^(LAD|D\d)$/.test(br) ? 'LAD' : /^(LCx|OM\d|PLV)$/.test(br) ? 'LCx' : /^(RCA|PDA|AM)$/.test(br) ? 'RCA' : 'LM';
+      const sv = typeof this.P.stenosisSev === 'number' ? this.P.stenosisSev : this.P.stenosisSev[fam];
+      for (let q = 0; q < ins.sev.length; q++) ins.sev[q] *= sv * (A.label[ins.cells[q]] === LAB.RV ? this.P.subendoRVGain : 1);   // (thin, low-pressure RV: milder)
       ins.node = node; ins.branch = M.coronary.nodes[node].branch; ins.stenosis = true;
       return this._addInsult(ins);
     }

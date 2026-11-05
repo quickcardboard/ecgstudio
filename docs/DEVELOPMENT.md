@@ -1503,3 +1503,18 @@ then outside the measured QRS and read as a coved Brugada ST). Off by default: v
   V1); T inversion ≥ 1 mm with R/S > 1 (4th UDMI), two contiguous leads (not aVR, III, V1). With these,
   circumflex and RCA narrowings pass (1–4 mm horizontal); LAD narrowings (~1 mm at J, less at J+80) do
   not.
+
+## Round 42: narrowing tuned per artery; textbook ST depression and T inversion in the panel
+
+- `stenosisSev` per artery family (LAD 0.65, circumflex 0.55, RCA 0.17, left main 0.5): at 1 h the
+  proximal arteries give 1.5–2 mm horizontal ST depression at J+80 in two contiguous leads (proximal LAD
+  I/aVL/V4 1.7–1.9; circumflex V4–V5 1.7–2.1; RCA III/aVF 1.7–1.9), fading over 4–12 h; side branches
+  ~1 mm; left main 3–4 mm widespread with aVR +3. A mid-LAD territory reaches ~1 mm at most at any
+  severity (too small). The engine is adjusted rather than the criteria (author's call).
+- Interpretation panel, same rules as the training checker: subendocardial ST depression ≥ 1 mm at J+80,
+  horizontal or downsloping (< 0.5 mm rise from J), two contiguous leads, not aVR or V1 (otherwise "no
+  diagnostic ST change"); T inversion ≥ 1 mm with R/S > 1 (4th UDMI), or behind Q/QS waves. `measureBeat`
+  gains the J-point and J+80 levels.
+- Checks: `evalecg` identical; panel reads proximal LAD, circumflex and RCA narrowings as subendocardial
+  ischemia, mid LAD as no diagnostic change, a 2-day anterior infarct with T inversion V2–V5, acute STEMI
+  unchanged.

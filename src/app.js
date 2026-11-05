@@ -1866,12 +1866,13 @@
       // ST deviation must hold from early ST (J+20) to J+40, so the upstroke of an early tall T is not read as ST shift
       const s20 = at(k, J + 20) - base, s40 = at(k, J + 40) - base;
       const st = s20 * s40 > 0 ? Math.sign(s40) * Math.min(Math.abs(s20), Math.abs(s40)) : 0;
+      const stJ = at(k, J) - base, st80 = at(k, J + 80) - base;   // (textbook ST depression: at J+80, and its slope from J)
       let qDur = 0, qAmp = 0, rMax = 0;
       for (let t = vb.on; t < vb.on + 60; t++) { const v = at(k, t) - base; if (v > 0.05) break; if (v < -0.04) qDur = t - vb.on + 1; qAmp = Math.min(qAmp, v); }
       for (let t = vb.on; t <= J; t++) rMax = Math.max(rMax, at(k, t) - base);
       let tv = 0; for (let t = J + 60; t < E.repEnd + 40; t++) { const v = at(k, t) - base; if (Math.abs(v) > Math.abs(tv)) tv = v; }
       let sMin = 0, r40 = 0; for (let t = vb.on; t <= J; t++) { const v = at(k, t) - base; sMin = Math.min(sMin, v); if (t < vb.on + 40) r40 = Math.max(r40, v); }
-      out[n] = { st, qDur, qAmp, rMax, r40, s: -sMin, t: tv };
+      out[n] = { st, stJ, st80, qDur, qAmp, rMax, r40, s: -sMin, t: tv };
     }
     return out;
   }
@@ -1991,14 +1992,19 @@
     // R waves lost over the infarct (the precordial Q-wave equivalent)
     const rLoss = ref ? ['V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'I', 'aVL', 'II', 'III', 'aVF'].filter((n) => ref[n].rMax > 0.2 && m[n].rMax < 0.65 * ref[n].rMax && ref[n].rMax - m[n].rMax > 0.1 && !Q.includes(n)) : [];
     const rLossC = order(contiguous((n) => rLoss.includes(n)));
-    const twi = order(new Set(LH.LEADS.filter((n) => !['aVR', 'V1', 'III'].includes(n) && m[n].t < -0.1 && !was(n, (r) => r.t < -0.05))));
+    // T inversion (4th UDMI): ≥ 1 mm with a prominent R wave (R/S > 1), new compared with the healthy beat;
+    // behind Q/QS waves (an infarct) the R is gone and inverted T still counts
+    const twi = order(new Set(LH.LEADS.filter((n) => !['aVR', 'V1', 'III'].includes(n) && m[n].t <= -0.1 && (m[n].rMax > m[n].s || Q.includes(n) || isQS(n)) && !was(n, (r) => r.t < -0.05))));
     const hyper = ref && !Q.length && !twi.length ? order(new Set(LH.LEADS.filter((n) => ref[n].t > 0.15 && m[n].t > ref[n].t * 1.35 && m[n].t > 0.3 && Math.abs(m[n].st) < 0.25))) : [];
     const out = [];
     const sub = S.insults.every((x) => x.kind === 'subendo');
     if (sub) {
       // subendocardial injury points into the cavity: ST depression over the
-      // region (elevation in the opposite leads is its mirror image, not a STEMI)
-      const Ds = order(new Set(LH.LEADS.filter((n) => m[n].st <= -0.05))), Es = order(new Set(LH.LEADS.filter((n) => m[n].st >= 0.08)));
+      // region (elevation in the opposite leads is its mirror image, not a STEMI).
+      // Textbook (4th UDMI, at the teaching threshold): ≥ 1 mm at J+80, horizontal or downsloping (rising
+      // < 0.5 mm from the J point), in two contiguous leads, aVR and V1 not counted; upsloping is nonspecific
+      const hd = (n) => !['aVR', 'V1'].includes(n) && m[n].st80 <= -0.1 && m[n].st80 - m[n].stJ < 0.05;
+      const Ds = order(contiguous(hd)), Es = order(new Set(LH.LEADS.filter((n) => m[n].st >= 0.08)));
       if (Ds.length >= 2) {
         out.push({ head: true, text: `ST depression in ${span(Ds)}: subendocardial ischemia (NSTEMI pattern)` });
         if (Es.length) out.push(`ST elevation in ${span(Es)} mirrors the depression (no transmural injury)`);
