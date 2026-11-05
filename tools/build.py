@@ -30,3 +30,15 @@ html = html.replace('/*__ENGINE__*/', (src / 'engine.js').read_text(), 1)
 html = html.replace('/*__APP__*/', (src / 'app.js').read_text(), 1)
 (root / 'index.html').write_text(html)
 print('index.html', round(len(html.encode()) / 1e6, 2), 'MB')
+
+# Training (prototype, phones): src/training.html + training.js + the vocabulary + the pre-generated
+# question bank (tools/trainbank.js) -> training/index.html (ecgstudio.app/training)
+t = (src / 'training.html').read_text().replace('{{AUTHOR}}', htmlmod.escape(site['author']))
+for key, text in (('/*__VOCAB__*/', json.dumps((src / 'training_vocab.txt').read_text())),
+                  ('/*__BANK__*/', (src / 'training_bank.json').read_text()),
+                  ('/*__TRAIN__*/', (src / 'training.js').read_text())):
+    assert '</script' not in text
+    t = t.replace(key, text, 1)
+(root / 'training').mkdir(exist_ok=True)
+(root / 'training' / 'index.html').write_text(t)
+print('training/index.html', round(len(t.encode()) / 1e6, 2), 'MB')

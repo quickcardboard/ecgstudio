@@ -1269,3 +1269,27 @@ Read in full (arXiv): Camps et al. 2020 (2010.15214), Camps et al. 2023 (2306.13
 - Side effects (before → after): sinus PR 141 → 140 ms; first-degree PR 259 → 256 ms; Wenckebach PR steps 272–449 → 269–433 ms; AF at 107 bpm RR SD 191 → 145 ms (still irregularly irregular); flutter, MAT, VT, VF, WPW, axes (fascsearch), hypertrophy and fullcheck practically unchanged; `ischaudit`: proximal LAD 48 h loses the last V4 ST elevation, old distal LAD loses R loss in aVL, proximal circumflex Q also in aVL.
 - **Rhythm reader:** VF only on incoherent QRS shape (the "no quiet baseline" rule called VT VF once VT conducted back to the atria); flutter from the autocorrelation of the raw atrial leads in diastole (best lag 150–300 ms; 4:1 flutter 0.79 at 220 ms, AF 0.31, other rhythms ≤ 0.21); MAT also needs RR irregularity below AF's (RR CV < 0.2) and PR SD ≤ 95 ms.
 - **Reader: 46 pass / 10 partial / 1 wrong of 57** (wrong: flutter at 2:1, waves hidden in the QRS and T). Partial: extra findings beside correct diagnoses (poor R progression, LVH/RVH beside old infarcts, LAFB pseudo-infarct).
+
+## training-1 round 1: Training prototype (phones, portrait)
+
+First prototype of the training mode in the design document: one screen, a fixed bank of 10 items, no
+ratings kept and no storage. Served at `training/index.html` (ecgstudio.app/training once merged); not
+linked from the menu yet.
+
+- Bank: `node tools/trainbank.js` runs 10 scenarios (normal, AF, flutter 4:1, AVNRT, AVRT, Mobitz I,
+  complete AV block, LBBB, old inferior infarct at 30 days, proximal LAD STEMI at 1 h), records 10 s of
+  12-lead ECG after 4 s settling, and reads it blind (`reader.js` beat read, `rhythmread.js` rhythm read).
+  An item is kept only if the reading matches its gate; all 10 pass. Output `src/training_bank.json`
+  (250 Hz, µV Int16, base64; about 80 kB per item) with the measurements, answer key, highlight leads,
+  caliper and the simulator link for "Show me why". Rerun after engine changes.
+- Measurements shown are the reader's. At 170–210/min the single-beat reader has no TP segment, so the
+  tachycardias take axis and QRS from the same heart in sinus rhythm and show no QTc; PR is not shown where
+  it is not a fixed interval (AF, flutter, SVT, Mobitz I, complete block).
+- Vocabulary: `src/training_vocab.txt`, plain text for the author to edit (id | name | synonyms | flags).
+- Page: `src/training.html` + `src/training.js`, assembled by `tools/build.py` into `training/index.html`.
+  ECG halves (limb leads 0–5 s, chest leads 5–10 s; 2.5 s per lead, lead II rhythm strip), swipe between
+  them, double-tap (or the phone held sideways) for the full 12-lead. QWERTY keyboard without space; a
+  hardware keyboard also works for desktop testing. Region mode for any finding flagged `region`.
+- Scoring as in the design: rhythm 40% (an accepted alternative such as "SVT" for AVNRT: half), required
+  findings share 60% (the region is half of a finding's share), optional findings +5%, a finding not present
+  −10% (−20% on an ECG with no other abnormality). Session rating Elo-style, not saved.
