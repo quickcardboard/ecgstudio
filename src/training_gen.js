@@ -134,11 +134,12 @@
         if (!opts.length) break;
         list.push(pickW(rand, opts.map((k) => [k, ABN_W[k]])));
       }
+      // (an infarct takes an artery the other abnormalities allow; if they allow none, it is left out)
       const abn = list.map((k) => {
         const a = { k };
-        if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list)); a.site = sites[Math.floor(rand() * sites.length)]; }
+        if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list)); if (!sites.length) return null; a.site = sites[Math.floor(rand() * sites.length)]; }
         return a;
-      });
+      }).filter(Boolean);
       const r = RHYTHMS[rhythm];
       const rec = { rhythm, abn, seed: 1 + Math.floor(rand() * 1e6), rate: r.rate ? Math.round(r.rate[0] + rand() * (r.rate[1] - r.rate[0])) : 72 };
       const skills = new Set(['rhythm', ...abn.map((a) => ABN[a.k].skill)]);
