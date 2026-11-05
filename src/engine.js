@@ -227,6 +227,11 @@
     // artery family (the injury of a territory saturates: these give 1.5–2 mm of horizontal ST depression at
     // J+80 in two contiguous leads at 1 h for the proximal artery; a mid-LAD territory reaches ~1 mm at most)
     stenosisSev: { LAD: 0.65, LCx: 0.55, RCA: 0.17, LM: 0.5 },
+    // non-specific ST-T changes (Sim.setNonspecificSTT): the transmural repolarisation gradient that makes the
+    // T wave upright is reduced in patches that follow no artery (a smooth pattern from the Sim's seed), by up
+    // to nssttGrad of it, and the plateau sags a little (nssttSag): flat or slightly inverted T waves and
+    // minimal ST sagging in some lead groups, as with electrolytes, drugs, rate or autonomic tone
+    nssttGrad: 0.9, nssttSag: 0.06, nssttPatch: 0.5,
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
@@ -1829,6 +1834,7 @@
       this.atrialFibrosis = on;
     }
     setPericarditis(on) { this.pericarditis = !!on; this._applyMyocardialDisease(); }
+    setNonspecificSTT(on) { this.nsstt = !!on; this._applyMyocardialDisease(); }
     setBrugada(on) { this.brugada = !!on; this._applyMyocardialDisease(); }
     _applyMyocardialDisease() {
       const M = this.M, A = M.A, P = this.P;
@@ -1841,6 +1847,12 @@
         this._brugadaC = A.p(best);
       }
       const puv = this._brugadaC;
+      // non-specific ST-T: a smooth patch pattern over the ventricles (three random plane waves, ~5 cm wavelength)
+      let patch = null;
+      if (this.nsstt) {
+        const r = rng(0x57a7 ^ (this.seed || 1)), waves = [0, 1, 2].map(() => { const u = [r() - 0.5, r() - 0.5, r() - 0.5], l = Math.hypot(...u) || 1; return { u: u.map((x) => x / l), k: 2 * Math.PI / (40 + 30 * r()), ph: 2 * Math.PI * r() }; });
+        patch = (c) => { let v = 0; for (const w of waves) v += Math.sin(w.k * (A.pos[3 * c] * w.u[0] + A.pos[3 * c + 1] * w.u[1] + A.pos[3 * c + 2] * w.u[2]) + w.ph); return Math.max(0, Math.min(1, 0.5 + v / 3)); };
+      }
       for (let c = 0; c < M.nVox; c++) {
         const k = M.kind[c]; if (!k) continue;
         let amp = 1, apd = 1, dv = 0;
@@ -1848,6 +1860,13 @@
           const outer = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (A.tm[c] - P.pericardDepth) / (1 - P.pericardDepth)));
           const peri = this.pericarditis && outer > 0;
           if (peri) { dv += P.pericardDv * outer; amp *= 1 - P.pericardAmpDrop * outer; }
+          let nsSag = 0;
+          if (patch) {
+            // flatten the transmural gradient here: endocardium shorter, epicardium longer, by up to nssttGrad of it
+            const f = (1 - P.nssttPatch) + P.nssttPatch * patch(c), tm = A.tm[c] < 0 ? 0.5 : A.tm[c];
+            apd *= 1 - P.nssttGrad * f * P.apdVentEndoExtra * (0.5 - tm) / this._apdBase[c];
+            nsSag = P.nssttSag * f;
+          }
           if (this.brugada && A.label[c] === LAB.RV && A.epi[c]) {
             const d = Math.hypot(A.pos[3 * c] - puv[0], A.pos[3 * c + 1] - puv[1], A.pos[3 * c + 2] - puv[2]);
             const w = Math.max(0, Math.min(1, (P.brugadaMm - d) / 8));
@@ -1859,7 +1878,7 @@
           // (negative slope), so ST elevation is highest at the J point, sags mid-ST and
           // rises again into the T wave: the concave-upward "saddle")
           this.pDecl[c] = amp < 1 && this.brugada && A.label[c] === LAB.RV ? 1 - (1 - P.plateauDecline) / amp
-            : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline;
+            : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline + nsSag;
           this.vAmp0[c] = this._vAmpBase[c] * amp; this.apdMax0[c] = this._apdBase[c] * apd;
           if (!this._ischCells.has(c)) { this.vAmp[c] = this.vAmp0[c]; this.apdMax[c] = this.apdMax0[c]; }
         } else if (k === KIND.ATRIAL) {

@@ -1800,6 +1800,7 @@
     rae: { t: 'Right atrial enlargement', f: ['Tall peaked P ≥ 0.25 mV (2.5 mm) in II, III, aVF ("P pulmonale"); P duration normal.'], p: [] },
     lae: { t: 'Left atrial enlargement', f: ['Broad P ≥ 120 ms, notched in II with the humps ≥ 40 ms apart ("P mitrale").', 'Deep, broad negative terminal P in V1 (≥ 1 mm × 1 mm).'], p: [] },
     wpw: { t: 'Wolff–Parkinson–White pattern', f: ['Short PR (< 120 ms), delta wave (slurred QRS upstroke), QRS > 110 ms.', 'Secondary ST/T changes opposite to the delta wave.', 'Delta-wave polarity localises the pathway (e.g. negative delta in I/aVL: left lateral).'], p: ['Delta waves can mimic Q waves (pseudo-infarction) and hide in some leads: look in all twelve.'] },
+    nsstt: { t: 'Non-specific ST-T changes', f: ['Flat T waves (between −1 and +1 mm) or minimal T inversion, with at most slight ST sagging, in leads where T is normally upright.', 'They follow no coronary territory, and there is no ST depression of 1 mm or more and no Q waves.'], p: ['Common and usually benign: electrolytes (low potassium or magnesium), drugs (digoxin, antiarrhythmics), fast heart rate, hyperventilation, posture, or a meal. Report them as non-specific and compare with an earlier ECG; they are not a diagnosis of ischemia.', 'Here: the gradient that makes the T wave upright (endocardium repolarising after epicardium) is reduced in patches across the ventricles.'] },
     peri: { t: 'Acute pericarditis', f: ['Diffuse concave ST elevation across many territories (I, II, aVL, aVF, V2–V6), with ST depression in aVR (and often V1).', 'PR-segment depression (PR elevation in aVR) from the inflamed atria.', 'No Q waves, no reciprocal depression outside aVR/V1; ST elevation often larger in II than in III. Sinus tachycardia is common.'], p: ['STEMI has territorial ST elevation with reciprocal depression and often convex ST: compare the distribution.', 'Early repolarisation can look similar; the ST/T ratio in V6 > 0.25 favours pericarditis.'] },
     brugada: { t: 'Brugada syndrome (type 1)', f: ['Coved ST elevation ≥ 2 mm (J point) in V1–V2, descending into a negative T wave.', 'Often an rSR′ or a terminal r′ in V1; limb leads usually normal.', 'Only type 1 is diagnostic; higher V1–V2 placement (2nd–3rd intercostal space) can unmask it.'], p: ['Fever and sodium-channel blockers accentuate the pattern; RBBB, pectus excavatum and high-K can mimic it.'] },
     adenosine: { t: 'Adenosine', f: ['Transient AV-nodal block for seconds: P or flutter waves continue without QRS complexes.'], p: [] },
@@ -1829,7 +1830,7 @@
     if (s.nPAC || s.nBlockedPAC) keys.push('pac'); if (s.nPVC) keys.push('pvc');
     if (S.adenosine) keys.push('adenosine');
     const st = ui.struct || {};
-    if (S.ap) keys.push('wpw'); if (st.peri) keys.push('peri'); if (st.brugada) keys.push('brugada'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae');
+    if (S.ap) keys.push('wpw'); if (st.peri) keys.push('peri'); if (st.nsstt) keys.push('nsstt'); if (st.brugada) keys.push('brugada'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae');
     if (S.insults.length) {
       const sub = S.insults.every((x) => x.kind === 'subendo'), h = ui.ischH;
       if (sub) ischK.push('subendo');
@@ -1921,6 +1922,14 @@
     // Brugada type 1: coved J-point elevation ≥ 2 mm in V1–V2 ending in a negative T wave
     const cov = ['V1', 'V2'].filter((n) => { const k = L_IDX[n], b0 = at(k, qrsBaseT(vb)), J = S.beatEnds(vb).last + 6; return at(k, J + 10) - b0 >= 0.2 && at(k, vb.on + 300) - b0 < -0.05; });
     if (cov.length) out.push(`Coved ST elevation ≥ 2 mm with T inversion in ${cov.join(', ')}: Brugada type 1 pattern`);
+    // non-specific ST-T changes: flat T waves (between −1 and +1 mm) in two contiguous leads where T is normally
+    // upright, without ischemia or a cause read elsewhere (the normal heart's flattest such T, V6, is 1.2 mm)
+    const st = ui.struct;
+    if (!S.insults.length && !S.ap && !st.lvh && !st.rvh && !st.peri && !st.brugada && !Object.keys(S.blocks).some((b) => ['LBB', 'RBB'].includes(b))) {
+      const flat = ['I', 'II', 'aVF', 'V3', 'V4', 'V5', 'V6'].filter((n) => Math.abs(m[n].t) < 0.1);
+      const nb = { I: [], II: ['aVF'], aVF: ['II'], V3: ['V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5'] }, fc = flat.filter((n) => nb[n].some((x) => flat.includes(x)));
+      if (fc.length >= 2) out.push(`Flat T waves in ${fc.join(', ')}: non-specific ST-T changes`);
+    }
     return out;
   }
 
@@ -2079,6 +2088,9 @@
     // structural condition, so it stays after a shock; starting AF adds it
     { id: 'fib', cat: 'Chambers', label: 'Atrial fibrosis', name: 'Atrial fibrosis (AF substrate)', also: 'fibrosis remodelling scar substrate atrial fibrillation AF',
       apply: (v) => { S.setAtrialFibrosis(!!v); if (g3.restCol) recolorIschemia(); } },
+    // non-specific ST-T changes: patchy flattening of the repolarisation gradient (no territory)
+    { id: 'nsstt', cat: 'Repolarization', label: 'Non-specific ST-T', name: 'Non-specific ST-T changes', also: 'flat T waves nonspecific T wave flattening electrolytes drugs repolarisation',
+      apply: (v) => S.setNonspecificSTT(!!v) },
     { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
     { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
   ];

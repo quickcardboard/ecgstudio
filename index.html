@@ -693,7 +693,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-05 (635a7fe).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-05 (39d3e72).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -737,7 +737,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-05 (635a7fe).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-05 (39d3e72).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -2089,6 +2089,11 @@ THE SOFTWARE.
     // artery family (the injury of a territory saturates: these give 1.5–2 mm of horizontal ST depression at
     // J+80 in two contiguous leads at 1 h for the proximal artery; a mid-LAD territory reaches ~1 mm at most)
     stenosisSev: { LAD: 0.65, LCx: 0.55, RCA: 0.17, LM: 0.5 },
+    // non-specific ST-T changes (Sim.setNonspecificSTT): the transmural repolarisation gradient that makes the
+    // T wave upright is reduced in patches that follow no artery (a smooth pattern from the Sim's seed), by up
+    // to nssttGrad of it, and the plateau sags a little (nssttSag): flat or slightly inverted T waves and
+    // minimal ST sagging in some lead groups, as with electrolytes, drugs, rate or autonomic tone
+    nssttGrad: 0.9, nssttSag: 0.06, nssttPatch: 0.5,
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
@@ -3691,6 +3696,7 @@ THE SOFTWARE.
       this.atrialFibrosis = on;
     }
     setPericarditis(on) { this.pericarditis = !!on; this._applyMyocardialDisease(); }
+    setNonspecificSTT(on) { this.nsstt = !!on; this._applyMyocardialDisease(); }
     setBrugada(on) { this.brugada = !!on; this._applyMyocardialDisease(); }
     _applyMyocardialDisease() {
       const M = this.M, A = M.A, P = this.P;
@@ -3703,6 +3709,12 @@ THE SOFTWARE.
         this._brugadaC = A.p(best);
       }
       const puv = this._brugadaC;
+      // non-specific ST-T: a smooth patch pattern over the ventricles (three random plane waves, ~5 cm wavelength)
+      let patch = null;
+      if (this.nsstt) {
+        const r = rng(0x57a7 ^ (this.seed || 1)), waves = [0, 1, 2].map(() => { const u = [r() - 0.5, r() - 0.5, r() - 0.5], l = Math.hypot(...u) || 1; return { u: u.map((x) => x / l), k: 2 * Math.PI / (40 + 30 * r()), ph: 2 * Math.PI * r() }; });
+        patch = (c) => { let v = 0; for (const w of waves) v += Math.sin(w.k * (A.pos[3 * c] * w.u[0] + A.pos[3 * c + 1] * w.u[1] + A.pos[3 * c + 2] * w.u[2]) + w.ph); return Math.max(0, Math.min(1, 0.5 + v / 3)); };
+      }
       for (let c = 0; c < M.nVox; c++) {
         const k = M.kind[c]; if (!k) continue;
         let amp = 1, apd = 1, dv = 0;
@@ -3710,6 +3722,13 @@ THE SOFTWARE.
           const outer = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (A.tm[c] - P.pericardDepth) / (1 - P.pericardDepth)));
           const peri = this.pericarditis && outer > 0;
           if (peri) { dv += P.pericardDv * outer; amp *= 1 - P.pericardAmpDrop * outer; }
+          let nsSag = 0;
+          if (patch) {
+            // flatten the transmural gradient here: endocardium shorter, epicardium longer, by up to nssttGrad of it
+            const f = (1 - P.nssttPatch) + P.nssttPatch * patch(c), tm = A.tm[c] < 0 ? 0.5 : A.tm[c];
+            apd *= 1 - P.nssttGrad * f * P.apdVentEndoExtra * (0.5 - tm) / this._apdBase[c];
+            nsSag = P.nssttSag * f;
+          }
           if (this.brugada && A.label[c] === LAB.RV && A.epi[c]) {
             const d = Math.hypot(A.pos[3 * c] - puv[0], A.pos[3 * c + 1] - puv[1], A.pos[3 * c + 2] - puv[2]);
             const w = Math.max(0, Math.min(1, (P.brugadaMm - d) / 8));
@@ -3721,7 +3740,7 @@ THE SOFTWARE.
           // (negative slope), so ST elevation is highest at the J point, sags mid-ST and
           // rises again into the T wave: the concave-upward "saddle")
           this.pDecl[c] = amp < 1 && this.brugada && A.label[c] === LAB.RV ? 1 - (1 - P.plateauDecline) / amp
-            : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline;
+            : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline + nsSag;
           this.vAmp0[c] = this._vAmpBase[c] * amp; this.apdMax0[c] = this._apdBase[c] * apd;
           if (!this._ischCells.has(c)) { this.vAmp[c] = this.vAmp0[c]; this.apdMax[c] = this.apdMax0[c]; }
         } else if (k === KIND.ATRIAL) {
@@ -6423,6 +6442,7 @@ THE SOFTWARE.
     rae: { t: 'Right atrial enlargement', f: ['Tall peaked P ≥ 0.25 mV (2.5 mm) in II, III, aVF ("P pulmonale"); P duration normal.'], p: [] },
     lae: { t: 'Left atrial enlargement', f: ['Broad P ≥ 120 ms, notched in II with the humps ≥ 40 ms apart ("P mitrale").', 'Deep, broad negative terminal P in V1 (≥ 1 mm × 1 mm).'], p: [] },
     wpw: { t: 'Wolff–Parkinson–White pattern', f: ['Short PR (< 120 ms), delta wave (slurred QRS upstroke), QRS > 110 ms.', 'Secondary ST/T changes opposite to the delta wave.', 'Delta-wave polarity localises the pathway (e.g. negative delta in I/aVL: left lateral).'], p: ['Delta waves can mimic Q waves (pseudo-infarction) and hide in some leads: look in all twelve.'] },
+    nsstt: { t: 'Non-specific ST-T changes', f: ['Flat T waves (between −1 and +1 mm) or minimal T inversion, with at most slight ST sagging, in leads where T is normally upright.', 'They follow no coronary territory, and there is no ST depression of 1 mm or more and no Q waves.'], p: ['Common and usually benign: electrolytes (low potassium or magnesium), drugs (digoxin, antiarrhythmics), fast heart rate, hyperventilation, posture, or a meal. Report them as non-specific and compare with an earlier ECG; they are not a diagnosis of ischemia.', 'Here: the gradient that makes the T wave upright (endocardium repolarising after epicardium) is reduced in patches across the ventricles.'] },
     peri: { t: 'Acute pericarditis', f: ['Diffuse concave ST elevation across many territories (I, II, aVL, aVF, V2–V6), with ST depression in aVR (and often V1).', 'PR-segment depression (PR elevation in aVR) from the inflamed atria.', 'No Q waves, no reciprocal depression outside aVR/V1; ST elevation often larger in II than in III. Sinus tachycardia is common.'], p: ['STEMI has territorial ST elevation with reciprocal depression and often convex ST: compare the distribution.', 'Early repolarisation can look similar; the ST/T ratio in V6 > 0.25 favours pericarditis.'] },
     brugada: { t: 'Brugada syndrome (type 1)', f: ['Coved ST elevation ≥ 2 mm (J point) in V1–V2, descending into a negative T wave.', 'Often an rSR′ or a terminal r′ in V1; limb leads usually normal.', 'Only type 1 is diagnostic; higher V1–V2 placement (2nd–3rd intercostal space) can unmask it.'], p: ['Fever and sodium-channel blockers accentuate the pattern; RBBB, pectus excavatum and high-K can mimic it.'] },
     adenosine: { t: 'Adenosine', f: ['Transient AV-nodal block for seconds: P or flutter waves continue without QRS complexes.'], p: [] },
@@ -6452,7 +6472,7 @@ THE SOFTWARE.
     if (s.nPAC || s.nBlockedPAC) keys.push('pac'); if (s.nPVC) keys.push('pvc');
     if (S.adenosine) keys.push('adenosine');
     const st = ui.struct || {};
-    if (S.ap) keys.push('wpw'); if (st.peri) keys.push('peri'); if (st.brugada) keys.push('brugada'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae');
+    if (S.ap) keys.push('wpw'); if (st.peri) keys.push('peri'); if (st.nsstt) keys.push('nsstt'); if (st.brugada) keys.push('brugada'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae');
     if (S.insults.length) {
       const sub = S.insults.every((x) => x.kind === 'subendo'), h = ui.ischH;
       if (sub) ischK.push('subendo');
@@ -6544,6 +6564,14 @@ THE SOFTWARE.
     // Brugada type 1: coved J-point elevation ≥ 2 mm in V1–V2 ending in a negative T wave
     const cov = ['V1', 'V2'].filter((n) => { const k = L_IDX[n], b0 = at(k, qrsBaseT(vb)), J = S.beatEnds(vb).last + 6; return at(k, J + 10) - b0 >= 0.2 && at(k, vb.on + 300) - b0 < -0.05; });
     if (cov.length) out.push(`Coved ST elevation ≥ 2 mm with T inversion in ${cov.join(', ')}: Brugada type 1 pattern`);
+    // non-specific ST-T changes: flat T waves (between −1 and +1 mm) in two contiguous leads where T is normally
+    // upright, without ischemia or a cause read elsewhere (the normal heart's flattest such T, V6, is 1.2 mm)
+    const st = ui.struct;
+    if (!S.insults.length && !S.ap && !st.lvh && !st.rvh && !st.peri && !st.brugada && !Object.keys(S.blocks).some((b) => ['LBB', 'RBB'].includes(b))) {
+      const flat = ['I', 'II', 'aVF', 'V3', 'V4', 'V5', 'V6'].filter((n) => Math.abs(m[n].t) < 0.1);
+      const nb = { I: [], II: ['aVF'], aVF: ['II'], V3: ['V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5'] }, fc = flat.filter((n) => nb[n].some((x) => flat.includes(x)));
+      if (fc.length >= 2) out.push(`Flat T waves in ${fc.join(', ')}: non-specific ST-T changes`);
+    }
     return out;
   }
 
@@ -6702,6 +6730,9 @@ THE SOFTWARE.
     // structural condition, so it stays after a shock; starting AF adds it
     { id: 'fib', cat: 'Chambers', label: 'Atrial fibrosis', name: 'Atrial fibrosis (AF substrate)', also: 'fibrosis remodelling scar substrate atrial fibrillation AF',
       apply: (v) => { S.setAtrialFibrosis(!!v); if (g3.restCol) recolorIschemia(); } },
+    // non-specific ST-T changes: patchy flattening of the repolarisation gradient (no territory)
+    { id: 'nsstt', cat: 'Repolarization', label: 'Non-specific ST-T', name: 'Non-specific ST-T changes', also: 'flat T waves nonspecific T wave flattening electrolytes drugs repolarisation',
+      apply: (v) => S.setNonspecificSTT(!!v) },
     { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
     { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
   ];

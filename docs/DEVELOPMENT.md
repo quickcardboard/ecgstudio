@@ -1522,3 +1522,19 @@ then outside the measured QRS and read as a coved Brugada ST). Off by default: v
   proximal LAD, proximal circumflex and proximal/mid RCA (mid LAD stays under 1 mm). Narrowings now pass
   with 1.5–2.5 mm horizontal ST depression. Audit before the textbook rules: 40/50 (0–1 abnormalities
   26/28).
+
+## Round 43: non-specific ST-T changes
+
+`Sim.setNonspecificSTT(on)`: the transmural repolarisation gradient that makes T upright (endocardium
+85 ms longer than epicardium) is reduced in patches across both ventricles, by up to `nssttGrad` 0.9 of it
+(a smooth pattern of three random plane waves, ~4–7 cm, from the Sim's seed, mixed `nssttPatch` 0.5 with a
+uniform part), and the plateau sags by up to `nssttSag` 0.06. No territory, no necrosis, no injury current.
+
+- Result over seeds 1–8: T flat (−1 to +1 mm) in V5–V6 in every heart, in II/aVF in most, V3–V4 in some,
+  with minimal inferior inversion (−0.5 to −0.8 mm; −2 mm in aVF for one seed), ST sag ≤ 0.4 mm, QTc
+  −10 ms. A stronger setting was too uniform; a milder one left only V6 flat.
+- App: condition "Non-specific ST-T changes" (Repolarization; share key `s=nsstt`), Learn entry; the panel
+  reports "Flat T waves in …: non-specific ST-T changes" when T is between −1 and +1 mm in two contiguous
+  leads where it is normally upright (I, II, aVF, V3–V6), without ischemia, WPW, hypertrophy, pericarditis,
+  Brugada or bundle-branch block. No false report in the normal heart, LVH or LAFB.
+- Checks: `evalecg` identical.
