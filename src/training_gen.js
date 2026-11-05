@@ -21,7 +21,8 @@
     sinus: { w: 8, rate: [62, 95], pRhythm: true, open: true, rating: 0, read: (r) => /^sinus (rhythm|bradycardia|tachycardia)$/.test(r) },
     sinusBrady: { w: 2, rate: [44, 55], pRhythm: true, open: true, rating: 20, read: (r) => /^sinus (rhythm|bradycardia)$/.test(r) },
     sinusTachy: { w: 2, rate: [106, 125], pRhythm: true, open: true, rating: 20, notWith: ['avb1', 'wpw', 'lbbb', 'rbbb', 'peri', 'bae'], read: (r) => /^sinus (rhythm|tachycardia)$/.test(r) },
-    af: { w: 3, open: true, rating: 60, link: 'a=af', start: (S) => { S.run(2000); S.startArrhythmia('af'); }, read: (r) => r === 'atrial fibrillation' },
+    af: { w: 3, open: true, rating: 60, link: 'a=af', struct: 'fib', start: (S) => { S.setAtrialFibrosis(true); S.run(2000); S.startArrhythmia('af'); },   // (AF on its substrate, as in the app)
+    read: (r) => r === 'atrial fibrillation' },
     flutter: { w: 2, open: true, rating: 150, link: 'a=flutter&v=75', start: (S) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(75); }, read: (r) => r === 'atrial flutter' },
     avnrt: { w: 2, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
     avrt: { w: 2, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
@@ -290,6 +291,7 @@
       q.push(`r=${R.rate ? rec.rate : 72}`);
       if (R.link) q.push(R.link);
       if (R.block) blocks.push(`${R.block[0]}.${R.block[1]}`);
+      if (R.struct) struct.push(R.struct);
       let isch = null;
       for (const a of rec.abn) { const d = ABN[a.k]; if (d.block) blocks.push(`${d.block[0]}.${d.block[1]}`); if (d.struct) struct.push(d.struct); if (d.isch) isch = a; }
       if (blocks.length) q.push(`b=${blocks.join(',')}`);

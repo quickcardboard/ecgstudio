@@ -1291,6 +1291,29 @@ grade the same before and after (PR moves by 1–10 ms in WPW, pericarditis, RAE
   - The P wave is the last clear atrial peak before the QRS (a local maximum of at least 30% of the
     largest), up to 15 ms before the onset, not the largest: WPW above 75/min read the previous T wave
     as the P (P running into the delta wave).
+
+## Round 38: atrial fibrosis (AF substrate), flutter that repeats
+
+Testers saw AF that looked like flutter and flutter that looked like AF.
+
+- AF was too organised: its 11 focal drivers sweep the whole atria at every firing (atrial refractory
+  floor ~125 ms, atria activated in ~100 ms), so the atrial waves repeated every 160–176 ms (diastolic
+  autocorrelation 0.62 in II). New **atrial fibrosis** (`Sim.setAtrialFibrosis`, `fibHet` 0.45): the
+  refractoriness of each working atrial cell varies ×(1 ± 0.45) in a fixed pattern from the Sim's seed, so
+  AF breaks into wavelets: fine, irregular f-waves (autocorrelation 0.36, ~0.08 mV in II). Slower atrial
+  conduction (`fibCv`) is available but left at 1: in this model it made the sinus P taller and shorter
+  (read as RAE). Fibrosis is structural: it stays through a shock; with it the sinus P is unchanged.
+  In the app it is a condition (Chambers: "Atrial fibrosis (AF substrate)"), drawn as tan patches on the
+  atria (legend), shared in links (`s=fib`); starting AF adds it with a note, as AVRT adds the pathway.
+- Flutter looked irregular because the left atrium could not follow the circuit: every atrial cell had
+  the flutter refractory floor (185 ms) and the passively driven LA dropped waves at random (LA cycle
+  246 ± 15 ms against the circuit's 207 ± 3). The floor now applies to the right-atrial circuit only: the
+  LA follows 1:1 and the flutter waves repeat identically (autocorrelation 0.99 in II and V1).
+- Open: the flutter waves are ~1.5 mm in II (textbook 2–5 mm) and V1 sees little atrial activity in this
+  torso (sinus P in V1 −0.02 mV), so f-waves and flutter waves are small in V1.
+- Checks: `evalecg` identical; reader 46/57 as before (2:1 flutter, a known hard case, now read as AVNRT
+  instead of "regular tachycardia"); `arrhythmia.js af,flutter` rates unchanged; app: AF adds fibrosis,
+  shock keeps it, share link `#r=72&s=fib`.
 ## training-1 round 1: Training prototype (phones, portrait)
 
 First prototype of the training mode in the design document: one screen, a fixed bank of 10 items, no

@@ -20,12 +20,12 @@
     rep: [0.14, 0.72, 0.38], cs: [0.93, 0.71, 0.16],
     blocked: [0.88, 0.19, 0.25], partial: [1.0, 0.54, 0.12],
     ischemic: [0.56, 0.36, 0.80], necrotic: [0.40, 0.33, 0.37],
-    artery: [0.84, 0.17, 0.20], occluded: [0.30, 0.24, 0.32],
+    artery: [0.84, 0.17, 0.20], occluded: [0.30, 0.24, 0.32], fibrosis: [0.62, 0.55, 0.47],
   };
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', struct: { rae: false, lae: false, lvh: false, rvh: false, ap: false, dual: false }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, leadSet: 'book', scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', struct: { rae: false, lae: false, lvh: false, rvh: false, ap: false, dual: false, fib: false }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, leadSet: 'book', scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const bufIdx = (t) => (((Math.round(t) + ecg.t0) % PAGE) + PAGE) % PAGE;   // sim time → paper sample
   const ecg = { t0: 0, buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
@@ -530,6 +530,10 @@
       const n = nec && cov[c] ? nec[c] : l >= 2 ? 1 : 0, k = l >= 2 ? 1 : Math.min(1, l * 1.4);
       for (let d = 0; d < 3; d++) { const isch = C.rest[d] + (C.ischemic[d] - C.rest[d]) * k; rc[o + d] = isch + (C.necrotic[d] - isch) * n; }
     }
+    // atrial fibrosis: patches of fibrotic tissue (the cells whose refractoriness the engine changed most)
+    const het = S.atrialFibrosis && S._fibHet;
+    if (het) for (let c = 0; c < M.nVox; c++) if (Math.abs(het[c] - 1) > 0.15) for (let d = 0; d < 3; d++) rc[3 * c + d] += (C.fibrosis[d] - rc[3 * c + d]) * 0.8;
+    if ($('legendFib')) $('legendFib').hidden = !het;
     ui.necShown = h;
   }
   function animateNecrosis(now) {
@@ -1007,7 +1011,7 @@
 
   function update3D() {
     const t = S.t, vc = g3.voxCol;
-    const ischemic = S.insults.length > 0, rc = g3.restCol;
+    const ischemic = S.insults.length > 0 || S.atrialFibrosis, rc = g3.restCol;   // (per-cell resting colours: ischemia, atrial fibrosis)
     for (let c = 0; c < M.nVox; c++) if (M.kind[c]) {
       if (ischemic) stateColor(c, t, vc, 3 * c, rc, 3 * c); else stateColor(c, t, vc, 3 * c, C.rest);
     }
@@ -1438,6 +1442,7 @@
       S.stimulateAt(A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === 3), S.nextSinus() + 270);
       return;
     }
+    if (type === 'af' && !ui.struct.fib) { setCondition('fib', true); toast('AF needs a substrate: atrial fibrosis added. It stays after a shock; remove it under Conditions.', 4200); }
     if (type === 'vt') { let best = -1; for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.epi[c] && A.zuvc[c] > 0.35 && A.zuvc[c] < 0.45 && A.phi[c] < -2.2) { best = c; break; } S.startArrhythmia('vt', { cell: best }); return; }
     if (type === 'mat' && ui.rate < 110) { ui.preAtrRate = ui.preAtrRate || ui.rate; ui.rate = 120; S.setRate(120); ui.rateMode = ''; }   // MAT starts tachycardic; the slider then sets it
     S.startArrhythmia(type);
@@ -2027,6 +2032,10 @@
       apply: (v) => S.setAccessoryPathway(v ? 'left-lateral' : null) },
     { id: 'dual', cat: 'Conduction abnormalities', label: 'Dual AV-node pathways', name: 'Dual AV-nodal pathways', also: 'AVNRT slow pathway fast pathway dual AV node physiology',
       apply: (v) => S.setDualAVN(!!v) },
+    // atrial fibrosis: the substrate of AF (uneven atrial refractoriness, so AF breaks into wavelets); a
+    // structural condition, so it stays after a shock; starting AF adds it
+    { id: 'fib', cat: 'Chambers', label: 'Atrial fibrosis', name: 'Atrial fibrosis (AF substrate)', also: 'fibrosis remodelling scar substrate atrial fibrillation AF',
+      apply: (v) => { S.setAtrialFibrosis(!!v); if (g3.restCol) recolorIschemia(); } },
     { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
     { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
   ];
