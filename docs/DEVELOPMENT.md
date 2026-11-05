@@ -1498,3 +1498,8 @@ then outside the measured QRS and read as a coved Brugada ST). Off by default: v
   ischemia sinks the P into the T); hyperacute T not with WPW or hypertrophy, judged in the territory's
   own leads, rise ≥ 1.4× the twin's T; flutter without ischemia (flutter waves on the ST segment);
   complete AV block may have up to 65% of P waves hidden.
+- Checker rules made textbook (author's review): ST depression ≥ 1 mm at J+80 ms, horizontal or
+  downsloping (< 0.5 mm rise from J to J+80; upsloping is nonspecific), two contiguous leads (not aVR,
+  V1); T inversion ≥ 1 mm with R/S > 1 (4th UDMI), two contiguous leads (not aVR, III, V1). With these,
+  circumflex and RCA narrowings pass (1–4 mm horizontal); LAD narrowings (~1 mm at J, less at J+80) do
+  not.
