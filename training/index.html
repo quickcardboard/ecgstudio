@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-05 (e3c9f71)">
+<meta name="version" content="2026-11-05 (435e6fa)">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28S3 20 3 11a6.5 6.5 0 0 1 13-1 6.5 6.5 0 0 1 13 1c0 9-13 17-13 17z' fill='%23c2304f'/%3E%3Cpath d='M5 15h6l2-4 3 9 2-5h9' stroke='%23fff' stroke-width='2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -3601,6 +3601,8 @@ return module.exports; })();
     rvh: { group: 'hyp', skill: 'conditions', rating: 60, dx: 'RVH', hyp: 'rvh', struct: 'rvh', leads: ['V1', 'I'], line: 'Right axis with a dominant R in V1: right ventricular hypertrophy.' },
     stemi: { group: 'isch', skill: 'ischemia', rating: 0, isch: 1, excl: ['peri', 'brugada'], id: 'ste' },
     oldmi: { group: 'isch', skill: 'ischemia', rating: 20, isch: 720, excl: ['peri', 'brugada'], id: 'qwaves' },
+    // narrowing (partial flow, 1 h): subendocardial ischemia, ST depression (with ST elevation in aVR)
+    narrow: { group: 'isch', skill: 'ischemia', rating: 100, isch: 1, stenosis: true, excl: ['peri', 'brugada', 'hyp', 'wpw'], id: 'std' },
     // hyperacute phase (15 min): tall, broad T waves over the territory before the ST rises
     hyper: { group: 'isch', skill: 'ischemia', rating: 140, isch: 0.25, excl: ['peri', 'brugada'], id: 'hyperacute' },
     // a recent infarct (2 days): Q waves with T inversion over the territory, ST elevation mostly resolved
@@ -3608,7 +3610,7 @@ return module.exports; })();
     peri: { group: 'peri', skill: 'conditions', rating: 80, id: 'pericarditis', dx: 'pericarditis', peri: true, struct: 'peri', excl: ['isch', 'brugada'], leads: ['I', 'II', 'aVF', 'V5', 'V6', 'aVR'], line: 'Diffuse concave ST elevation with PR depression and ST depression in aVR: pericarditis.' },
     brugada: { group: 'brugada', skill: 'conditions', rating: 80, dx: 'Brugada type 1', brugada: true, struct: 'brugada', excl: ['isch', 'peri'], leads: ['V1', 'V2'], line: 'Coved ST elevation ≥ 2 mm in V1–V2 into a negative T: Brugada pattern.' },
   };
-  const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 2.5, recent: 2.5, hyper: 1.5, peri: 1, brugada: 0.7 };
+  const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 2.5, recent: 2.5, hyper: 1.5, narrow: 2.5, peri: 1, brugada: 0.7 };
   const ITEM_BASE = 1200, PER_ABN = 180;
 
   // Combination rules (the author's clinical calls; see docs/DEVELOPMENT.md training-1):
@@ -3633,9 +3635,9 @@ return module.exports; })();
     }
     const q = all.filter((x) => QRS.includes(x));
     if (q.length > 2 || (q.length === 2 && !BIFASC.some(([x, y]) => q.includes(x) && q.includes(y)))) return false;
-    const isch = has('stemi') || has('oldmi') || has('recent') || has('hyper');
+    const isch = has('stemi') || has('oldmi') || has('recent') || has('hyper') || has('narrow');
     if (has('lbbb') && (isch || has('peri'))) return false;
-    if (has('rbbb') && (has('oldmi') || has('recent') || has('hyper') || has('peri'))) return false;   // (RBBB's own T waves)
+    if (has('rbbb') && (has('oldmi') || has('recent') || has('hyper') || has('narrow') || has('peri'))) return false;   // (RBBB's own T waves)
     if (has('peri') && all.some((x) => x !== 'peri' && !['rae', 'lae', 'bae', 'avb1'].includes(x))) return false;
     if (has('wpw') && all.some((x) => ['rae', 'lae', 'bae', 'avb1', 'peri'].includes(x))) return false;
     return true;
@@ -3705,7 +3707,7 @@ return module.exports; })();
       if (atria.ra || atria.la) S.setAtrialEnlargement(atria);
       if (R.block) S.setBlock(R.block[0], R.block[1], R.block[2] || {});
       const isch = rec.abn.find((a) => ABN[a.k].isch);
-      if (isch) { S.addOcclusion(MI_SITES[isch.site].f(M.coronary.branches)); S.setIschemiaTime(ABN[isch.k].isch); }
+      if (isch) { const node = MI_SITES[isch.site].f(M.coronary.branches); if (ABN[isch.k].stenosis) S.addStenosis(node); else S.addOcclusion(node); S.setIschemiaTime(ABN[isch.k].isch); }
       return S;
     }
     function induce(M, rec) {
@@ -3798,6 +3800,12 @@ return module.exports; })();
         case 'wpw': return yes(m.pr !== null && m.pr < 120 && m.qrs >= 110 && m.upstroke >= 50, `PR ${m.pr}, QRS ${m.qrs}, upstroke ${m.upstroke}`);
         case 'lvh': { const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S; return yes(sok >= 3.5 || corn > 2.8 || L.aVL.R >= 1.1, `Sokolow ${sok.toFixed(2)}, Cornell ${corn.toFixed(2)}`); }
         case 'rvh': return yes((m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7), `axis ${m.axis}°, R V1 ${L.V1.R}`);
+        case 'narrow': {
+          // subendocardial ischemia: ST depression ≥ 0.5 mm in two contiguous leads (aVR and V1 not counted),
+          // and no ST-elevation criteria met
+          const std = contiguous(LEADS.filter((n) => !['aVR', 'V1'].includes(n) && L[n].stJ <= -0.05));
+          return yes(std.length >= 2 && !steLeads(L).length, `ST depression in ${std.map((n) => `${n} ${(L[n].stJ * 10).toFixed(1)}`).join(', ') || 'none'}${steLeads(L).length ? ', ST elevation' : ''}`, std);
+        }
         case 'hyper': {
           // textbook: T ≥ 5 mm in a limb lead or ≥ 10 mm in a chest lead, in two contiguous leads of the
           // territory, with no ST elevation criteria met (the rise over the same heart's T is checked on the twin)
@@ -3841,7 +3849,7 @@ return module.exports; })();
       for (const a of rec.abn) { const d = ABN[a.k]; if (d.block) blocks.push(`${d.block[0]}.${d.block[1]}`); if (d.struct) struct.push(d.struct); if (d.isch) isch = a; }
       if (blocks.length) q.push(`b=${blocks.join(',')}`);
       if (struct.length) q.push(`s=${struct.join(',')}`);
-      if (isch) { const M = model(rec.abn.some((a) => ABN[a.k].hyp) ? ABN[rec.abn.find((a) => ABN[a.k].hyp).k].hyp : null); q.push(`o=${MI_SITES[isch.site].f(M.coronary.branches)}&c=2&h=${ABN[isch.k].isch}`); }
+      if (isch) { const M = model(rec.abn.some((a) => ABN[a.k].hyp) ? ABN[rec.abn.find((a) => ABN[a.k].hyp).k].hyp : null); q.push(`${ABN[isch.k].stenosis ? 'n' : 'o'}=${MI_SITES[isch.site].f(M.coronary.branches)}&c=2&h=${ABN[isch.k].isch}`); }
       return q.join('&');
     }
     function build(rec, opts = {}) {
@@ -3871,7 +3879,16 @@ return module.exports; })();
         const twinRec = { ...rec, abn: rec.abn.filter((x) => x !== a) }, tsim = simulate(twinRec), tmed = tsim && medianBeat(tsim);
         let tw = null;
         if (tmed) { tw = twinDiff(med, tmed, a.k); if (!tw.ok) return fail(`${a.k} barely changes the tracing (${tw.max} mV)`, 'twin'); }
-        if (a.k === 'hyper') {
+        if (a.k === 'narrow') {
+          // (ST depression does not localise the artery: the region asked is where the depression is deepest; any
+          // other lead group that shows it is accepted too)
+          const site = MI_SITES[a.site], terr = terrOf(c.leads), depth = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].stJ));
+          const main = terr.slice().sort((x, y) => depth(x) - depth(y))[0];
+          findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok])].filter((t) => t !== main) });
+          c.leads.forEach((l) => hl.add(l)); if (r.L.aVR.stJ >= 0.05) hl.add('aVR');
+          lines.std = `ST depression in ${c.leads.join(', ')}${r.L.aVR.stJ >= 0.05 ? ' with ST elevation in aVR' : ''}: subendocardial ischemia (NSTEMI pattern, here a narrowed ${site.name}). ST depression does not show which artery.`;
+          ['twi', 'reciprocal', 'flatT'].forEach((x) => optional.add(x));
+        } else if (a.k === 'hyper') {
           // (the T waves must be taller than this heart's own: at least 1.5× the twin's in those leads)
           if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr).L, risen = c.leads.filter((n) => r.L[n].T >= 1.5 * Math.max(0.05, tr[n].T)); if (risen.length < 2) return fail(`hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); c.leads = risen; }
           const site = MI_SITES[a.site], ex = site.ste, terr = terrOf(c.leads), req = ex.req.filter((t) => terr.includes(t)).length ? ex.req.filter((t) => terr.includes(t)) : terr.slice(0, 1);

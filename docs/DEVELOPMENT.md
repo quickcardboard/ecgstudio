@@ -1472,3 +1472,12 @@ replaces the clicked subendocardial patch (still off, Round 27) as the way to sh
   share links `n=` (with `c=2`). Tab notes, Help (Control tabs, Gestures) and the Learn entry on
   subendocardial ischemia updated.
 - Checks: `evalecg` identical (nothing changes without a narrowing).
+
+## training-1 round 8: narrowing in the quiz
+
+- New ischemia scenario `narrow` (Round 40's `addStenosis` at 1 h, sites proximal/mid LAD, proximal/mid
+  RCA, proximal circumflex): answer "ST depression" located where it is deepest, any other lead group that
+  shows it accepted (ST depression does not localise the artery); T inversion, flat T and reciprocal
+  change optional. Checker: ST depression ≥ 0.5 mm in two contiguous leads (not aVR or V1), no ST-elevation
+  criteria met. Not combined with LBBB, RBBB, LVH/RVH (strain), WPW, pericarditis or Brugada. "Model"
+  opens the simulator with the narrowing (`n=`).
