@@ -1293,3 +1293,17 @@ linked from the menu yet.
 - Scoring as in the design: rhythm 40% (an accepted alternative such as "SVT" for AVNRT: half), required
   findings share 60% (the region is half of a finding's share), optional findings +5%, a finding not present
   −10% (−20% on an ECG with no other abnormality). Session rating Elo-style, not saved.
+
+## training-1 round 2: keyboard, compact ECG, menu, suggestions by frequency
+
+- Keyboard styled like a phone's own: number row, QWERTY, delete, space bar, a magnified key preview, and
+  room below for the home indicator. Submit sits beside the text field. "No other abnormality" is removed
+  (picking it after a full answer was scored as a wrong finding).
+- ECG at the same paper scale (5 s across the width) with the rows 17 mm apart (was a quarter of the free
+  height); the space left over goes above the keyboard. The result sits directly under the ECG.
+- Menu (⋯): Statistics (this session: rating, answered, average score and time, rhythm accuracy, per ECG),
+  How training works, Restart session, the simulator. Session statistics and rating are kept in
+  sessionStorage, so they survive "Show me why" and back; nothing is kept beyond the tab.
+- Vocabulary ordered by how common each term is (file order = suggestion order); an exact abbreviation
+  goes first ("af", "chb", "3avb"). More synonyms and numbered forms (1AVB, 2AVB1, 3AVB, 2:1 as "21");
+  "old MI" and "STEMI" are synonyms of Q waves and ST elevation, so they ask for the location.

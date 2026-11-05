@@ -17,18 +17,25 @@
       if (!line || line.startsWith('#') || !kind) continue;
       const [id, name, syn = '', flags = ''] = line.split('|').map((s) => s.trim());
       if (!id || !name) continue;
-      const t = { id, name, kind, syn: syn.split(',').map((s) => s.trim()).filter(Boolean), region: /\bregion\b/.test(flags) };
+      const t = { id, name, kind, rank: VOCAB.length, syn: syn.split(',').map((s) => s.trim()).filter(Boolean), region: /\bregion\b/.test(flags) };
       VOCAB.push(t); BY_ID[id] = t;
     }
   }
   const norm = (s) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
-  // a term matches when the typed letters start one of its words, or the name/synonym written without spaces
+  // a term matches when the typed text starts at the start of a word of its name or a synonym, or
+  // matches the name/synonym written without spaces ("3avb" → "3 AVB"). Returns { via, exact } or null:
+  // via is the synonym that matched ('' for the name), exact when the text is that whole synonym.
   function matchTerm(t, q) {
+    const qs = q.replace(/ /g, '');
+    let best = null;
     for (const [s, isName] of [[t.name, true], ...t.syn.map((x) => [x, false])]) {
-      const n = norm(s);
-      if (n.replace(/ /g, '').startsWith(q) || n.split(' ').some((w) => w.startsWith(q))) return isName ? '' : s;
+      const n = norm(s), ns = n.replace(/ /g, '');
+      if (ns.startsWith(qs) || (' ' + n).includes(' ' + q)) {
+        const exact = ns === qs;
+        if (!best || (exact && !best.exact) || (isName && !best.exact && best.via)) best = { via: isName ? '' : s, exact };
+      }
     }
-    return null;
+    return best;
   }
 
   // ------------------------------------------------------------------ bank
@@ -138,7 +145,7 @@
     if (cal) {
       const c = cells.find((x) => (cal.lead === 'rhythm' ? x.rhythm : x.lead === cal.lead && !x.rhythm) && cal.t0 >= x.t0 && cal.t1 <= x.t1);
       if (c) {
-        const xa = c.x0 + (cal.t0 - c.t0) * pxMs, xb = c.x0 + (cal.t1 - c.t0) * pxMs, ya = c.y0 + rowH * 0.12, yb = c.y1 - rowH * 0.06, ym = c.y0 + rowH * 0.2;
+        const xa = c.x0 + (cal.t0 - c.t0) * pxMs, xb = c.x0 + (cal.t1 - c.t0) * pxMs, ya = c.y0 + rowH * 0.12, yb = c.y1 - rowH * 0.06, ym = Math.max(c.y0 + rowH * 0.2, c.y0 + 20 * dpr);
         g.save(); g.strokeStyle = '#2f63f0'; g.lineWidth = 1.8 * dpr;
         g.beginPath(); g.moveTo(xa, ya); g.lineTo(xa, yb); g.moveTo(xb, ya); g.lineTo(xb, yb); g.moveTo(xa, ym); g.lineTo(xb, ym); g.stroke();
         g.font = `600 ${Math.round(11 * dpr)}px "IBM Plex Mono", ui-monospace, monospace`; g.textBaseline = 'bottom';
@@ -152,11 +159,13 @@
   // ------------------------------------------------------------------ state
   const st = {
     pos: 0, item: null, page: 0, picked: [], typed: '', phase: 'answer',   // answer | region | result
-    region: null, t0: 0, rating: 1500, fs: false,
+    region: null, t0: 0, rating: 1500, fs: false, hist: [],
   };
+  // session (this browser tab only; the prototype keeps nothing longer): survives "Show me why" and back
+  function saveSession() { try { sessionStorage.setItem('ecgTraining', JSON.stringify({ hist: st.hist, rating: st.rating })); } catch (e) { /* storage blocked */ } }
+  try { const j = JSON.parse(sessionStorage.getItem('ecgTraining') || 'null'); if (j) { st.hist = j.hist || []; st.rating = j.rating || 1500; } } catch (e) { /* none */ }
   {
     const m = /(?:^|[#&])i=(\d+)/.exec(location.hash); if (m) st.pos = (+m[1]) % ORDER.length;
-    const r = /(?:^|[#&])r=(\d+)/.exec(location.hash); if (r) st.rating = +r[1];
   }
   const rhythmPick = () => st.picked.find((p) => BY_ID[p.id].kind === 'rhythm');
 
@@ -185,23 +194,22 @@
     $('fsPicked').innerHTML = st.picked.length ? st.picked.map((p) => `<span class="achip">${chipLabel(p)}</span>`).join('') : '<span class="prompt">Nothing yet</span>';
   }
   function suggestions() {
-    const q = norm(st.typed).replace(/ /g, '');
+    const q = norm(st.typed);
     const wantRhythm = !rhythmPick(), kind = wantRhythm ? 'rhythm' : 'finding', taken = new Set(st.picked.map((p) => p.id));
-    if (q.length < 2) return { list: [], q };
+    if (q.replace(/ /g, '').length < 2) return { list: [], q };
     const list = [];
-    for (const t of VOCAB) { if (t.kind !== kind || taken.has(t.id)) continue; const m = matchTerm(t, q); if (m !== null) list.push({ t, via: m }); }
-    list.sort((a, b) => a.t.name.localeCompare(b.t.name));   // alphabetical: the order gives nothing away
+    for (const t of VOCAB) { if (t.kind !== kind || taken.has(t.id)) continue; const m = matchTerm(t, q); if (m) list.push({ t, ...m }); }
+    list.sort((a, b) => (b.exact - a.exact) || (a.t.rank - b.t.rank));   // an exact abbreviation, then the most common
     return { list, q };
   }
   function renderField() {
     const wantRhythm = !rhythmPick();
     $('typed').textContent = st.typed;
-    $('ph').textContent = st.typed ? '' : wantRhythm ? 'Type the rhythm' : 'Add a finding, or Submit';
+    $('ph').textContent = st.typed ? '' : wantRhythm ? 'Type the rhythm' : 'Add a finding';
     const { list, q } = suggestions(), el = $('suggest');
     let html = '';
-    if (q.length < 2) {
-      if (!wantRhythm && !st.picked.some((p) => p.id === 'none')) html += '<button type="button" class="none" data-id="none">No other abnormality</button>';
-      html += `<span class="hint">${q.length ? 'one more letter…' : wantRhythm ? 'Suggestions after 2 letters' : ''}</span>`;
+    if (q.replace(/ /g, '').length < 2) {
+      html += `<span class="hint">${q.length ? 'one more letter…' : wantRhythm ? 'Suggestions after 2 letters' : 'Add every abnormality you see, then Submit'}</span>`;
     } else if (!list.length) html = `<span class="hint">No ${wantRhythm ? 'rhythm' : 'finding'} starts with “${st.typed}”</span>`;
     else html = list.map(({ t, via }) => `<button type="button" data-id="${t.id}">${t.name}${via ? `<small>${via}</small>` : ''}</button>`).join('');
     el.innerHTML = html; el.scrollLeft = 0;
@@ -225,10 +233,25 @@
     $('answer').hidden = ph === 'result'; $('kbd').hidden = ph !== 'answer'; $('region').hidden = ph !== 'region'; $('result').hidden = ph !== 'result';
     renderPicked();
     if (ph === 'answer') renderField();
-    if (ph === 'region') { $('suggest').innerHTML = ''; $('field').hidden = true; renderRegion(); } else $('field').hidden = false;
+    if (ph === 'region') { $('suggest').innerHTML = ''; $('fieldRow').hidden = true; renderRegion(); } else $('fieldRow').hidden = false;
     if (ph === 'region') $('answer').hidden = false;
     if (ph === 'result') renderResult();
     requestAnimationFrame(drawAll);
+  }
+
+  // the ECG keeps the paper scale (5 s across the width) with the leads 17 mm apart: 4 rows
+  const ROW_MM = 17;
+  function sizeEcg() { const v = $('ecgView'), w = v.clientWidth; if (w) v.style.height = `${Math.round(w / 125 * ROW_MM * 4)}px`; }
+
+  // ------------------------------------------------------------------ statistics (this session)
+  function renderStats() {
+    const h = st.hist, n = h.length, avg = (f) => (n ? h.reduce((a, x) => a + f(x), 0) / n : 0);
+    const el = $('statsBody');
+    if (!n) { el.innerHTML = '<p class="empty">No answers yet. Statistics fill in as you answer.</p><p class="empty">Prototype: statistics are kept for this browser tab only.</p>'; return; }
+    const tile = (v, l) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`;
+    el.innerHTML = `<div class="tiles">${tile(Math.round(st.rating), 'Rating')}${tile(n, 'ECGs answered')}${tile(`${Math.round(avg((x) => x.score) * 100)}%`, 'Average score')}${tile(`${Math.round(avg((x) => (x.rhythm === 'ok' ? 1 : 0)) * 100)}%`, 'Rhythm correct')}${tile(`${Math.round(avg((x) => x.time))} s`, 'Average time')}${tile(`${h.filter((x) => x.score >= 0.999).length}`, 'Perfect answers')}</div>`
+      + '<h3>By ECG</h3><div class="hist">' + h.slice().reverse().map((x) => `<div><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="tm">${Math.round(x.time)} s</span></div>`).join('') + '</div>'
+      + '<p class="empty" style="margin-top:16px">Prototype: statistics are kept for this browser tab only. The skill radar, rating history and accuracy by topic come with saved progress.</p>';
   }
 
   // ------------------------------------------------------------------ the ECG pages: swipe, double-tap, region taps
@@ -289,36 +312,47 @@
 
   // ------------------------------------------------------------------ keyboard and type-ahead
   function buildKeyboard() {
-    const rows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'], el = $('kbd');
-    el.innerHTML = rows.map((r, i) => `<div class="row">${i === 2 ? '<button type="button" class="wide submit" data-k="submit">Submit</button>' : ''}${[...r].map((c) => `<button type="button" data-k="${c}">${c}</button>`).join('')}${i === 2 ? '<button type="button" class="wide" data-k="del" aria-label="Delete">⌫</button>' : ''}</div>`).join('');
-    // pointerdown (not click): typing feels immediate; holding delete repeats
-    let rep = null;
+    const el = $('kbd'), keys = (r) => [...r].map((c) => `<button type="button" data-k="${c}">${c}</button>`).join('');
+    el.innerHTML = `<div class="row num">${keys('1234567890')}</div><div class="row">${keys('qwertyuiop')}</div><div class="row mid">${keys('asdfghjkl')}</div>`
+      + `<div class="row"><span class="fn" style="visibility:hidden"></span>${keys('zxcvbnm')}<button type="button" class="fn" data-k="del" aria-label="Delete">⌫</button></div>`
+      + '<div class="row"><button type="button" class="space" data-k=" ">space</button></div>';
+    // pointerdown (not click): typing feels immediate; a letter shows a magnified preview; holding delete repeats
+    let rep = null, pop = null;
+    const unpop = () => { if (pop) { pop.remove(); pop = null; } };
     el.addEventListener('pointerdown', (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      e.preventDefault(); b.classList.add('down'); setTimeout(() => b.classList.remove('down'), 120);
+      e.preventDefault(); b.classList.add('down'); setTimeout(() => b.classList.remove('down'), 110);
       const k = b.dataset.k;
-      if (k === 'submit') return submit();
       if (k === 'del') { del(); clearInterval(rep); const t0 = Date.now(); rep = setInterval(() => { if (Date.now() - t0 > 400) del(); }, 70); return; }
-      if (st.typed.length < 24) { st.typed += k; renderField(); }
+      if (k.trim()) {
+        unpop(); const r = b.getBoundingClientRect(), kr = el.getBoundingClientRect();
+        pop = document.createElement('div'); pop.className = 'pop'; pop.textContent = k;
+        Object.assign(pop.style, { left: `${r.left - kr.left - 6}px`, top: `${r.top - kr.top - 52}px`, width: `${r.width + 12}px`, height: '50px' });
+        el.appendChild(pop); setTimeout(unpop, 160);
+      }
+      type(k);
     });
     const stop = () => clearInterval(rep);
     el.addEventListener('pointerup', stop); el.addEventListener('pointercancel', stop); el.addEventListener('pointerleave', stop);
     // a hardware keyboard works too (desktop testing)
     addEventListener('keydown', (e) => {
-      if (st.phase !== 'answer' || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (/^[a-z]$/i.test(e.key)) { st.typed += e.key.toLowerCase(); renderField(); }
+      if (st.phase !== 'answer' || e.metaKey || e.ctrlKey || e.altKey || !$('menu').hidden) return;
+      if (/^[a-z0-9 ]$/i.test(e.key)) type(e.key.toLowerCase());
       else if (e.key === 'Backspace') del();
-      else if (e.key === 'Enter') { const first = $('suggest').querySelector('button[data-id]'); if (st.typed.length >= 2 && first) pick(first.dataset.id); else submit(); }
+      else if (e.key === 'Enter') { const first = $('suggest').querySelector('button[data-id]'); if (first) pick(first.dataset.id); else submit(); }
       else return;
       e.preventDefault();
     });
+  }
+  function type(k) {
+    if (k === ' ' && (!st.typed || st.typed.endsWith(' '))) return;
+    if (st.typed.length < 30) { st.typed += k; renderField(); }
   }
   function del() { if (!st.typed) return; st.typed = st.typed.slice(0, -1); renderField(); }
   function pick(id) {
     const t = BY_ID[id]; if (!t) return;
     st.typed = '';
     if (t.kind === 'rhythm') { st.picked = st.picked.filter((p) => BY_ID[p.id].kind !== 'rhythm'); st.picked.unshift({ id }); render(); return; }
-    if (id === 'none') { st.picked.push({ id }); render(); submit(); return; }
     if (t.region) { const p = { id, regions: [], pending: true }; st.picked.push(p); st.region = p; st.phase = 'region'; render(); return; }
     st.picked.push({ id }); render();
   }
@@ -345,6 +379,8 @@
     const exp = 1 / (1 + 10 ** ((ir - st.rating) / 400));
     st.delta = 32 * (st.score.total - exp); st.rating += st.delta;
     st.phase = 'result'; st.typed = ''; st.shownAt = performance.now();
+    st.hist.push({ id: st.item.id, title: st.item.title, score: st.score.total, time: st.time, rhythm: st.score.rhythm, delta: st.delta });
+    saveSession();
     // show the half of the ECG that carries the answer
     const hl = st.item.highlight || [], chest = hl.filter((l) => l.startsWith('V')).length, limb = hl.length - chest;
     setPage(st.item.caliper && st.item.caliper.lead.startsWith('V') ? 1 : chest > limb ? 1 : 0);
@@ -375,7 +411,6 @@
     }
     for (const p of fp) {
       if (req.some((f) => f.id === p.id)) continue;
-      if (p.id === 'none' && !req.length) { out.rows.push({ id: p.id, cls: 'ok', label: BY_ID[p.id].name }); continue; }
       if (opt.includes(p.id)) { s += 0.05; out.rows.push({ id: p.id, cls: 'ok', label: chipLabel(p), tag: 'also true' }); continue; }
       wrong++; out.rows.push({ id: p.id, cls: 'bad', label: chipLabel(p) }); out.wrong = out.wrong || p;
     }
@@ -419,12 +454,28 @@
     // Show me why: the simulator on the same scenario; coming back continues at the next item
     $('why').addEventListener('click', () => {
       if (fresh()) return;
-      history.replaceState(null, '', `#i=${(st.pos + 1) % ORDER.length}&r=${Math.round(st.rating)}`);
+      history.replaceState(null, '', `#i=${(st.pos + 1) % ORDER.length}`);
       location.href = `../index.html#${st.item.link}`;
     });
-    addEventListener('resize', syncFs);
+    addEventListener('resize', () => { sizeEcg(); syncFs(); });
+    $('submit').addEventListener('click', submit);
+    // menu: statistics, help, restart, the simulator
+    const menu = $('menu'), showMenu = (on) => { menu.hidden = !on; $('menuBtn').setAttribute('aria-expanded', String(on)); };
+    $('menuBtn').addEventListener('click', (e) => { e.stopPropagation(); showMenu(menu.hidden); });
+    addEventListener('pointerdown', (e) => { if (!menu.hidden && !e.target.closest('#menu, #menuBtn')) showMenu(false); });
+    menu.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-go]'); if (!b) return;
+      showMenu(false);
+      if (b.dataset.go === 'stats') { renderStats(); $('stats').hidden = false; }
+      if (b.dataset.go === 'help') $('help').hidden = false;
+      if (b.dataset.go === 'restart' && confirm('Start again? This clears the session statistics and rating.')) {
+        st.hist = []; st.rating = 1500; saveSession(); st.pos = 0; history.replaceState(null, '', '#i=0'); loadItem();
+      }
+    });
+    for (const b of document.querySelectorAll('.page [data-close]')) b.addEventListener('click', () => { b.closest('.page').hidden = true; });
     window.ECGTraining = { st, pick, submit, toggleRegion, endRegion, setPage, setFs, score, ITEMS, VOCAB };   // (automated tests)
-    loadItem(); syncFs();
+    for (const it of ITEMS) for (const id of [it.key.rhythm, ...(it.key.alt || []), ...it.key.findings.map((f) => f.id), ...(it.key.optional || [])]) if (!BY_ID[id]) console.warn(`training: ${it.id} uses "${id}", not in the vocabulary`);
+    sizeEcg(); loadItem(); syncFs();
     if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(drawAll));
   }
   init();
