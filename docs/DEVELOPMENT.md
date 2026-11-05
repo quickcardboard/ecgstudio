@@ -1323,3 +1323,89 @@ rest of the conduction system (not a colour of its own: teal could be taken for 
 by the activation of its own segments, and shown only with the condition "Dual AV-nodal pathways" (also
 switched on by AVNRT). In AVNRT the activation front is seen going down the slow pathway and back up the
 fast one. Reset hides it again. Checked: page loads without errors, AVNRT turns the pathway on, Reset off.
+## training-1 round 1: Training prototype (phones, portrait)
+
+First prototype of the training mode in the design document: one screen, a fixed bank of 10 items, no
+ratings kept and no storage. Served at `training/index.html` (ecgstudio.app/training once merged); not
+linked from the menu yet.
+
+- Bank: `node tools/trainbank.js` runs 10 scenarios (normal, AF, flutter 4:1, AVNRT, AVRT, Mobitz I,
+  complete AV block, LBBB, old inferior infarct at 30 days, proximal LAD STEMI at 1 h), records 10 s of
+  12-lead ECG after 4 s settling, and reads it blind (`reader.js` beat read, `rhythmread.js` rhythm read).
+  An item is kept only if the reading matches its gate; all 10 pass. Output `src/training_bank.json`
+  (250 Hz, µV Int16, base64; about 80 kB per item) with the measurements, answer key, highlight leads,
+  caliper and the simulator link for "Show me why". Rerun after engine changes.
+- Measurements shown are the reader's. At 170–210/min the single-beat reader has no TP segment, so the
+  tachycardias take axis and QRS from the same heart in sinus rhythm and show no QTc; PR is not shown where
+  it is not a fixed interval (AF, flutter, SVT, Mobitz I, complete block).
+- Vocabulary: `src/training_vocab.txt`, plain text for the author to edit (id | name | synonyms | flags).
+- Page: `src/training.html` + `src/training.js`, assembled by `tools/build.py` into `training/index.html`.
+  ECG halves (limb leads 0–5 s, chest leads 5–10 s; 2.5 s per lead, lead II rhythm strip), swipe between
+  them, double-tap (or the phone held sideways) for the full 12-lead. QWERTY keyboard without space; a
+  hardware keyboard also works for desktop testing. Region mode for any finding flagged `region`.
+- Scoring as in the design: rhythm 40% (an accepted alternative such as "SVT" for AVNRT: half), required
+  findings share 60% (the region is half of a finding's share), optional findings +5%, a finding not present
+  −10% (−20% on an ECG with no other abnormality). Session rating Elo-style, not saved.
+
+## training-1 round 2: keyboard, compact ECG, menu, suggestions by frequency
+
+- Keyboard styled like a phone's own: number row, QWERTY, delete, space bar, a magnified key preview, and
+  room below for the home indicator. Submit sits beside the text field. "No other abnormality" is removed
+  (picking it after a full answer was scored as a wrong finding).
+- ECG at the same paper scale (5 s across the width) with the rows 17 mm apart (was a quarter of the free
+  height); the space left over goes above the keyboard. The result sits directly under the ECG.
+- Menu (⋯): Statistics (this session: rating, answered, average score and time, rhythm accuracy, per ECG),
+  How training works, Restart session, the simulator. Session statistics and rating are kept in
+  sessionStorage, so they survive "Show me why" and back; nothing is kept beyond the tab.
+- Vocabulary ordered by how common each term is (file order = suggestion order); an exact abbreviation
+  goes first ("af", "chb", "3avb"). More synonyms and numbered forms (1AVB, 2AVB1, 3AVB, 2:1 as "21");
+  "old MI" and "STEMI" are synonyms of Q waves and ST elevation, so they ask for the location.
+
+## training-1 round 3: the first keyboard back, ECG fills the screen
+
+- Keyboard as in round 1 (three letter rows across the full width, no number row) plus a space bar row.
+  The key left of z, where Submit was, is now **Add**: it adds the first suggestion (Enter on a hardware
+  keyboard does the same).
+- The ECG takes all the height between the measurements and the answer area (rows a quarter of it each;
+  the paper scale stays 5 s across the width), also on the result screen.
+
+## training-1 round 4: live ECG generation, what a student would see
+
+- No question bank: `src/training_gen.js` builds each ECG on the phone in a background worker (engine,
+  `tools/reader.js`, `tools/rhythmread.js` and the generator, assembled by `tools/build.py`), two ahead
+  of the user. A scenario is a rhythm plus 0–4 abnormalities, chosen near the user's level: Glicko-2 per
+  skill (rhythm, conduction, ischemia, conditions), item rating from the rhythm and the number and type of
+  abnormalities (+60 when P waves are hidden), aiming at about 72% expected success.
+- The check, "how would a student see this?":
+  - rhythm and rate from the engine's activation times; P waves must not lie inside a QRS or T wave
+    (≤ 20% of them for sinus rhythms, ≤ 50% for AV block rhythms). The blind rhythm reader runs for the
+    record only (it misread Mobitz I/II as AF and sinus rhythm as flutter on visible P waves).
+  - morphology on the median beat (all beats aligned at the engine's ventricular onset): each abnormality
+    on its own published criteria (no chained rules), and a twin run without it must differ by ≥ 1 mm
+    (0.5 mm for P waves). Highlights: the textbook leads where the twin shows the change.
+  - the blind beat read of the median beat must not show a finding that was not put in.
+- Combination rules (author's clinical calls): at most one QRS-changing condition (LBBB, RBBB, LAFB, LPFB,
+  LVH, RVH, Brugada, WPW) except RBBB + LAFB/LPFB; LBBB without ischemia; RBBB with acute STEMI but not
+  old infarct or pericarditis; pericarditis only with atrial enlargement or first-degree block; WPW with
+  ischemia but not atrial enlargement or first-degree block; LAFB not with an inferior infarct, LPFB not
+  with an LAD or circumflex one; at 106–125/min no first-degree block, WPW, BBB, pericarditis or BAE.
+- Audit: `node tools/trainlive.js [N] [seed]` (pass rate by rhythm, abnormality, pair, and the stage
+  that rejected). Before the median-beat and twin check 25/60 passed; after it 40/60 (every
+  single-abnormality ECG), before the combination rules above.
+- Open: AF looks organised (11 fixed-rate foci, mostly left atrial: waves repeat every 160–176 ms, tiny
+  in V1) and flutter's inferior sawtooth is small and uneven: proposed engine work on milestone-1.
+
+## training-1 round 5: training home
+
+- Home screen (opened first; the heart is built in the background meanwhile): rating, day streak, level
+  with experience to the next, Daily ECG, Train, Reviews (due count), practice by skill (the skill's
+  rating; ECGs aimed at that skill), Statistics, How it works, the simulator. Prototype: all unlocked.
+- Daily ECG: the same for everyone on a date (generator seeded by the date, target 1500), not rated;
+  the result can be shared as text (score, streak, link; no answer).
+- Reviews: an ECG scored under 80% returns after 1, 3, 7, 16 and 35 days (Leitner boxes; a miss
+  starts again at 1 day), rebuilt in the worker from its recipe (same seed: the same ECG).
+- Streak: a day counts with the daily ECG or 5 ECGs. Levels (experience = 10 × score × (1 + number of
+  abnormalities)): Medical student, Clerk, Intern, Resident, Registrar, Cardiology fellow, Cardiologist,
+  Electrophysiologist, Professor of cardiology (0, 150, 400, 900, 1800, 3200, 5500, 9000, 14000 XP).
+- Stored on the phone (localStorage `ecgTraining.v1`): ratings, last 300 answers, reviews, days, XP.
+- The simulator's phone menu links to Training (milestone-1).

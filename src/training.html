@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="author" content="{{AUTHOR}}">
+<title>ECG Studio · Training</title>
+<meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0b131a">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28S3 20 3 11a6.5 6.5 0 0 1 13-1 6.5 6.5 0 0 1 13 1c0 9-13 17-13 17z' fill='%23c2304f'/%3E%3Cpath d='M5 15h6l2-4 3 9 2-5h9' stroke='%23fff' stroke-width='2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<style>
+/* Training (prototype): portrait phone screen. ECG half (limb or chest leads, 5 s) on top,
+   the answer (chips, type-ahead, keyboard) below; the result replaces the answer area.
+   Double-tap the ECG (or hold the phone sideways) for the full 12-lead turned sideways. */
+:root {
+  --bg: #0b131a; --surface: #121d27; --raised: #1b2834; --key: #24323f; --fg: #e3eaf0; --muted: #93a3b1; --line: #24323f;
+  --accent: #ef5b7a; --accent-fg: #160a0d;
+  --ok: #3cc47c; --part: #ff9a3d; --bad: #ff5a64; --miss: #93a3b1;
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+* { -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body { margin: 0; background: #05090d; color: var(--fg); font: 14px/1.4 var(--font-ui); overflow: hidden; overscroll-behavior: none;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+button { font: 500 14px/1 var(--font-ui); color: inherit; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; touch-action: manipulation; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+button:disabled { opacity: 0.4; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* the phone screen (on a desktop browser: a phone-sized column in the middle) */
+#app { position: relative; height: 100%; height: 100dvh; max-width: 440px; margin: 0 auto; background: var(--bg); display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); box-sizing: border-box; overflow: hidden; }
+header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; min-height: 36px; }
+#menuBtn { font-size: 18px; line-height: 1; padding: 6px 10px; border-radius: 999px; background: var(--surface); }
+.menu { position: absolute; z-index: 25; top: calc(env(safe-area-inset-top, 0px) + 48px); right: 10px; min-width: 210px; background: var(--raised); border: 1px solid #33434f; border-radius: 10px; padding: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
+.menu button, .menu a { all: unset; display: block; padding: 12px 12px; border-radius: 6px; font-size: 15px; cursor: pointer; color: var(--fg); }
+.menu button:active, .menu a:active { background: rgba(255,255,255,0.08); }
+.menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
+.page { position: absolute; inset: 0; z-index: 24; background: var(--bg); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
+.page .phead { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.page .phead h2 { margin: 0; font: 600 18px/1 var(--font-display); }
+.page .pbody { flex: 1; overflow-y: auto; padding: 14px 16px 30px; -webkit-user-select: text; user-select: text; }
+.page .pbody h3 { font: 600 13px/1.2 var(--font-ui); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 18px 0 8px; }
+.page .pbody p, .page .pbody li { line-height: 1.5; color: #c9d3dc; }
+.page .pbody ul { padding-left: 18px; margin: 6px 0; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.tile b { display: block; font: 600 22px/1.1 var(--font-data); }
+.tile span { font-size: 12px; color: var(--muted); }
+.hist { display: flex; flex-direction: column; gap: 6px; }
+.hist div { display: flex; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
+.hist div span:first-child { flex: 1; }
+.hist .pc { font: 600 14px/1 var(--font-data); min-width: 44px; text-align: right; }
+.hist .tm { font: 400 12px/1 var(--font-data); color: var(--muted); min-width: 34px; text-align: right; }
+.empty { color: var(--muted); }
+#homeBtn { font-size: 22px; line-height: 1; padding: 4px 10px 6px; border-radius: 999px; background: var(--surface); }
+.red { color: var(--accent); }
+#home { z-index: 23; }
+#home .phead { justify-content: space-between; }
+#home .pbody { display: flex; flex-direction: column; gap: 10px; }
+.hstats { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 8px; }
+.hstats > div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.hstats b { font: 600 20px/1.1 var(--font-data); }
+.hstats .hlevel b { font: 600 14px/1.2 var(--font-ui); }
+.hstats span { font-size: 11px; color: var(--muted); }
+.lbar { height: 6px; border-radius: 3px; background: var(--key); overflow: hidden; }
+.lbar i { display: block; height: 100%; background: var(--accent); }
+.hcard { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; padding: 16px; border-radius: 12px; background: var(--surface); }
+.hcard .ht { font: 600 18px/1.1 var(--font-display); display: flex; gap: 8px; align-items: baseline; }
+.hcard .ht small { font: 400 12px/1 var(--font-ui); color: var(--muted); }
+.hcard .hs { font-size: 13px; color: var(--muted); line-height: 1.35; }
+.hcard.main { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.hcard.main .hs { color: rgba(22,10,13,0.75); }
+.hcard.daily { border-color: #f0b429; }
+.hskills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hskills button { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 12px; }
+.hskills small { font: 500 12px/1 var(--font-data); color: var(--muted); }
+.hrow { display: flex; gap: 8px; } .hrow button { flex: 1; padding: 12px; }
+.hsim { color: var(--muted); text-decoration: none; font-size: 14px; padding: 10px 2px; }
+header h1 { margin: 0; font: 600 18px/1 var(--font-display); letter-spacing: 0.01em; flex: 1; }
+header h1 span { color: var(--accent); }
+.proto { font: 500 10px/1 var(--font-ui); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; text-transform: uppercase; letter-spacing: 0.06em; margin-left: 6px; vertical-align: 2px; }
+.stat { font: 500 12px/1 var(--font-data); padding: 6px 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); }
+.stat em { font: 400 11px/1 var(--font-ui); font-style: normal; color: var(--muted); margin-right: 5px; }
+
+/* measurement chips */
+.chips { display: flex; gap: 5px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 0 12px 6px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { font: 500 12px/1 var(--font-data); font-variant-numeric: tabular-nums; padding: 5px 7px; border-radius: 5px; background: var(--surface); border: 1px solid var(--line); white-space: nowrap; }
+#meas { justify-content: space-between; }
+#meas .chip { padding: 5px 6px; }
+.chip em { font-style: normal; color: var(--muted); margin-right: 4px; font-family: var(--font-ui); }
+
+/* the ECG: two pages (limb leads 0–5 s, chest leads 5–10 s) side by side, swiped */
+#ecgView { position: relative; flex: 1 1 auto; min-height: 200px; margin: 0 8px; border-radius: 6px; overflow: hidden; background: #fff; touch-action: none; }
+#track { position: absolute; inset: 0; width: 200%; display: flex; will-change: transform; }
+#track.slide { transition: transform 0.24s cubic-bezier(0.2, 0.7, 0.3, 1); }
+#track canvas { width: 50%; height: 100%; display: block; }
+#loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(255,255,255,0.94); color: #1d2a36; font-size: 15px; text-align: center; padding: 20px; }
+#loading small { color: #5d6b78; font-size: 12px; }
+.spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #d3dae1; border-top-color: #c2304f; animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.skills { display: flex; flex-direction: column; gap: 8px; }
+.skill { display: grid; grid-template-columns: 92px 1fr 44px 34px; align-items: center; gap: 8px; font-size: 13px; }
+.skill .sbar { height: 8px; border-radius: 4px; background: var(--key); overflow: hidden; }
+.skill .sbar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.skill b { font: 600 14px/1 var(--font-data); text-align: right; }
+.skill small { color: var(--muted); font: 400 11px/1 var(--font-data); }
+.pager { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px 2px; font-size: 11px; color: var(--muted); min-height: 14px; }
+.pager i { width: 6px; height: 6px; border-radius: 50%; background: #3a4a59; display: inline-block; }
+.pager i.on { background: var(--fg); }
+.pager .hint { position: absolute; right: 16px; }
+
+/* answer area */
+#answer { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 6px; }
+#picked { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px; min-height: 32px; align-items: center; }
+.achip { font: 500 13px/1.15 var(--font-ui); padding: 7px 10px; border-radius: 999px; background: var(--raised); border: 1px solid #3a4a59; display: inline-flex; align-items: center; gap: 6px; }
+.achip.rhythm { border-color: var(--accent); }
+.achip .x { color: var(--muted); font-size: 12px; }
+.achip.pending { border-style: dashed; border-color: #f0b429; }
+.achip.ok { border-color: var(--ok); background: rgba(60,196,124,0.14); }
+.achip.part { border-color: var(--part); background: rgba(255,154,61,0.14); }
+.achip.bad { border-color: var(--bad); background: rgba(255,90,100,0.12); text-decoration: line-through; text-decoration-color: rgba(255,90,100,0.8); }
+.achip.miss { border-style: dashed; border-color: var(--miss); color: var(--muted); background: transparent; }
+.achip .tag { font-size: 10.5px; color: var(--muted); text-decoration: none; display: inline-block; }
+.prompt { color: var(--muted); font-size: 13px; }
+#fieldRow { display: flex; gap: 8px; margin: 0 12px; }
+#fieldRow #submit { flex: none; padding: 0 16px; height: 42px; font-size: 15px; }
+#field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); font-size: 16px; }
+#field .typed { white-space: pre; }
+#field .caret { width: 2px; height: 20px; background: var(--accent); animation: blink 1s steps(1) infinite; margin-left: -6px; }
+#field .ph { color: var(--muted); font-size: 14px; }
+@keyframes blink { 50% { opacity: 0; } }
+#field.shake { animation: shake 0.3s; border-color: var(--accent); }
+@keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+#suggest { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 0 12px; min-height: 38px; align-items: center; }
+#suggest::-webkit-scrollbar { display: none; }
+#suggest button { white-space: nowrap; padding: 9px 12px; font-size: 14px; flex: none; }
+#suggest button small { color: var(--muted); font-size: 11.5px; margin-left: 6px; }
+#suggest .hint { color: var(--muted); font-size: 12.5px; padding-left: 2px; white-space: nowrap; }
+
+/* in-app keyboard: QWERTY across the full width, Add (the first suggestion) and delete beside z–m,
+   a space bar below */
+#kbd { display: flex; flex-direction: column; gap: 7px; padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 6px); background: #0f1922; border-top: 1px solid var(--line); }
+#kbd .row { display: flex; gap: 5px; }
+#kbd button { flex: 1 1 0; min-width: 0; height: 46px; padding: 0; border-radius: 6px; background: var(--key); border-color: #2f3f4e; font: 500 19px/1 var(--font-ui); text-transform: lowercase; }
+#kbd button:active, #kbd button.down { background: #3a4d5f; }
+#kbd .wide { flex: 1.6 1 0; font-size: 14px; text-transform: none; }
+#kbd .add { color: var(--accent); border-color: rgba(239,91,122,0.6); font-weight: 600; }
+#kbd .space { font-size: 14px; color: var(--muted); text-transform: none; }
+
+/* region mode: pick the lead groups of a finding */
+#region { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px 10px; background: #0f1922; border-top: 1px solid var(--line); }
+#region .title { font-size: 14px; }
+#region .title b { font-weight: 600; }
+#region .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#region .grid button { text-align: left; padding: 10px; font-size: 14px; display: flex; gap: 6px; align-items: baseline; border-width: 1.5px; }
+#region .grid button small { color: var(--muted); font: 400 11.5px/1 var(--font-data); }
+#region .grid button[aria-pressed="true"] { background: rgba(255,255,255,0.08); }
+#region .acts { display: flex; gap: 8px; }
+#region .acts button { flex: 1; padding: 12px; }
+
+/* result */
+#result { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px 10px; overflow-y: auto; }
+.scorebar { display: flex; align-items: center; gap: 10px; }
+.scorebar .bar { flex: 1; height: 10px; border-radius: 5px; background: var(--key); overflow: hidden; }
+.scorebar .bar i { display: block; height: 100%; border-radius: 5px; background: var(--ok); transition: width 0.5s; }
+.scorebar b { font: 600 20px/1 var(--font-data); min-width: 54px; }
+.scorebar .delta { font: 500 13px/1 var(--font-data); }
+.scorebar .delta.up { color: var(--ok); } .scorebar .delta.down { color: var(--bad); }
+.scorebar .time { font: 400 12px/1 var(--font-data); color: var(--muted); }
+#rchips { display: flex; flex-wrap: wrap; gap: 6px; }
+#rline { font-size: 15px; line-height: 1.35; padding: 10px 12px; border-radius: 8px; background: var(--surface); border-left: 3px solid var(--accent); }
+#result .acts { display: flex; gap: 8px; }
+#result .acts button { padding: 14px; font-size: 15px; }
+#result .acts .primary { flex: 2; }
+#result .acts .why { flex: 1; }
+.legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; border: 1.5px solid; }
+.legend .l-ok::before { border-color: var(--ok); } .legend .l-part::before { border-color: var(--part); }
+.legend .l-miss::before { border-color: var(--miss); border-style: dashed; } .legend .l-bad::before { border-color: var(--bad); }
+
+/* full 12-lead turned sideways (double-tap), or upright when the phone is held sideways (body.land) */
+#fs { position: fixed; inset: 0; z-index: 20; background: var(--bg); }
+#fs .inner { position: fixed; left: 50%; top: 50%; width: 100vh; width: 100dvh; height: 100vw; transform: translate(-50%, -50%) rotate(90deg);
+  display: flex; box-sizing: border-box; padding: 0 env(safe-area-inset-bottom, 0px) 0 env(safe-area-inset-top, 0px); }
+body.land #fs .inner { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px); }
+#fs aside { width: 168px; flex: none; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid var(--line); box-sizing: border-box; }
+#fs aside h3 { margin: 4px 0 0; font: 500 11px/1 var(--font-ui); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+#fs aside .chips { flex-direction: column; align-items: flex-start; padding: 0; overflow: visible; }
+#fs aside .achip { font-size: 12px; padding: 5px 8px; }
+#fs .paper { position: relative; flex: 1; min-width: 0; background: #fff; touch-action: none; }
+#fs canvas { width: 100%; height: 100%; display: block; }
+#fsClose { position: absolute; top: 6px; right: 6px; color: #1d2a36; background: rgba(255,255,255,0.92); border-color: #d3dae1; padding: 7px 10px; font-size: 13px; }
+body.land #fsClose { display: none; }
+.toast { position: absolute; left: 50%; top: 40%; transform: translateX(-50%); background: rgba(16,27,37,0.95); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 13px; z-index: 30; pointer-events: none; max-width: 80%; text-align: center; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button type="button" id="homeBtn" aria-label="Training home">‹</button>
+    <h1 id="modeTitle">Training</h1>
+    <div class="stat" id="rating"><em>Rating</em>1500</div>
+    <button type="button" id="menuBtn" aria-label="Menu" aria-expanded="false">⋯</button>
+  </header>
+  <div class="menu" id="menu" hidden>
+    <button type="button" data-go="home">Training home</button>
+    <button type="button" data-go="stats">Statistics</button>
+    <button type="button" data-go="help">How training works</button>
+    <button type="button" data-go="restart">Reset progress</button>
+    <hr>
+    <a href="../index.html">ECG Studio simulator</a>
+  </div>
+  <div class="chips" id="meas"></div>
+  <div id="ecgView" aria-label="12-lead ECG: swipe for the chest leads, double-tap for the full ECG"><div id="track"><canvas id="c0"></canvas><canvas id="c1"></canvas></div>
+    <div id="loading" hidden><div class="spin"></div><div id="loadingMsg">Building the heart…</div><small>Simulating the heart and checking the reading</small></div></div>
+  <div class="pager" id="pager"><i class="on"></i><i></i><span id="pageName">Limb leads</span><span class="hint" id="ghint">Double-tap: full ECG</span></div>
+
+  <div id="result" hidden>
+    <div class="scorebar"><b id="rscore">0%</b><div class="bar"><i id="rbar"></i></div><span class="delta" id="rdelta"></span><span class="time" id="rtime"></span></div>
+    <div id="rchips"></div>
+    <div class="legend"><span class="l-ok">correct</span><span class="l-part">partly correct</span><span class="l-miss">missed</span><span class="l-bad">not present</span></div>
+    <div id="rline"></div>
+    <div class="acts"><button type="button" class="why" id="why">Show me why</button><button type="button" class="why" id="share" hidden>Share</button><button type="button" class="primary" id="next">Next</button></div>
+  </div>
+
+  <div id="answer">
+    <div id="picked"></div>
+    <div id="fieldRow"><div id="field"><span class="typed" id="typed"></span><span class="caret"></span><span class="ph" id="ph">Name the rhythm</span></div><button type="button" class="primary" id="submit">Submit</button></div>
+    <div id="suggest"></div>
+  </div>
+  <div id="kbd" aria-label="Keyboard"></div>
+
+  <div id="region" hidden>
+    <div class="title" id="regionTitle"></div>
+    <div class="grid" id="regionGrid"></div>
+    <div class="acts"><button type="button" id="regionCancel">Cancel</button><button type="button" class="primary" id="regionDone" disabled>Done</button></div>
+  </div>
+
+  <div class="page" id="home">
+    <div class="phead"><h2>ECG <span class="red">Studio</span> Training</h2><span class="proto">Prototype · all unlocked</span></div>
+    <div class="pbody hbody">
+      <div class="hstats">
+        <div><b id="hRating">1500</b><span>Rating</span></div>
+        <div><b id="hStreak">0</b><span>Day streak</span></div>
+        <div class="hlevel"><b id="hLevel">Medical student</b><div class="lbar"><i id="hLevelBar"></i></div><span id="hLevelNext"></span></div>
+      </div>
+      <button type="button" class="hcard daily" id="btnDaily"><span class="ht">Daily ECG <small id="hDailyDate"></small></span><span class="hs" id="hDailyState"></span></button>
+      <button type="button" class="hcard main" id="btnTrain"><span class="ht">Train</span><span class="hs">ECGs chosen for your level, mixed skills</span></button>
+      <button type="button" class="hcard" id="btnReviews"><span class="ht">Reviews <small id="hReviews"></small></span><span class="hs">ECGs you missed, back after 1, 3, 7, 16 and 35 days</span></button>
+      <h3>Practice by skill</h3>
+      <div class="hskills" id="hSkills"></div>
+      <div class="hrow"><button type="button" id="btnStats">Statistics</button><button type="button" id="btnHelp">How it works</button></div>
+      <a class="hsim" href="../index.html">‹ ECG Studio simulator</a>
+    </div>
+  </div>
+  <div class="page" id="stats" hidden>
+    <div class="phead"><button type="button" data-close>‹ Back</button><h2>Statistics</h2></div>
+    <div class="pbody" id="statsBody"></div>
+  </div>
+  <div class="page" id="help" hidden>
+    <div class="phead"><button type="button" data-close>‹ Back</button><h2>How training works</h2></div>
+    <div class="pbody">
+      <p>Read the ECG and type what you see: the rhythm first, then every abnormality. Press <b>Submit</b> when you have named everything.</p>
+      <h3>The ECG</h3>
+      <ul>
+        <li>The screen shows half of a printed 12-lead at a time: the limb leads (first 5 s) or the chest leads (last 5 s), each lead for 2.5 s, with the lead II rhythm strip below.</li>
+        <li><b>Swipe</b> left or right for the other half.</li>
+        <li><b>Double-tap</b> for the full 12-lead sideways, or turn the phone sideways. Double-tap again or ✕ to come back.</li>
+        <li>Paper at 25 mm/s and 10 mm/mV. Rate, PR, QRS, QTc and axis are measured for you above the ECG.</li>
+      </ul>
+      <h3>Answering</h3>
+      <ul>
+        <li>Suggestions appear after 2 letters, most common first. Abbreviations work: AF, CHB, 3AVB, LBBB, STE, TWI…</li>
+        <li>Findings that need a place (Q waves, ST elevation, ST depression, T inversion) ask you to tap the lead groups on the ECG: septal, anterior, lateral, inferior or aVR.</li>
+        <li>Tap a chip to remove it.</li>
+      </ul>
+      <h3>Scoring</h3>
+      <ul>
+        <li>The rhythm is 40% of the score; the findings share the other 60% (the location is half of a finding).</li>
+        <li>True but secondary findings earn a small bonus; findings that are not there cost 10%.</li>
+        <li><b>Show me why</b> opens the simulator on the same heart, so you can see what produced the ECG.</li>
+      </ul>
+      <h3>About these ECGs</h3>
+      <p>Every ECG is generated on your phone by the ECG Studio heart model: a rhythm and up to four abnormalities chosen for your level. Before it is shown, an independent automated reader reads it blind; only ECGs whose reading matches the answer are used, so every abnormality is visible on the tracing.</p>
+      <h3>Ratings</h3>
+      <p>You have a rating for each skill: rhythm, conduction, ischemia and conditions. Each ECG has a difficulty from its rhythm and the number and type of its abnormalities, and the next ECG is chosen so that you get about three in four right. Progress is kept on this phone.</p>
+    </div>
+  </div>
+</div>
+
+<div id="fs" hidden>
+  <div class="inner">
+    <aside><h3>Measurements</h3><div class="chips" id="fsMeas"></div><h3>Your answer</h3><div class="chips" id="fsPicked"></div></aside>
+    <div class="paper" id="fsPaper"><canvas id="cfull"></canvas><button type="button" id="fsClose" aria-label="Close the full ECG">✕</button></div>
+  </div>
+</div>
+
+<script>const VOCAB_TXT = /*__VOCAB__*/;</script>
+<script type="application/json" id="anatomy-data">/*__ANATOMY__*/</script>
+<script type="application/json" id="torso-data">/*__TORSO__*/</script>
+<script type="text/plain" id="worker-src">/*__WORKER__*/</script>
+<script>
+/*__TRAIN__*/
+</script>
+</body>
+</html>
