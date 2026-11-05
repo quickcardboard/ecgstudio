@@ -1538,3 +1538,12 @@ uniform part), and the plateau sags by up to `nssttSag` 0.06. No territory, no n
   leads where it is normally upright (I, II, aVF, V3–V6), without ischemia, WPW, hypertrophy, pericarditis,
   Brugada or bundle-branch block. No false report in the normal heart, LVH or LAFB.
 - Checks: `evalecg` identical.
+
+## training-1 round 10: non-specific ST-T changes in the quiz
+
+- Abnormality `nsstt` (Round 43 engine), conditions skill: answer "Non-specific ST-T abnormality" (no
+  location). Checker: T between −1 and +1 mm in two contiguous leads where T is normally upright (I, II,
+  aVF, V3–V6), and neither the ischemic T-inversion nor the ST-depression rule met. Not combined with
+  ischemia, pericarditis, Brugada, bundle-branch block, hypertrophy, WPW or flutter.
+- Vocabulary: "Flat T waves" (a region term) is folded into "Non-specific ST-T abnormality" (synonyms
+  include flat T, T wave flattening, NSSTTA).

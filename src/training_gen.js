@@ -23,7 +23,7 @@
     sinusTachy: { w: 2, rate: [106, 125], pRhythm: true, open: true, rating: 20, notWith: ['avb1', 'wpw', 'lbbb', 'rbbb', 'peri', 'bae'], read: (r) => /^sinus (rhythm|tachycardia)$/.test(r) },
     af: { w: 3, open: true, rating: 60, link: 'a=af', struct: 'fib', start: (S) => { S.setAtrialFibrosis(true); S.run(2000); S.startArrhythmia('af'); },   // (AF on its substrate, as in the app)
     read: (r) => r === 'atrial fibrillation' },
-    flutter: { w: 2, open: true, notWith: ['stemi', 'oldmi', 'recent', 'hyper', 'narrow'],   // (flutter waves sit on the ST segment)
+    flutter: { w: 2, open: true, notWith: ['stemi', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt'],   // (flutter waves sit on the ST segment)
       rating: 150, link: 'a=flutter&v=75', start: (S) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(75); }, read: (r) => r === 'atrial flutter' },
     avnrt: { w: 2, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
     avrt: { w: 2, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
@@ -78,10 +78,12 @@
     hyper: { group: 'isch', skill: 'ischemia', rating: 140, isch: 0.25, excl: ['peri', 'brugada', 'hyp', 'wpw'], id: 'hyperacute' },
     // a recent infarct (2 days): Q waves with T inversion over the territory, ST elevation mostly resolved
     recent: { group: 'isch', skill: 'ischemia', rating: 120, isch: 48, excl: ['peri', 'brugada'], id: 'qwaves' },
+    // non-specific ST-T changes: flat T waves in leads where T is normally upright, no territory
+    nsstt: { group: 'repol', skill: 'conditions', rating: 120, id: 'nsstt', nsstt: true, struct: 'nsstt', excl: ['isch', 'peri', 'brugada', 'bbb', 'hyp', 'wpw'], leads: [], line: '' },
     peri: { group: 'peri', skill: 'conditions', rating: 80, id: 'pericarditis', dx: 'pericarditis', peri: true, struct: 'peri', excl: ['isch', 'brugada'], leads: ['I', 'II', 'aVF', 'V5', 'V6', 'aVR'], line: 'Diffuse concave ST elevation with PR depression and ST depression in aVR: pericarditis.' },
     brugada: { group: 'brugada', skill: 'conditions', rating: 80, dx: 'Brugada type 1', brugada: true, struct: 'brugada', excl: ['isch', 'peri'], leads: ['V1', 'V2'], line: 'Coved ST elevation ≥ 2 mm in V1–V2 into a negative T: Brugada pattern.' },
   };
-  const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 2.5, recent: 2.5, hyper: 1.5, narrow: 2.5, peri: 1, brugada: 0.7 };
+  const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 2.5, recent: 2.5, hyper: 1.5, narrow: 2.5, nsstt: 1.5, peri: 1, brugada: 0.7 };
   const ITEM_BASE = 1200, PER_ABN = 180;
 
   // Combination rules (the author's clinical calls; see docs/DEVELOPMENT.md training-1):
@@ -177,6 +179,7 @@
         if (d.ap) S.setAccessoryPathway('left-lateral');
         if (d.peri) S.setPericarditis(true);
         if (d.brugada) S.setBrugada(true);
+        if (d.nsstt) S.setNonspecificSTT(true);
       }
       if (atria.ra || atria.la) S.setAtrialEnlargement(atria);
       if (R.block) S.setBlock(R.block[0], R.block[1], R.block[2] || {});
@@ -284,6 +287,14 @@
         case 'wpw': return yes(m.pr !== null && m.pr < 120 && m.qrs >= 110 && m.upstroke >= 50, `PR ${m.pr}, QRS ${m.qrs}, upstroke ${m.upstroke}`);
         case 'lvh': { const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S; return yes(sok >= 3.5 || corn > 2.8 || L.aVL.R >= 1.1, `Sokolow ${sok.toFixed(2)}, Cornell ${corn.toFixed(2)}`); }
         case 'rvh': return yes((m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7), `axis ${m.axis}°, R V1 ${L.V1.R}`);
+        case 'nsstt': {
+          // flat T (between −1 and +1 mm) in two contiguous leads where T is normally upright, and neither the
+          // ischemic T-inversion nor the ST-depression rule met (else it is not non-specific)
+          const UP = ['I', 'II', 'aVF', 'V3', 'V4', 'V5', 'V6'], nb = { I: [], II: ['aVF'], aVF: ['II'], V3: ['V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5'] };
+          const flat = UP.filter((n) => Math.abs(L[n].T) < 0.1), fc = flat.filter((n) => nb[n].some((x) => flat.includes(x)));
+          const twi = twiLeads(L), std = stdLeads(L);
+          return yes(fc.length >= 2 && !twi.length && !std.length, `flat T in ${fc.join(' ') || 'none'}${twi.length ? `, T inversion in ${twi.join(' ')}` : ''}${std.length ? `, ST depression in ${std.join(' ')}` : ''}`, fc);
+        }
         case 'narrow': {
           // subendocardial ischemia: horizontal or downsloping ST depression ≥ 1 mm (stdLeads), no ST-elevation
           // criteria met
@@ -371,7 +382,11 @@
           findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok])].filter((t) => t !== main) });
           c.leads.forEach((l) => hl.add(l)); if (r.L.aVR.stJ >= 0.05) hl.add('aVR');
           lines.std = `ST depression in ${c.leads.join(', ')}${r.L.aVR.stJ >= 0.05 ? ' with ST elevation in aVR' : ''}: subendocardial ischemia (NSTEMI pattern, here a narrowed ${site.name}). ST depression does not show which artery.`;
-          ['reciprocal', 'flatT'].forEach((x) => optional.add(x)); if (twiLeads(r.L).length) optional.add('twi');
+          ['reciprocal'].forEach((x) => optional.add(x)); if (twiLeads(r.L).length) optional.add('twi');
+        } else if (a.k === 'nsstt') {
+          findings.push({ id: 'nsstt', skill: d.skill });
+          c.leads.forEach((l) => hl.add(l));
+          lines.nsstt = `Flat T waves in ${c.leads.join(', ')} with no territory, no ST depression of 1 mm and no Q waves: non-specific ST-T changes (electrolytes, drugs, rate…). Compare with an earlier ECG.`;
         } else if (a.k === 'hyper') {
           // (the T waves must be taller than this heart's own: at least 1.5× the twin's in those leads)
           if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr, { minOff: tmed.qrsEnd }).L, risen = c.leads.filter((n) => r.L[n].T >= 1.4 * Math.max(0.05, tr[n].T)); if (risen.length < 2) return fail(`hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); c.leads = risen; }

@@ -82,7 +82,7 @@ hypoK | Hypokalaemia | hypokalemia, U waves, low potassium, low K, hypo K
 bifascicular | Bifascicular block | RBBB with LAFB, RBBB LAFB, bifasicular
 lpfb | Left posterior fascicular block | LPFB, left posterior hemiblock, LPHB, posterior hemiblock, posterior fascicular block
 bigeminy | Ventricular bigeminy | bigeminy, bigeminal, PVC bigeminy
-flatT | Flat T waves | T wave flattening, flattened T waves, flat T | region
+nsstt | Non-specific ST-T abnormality | nonspecific ST-T changes, non specific ST T changes, NSSTTA, NSSTT, NSST, nonspecific T wave changes, flat T waves, T wave flattening, flattened T waves, flat T
 biphasicT | Biphasic T waves | Wellens, Wellens syndrome, biphasic T | region
 nstemi | NSTEMI pattern | non ST elevation MI, NSTEMI, NSTE ACS, ACS
 bae | Biatrial enlargement | biatrial abnormality, BAE, both atria enlarged
