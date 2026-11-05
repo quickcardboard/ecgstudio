@@ -71,10 +71,12 @@
     rvh: { group: 'hyp', skill: 'conditions', rating: 60, dx: 'RVH', hyp: 'rvh', struct: 'rvh', leads: ['V1', 'I'], line: 'Right axis with a dominant R in V1: right ventricular hypertrophy.' },
     stemi: { group: 'isch', skill: 'ischemia', rating: 0, isch: 1, excl: ['peri', 'brugada'], id: 'ste' },
     oldmi: { group: 'isch', skill: 'ischemia', rating: 20, isch: 720, excl: ['peri', 'brugada'], id: 'qwaves' },
+    // a recent infarct (2 days): Q waves with T inversion over the territory, ST elevation mostly resolved
+    recent: { group: 'isch', skill: 'ischemia', rating: 120, isch: 48, excl: ['peri', 'brugada'], id: 'qwaves' },
     peri: { group: 'peri', skill: 'conditions', rating: 80, id: 'pericarditis', dx: 'pericarditis', peri: true, struct: 'peri', excl: ['isch', 'brugada'], leads: ['I', 'II', 'aVF', 'V5', 'V6', 'aVR'], line: 'Diffuse concave ST elevation with PR depression and ST depression in aVR: pericarditis.' },
     brugada: { group: 'brugada', skill: 'conditions', rating: 80, dx: 'Brugada type 1', brugada: true, struct: 'brugada', excl: ['isch', 'peri'], leads: ['V1', 'V2'], line: 'Coved ST elevation ≥ 2 mm in V1–V2 into a negative T: Brugada pattern.' },
   };
-  const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 3, peri: 1, brugada: 0.7 };
+  const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 2.5, recent: 2.5, peri: 1, brugada: 0.7 };
   const ITEM_BASE = 1200, PER_ABN = 180;
 
   // Combination rules (the author's clinical calls; see docs/DEVELOPMENT.md training-1):
@@ -99,9 +101,9 @@
     }
     const q = all.filter((x) => QRS.includes(x));
     if (q.length > 2 || (q.length === 2 && !BIFASC.some(([x, y]) => q.includes(x) && q.includes(y)))) return false;
-    const isch = has('stemi') || has('oldmi');
+    const isch = has('stemi') || has('oldmi') || has('recent');
     if (has('lbbb') && (isch || has('peri'))) return false;
-    if (has('rbbb') && (has('oldmi') || has('peri'))) return false;
+    if (has('rbbb') && (has('oldmi') || has('recent') || has('peri'))) return false;
     if (has('peri') && all.some((x) => x !== 'peri' && !['rae', 'lae', 'bae', 'avb1'].includes(x))) return false;
     if (has('wpw') && all.some((x) => ['rae', 'lae', 'bae', 'avb1', 'peri'].includes(x))) return false;
     return true;
@@ -250,7 +252,7 @@
     // criteria (ACC/AHA 2009 conduction, Sokolow-Lyon/Cornell, 4th UDMI, the reader's P-wave and Brugada
     // rules; tools/reader.js has the sources) → { ok, why, leads }
     function criteria(k, a, m, L) {
-      const yes = (ok, why, leads) => ({ ok: !!ok, why, leads });
+      const yes = (ok, why, leads, leads2) => ({ ok: !!ok, why, leads, leads2 });
       const latR = (n) => L[n].posShare >= 0.6 && L[n].q.dur === 0;
       switch (k) {
         case 'avb1': return yes(m.pr !== null && m.pr > 200, `PR ${m.pr}`);
@@ -264,6 +266,10 @@
         case 'wpw': return yes(m.pr !== null && m.pr < 120 && m.qrs >= 110 && m.upstroke >= 50, `PR ${m.pr}, QRS ${m.qrs}, upstroke ${m.upstroke}`);
         case 'lvh': { const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S; return yes(sok >= 3.5 || corn > 2.8 || L.aVL.R >= 1.1, `Sokolow ${sok.toFixed(2)}, Cornell ${corn.toFixed(2)}`); }
         case 'rvh': return yes((m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7), `axis ${m.axis}°, R V1 ${L.V1.R}`);
+        case 'recent': {
+          const q = qLeads(L), terr = terrOf(q), ex = MI_SITES[a.site].q, twi = contiguous(LEADS.filter((n) => !['aVR', 'III', 'V1'].includes(n) && L[n].T <= -0.1));
+          return yes(ex.req.some((t) => terr.includes(t)) && twi.length >= 2, `Q waves in ${q.join(' ') || 'none'}, T inversion in ${twi.join(' ') || 'none'}`, q, twi);
+        }
         case 'stemi': case 'oldmi': {
           const leads = k === 'stemi' ? steLeads(L) : qLeads(L), terr = terrOf(leads), ex = MI_SITES[a.site][k === 'stemi' ? 'ste' : 'q'];
           return yes(ex.req.some((t) => terr.includes(t)), `${k === 'stemi' ? 'ST elevation' : 'Q waves'} in ${leads.join(' ') || 'none'}`, leads);
@@ -326,7 +332,15 @@
         const twinRec = { ...rec, abn: rec.abn.filter((x) => x !== a) }, tsim = simulate(twinRec), tmed = tsim && medianBeat(tsim);
         let tw = null;
         if (tmed) { tw = twinDiff(med, tmed, a.k); if (!tw.ok) return fail(`${a.k} barely changes the tracing (${tw.max} mV)`, 'twin'); }
-        if (d.isch) {
+        if (a.k === 'recent') {
+          const site = MI_SITES[a.site], ex = site.q, terr = terrOf(c.leads), tt = terrOf(c.leads2);
+          findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
+          const tReq = tt.filter((t) => ex.req.includes(t)).length ? tt.filter((t) => ex.req.includes(t)) : tt.slice(0, 1);
+          findings.push({ id: 'twi', skill: d.skill, regions: tReq, okRegions: [...new Set([...tt, ...ex.req, ...ex.ok])].filter((t) => !tReq.includes(t)) });
+          c.leads.forEach((l) => hl.add(l)); c.leads2.forEach((l) => hl.add(l));
+          lines.qwaves = lines.twi = `Q waves in ${c.leads.join(', ')} with T inversion in ${c.leads2.join(', ')}: recent ${ex.req.join('/')} infarct (about 2 days old).`;
+          ['ste', 'poorR', 'longqt'].forEach((x) => optional.add(x));
+        } else if (d.isch) {
           const site = MI_SITES[a.site], acute = d.isch < 24, ex = acute ? site.ste : site.q, terr = terrOf(c.leads);
           findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
           c.leads.forEach((l) => hl.add(l));
@@ -343,7 +357,7 @@
       // blind read of the median beat: a finding we did not put in must not show (it would be marked
       // "not present" for a student who names it); true consequences become optional
       if (r && !R.vt) {
-        const ks = rec.abn.map((a) => a.k), words = rec.abn.map((a) => (ABN[a.k].isch ? (ABN[a.k].isch < 24 ? 'STEMI' : 'old MI') : ABN[a.k].dx));
+        const ks = rec.abn.map((a) => a.k), words = rec.abn.flatMap((a) => (a.k === 'recent' ? ['old MI', 'T inversion'] : ABN[a.k].isch ? [ABN[a.k].isch < 24 ? 'STEMI' : 'old MI'] : [ABN[a.k].dx]));
         const rca = rec.abn.some((a) => /RCA/.test(a.site || ''));
         for (const dx of b.dx) {
           if (words.some((w) => dx === w || dx.startsWith(w + ' '))) continue;
@@ -353,8 +367,9 @@
           if (dx === 'LVH' && ks.includes('lafb')) { optional.add('lvh'); continue; }
           if (dx === 'T inversion' && ks.length) { optional.add('twi'); continue; }
           if (dx === 'long QT' && ks.length) { optional.add('longqt'); continue; }
-          if (dx.startsWith('old MI') && ks.includes('lafb') && !ks.includes('oldmi')) { optional.add('qwaves'); continue; }   // (LAFB pseudo-infarct)
+          if (dx.startsWith('old MI') && ks.includes('lafb') && !ks.includes('oldmi') && !ks.includes('recent')) { optional.add('qwaves'); continue; }   // (LAFB pseudo-infarct)
           if (dx === '1st-degree AVB' && rca) { optional.add('avb1'); continue; }
+          if (dx.startsWith('STEMI') && ks.includes('recent')) { optional.add('ste'); continue; }   // (residual ST elevation at 2 days)
           if (dx.startsWith('STEMI posterior') && ks.includes('stemi')) { optional.add('posteriorMI'); continue; }
           if (dx === 'IVCD' && ks.some((k) => ['lvh', 'rvh', 'lpfb', 'lafb'].includes(k))) { optional.add('ivcd'); continue; }
           // (the blind read's chained rules: a block it called instead of an intended one is not "extra")

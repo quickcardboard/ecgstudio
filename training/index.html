@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-05 (6575deb)">
+<meta name="version" content="2026-11-05 (62e0dff)">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28S3 20 3 11a6.5 6.5 0 0 1 13-1 6.5 6.5 0 0 1 13 1c0 9-13 17-13 17z' fill='%23c2304f'/%3E%3Cpath d='M5 15h6l2-4 3 9 2-5h9' stroke='%23fff' stroke-width='2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -61,6 +61,10 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .hist div span:first-child { flex: 1; }
 .hist .pc { font: 600 14px/1 var(--font-data); min-width: 44px; text-align: right; }
 .hist .tm { font: 400 12px/1 var(--font-data); color: var(--muted); min-width: 34px; text-align: right; }
+.hist .dl { font: 500 12px/1 var(--font-data); color: var(--muted); min-width: 40px; text-align: right; }
+.hist .dl.up { color: var(--ok); } .hist .dl.down { color: var(--bad); }
+.tile small { font: 600 14px/1.2 var(--font-ui); }
+.radar { display: block; width: 100%; max-width: 340px; margin: 0 auto; }
 .empty { color: var(--muted); }
 #result .report { align-self: center; background: transparent; border: 0; color: var(--muted); font-size: 13px; padding: 6px 10px; }
 #homeBtn { font-size: 22px; line-height: 1; padding: 4px 10px 6px; border-radius: 999px; background: var(--surface); }
@@ -85,7 +89,9 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .hskills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .hskills button { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 12px; }
 .hskills small { font: 500 12px/1 var(--font-data); color: var(--muted); }
-.hrow { display: flex; gap: 8px; } .hrow button { flex: 1; padding: 12px; }
+.hmore { display: flex; gap: 8px; margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--line); }
+.hmore button { flex: 1; padding: 12px; background: transparent; border-color: #3a4a59; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); }
+.hmore button span { color: var(--fg); }
 .hsim { display: flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; font: 600 15px/1.2 var(--font-ui); padding: 12px 14px; border-radius: 10px; background: var(--raised); border: 1px solid #3a4a59; }
 .hsim span { color: var(--accent); font-size: 22px; line-height: 0.8; }
 header h1 { margin: 0; font: 600 18px/1 var(--font-display); letter-spacing: 0.01em; flex: 1; }
@@ -258,14 +264,14 @@ body.land #fsClose { display: none; }
       <div class="hstats">
         <div><b id="hRating">1500</b><span>Rating</span></div>
         <div><b id="hStreak">0</b><span>Day streak</span></div>
-        <div class="hlevel"><b id="hLevel">Medical student</b><div class="lbar"><i id="hLevelBar"></i></div><span id="hLevelNext"></span></div>
+        <div class="hlevel"><b id="hTitle">Medical student</b><span id="hTitleNext"></span></div>
       </div>
       <button type="button" class="hcard daily" id="btnDaily"><span class="ht">Daily ECG <small id="hDailyDate"></small></span><span class="hs" id="hDailyState"></span></button>
       <button type="button" class="hcard main" id="btnTrain"><span class="ht">Train</span><span class="hs">ECGs chosen for your level, mixed skills</span></button>
       <button type="button" class="hcard" id="btnReviews"><span class="ht">Reviews <small id="hReviews"></small></span><span class="hs">ECGs you missed, back after 1, 3, 7, 16 and 35 days</span></button>
       <h3>Practice by skill</h3>
       <div class="hskills" id="hSkills"></div>
-      <div class="hrow"><button type="button" id="btnStats">Statistics</button><button type="button" id="btnHelp">How it works</button></div>
+      <div class="hmore"><button type="button" id="btnStats">Statistics</button><button type="button" id="btnHelp">How it works</button></div>
     </div>
   </div>
   <div class="page" id="stats" hidden>
@@ -275,31 +281,33 @@ body.land #fsClose { display: none; }
   <div class="page" id="help" hidden>
     <div class="phead"><button type="button" data-close>‹ Back</button><h2>How training works</h2></div>
     <div class="pbody">
-      <p>Read the ECG and type what you see: the rhythm first, then every abnormality. Press <b>Submit</b> when you have named everything.</p>
+      <p>Read the ECG and type what you see: the rhythm first, then every abnormality. Press <b>Submit</b> when you are done.</p>
       <h3>The ECG</h3>
       <ul>
-        <li>The screen shows half of a printed 12-lead at a time: the limb leads (first 5 s) or the chest leads (last 5 s), each lead for 2.5 s, with the lead II rhythm strip below.</li>
-        <li><b>Swipe</b> left or right for the other half.</li>
-        <li><b>Double-tap</b> for the full 12-lead sideways, or turn the phone sideways. Double-tap again or ✕ to come back.</li>
+        <li><b>Swipe</b> left or right on the ECG to scroll.</li>
+        <li><b>Double-tap</b> for the full 12-lead sideways. Double-tap again or ✕ to come back.</li>
         <li>Paper at 25 mm/s and 10 mm/mV. Rate, PR, QRS, QTc and axis are measured for you above the ECG.</li>
       </ul>
       <h3>Answering</h3>
       <ul>
-        <li>Suggestions appear after 2 letters, most common first. Abbreviations work: AF, CHB, 3AVB, LBBB, STE, TWI…</li>
-        <li>Findings that need a place (Q waves, ST elevation, ST depression, T inversion) ask you to tap the lead groups on the ECG: septal, anterior, lateral, inferior or aVR.</li>
+        <li>Suggestions appear after 2 letters, most common first. Abbreviations work.</li>
+        <li>Findings that need a place (Q waves, ST elevation, ST depression, T inversion) ask you to tap the lead groups on the ECG.</li>
         <li>Tap a chip to remove it.</li>
       </ul>
       <h3>Scoring</h3>
       <ul>
         <li>The rhythm is 40% of the score; the findings share the other 60% (the location is half of a finding). When the rhythm is the only abnormality, it is the whole score.</li>
-        <li><b>⚑ Report a problem</b> (under the result, or in the ⋯ menu) sends the author everything needed to check that ECG.</li>
         <li>True but secondary findings earn a small bonus; findings that are not there cost 10%.</li>
+      </ul>
+      <h3>Other</h3>
+      <ul>
+        <li><b>⚑ Report a problem</b> (under the result, or in the ⋯ menu) sends the author everything needed to check that ECG.</li>
         <li><b>Model</b> opens the simulator on the same heart, so you can see what produced the ECG.</li>
       </ul>
       <h3>About these ECGs</h3>
-      <p>Every ECG is generated on your phone by the ECG Studio heart model: a rhythm and up to four abnormalities chosen for your level. Before it is shown, an independent automated reader reads it blind; only ECGs whose reading matches the answer are used, so every abnormality is visible on the tracing.</p>
+      <p>Every ECG is generated on your phone by the ECG Studio heart model. Before it is shown, the rhythm and P waves are checked from the heart’s own timing, and each abnormality is measured against its textbook criteria and must visibly change the tracing; only ECGs that pass are used.</p>
       <h3>Ratings</h3>
-      <p>You have a rating for each skill: rhythm, conduction, ischemia and conditions. Each ECG has a difficulty from its rhythm and the number and type of its abnormalities, and the next ECG is chosen so that you get about three in four right. Progress is kept on this phone.</p>
+      <p>You have a rating for each skill: rhythm, conduction, ischemia and conditions. Each ECG has a difficulty from its rhythm and the number and type of its abnormalities. Progress is kept on this phone. Your rating will increase or decrease depending on your answers. Harder ECGs will move your rating higher, while missing on easy ECGs will move your rating lower.</p>
     </div>
   </div>
 </div>
@@ -3581,10 +3589,12 @@ return module.exports; })();
     rvh: { group: 'hyp', skill: 'conditions', rating: 60, dx: 'RVH', hyp: 'rvh', struct: 'rvh', leads: ['V1', 'I'], line: 'Right axis with a dominant R in V1: right ventricular hypertrophy.' },
     stemi: { group: 'isch', skill: 'ischemia', rating: 0, isch: 1, excl: ['peri', 'brugada'], id: 'ste' },
     oldmi: { group: 'isch', skill: 'ischemia', rating: 20, isch: 720, excl: ['peri', 'brugada'], id: 'qwaves' },
+    // a recent infarct (2 days): Q waves with T inversion over the territory, ST elevation mostly resolved
+    recent: { group: 'isch', skill: 'ischemia', rating: 120, isch: 48, excl: ['peri', 'brugada'], id: 'qwaves' },
     peri: { group: 'peri', skill: 'conditions', rating: 80, id: 'pericarditis', dx: 'pericarditis', peri: true, struct: 'peri', excl: ['isch', 'brugada'], leads: ['I', 'II', 'aVF', 'V5', 'V6', 'aVR'], line: 'Diffuse concave ST elevation with PR depression and ST depression in aVR: pericarditis.' },
     brugada: { group: 'brugada', skill: 'conditions', rating: 80, dx: 'Brugada type 1', brugada: true, struct: 'brugada', excl: ['isch', 'peri'], leads: ['V1', 'V2'], line: 'Coved ST elevation ≥ 2 mm in V1–V2 into a negative T: Brugada pattern.' },
   };
-  const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 3, peri: 1, brugada: 0.7 };
+  const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 2.5, recent: 2.5, peri: 1, brugada: 0.7 };
   const ITEM_BASE = 1200, PER_ABN = 180;
 
   // Combination rules (the author's clinical calls; see docs/DEVELOPMENT.md training-1):
@@ -3609,9 +3619,9 @@ return module.exports; })();
     }
     const q = all.filter((x) => QRS.includes(x));
     if (q.length > 2 || (q.length === 2 && !BIFASC.some(([x, y]) => q.includes(x) && q.includes(y)))) return false;
-    const isch = has('stemi') || has('oldmi');
+    const isch = has('stemi') || has('oldmi') || has('recent');
     if (has('lbbb') && (isch || has('peri'))) return false;
-    if (has('rbbb') && (has('oldmi') || has('peri'))) return false;
+    if (has('rbbb') && (has('oldmi') || has('recent') || has('peri'))) return false;
     if (has('peri') && all.some((x) => x !== 'peri' && !['rae', 'lae', 'bae', 'avb1'].includes(x))) return false;
     if (has('wpw') && all.some((x) => ['rae', 'lae', 'bae', 'avb1', 'peri'].includes(x))) return false;
     return true;
@@ -3760,7 +3770,7 @@ return module.exports; })();
     // criteria (ACC/AHA 2009 conduction, Sokolow-Lyon/Cornell, 4th UDMI, the reader's P-wave and Brugada
     // rules; tools/reader.js has the sources) → { ok, why, leads }
     function criteria(k, a, m, L) {
-      const yes = (ok, why, leads) => ({ ok: !!ok, why, leads });
+      const yes = (ok, why, leads, leads2) => ({ ok: !!ok, why, leads, leads2 });
       const latR = (n) => L[n].posShare >= 0.6 && L[n].q.dur === 0;
       switch (k) {
         case 'avb1': return yes(m.pr !== null && m.pr > 200, `PR ${m.pr}`);
@@ -3774,6 +3784,10 @@ return module.exports; })();
         case 'wpw': return yes(m.pr !== null && m.pr < 120 && m.qrs >= 110 && m.upstroke >= 50, `PR ${m.pr}, QRS ${m.qrs}, upstroke ${m.upstroke}`);
         case 'lvh': { const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S; return yes(sok >= 3.5 || corn > 2.8 || L.aVL.R >= 1.1, `Sokolow ${sok.toFixed(2)}, Cornell ${corn.toFixed(2)}`); }
         case 'rvh': return yes((m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7), `axis ${m.axis}°, R V1 ${L.V1.R}`);
+        case 'recent': {
+          const q = qLeads(L), terr = terrOf(q), ex = MI_SITES[a.site].q, twi = contiguous(LEADS.filter((n) => !['aVR', 'III', 'V1'].includes(n) && L[n].T <= -0.1));
+          return yes(ex.req.some((t) => terr.includes(t)) && twi.length >= 2, `Q waves in ${q.join(' ') || 'none'}, T inversion in ${twi.join(' ') || 'none'}`, q, twi);
+        }
         case 'stemi': case 'oldmi': {
           const leads = k === 'stemi' ? steLeads(L) : qLeads(L), terr = terrOf(leads), ex = MI_SITES[a.site][k === 'stemi' ? 'ste' : 'q'];
           return yes(ex.req.some((t) => terr.includes(t)), `${k === 'stemi' ? 'ST elevation' : 'Q waves'} in ${leads.join(' ') || 'none'}`, leads);
@@ -3836,7 +3850,15 @@ return module.exports; })();
         const twinRec = { ...rec, abn: rec.abn.filter((x) => x !== a) }, tsim = simulate(twinRec), tmed = tsim && medianBeat(tsim);
         let tw = null;
         if (tmed) { tw = twinDiff(med, tmed, a.k); if (!tw.ok) return fail(`${a.k} barely changes the tracing (${tw.max} mV)`, 'twin'); }
-        if (d.isch) {
+        if (a.k === 'recent') {
+          const site = MI_SITES[a.site], ex = site.q, terr = terrOf(c.leads), tt = terrOf(c.leads2);
+          findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
+          const tReq = tt.filter((t) => ex.req.includes(t)).length ? tt.filter((t) => ex.req.includes(t)) : tt.slice(0, 1);
+          findings.push({ id: 'twi', skill: d.skill, regions: tReq, okRegions: [...new Set([...tt, ...ex.req, ...ex.ok])].filter((t) => !tReq.includes(t)) });
+          c.leads.forEach((l) => hl.add(l)); c.leads2.forEach((l) => hl.add(l));
+          lines.qwaves = lines.twi = `Q waves in ${c.leads.join(', ')} with T inversion in ${c.leads2.join(', ')}: recent ${ex.req.join('/')} infarct (about 2 days old).`;
+          ['ste', 'poorR', 'longqt'].forEach((x) => optional.add(x));
+        } else if (d.isch) {
           const site = MI_SITES[a.site], acute = d.isch < 24, ex = acute ? site.ste : site.q, terr = terrOf(c.leads);
           findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
           c.leads.forEach((l) => hl.add(l));
@@ -3853,7 +3875,7 @@ return module.exports; })();
       // blind read of the median beat: a finding we did not put in must not show (it would be marked
       // "not present" for a student who names it); true consequences become optional
       if (r && !R.vt) {
-        const ks = rec.abn.map((a) => a.k), words = rec.abn.map((a) => (ABN[a.k].isch ? (ABN[a.k].isch < 24 ? 'STEMI' : 'old MI') : ABN[a.k].dx));
+        const ks = rec.abn.map((a) => a.k), words = rec.abn.flatMap((a) => (a.k === 'recent' ? ['old MI', 'T inversion'] : ABN[a.k].isch ? [ABN[a.k].isch < 24 ? 'STEMI' : 'old MI'] : [ABN[a.k].dx]));
         const rca = rec.abn.some((a) => /RCA/.test(a.site || ''));
         for (const dx of b.dx) {
           if (words.some((w) => dx === w || dx.startsWith(w + ' '))) continue;
@@ -3863,8 +3885,9 @@ return module.exports; })();
           if (dx === 'LVH' && ks.includes('lafb')) { optional.add('lvh'); continue; }
           if (dx === 'T inversion' && ks.length) { optional.add('twi'); continue; }
           if (dx === 'long QT' && ks.length) { optional.add('longqt'); continue; }
-          if (dx.startsWith('old MI') && ks.includes('lafb') && !ks.includes('oldmi')) { optional.add('qwaves'); continue; }   // (LAFB pseudo-infarct)
+          if (dx.startsWith('old MI') && ks.includes('lafb') && !ks.includes('oldmi') && !ks.includes('recent')) { optional.add('qwaves'); continue; }   // (LAFB pseudo-infarct)
           if (dx === '1st-degree AVB' && rca) { optional.add('avb1'); continue; }
+          if (dx.startsWith('STEMI') && ks.includes('recent')) { optional.add('ste'); continue; }   // (residual ST elevation at 2 days)
           if (dx.startsWith('STEMI posterior') && ks.includes('stemi')) { optional.add('posteriorMI'); continue; }
           if (dx === 'IVCD' && ks.some((k) => ['lvh', 'rvh', 'lpfb', 'lafb'].includes(k))) { optional.add('ivcd'); continue; }
           // (the blind read's chained rules: a block it called instead of an intended one is not "extra")
@@ -4185,13 +4208,13 @@ self.onmessage = (e) => {
     item: null, page: 0, picked: [], typed: '', phase: 'answer',   // answer | region | result
     region: null, t0: 0, fs: false, hist: [], skills: Object.fromEntries(SKILLS.map((k) => [k, fresh()])),
     mode: null, focus: null,      // mode: train | skill (focus) | daily | review
-    reviews: [], days: {}, xp: 0, reviewRun: [],
+    reviews: [], days: {}, reviewRun: [],
   };
-  // progress on the phone: ratings, the last 300 answers, the review queue, days practised, experience
+  // progress on the phone: ratings, the last 300 answers, the review queue, days practised
   // (export/import comes later)
   const STORE = 'ecgTraining.v1';
-  function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify({ skills: st.skills, hist: st.hist.slice(-300), reviews: st.reviews, days: st.days, xp: st.xp })); } catch (e) { /* storage blocked */ } }
-  try { const j = JSON.parse(localStorage.getItem(STORE) || 'null'); if (j) { st.hist = j.hist || []; for (const k of SKILLS) if (j.skills && j.skills[k]) st.skills[k] = j.skills[k]; st.reviews = j.reviews || []; st.days = j.days || {}; st.xp = j.xp || 0; } } catch (e) { /* none */ }
+  function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify({ skills: st.skills, hist: st.hist.slice(-300), reviews: st.reviews, days: st.days })); } catch (e) { /* storage blocked */ } }
+  try { const j = JSON.parse(localStorage.getItem(STORE) || 'null'); if (j) { st.hist = j.hist || []; for (const k of SKILLS) if (j.skills && j.skills[k]) st.skills[k] = j.skills[k]; st.reviews = j.reviews || []; st.days = j.days || {}; } } catch (e) { /* none */ }
 
   // ------------------------------------------------------------------ days, streak, levels, reviews
   const DAY = 864e5, dayKey = (t = Date.now()) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -4204,9 +4227,10 @@ self.onmessage = (e) => {
     while (done(dayKey(t))) { n++; t -= DAY; }
     return n;
   }
-  // levels: clinical roles; experience for every answered ECG (score × difficulty); levels never go down
-  const LEVELS = [[0, 'Clerk'], [150, 'Nursing student'], [400, 'Medical student'], [900, 'Intern'], [1800, 'Resident'], [3200, 'Cardiology fellow'], [5500, 'Cardiologist'], [9000, 'Electrophysiologist'], [14000, 'Professor of cardiology']];
-  function level() { let i = 0; while (i + 1 < LEVELS.length && st.xp >= LEVELS[i + 1][0]) i++; const [lo, name] = LEVELS[i], hi = LEVELS[i + 1] ? LEVELS[i + 1][0] : null; return { name, i, frac: hi ? (st.xp - lo) / (hi - lo) : 1, next: hi && LEVELS[i + 1][1], toNext: hi ? hi - st.xp : 0 }; }
+  // titles from the overall rating (like chess titles): a new user (1500) is a medical student; a title is
+  // lost when the rating falls below its band. Bands are first guesses, to be tuned with real answers.
+  const TITLES = [[-Infinity, 'Clerk'], [1300, 'Nursing student'], [1450, 'Medical student'], [1600, 'Intern'], [1750, 'Resident'], [1900, 'Cardiology fellow'], [2050, 'Cardiologist'], [2200, 'Electrophysiologist'], [2350, 'Professor of cardiology']];
+  function title(r = overall()) { let i = 0; while (i + 1 < TITLES.length && r >= TITLES[i + 1][0]) i++; return { name: TITLES[i][1], next: TITLES[i + 1] ? TITLES[i + 1][1] : null, toNext: TITLES[i + 1] ? Math.ceil(TITLES[i + 1][0] - r) : 0 }; }
   // spaced repetition: a missed or partly right ECG returns after 1, 3, 7, 16 and 35 days (rebuilt from its recipe)
   const BOXES = [1, 3, 7, 16, 35];
   const dueReviews = () => st.reviews.filter((r) => r.due <= Date.now());
@@ -4322,12 +4346,33 @@ self.onmessage = (e) => {
   function renderStats() {
     const h = st.hist, n = h.length, avg = (f) => (n ? h.reduce((a, x) => a + f(x), 0) / n : 0);
     const el = $('statsBody'), tile = (v, l) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`;
-    const bars = SKILLS.map((k) => { const r = st.skills[k], w = Math.max(4, Math.min(100, (r.r - 1000) / 12)); return `<div class="skill"><span>${SKILL_NAME[k]}</span><div class="sbar"><i style="width:${w}%"></i></div><b>${Math.round(r.r)}</b><small>±${Math.round(r.rd * 2)}</small></div>`; }).join('');
-    el.innerHTML = `<div class="tiles">${tile(Math.round(overall()), 'Rating')}${tile(n, 'ECGs answered')}${tile(n ? `${Math.round(avg((x) => x.score) * 100)}%` : '—', 'Average score')}${tile(n ? `${Math.round(avg((x) => (x.rhythm === 'ok' ? 1 : 0)) * 100)}%` : '—', 'Rhythm correct')}${tile(n ? `${Math.round(avg((x) => x.time))} s` : '—', 'Average time')}${tile(`${h.filter((x) => x.score >= 0.999).length}`, 'Perfect answers')}</div>`
-      + `<h3>Skills</h3><div class="skills">${bars}</div>`
-      + (n ? '<h3>Recent ECGs</h3><div class="hist">' + h.slice(-50).reverse().map((x) => `<div><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="tm">${Math.round(x.time)} s</span></div>`).join('') + '</div>' : '<p class="empty">No answers yet.</p>')
-      + '<p class="empty" style="margin-top:16px">Ratings start at 1500 and settle after about 20 ECGs (± is the uncertainty). Progress is kept on this phone only.</p>';
+    const recent = h.slice(-5).reverse().map((x) => {
+      const d = x.mode === 'daily' || x.delta === undefined ? null : Math.round(x.delta);
+      return `<div><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="dl ${d === null ? '' : d >= 0 ? 'up' : 'down'}">${d === null ? 'daily' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`}</span></div>`;
+    }).join('');
+    el.innerHTML = `<div class="tiles">${tile(Math.round(overall()), 'Rating')}${tile(`<small>${title().name}</small>`, 'Title')}${tile(n, 'ECGs answered')}${tile(n ? `${Math.round(avg((x) => x.score) * 100)}%` : '—', 'Average score')}${tile(n ? `${Math.round(avg((x) => (x.rhythm === 'ok' ? 1 : 0)) * 100)}%` : '—', 'Rhythm correct')}${tile(streak(), 'Day streak')}</div>`
+      + `<h3>Skills</h3>${radar()}`
+      + (n ? `<h3>Last ${Math.min(5, n)} ECGs</h3><div class="hist">${recent}</div>` : '<p class="empty">No answers yet.</p>')
+      + '<p class="empty" style="margin-top:16px">Ratings start at 1500 and settle after about 20 ECGs. Progress is kept on this phone only.</p>';
   }
+  // skill radar: one axis per skill, 1100 at the centre to 2100 at the edge (more is clamped); 1500 (the start) dashed
+  function radar() {
+    const W = 360, H = 270, cx = W / 2, cy = H / 2, R = 84, lo = 1100, hi = 2100;
+    const ang = (i) => -Math.PI / 2 + i * 2 * Math.PI / SKILLS.length, pt = (i, v) => { const f = Math.max(0.04, Math.min(1, (v - lo) / (hi - lo))); return [cx + R * f * Math.cos(ang(i)), cy + R * f * Math.sin(ang(i))]; };
+    const poly = (vals) => vals.map((v, i) => pt(i, v).map((x) => x.toFixed(1)).join(',')).join(' ');
+    let svg = `<svg class="radar" viewBox="0 0 ${W} ${H}" role="img" aria-label="Skill ratings: ${SKILLS.map((k) => `${SKILL_NAME[k]} ${Math.round(st.skills[k].r)}`).join(', ')}">`;
+    for (const v of [1350, 1600, 1850, 2100]) svg += `<polygon points="${poly(SKILLS.map(() => v))}" fill="none" stroke="var(--line)"/>`;
+    svg += `<polygon points="${poly(SKILLS.map(() => 1500))}" fill="none" stroke="var(--muted)" stroke-dasharray="3 3"/>`;
+    SKILLS.forEach((k, i) => { const [x, y] = pt(i, hi); svg += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)"/>`; });
+    svg += `<polygon points="${poly(SKILLS.map((k) => st.skills[k].r))}" fill="rgba(239,91,122,0.25)" stroke="var(--accent)" stroke-width="2"/>`;
+    SKILLS.forEach((k, i) => {
+      const [x, y] = pt(i, st.skills[k].r); svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="var(--accent)"/>`;
+      const a = ang(i), lx = cx + (R + 14) * Math.cos(a), ly = cy + (R + 18) * Math.sin(a) + (Math.sin(a) > 0.5 ? 8 : 0), anchor = Math.abs(Math.cos(a)) < 0.2 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end';
+      svg += `<text x="${lx.toFixed(1)}" y="${(ly - 2).toFixed(1)}" text-anchor="${anchor}" fill="var(--fg)" font-size="13" font-weight="600">${SKILL_NAME[k]}</text><text x="${lx.toFixed(1)}" y="${(ly + 13).toFixed(1)}" text-anchor="${anchor}" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono, monospace">${Math.round(st.skills[k].r)}</text>`;
+    });
+    return svg + '</svg>';
+  }
+
 
   // ------------------------------------------------------------------ the ECG pages: swipe, double-tap, region taps
   function setPage(p, animate = true) {
@@ -4448,8 +4493,6 @@ self.onmessage = (e) => {
     const before = overall(), opp = { r: st.item.rating, rd: 60 }, sub = st.score.skill;
     if (st.mode !== 'daily') for (const k of SKILLS) if (sub[k] !== undefined) st.skills[k] = glicko(st.skills[k], opp, sub[k]);   // (the daily ECG is not rated)
     st.delta = overall() - before;
-    st.xpGain = Math.round(10 * st.score.total * (1 + st.item.n));
-    st.xp += st.xpGain;
     const d = today(); if (st.mode === 'daily') d.daily = st.score.total; else d.n++;
     scheduleReview(st.item, st.score.total);
     st.phase = 'result'; st.typed = ''; st.shownAt = performance.now();
@@ -4530,13 +4573,12 @@ self.onmessage = (e) => {
 
   // ------------------------------------------------------------------ home
   function renderHome() {
-    const lv = level(), due = dueReviews().length, dd = st.days[dayKey()], daily = dd && dd.daily !== undefined ? dd.daily : null;
+    const ti = title(), due = dueReviews().length, dd = st.days[dayKey()], daily = dd && dd.daily !== undefined ? dd.daily : null;
     const date = new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
     $('hRating').textContent = Math.round(overall());
     $('hStreak').textContent = streak();
-    $('hLevel').textContent = lv.name;
-    $('hLevelBar').style.width = `${Math.round(lv.frac * 100)}%`;
-    $('hLevelNext').textContent = lv.next ? `${lv.toNext} XP to ${lv.next}` : 'Highest level';
+    $('hTitle').textContent = ti.name;
+    $('hTitleNext').textContent = ti.next ? `${ti.toNext} points to ${ti.next}` : 'Highest title';
     $('hDailyDate').textContent = date;
     $('hDailyState').textContent = daily === null ? 'Same ECG for everyone today · not rated' : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
     $('hReviews').textContent = due ? `${due} due` : st.reviews.length ? 'none due today' : 'none yet';
@@ -4610,7 +4652,7 @@ self.onmessage = (e) => {
       if (b.dataset.go === 'stats') { renderStats(); $('stats').hidden = false; }
       if (b.dataset.go === 'help') $('help').hidden = false;
       if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {
-        st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); st.reviews = []; st.days = {}; st.xp = 0; saveProgress(); goHome();
+        st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); st.reviews = []; st.days = {}; saveProgress(); goHome();
       }
     });
     for (const b of document.querySelectorAll('.page [data-close]')) b.addEventListener('click', () => { b.closest('.page').hidden = true; });

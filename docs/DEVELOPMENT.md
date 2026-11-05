@@ -1417,3 +1417,21 @@ linked from the menu yet.
 - Round 5 changes: the simulator link is at the top of the home screen; a day counts for the streak
   with one ECG; levels Clerk, Nursing student, Medical student, Intern, Resident, Cardiology fellow,
   Cardiologist, Electrophysiologist, Professor of cardiology (same XP thresholds).
+
+## training-1 round 6: titles, statistics, recent infarct
+
+- Ischemia variety: the generator used only an occlusion at 1 h (STEMI) and 30 days (old infarct). Added
+  the infarct at 2 days (`recent`: Q waves and T inversion over the territory, required with their
+  regions; residual ST elevation optional), LAD and RCA sites pass, circumflex sites are mostly rejected
+  (false RVH/LVH reads). Subendocardial ischemia (ST depression) works in the engine but is switched off
+  in the simulator (Round 27: territory-specific reciprocal ST elevation), so "Model" could not show it:
+  not generated until decided. Hyperacute T (15 min) is not used: the reader has no criterion for it.
+  Isolated T inversion (Wellens-type) is not produced by the model.
+- Levels (XP) removed. Titles from the overall rating, like chess titles, and they can be lost: Clerk
+  (< 1300), Nursing student (1300), Medical student (1450; a new user is 1500), Intern (1600), Resident
+  (1750), Cardiology fellow (1900), Cardiologist (2050), Electrophysiologist (2200), Professor of
+  cardiology (2350). First guesses, to be tuned.
+- Statistics: skill radar (1100–2100, 1500 dashed), the last 5 ECGs with the rating change (daily: not
+  rated). Home: Statistics and How it works set apart below a divider. How it works: the author's text.
+- Ratings already weigh the ECG's difficulty (Glicko-2 against the item rating): at 1500, right on a
+  1900 ECG +33, wrong −3; wrong on a 1200 ECG −30 (a 2300 player −37).

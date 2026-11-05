@@ -240,13 +240,13 @@
     item: null, page: 0, picked: [], typed: '', phase: 'answer',   // answer | region | result
     region: null, t0: 0, fs: false, hist: [], skills: Object.fromEntries(SKILLS.map((k) => [k, fresh()])),
     mode: null, focus: null,      // mode: train | skill (focus) | daily | review
-    reviews: [], days: {}, xp: 0, reviewRun: [],
+    reviews: [], days: {}, reviewRun: [],
   };
-  // progress on the phone: ratings, the last 300 answers, the review queue, days practised, experience
+  // progress on the phone: ratings, the last 300 answers, the review queue, days practised
   // (export/import comes later)
   const STORE = 'ecgTraining.v1';
-  function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify({ skills: st.skills, hist: st.hist.slice(-300), reviews: st.reviews, days: st.days, xp: st.xp })); } catch (e) { /* storage blocked */ } }
-  try { const j = JSON.parse(localStorage.getItem(STORE) || 'null'); if (j) { st.hist = j.hist || []; for (const k of SKILLS) if (j.skills && j.skills[k]) st.skills[k] = j.skills[k]; st.reviews = j.reviews || []; st.days = j.days || {}; st.xp = j.xp || 0; } } catch (e) { /* none */ }
+  function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify({ skills: st.skills, hist: st.hist.slice(-300), reviews: st.reviews, days: st.days })); } catch (e) { /* storage blocked */ } }
+  try { const j = JSON.parse(localStorage.getItem(STORE) || 'null'); if (j) { st.hist = j.hist || []; for (const k of SKILLS) if (j.skills && j.skills[k]) st.skills[k] = j.skills[k]; st.reviews = j.reviews || []; st.days = j.days || {}; } } catch (e) { /* none */ }
 
   // ------------------------------------------------------------------ days, streak, levels, reviews
   const DAY = 864e5, dayKey = (t = Date.now()) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -259,9 +259,10 @@
     while (done(dayKey(t))) { n++; t -= DAY; }
     return n;
   }
-  // levels: clinical roles; experience for every answered ECG (score × difficulty); levels never go down
-  const LEVELS = [[0, 'Clerk'], [150, 'Nursing student'], [400, 'Medical student'], [900, 'Intern'], [1800, 'Resident'], [3200, 'Cardiology fellow'], [5500, 'Cardiologist'], [9000, 'Electrophysiologist'], [14000, 'Professor of cardiology']];
-  function level() { let i = 0; while (i + 1 < LEVELS.length && st.xp >= LEVELS[i + 1][0]) i++; const [lo, name] = LEVELS[i], hi = LEVELS[i + 1] ? LEVELS[i + 1][0] : null; return { name, i, frac: hi ? (st.xp - lo) / (hi - lo) : 1, next: hi && LEVELS[i + 1][1], toNext: hi ? hi - st.xp : 0 }; }
+  // titles from the overall rating (like chess titles): a new user (1500) is a medical student; a title is
+  // lost when the rating falls below its band. Bands are first guesses, to be tuned with real answers.
+  const TITLES = [[-Infinity, 'Clerk'], [1300, 'Nursing student'], [1450, 'Medical student'], [1600, 'Intern'], [1750, 'Resident'], [1900, 'Cardiology fellow'], [2050, 'Cardiologist'], [2200, 'Electrophysiologist'], [2350, 'Professor of cardiology']];
+  function title(r = overall()) { let i = 0; while (i + 1 < TITLES.length && r >= TITLES[i + 1][0]) i++; return { name: TITLES[i][1], next: TITLES[i + 1] ? TITLES[i + 1][1] : null, toNext: TITLES[i + 1] ? Math.ceil(TITLES[i + 1][0] - r) : 0 }; }
   // spaced repetition: a missed or partly right ECG returns after 1, 3, 7, 16 and 35 days (rebuilt from its recipe)
   const BOXES = [1, 3, 7, 16, 35];
   const dueReviews = () => st.reviews.filter((r) => r.due <= Date.now());
@@ -377,12 +378,33 @@
   function renderStats() {
     const h = st.hist, n = h.length, avg = (f) => (n ? h.reduce((a, x) => a + f(x), 0) / n : 0);
     const el = $('statsBody'), tile = (v, l) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`;
-    const bars = SKILLS.map((k) => { const r = st.skills[k], w = Math.max(4, Math.min(100, (r.r - 1000) / 12)); return `<div class="skill"><span>${SKILL_NAME[k]}</span><div class="sbar"><i style="width:${w}%"></i></div><b>${Math.round(r.r)}</b><small>±${Math.round(r.rd * 2)}</small></div>`; }).join('');
-    el.innerHTML = `<div class="tiles">${tile(Math.round(overall()), 'Rating')}${tile(n, 'ECGs answered')}${tile(n ? `${Math.round(avg((x) => x.score) * 100)}%` : '—', 'Average score')}${tile(n ? `${Math.round(avg((x) => (x.rhythm === 'ok' ? 1 : 0)) * 100)}%` : '—', 'Rhythm correct')}${tile(n ? `${Math.round(avg((x) => x.time))} s` : '—', 'Average time')}${tile(`${h.filter((x) => x.score >= 0.999).length}`, 'Perfect answers')}</div>`
-      + `<h3>Skills</h3><div class="skills">${bars}</div>`
-      + (n ? '<h3>Recent ECGs</h3><div class="hist">' + h.slice(-50).reverse().map((x) => `<div><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="tm">${Math.round(x.time)} s</span></div>`).join('') + '</div>' : '<p class="empty">No answers yet.</p>')
-      + '<p class="empty" style="margin-top:16px">Ratings start at 1500 and settle after about 20 ECGs (± is the uncertainty). Progress is kept on this phone only.</p>';
+    const recent = h.slice(-5).reverse().map((x) => {
+      const d = x.mode === 'daily' || x.delta === undefined ? null : Math.round(x.delta);
+      return `<div><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="dl ${d === null ? '' : d >= 0 ? 'up' : 'down'}">${d === null ? 'daily' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`}</span></div>`;
+    }).join('');
+    el.innerHTML = `<div class="tiles">${tile(Math.round(overall()), 'Rating')}${tile(`<small>${title().name}</small>`, 'Title')}${tile(n, 'ECGs answered')}${tile(n ? `${Math.round(avg((x) => x.score) * 100)}%` : '—', 'Average score')}${tile(n ? `${Math.round(avg((x) => (x.rhythm === 'ok' ? 1 : 0)) * 100)}%` : '—', 'Rhythm correct')}${tile(streak(), 'Day streak')}</div>`
+      + `<h3>Skills</h3>${radar()}`
+      + (n ? `<h3>Last ${Math.min(5, n)} ECGs</h3><div class="hist">${recent}</div>` : '<p class="empty">No answers yet.</p>')
+      + '<p class="empty" style="margin-top:16px">Ratings start at 1500 and settle after about 20 ECGs. Progress is kept on this phone only.</p>';
   }
+  // skill radar: one axis per skill, 1100 at the centre to 2100 at the edge (more is clamped); 1500 (the start) dashed
+  function radar() {
+    const W = 360, H = 270, cx = W / 2, cy = H / 2, R = 84, lo = 1100, hi = 2100;
+    const ang = (i) => -Math.PI / 2 + i * 2 * Math.PI / SKILLS.length, pt = (i, v) => { const f = Math.max(0.04, Math.min(1, (v - lo) / (hi - lo))); return [cx + R * f * Math.cos(ang(i)), cy + R * f * Math.sin(ang(i))]; };
+    const poly = (vals) => vals.map((v, i) => pt(i, v).map((x) => x.toFixed(1)).join(',')).join(' ');
+    let svg = `<svg class="radar" viewBox="0 0 ${W} ${H}" role="img" aria-label="Skill ratings: ${SKILLS.map((k) => `${SKILL_NAME[k]} ${Math.round(st.skills[k].r)}`).join(', ')}">`;
+    for (const v of [1350, 1600, 1850, 2100]) svg += `<polygon points="${poly(SKILLS.map(() => v))}" fill="none" stroke="var(--line)"/>`;
+    svg += `<polygon points="${poly(SKILLS.map(() => 1500))}" fill="none" stroke="var(--muted)" stroke-dasharray="3 3"/>`;
+    SKILLS.forEach((k, i) => { const [x, y] = pt(i, hi); svg += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)"/>`; });
+    svg += `<polygon points="${poly(SKILLS.map((k) => st.skills[k].r))}" fill="rgba(239,91,122,0.25)" stroke="var(--accent)" stroke-width="2"/>`;
+    SKILLS.forEach((k, i) => {
+      const [x, y] = pt(i, st.skills[k].r); svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="var(--accent)"/>`;
+      const a = ang(i), lx = cx + (R + 14) * Math.cos(a), ly = cy + (R + 18) * Math.sin(a) + (Math.sin(a) > 0.5 ? 8 : 0), anchor = Math.abs(Math.cos(a)) < 0.2 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end';
+      svg += `<text x="${lx.toFixed(1)}" y="${(ly - 2).toFixed(1)}" text-anchor="${anchor}" fill="var(--fg)" font-size="13" font-weight="600">${SKILL_NAME[k]}</text><text x="${lx.toFixed(1)}" y="${(ly + 13).toFixed(1)}" text-anchor="${anchor}" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono, monospace">${Math.round(st.skills[k].r)}</text>`;
+    });
+    return svg + '</svg>';
+  }
+
 
   // ------------------------------------------------------------------ the ECG pages: swipe, double-tap, region taps
   function setPage(p, animate = true) {
@@ -503,8 +525,6 @@
     const before = overall(), opp = { r: st.item.rating, rd: 60 }, sub = st.score.skill;
     if (st.mode !== 'daily') for (const k of SKILLS) if (sub[k] !== undefined) st.skills[k] = glicko(st.skills[k], opp, sub[k]);   // (the daily ECG is not rated)
     st.delta = overall() - before;
-    st.xpGain = Math.round(10 * st.score.total * (1 + st.item.n));
-    st.xp += st.xpGain;
     const d = today(); if (st.mode === 'daily') d.daily = st.score.total; else d.n++;
     scheduleReview(st.item, st.score.total);
     st.phase = 'result'; st.typed = ''; st.shownAt = performance.now();
@@ -585,13 +605,12 @@
 
   // ------------------------------------------------------------------ home
   function renderHome() {
-    const lv = level(), due = dueReviews().length, dd = st.days[dayKey()], daily = dd && dd.daily !== undefined ? dd.daily : null;
+    const ti = title(), due = dueReviews().length, dd = st.days[dayKey()], daily = dd && dd.daily !== undefined ? dd.daily : null;
     const date = new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
     $('hRating').textContent = Math.round(overall());
     $('hStreak').textContent = streak();
-    $('hLevel').textContent = lv.name;
-    $('hLevelBar').style.width = `${Math.round(lv.frac * 100)}%`;
-    $('hLevelNext').textContent = lv.next ? `${lv.toNext} XP to ${lv.next}` : 'Highest level';
+    $('hTitle').textContent = ti.name;
+    $('hTitleNext').textContent = ti.next ? `${ti.toNext} points to ${ti.next}` : 'Highest title';
     $('hDailyDate').textContent = date;
     $('hDailyState').textContent = daily === null ? 'Same ECG for everyone today · not rated' : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
     $('hReviews').textContent = due ? `${due} due` : st.reviews.length ? 'none due today' : 'none yet';
@@ -665,7 +684,7 @@
       if (b.dataset.go === 'stats') { renderStats(); $('stats').hidden = false; }
       if (b.dataset.go === 'help') $('help').hidden = false;
       if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {
-        st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); st.reviews = []; st.days = {}; st.xp = 0; saveProgress(); goHome();
+        st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); st.reviews = []; st.days = {}; saveProgress(); goHome();
       }
     });
     for (const b of document.querySelectorAll('.page [data-close]')) b.addEventListener('click', () => { b.closest('.page').hidden = true; });
