@@ -576,6 +576,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <span id="legendCs" hidden><i style="background:var(--cs)"></i>Conduction system</span>
         <span id="legendBlock" hidden><i style="background:var(--blocked)"></i>Blocked <i style="background:var(--partial); margin-left:8px"></i>Partial block</span>
         <span id="legendIsch" hidden><i style="background:var(--ischemic)"></i>Ischemic <i style="background:var(--necrotic); margin-left:8px"></i>Necrotic <i style="background:#ffd84a; margin-left:8px"></i>Occlusion</span>
+        <span id="legendFib" hidden><i style="background:#9e8c78"></i>Atrial fibrosis</span>
         <span id="legendAP" hidden><i style="background:var(--chest)"></i>Accessory pathway</span>
         <span id="legendLeads" hidden><i style="background:var(--limb)"></i>Limb leads <i style="background:var(--chest); margin-left:8px"></i>Chest leads <i style="background:#ffffff; margin-left:8px"></i>Heart vector <button type="button" id="leadSetBtn" class="leadset" title="Switch between the textbook lead axes and the lead vectors this model computes with">Textbook axes</button></span>
       </div>
@@ -690,7 +691,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-04 (727ef86).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-05 (b8b6055).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -734,7 +735,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-04 (727ef86).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-05 (b8b6055).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -2055,6 +2056,10 @@ THE SOFTWARE.
 
     // Arrhythmia drivers (see Sim.startArrhythmia)
     afFociLA: 8, afFociRA: 3, afClMin: 110, afClMax: 230,
+    // Atrial fibrosis (Sim.setAtrialFibrosis): the substrate of AF. Slower atrial conduction (×fibCv) and
+    // refractoriness that varies from cell to cell (×(1 ± fibHet)), so AF wavefronts break into wavelets
+    // instead of sweeping the atria as one; in sinus rhythm the P wave is broader.
+    fibCv: 1, fibHet: 0.45,
     afDefaultRate: 110, afIrregularity: 0.45, afAvnToV: 110,   // AF ventricular response: mean rate, ±fraction of RR
     flutterRingSlow: 1.1, flutterIsthmusSlow: 2.8, flutterGateTol: 0.03, flutterRadius: 25, flutterBachmannSlow: 40,
     matClMin: 380, matClMax: 640,
@@ -3338,7 +3343,7 @@ THE SOFTWARE.
       this.M = model; this.P = model.P;
       const N = model.nCells;
       this.N = N;
-      this.rand = rng(opts.seed || 1);
+      this.rand = rng(opts.seed || 1); this.seed = opts.seed || 1;
       this.t = 0;
       this.tAct = new Float64Array(N).fill(-1e9);
       this.apd = new Float32Array(N);
@@ -3651,6 +3656,21 @@ THE SOFTWARE.
     // Brugada type 1: the right-ventricular outflow-tract epicardium loses the
     // dome of its action potential (Ito-mediated) and repolarises late: coved
     // ST elevation in V1–V2 descending into a negative T wave.
+    // Atrial fibrosis: a structural condition (it stays through a shock, unlike the rhythm). Conduction in
+    // the working atrial muscle slows (fibCv) and refractoriness varies cell to cell (fibHet, a fixed
+    // pattern from the Sim's seed). Flutter's own slowing is saved on top of it and restored to it.
+    setAtrialFibrosis(on) {
+      on = !!on; if (on === !!this.atrialFibrosis) return;
+      const M = this.M, P = this.P, f = on ? P.fibCv : 1 / P.fibCv;
+      const flutter = this.drivers.find((d) => d.kind === 'watch' && d.slowed), saved = flutter ? new Map(flutter.slowed.map((x, i) => [x[0], i])) : null;
+      for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.ATRIAL && !M.seg[c]) {
+        this.cvMul[c] *= f;
+        if (saved && saved.has(c)) flutter.slowed[saved.get(c)][1] *= f;
+      }
+      if (on) { const r = rng(0x5eed ^ (this.seed || 1)); this._fibHet = new Float32Array(M.nVox).fill(1); for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.ATRIAL && !M.seg[c]) this._fibHet[c] = 1 + P.fibHet * (2 * r() - 1); }
+      else this._fibHet = null;
+      this.atrialFibrosis = on;
+    }
     setPericarditis(on) { this.pericarditis = !!on; this._applyMyocardialDisease(); }
     setBrugada(on) { this.brugada = !!on; this._applyMyocardialDisease(); }
     _applyMyocardialDisease() {
@@ -4181,8 +4201,14 @@ THE SOFTWARE.
       let apd = this.apdMax[c] * (1 - P.restA * Math.exp(-Math.max(DI, 0) / P.restTau));
       // atrial refractoriness floor at the fastest rates; in flutter the circuit
       // turns with an excitable gap at ~200 ms (≈300/min), not at the refractory limit of AF
-      const apdMinA = this._flutterGate ? P.flutterApdMin : P.apdMinAtrial;
-      if (apd < apdMinA && this.M.kind[c] === KIND.ATRIAL) apd = apdMinA;
+      // (the left atrium, driven passively, keeps its own floor: at the flutter floor it could not follow
+      // every turn of the circuit and dropped waves irregularly, which made flutter look like AF)
+      const apdMinA = this._flutterGate && this._flutterGate.side[c] > 0 ? P.flutterApdMin : P.apdMinAtrial;
+      if (this.M.kind[c] === KIND.ATRIAL) {
+        if (this._fibHet) apd *= this._fibHet[c];
+        const floor = this._fibHet ? apdMinA * this._fibHet[c] : apdMinA;
+        if (apd < floor) apd = floor;
+      }
       this.tAct[c] = ta; this.apd[c] = apd;
       this.repEnd[c] = ta + apd;
       this.refEnd[c] = ta + apd * P.erpFrac + this.erpExtra[c];
@@ -4598,12 +4624,12 @@ THE SOFTWARE.
     rep: [0.14, 0.72, 0.38], cs: [0.93, 0.71, 0.16],
     blocked: [0.88, 0.19, 0.25], partial: [1.0, 0.54, 0.12],
     ischemic: [0.56, 0.36, 0.80], necrotic: [0.40, 0.33, 0.37],
-    artery: [0.84, 0.17, 0.20], occluded: [0.30, 0.24, 0.32],
+    artery: [0.84, 0.17, 0.20], occluded: [0.30, 0.24, 0.32], fibrosis: [0.62, 0.55, 0.47],
   };
   const STATIC = { 5: 0xb86e60, 6: 0x6f82ad, 7: 0xe8dcc0, 8: 0xe8dcc0, 9: 0xe8dcc0, 10: 0xe8dcc0, 11: 0x7d6f9c };
 
   let A, M, S;
-  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', struct: { rae: false, lae: false, lvh: false, rvh: false, ap: false, dual: false }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, leadSet: 'book', scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
+  const ui = { tab: 'rhythm', cutFrac: 0, strips: ['II'], rateMode: 'sinus', struct: { rae: false, lae: false, lvh: false, rvh: false, ap: false, dual: false, fib: false }, ischH: 0, ischPending: null, cutDepth: 0, action: 'stimulate', labels: false, leads: false, leadSet: 'book', scaleIdx: 6, paused: false, view: 'external', rate: 72, acc: 0, last: 0 };
   const bufIdx = (t) => (((Math.round(t) + ecg.t0) % PAGE) + PAGE) % PAGE;   // sim time → paper sample
   const ecg = { t0: 0, buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
@@ -5108,6 +5134,10 @@ THE SOFTWARE.
       const n = nec && cov[c] ? nec[c] : l >= 2 ? 1 : 0, k = l >= 2 ? 1 : Math.min(1, l * 1.4);
       for (let d = 0; d < 3; d++) { const isch = C.rest[d] + (C.ischemic[d] - C.rest[d]) * k; rc[o + d] = isch + (C.necrotic[d] - isch) * n; }
     }
+    // atrial fibrosis: patches of fibrotic tissue (the cells whose refractoriness the engine changed most)
+    const het = S.atrialFibrosis && S._fibHet;
+    if (het) for (let c = 0; c < M.nVox; c++) if (Math.abs(het[c] - 1) > 0.15) for (let d = 0; d < 3; d++) rc[3 * c + d] += (C.fibrosis[d] - rc[3 * c + d]) * 0.8;
+    if ($('legendFib')) $('legendFib').hidden = !het;
     ui.necShown = h;
   }
   function animateNecrosis(now) {
@@ -5585,7 +5615,7 @@ THE SOFTWARE.
 
   function update3D() {
     const t = S.t, vc = g3.voxCol;
-    const ischemic = S.insults.length > 0, rc = g3.restCol;
+    const ischemic = S.insults.length > 0 || S.atrialFibrosis, rc = g3.restCol;   // (per-cell resting colours: ischemia, atrial fibrosis)
     for (let c = 0; c < M.nVox; c++) if (M.kind[c]) {
       if (ischemic) stateColor(c, t, vc, 3 * c, rc, 3 * c); else stateColor(c, t, vc, 3 * c, C.rest);
     }
@@ -6016,6 +6046,7 @@ THE SOFTWARE.
       S.stimulateAt(A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === 3), S.nextSinus() + 270);
       return;
     }
+    if (type === 'af' && !ui.struct.fib) { setCondition('fib', true); toast('AF needs a substrate: atrial fibrosis added. It stays after a shock; remove it under Conditions.', 4200); }
     if (type === 'vt') { let best = -1; for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.epi[c] && A.zuvc[c] > 0.35 && A.zuvc[c] < 0.45 && A.phi[c] < -2.2) { best = c; break; } S.startArrhythmia('vt', { cell: best }); return; }
     if (type === 'mat' && ui.rate < 110) { ui.preAtrRate = ui.preAtrRate || ui.rate; ui.rate = 120; S.setRate(120); ui.rateMode = ''; }   // MAT starts tachycardic; the slider then sets it
     S.startArrhythmia(type);
@@ -6605,6 +6636,10 @@ THE SOFTWARE.
       apply: (v) => S.setAccessoryPathway(v ? 'left-lateral' : null) },
     { id: 'dual', cat: 'Conduction abnormalities', label: 'Dual AV-node pathways', name: 'Dual AV-nodal pathways', also: 'AVNRT slow pathway fast pathway dual AV node physiology',
       apply: (v) => S.setDualAVN(!!v) },
+    // atrial fibrosis: the substrate of AF (uneven atrial refractoriness, so AF breaks into wavelets); a
+    // structural condition, so it stays after a shock; starting AF adds it
+    { id: 'fib', cat: 'Chambers', label: 'Atrial fibrosis', name: 'Atrial fibrosis (AF substrate)', also: 'fibrosis remodelling scar substrate atrial fibrillation AF',
+      apply: (v) => { S.setAtrialFibrosis(!!v); if (g3.restCol) recolorIschemia(); } },
     { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
     { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
   ];

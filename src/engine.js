@@ -196,6 +196,10 @@
 
     // Arrhythmia drivers (see Sim.startArrhythmia)
     afFociLA: 8, afFociRA: 3, afClMin: 110, afClMax: 230,
+    // Atrial fibrosis (Sim.setAtrialFibrosis): the substrate of AF. Slower atrial conduction (×fibCv) and
+    // refractoriness that varies from cell to cell (×(1 ± fibHet)), so AF wavefronts break into wavelets
+    // instead of sweeping the atria as one; in sinus rhythm the P wave is broader.
+    fibCv: 1, fibHet: 0.45,
     afDefaultRate: 110, afIrregularity: 0.45, afAvnToV: 110,   // AF ventricular response: mean rate, ±fraction of RR
     flutterRingSlow: 1.1, flutterIsthmusSlow: 2.8, flutterGateTol: 0.03, flutterRadius: 25, flutterBachmannSlow: 40,
     matClMin: 380, matClMax: 640,
@@ -1479,7 +1483,7 @@
       this.M = model; this.P = model.P;
       const N = model.nCells;
       this.N = N;
-      this.rand = rng(opts.seed || 1);
+      this.rand = rng(opts.seed || 1); this.seed = opts.seed || 1;
       this.t = 0;
       this.tAct = new Float64Array(N).fill(-1e9);
       this.apd = new Float32Array(N);
@@ -1792,6 +1796,21 @@
     // Brugada type 1: the right-ventricular outflow-tract epicardium loses the
     // dome of its action potential (Ito-mediated) and repolarises late: coved
     // ST elevation in V1–V2 descending into a negative T wave.
+    // Atrial fibrosis: a structural condition (it stays through a shock, unlike the rhythm). Conduction in
+    // the working atrial muscle slows (fibCv) and refractoriness varies cell to cell (fibHet, a fixed
+    // pattern from the Sim's seed). Flutter's own slowing is saved on top of it and restored to it.
+    setAtrialFibrosis(on) {
+      on = !!on; if (on === !!this.atrialFibrosis) return;
+      const M = this.M, P = this.P, f = on ? P.fibCv : 1 / P.fibCv;
+      const flutter = this.drivers.find((d) => d.kind === 'watch' && d.slowed), saved = flutter ? new Map(flutter.slowed.map((x, i) => [x[0], i])) : null;
+      for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.ATRIAL && !M.seg[c]) {
+        this.cvMul[c] *= f;
+        if (saved && saved.has(c)) flutter.slowed[saved.get(c)][1] *= f;
+      }
+      if (on) { const r = rng(0x5eed ^ (this.seed || 1)); this._fibHet = new Float32Array(M.nVox).fill(1); for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.ATRIAL && !M.seg[c]) this._fibHet[c] = 1 + P.fibHet * (2 * r() - 1); }
+      else this._fibHet = null;
+      this.atrialFibrosis = on;
+    }
     setPericarditis(on) { this.pericarditis = !!on; this._applyMyocardialDisease(); }
     setBrugada(on) { this.brugada = !!on; this._applyMyocardialDisease(); }
     _applyMyocardialDisease() {
@@ -2322,8 +2341,14 @@
       let apd = this.apdMax[c] * (1 - P.restA * Math.exp(-Math.max(DI, 0) / P.restTau));
       // atrial refractoriness floor at the fastest rates; in flutter the circuit
       // turns with an excitable gap at ~200 ms (≈300/min), not at the refractory limit of AF
-      const apdMinA = this._flutterGate ? P.flutterApdMin : P.apdMinAtrial;
-      if (apd < apdMinA && this.M.kind[c] === KIND.ATRIAL) apd = apdMinA;
+      // (the left atrium, driven passively, keeps its own floor: at the flutter floor it could not follow
+      // every turn of the circuit and dropped waves irregularly, which made flutter look like AF)
+      const apdMinA = this._flutterGate && this._flutterGate.side[c] > 0 ? P.flutterApdMin : P.apdMinAtrial;
+      if (this.M.kind[c] === KIND.ATRIAL) {
+        if (this._fibHet) apd *= this._fibHet[c];
+        const floor = this._fibHet ? apdMinA * this._fibHet[c] : apdMinA;
+        if (apd < floor) apd = floor;
+      }
       this.tAct[c] = ta; this.apd[c] = apd;
       this.repEnd[c] = ta + apd;
       this.refEnd[c] = ta + apd * P.erpFrac + this.erpExtra[c];
