@@ -25,13 +25,17 @@
     read: (r) => r === 'atrial fibrillation' },
     flutter: { w: 2, open: true, notWith: ['stemi', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt'],   // (flutter waves sit on the ST segment)
       rating: 150, link: 'a=flutter&v=75', start: (S) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(75); }, read: (r) => r === 'atrial flutter' },
-    avnrt: { w: 2, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
-    avrt: { w: 2, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
+    avnrt: { w: 1.5, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
+    avrt: { w: 1.5, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
     mobitz1: { w: 2, open: true, rating: 150, block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
-    mobitz2: { w: 2, open: true, rating: 180, block: ['HIS', 'mobitz2', { n: 4 }], read: (r) => /Mobitz II /.test(r) },
-    avb2to1: { w: 1, open: true, rating: 200, block: ['AVN', 'two-to-one'], read: (r) => /2:1 AV block/.test(r) },
+    mobitz2: { w: 1, open: true, rating: 180, block: ['HIS', 'mobitz2', { n: 4 }], read: (r) => /Mobitz II /.test(r) },
+    avb2to1: { w: 0.6, open: true, rating: 200, block: ['AVN', 'two-to-one'], read: (r) => /2:1 AV block/.test(r) },
     chb: { w: 2, open: true, rating: 120, block: ['AVN', 'complete'], read: (r) => /complete AV block/.test(r) },
-    vt: { w: 1, tachy: true, rating: 120, link: 'a=vt', vt: true, read: (r) => r === 'ventricular tachycardia' },
+    vt: { w: 1.2, tachy: true, rating: 120, link: 'a=vt', vt: true, read: (r) => r === 'ventricular tachycardia' },
+    vf: { w: 0.8, tachy: true, rating: 40, link: 'a=vf', vf: true, start: (S) => { S.run(2000); S.startArrhythmia('vf'); }, read: (r) => r === 'ventricular fibrillation' },
+    // sinus node: 2nd-degree SA exit block (3:2, regular dropped beats) and one sinus pause in the strip
+    saBlock: { w: 1, open: true, pRhythm: true, rate: [64, 84], rating: 160, block: ['SAN', 'sa-exit', { n: 3 }], read: (r) => /pauses|SA block/.test(r) },
+    sinusPause: { w: 1, open: true, pRhythm: true, rate: [62, 84], rating: 110, linkBlock: 'SAN.pause', at: [[3000, (S) => S.setBlock('SAN', 'pause', { ms: 2600 })]], read: (r) => /pauses|bradycardia|rhythm/.test(r) },
   };
   const RHYTHM_LINE = {
     sinus: 'Regular, a P before every QRS at a normal rate: sinus rhythm.',
@@ -46,6 +50,9 @@
     avb2to1: 'Every second P is not conducted: 2:1 AV block (Mobitz I or II cannot be told apart).',
     chb: 'P waves march through at their own rate, unrelated to a slow regular escape: complete AV block.',
     vt: 'Regular broad-complex tachycardia without related P waves: ventricular tachycardia.',
+    vf: 'Chaotic, irregular deflections with no identifiable QRS complexes: ventricular fibrillation. Defibrillate.',
+    saBlock: 'P waves drop out together with their QRS, and each pause is an exact multiple of the P–P interval: sinoatrial exit block.',
+    sinusPause: 'A sudden pause with no P wave, not a multiple of the P–P interval, then sinus beats resume: sinus pause (sinus arrest).',
   };
 
   // ---------------------------------------------------------------- abnormalities
@@ -70,20 +77,27 @@
     wpw: { group: 'wpw', skill: 'conduction', needP: true, rating: 40, dx: 'WPW pattern', ap: true, struct: 'ap', excl: ['av', 'fasc', 'bbb', 'hyp', 'peri', 'brugada', 'atria'], leads: ['I', 'II', 'V4', 'V5'], caliper: 'pr', line: 'Short PR, slurred delta wave and broad QRS: WPW pattern.' },
     lvh: { group: 'hyp', skill: 'conditions', rating: 0, dx: 'LVH', hyp: 'lvh', struct: 'lvh', leads: ['V1', 'V5', 'V6', 'aVL'], line: 'S in V1 plus R in V5/V6 ≥ 35 mm: left ventricular hypertrophy.' },
     rvh: { group: 'hyp', skill: 'conditions', rating: 60, dx: 'RVH', hyp: 'rvh', struct: 'rvh', leads: ['V1', 'I'], line: 'Right axis with a dominant R in V1: right ventricular hypertrophy.' },
-    stemi: { group: 'isch', skill: 'ischemia', rating: 0, isch: 1, excl: ['peri', 'brugada'], id: 'ste' },
+    stemi: { group: 'isch', skill: 'ischemia', rating: 0, isch: 1, excl: ['peri', 'brugada', 'hyp'], id: 'ste' },   // (hypertrophy amplifies the injury current: ST elevation far too tall)
     oldmi: { group: 'isch', skill: 'ischemia', rating: 20, isch: 720, excl: ['peri', 'brugada'], id: 'qwaves' },
     // narrowing (partial flow, 1 h): subendocardial ischemia, ST depression (with ST elevation in aVR)
     narrow: { group: 'isch', skill: 'ischemia', rating: 100, isch: 1, stenosis: true, excl: ['peri', 'brugada', 'hyp', 'wpw'], id: 'std' },
     // hyperacute phase (15 min): tall, broad T waves over the territory before the ST rises
-    hyper: { group: 'isch', skill: 'ischemia', rating: 140, isch: 0.25, excl: ['peri', 'brugada', 'hyp', 'wpw'], id: 'hyperacute' },
+    hyper: { group: 'isch', skill: 'ischemia', rating: 140, isch: 0.25, excl: ['peri', 'brugada', 'hyp', 'wpw', 'fasc'], id: 'hyperacute' },   // (with a fascicular block the territory repolarises in two waves: a notched, M-shaped T)
     // a recent infarct (2 days): Q waves with T inversion over the territory, ST elevation mostly resolved
     recent: { group: 'isch', skill: 'ischemia', rating: 120, isch: 48, excl: ['peri', 'brugada'], id: 'qwaves' },
     // non-specific ST-T changes: flat T waves in leads where T is normally upright, no territory
     nsstt: { group: 'repol', skill: 'conditions', rating: 120, id: 'nsstt', nsstt: true, struct: 'nsstt', excl: ['isch', 'peri', 'brugada', 'bbb', 'hyp', 'wpw'], leads: [], line: '' },
     peri: { group: 'peri', skill: 'conditions', rating: 80, id: 'pericarditis', dx: 'pericarditis', peri: true, struct: 'peri', excl: ['isch', 'brugada'], leads: ['I', 'II', 'aVF', 'V5', 'V6', 'aVR'], line: 'Diffuse concave ST elevation with PR depression and ST depression in aVR: pericarditis.' },
+    // ectopy (sinus rhythm only): two PVCs, two PACs, or one ventricular couplet in the strip, timed from the
+    // engine's own beats; verified from its timing (the ectopic beat fired, premature, wide or narrow)
+    pvc: { group: 'ectopy', skill: 'rhythm', rating: 20, ectopy: 'pvc', id: 'pvc', leads: ['II'], line: 'An early, wide, bizarre QRS with no P wave before it and a full compensatory pause: premature ventricular complexes.' },
+    pac: { group: 'ectopy', skill: 'rhythm', rating: 80, ectopy: 'pac', id: 'pac', leads: ['II'], line: 'An early P wave of another shape followed by a normal narrow QRS, then a pause shorter than compensatory: premature atrial complexes.' },
+    couplet: { group: 'ectopy', skill: 'rhythm', rating: 60, ectopy: 'couplet', id: 'couplet', leads: ['II'], line: 'Two premature wide complexes in a row: a ventricular couplet (three or more would be non-sustained VT).' },
     brugada: { group: 'brugada', skill: 'conditions', rating: 80, dx: 'Brugada type 1', brugada: true, struct: 'brugada', excl: ['isch', 'peri'], leads: ['V1', 'V2'], line: 'Coved ST elevation ≥ 2 mm in V1–V2 into a negative T: Brugada pattern.' },
   };
-  const ABN_W = { avb1: 2, rae: 1, lae: 1, bae: 0.6, lafb: 2, lpfb: 1, lbbb: 2, rbbb: 2, wpw: 1, lvh: 2, rvh: 1, stemi: 3, oldmi: 2.5, recent: 2.5, hyper: 1.5, narrow: 2.5, nsstt: 1.5, peri: 1, brugada: 0.7 };
+  // (testers' round 1: fewer hypertrophy, Brugada and atrial enlargement; more ST depression, T changes,
+  // WPW and ectopy)
+  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.25, pvc: 2, pac: 1.5, couplet: 0.8 };
   const ITEM_BASE = 1200, PER_ABN = 180;
 
   // Combination rules (the author's clinical calls; see docs/DEVELOPMENT.md training-1):
@@ -100,7 +114,9 @@
     if (!R.open) return false;
     if (a.needP && !R.pRhythm) return false;
     if (a.group === 'av' && R.block) return false;
-    if ((R.notWith || []).includes(k)) return false;   // (at 106–125/min the P sits on the previous T: hidden or not read)
+    if ((R.notWith || []).includes(k)) return false;
+    if (a.ectopy && !['sinus', 'sinusBrady'].includes(rh)) return false;   // (ectopy is timed from sinus beats)
+    if (has('wpw') && all.some((x) => ABN[x].ectopy)) return false;   // (at 106–125/min the P sits on the previous T: hidden or not read)
     for (const j of list) {
       const b = ABN[j];
       if (b.group === a.group) return false;
@@ -116,7 +132,8 @@
     return true;
   }
   const siteOk = (site, list) => !(list.includes('lafb') && /RCA|LCx/.test(site)) && !(list.includes('lpfb') && /LAD|LCx/.test(site))
-    && !(list.includes('avb1') && /RCA/.test(site));   // (a proximal RCA occlusion slows the AV node too: with first-degree block the P sinks into the T)
+    && !(list.includes('avb1') && /RCA/.test(site))
+    && !(list.includes('wpw') && /LCx/.test(site));   // (the left-lateral pathway inserts in circumflex territory: an infarct there removes the pre-excitation)   // (a proximal RCA occlusion slows the AV node too: with first-degree block the P sinks into the T)
   function itemRating(rec) {
     return ITEM_BASE + RHYTHMS[rec.rhythm].rating + rec.abn.reduce((s, a) => s + PER_ABN + ABN[a.k].rating, 0);
   }
@@ -126,30 +143,31 @@
     return entries[entries.length - 1][0];
   }
   // a random scenario near the target rating, preferring one that exercises the focus skill
+  // A scenario near the target rating: the rhythm is drawn first, by its weight (so every rhythm keeps its share
+  // whatever the user's level: a tachycardia carries no other findings); then the number of abnormalities is
+  // set by the target (one per ~300 rating points above the base) and they are drawn by their weights, so the weights set
+  // the mix (choosing the best of many random combinations favoured the abnormalities with the largest
+  // difficulty bonus: hypertrophy, Brugada, 2:1 block). With a focus skill, one abnormality is from it.
   function sample(rand, target = 1400, focus = null, nMax = 4) {
-    let best = null, bestD = Infinity;
-    for (let tries = 0; tries < 60; tries++) {
-      const rhythm = pickW(rand, Object.entries(RHYTHMS).map(([k, r]) => [k, r.w]));
-      const n = Math.floor(rand() * (nMax + 1)), list = [];
-      for (let i = 0; i < n; i++) {
-        const opts = Object.keys(ABN).filter((k) => !list.includes(k) && compatible(rhythm, list, k));
-        if (!opts.length) break;
-        list.push(pickW(rand, opts.map((k) => [k, ABN_W[k]])));
-      }
-      // (an infarct takes an artery the other abnormalities allow; if they allow none, it is left out)
-      const abn = list.map((k) => {
-        const a = { k };
-        // (a mid-LAD narrowing stays under 1 mm: not asked)
-        if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list) && !(k === 'narrow' && x === 'mLAD')); if (!sites.length) return null; a.site = sites[Math.floor(rand() * sites.length)]; }
-        return a;
-      }).filter(Boolean);
-      const r = RHYTHMS[rhythm];
-      const rec = { rhythm, abn, seed: 1 + Math.floor(rand() * 1e6), rate: r.rate ? Math.round(r.rate[0] + rand() * (r.rate[1] - r.rate[0])) : 72 };
-      const skills = new Set(['rhythm', ...abn.map((a) => ABN[a.k].skill)]);
-      const d = Math.abs(itemRating(rec) - target) + (focus && focus !== 'rhythm' && !skills.has(focus) ? 150 : 0) + rand() * 60;
-      if (d < bestD) { bestD = d; best = rec; }
+    let rhythm = pickW(rand, Object.entries(RHYTHMS).map(([k, r]) => [k, r.w]));
+    if (focus && focus !== 'rhythm' && !RHYTHMS[rhythm].open) rhythm = pickW(rand, Object.entries(RHYTHMS).filter(([, r]) => r.open).map(([k, r]) => [k, r.w]));
+    const R = RHYTHMS[rhythm];
+    const n = R.open ? Math.max(focus && focus !== 'rhythm' ? 1 : 0, Math.min(nMax, Math.round((target - ITEM_BASE - R.rating) / (PER_ABN + 120) + (rand() - 0.5)))) : 0;
+    const list = [];
+    for (let i = 0; i < n; i++) {
+      let opts = Object.keys(ABN).filter((k) => !list.includes(k) && compatible(rhythm, list, k));
+      if (i === 0 && focus && focus !== 'rhythm' && opts.some((k) => ABN[k].skill === focus)) opts = opts.filter((k) => ABN[k].skill === focus);
+      if (!opts.length) break;
+      list.push(pickW(rand, opts.map((k) => [k, ABN_W[k]])));
     }
-    return best;
+    // (an infarct takes an artery the other abnormalities allow; if they allow none, it is left out)
+    const abn = list.map((k) => {
+      const a = { k };
+      // (a mid-LAD narrowing stays under 1 mm: not asked)
+      if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list) && !(k === 'narrow' && x === 'mLAD')); if (!sites.length) return null; a.site = sites[Math.floor(rand() * sites.length)]; }
+      return a;
+    }).filter(Boolean);
+    return { rhythm, abn, seed: 1 + Math.floor(rand() * 1e6), rate: R.rate ? Math.round(R.rate[0] + rand() * (R.rate[1] - R.rate[0])) : 72 };
   }
 
   // ---------------------------------------------------------------- simulation
@@ -209,12 +227,33 @@
       else { S = base(M, rec); if (R.start) R.start(S); if (R.vt) { S.run(2000); S.startArrhythmia('vt', { cell: vtCell(M.A) }); } }
       if (!S) return null;
       S.run(SETTLE);
-      const rec12 = []; let t0 = null; const atr = new Set(), ven = new Set();
+      const rec12 = []; let t0 = null; const atr = new Set(), ven = new Set(), stims = [];
       S.onSample((t, v) => { if (t0 === null) t0 = t; rec12.push(Array.from(v)); });
-      for (let t = 0; t < STRIP; t += 500) { S.run(500); S.log.atrial.forEach((x) => atr.add(x)); S.log.vent.forEach((x) => ven.add(x)); }   // (the logs keep 50 entries)
+      // timed events in the strip: the rhythm's own (a sinus pause) and ectopic beats
+      const events = (R.at || []).map(([t, fn]) => ({ t, fn }));
+      const ect = rec.abn.find((a) => ABN[a.k].ectopy);
+      if (ect) {
+        const er = LH.rng((rec.seed ^ 0xec70) >>> 0), A = M.A, kind = ABN[ect.k].ectopy, rr = 60000 / (R.rate ? rec.rate : 72);
+        const pickCell = (f) => { const pool = []; for (let c = 0; c < M.nVox; c++) if (f(c)) pool.push(c); return pool[Math.floor(er() * pool.length)]; };
+        const cell = kind === 'pac' ? pickCell((c) => M.kind[c] === LH.KIND.ATRIAL && !M.seg[c]) : pickCell((c) => M.kind[c] === LH.KIND.VENT && A.epi[c]);
+        // a PVC ~0.6 RR after the last QRS (after its T wave, before the next sinus beat conducts); a PAC ~0.65 RR
+        // after the last P wave; a couplet: a second PVC 380 ms after the first
+        const fire = () => {
+          const lv = S.log.vent[S.log.vent.length - 1], next = S.nextSinus();
+          if (kind === 'pac') { let tp = next - 0.35 * rr; if (tp <= S.t + 5) tp += rr; S.stimulateAt(cell, tp); stims.push({ t: tp, kind }); return; }
+          const tp = Math.max(S.t + 5, lv.on + Math.max(420, 0.6 * rr));
+          if (tp < next + 100) { S.stimulateAt(cell, tp); stims.push({ t: tp, kind: 'pvc' }); if (kind === 'couplet') { S.stimulateAt(cell, tp + 380); stims.push({ t: tp + 380, kind: 'pvc' }); } }
+        };
+        for (const t of kind === 'couplet' ? [3800] : [2600, 6600]) events.push({ t, fn: fire });
+      }
+      for (let t = 0; t < STRIP; t += 100) {
+        for (const e of events) if (!e.done && e.t >= t && e.t < t + 100) { e.done = true; e.fn(S); }
+        S.run(100);
+        if (t % 500 === 400) { S.log.atrial.forEach((x) => atr.add(x)); S.log.vent.forEach((x) => ven.add(x)); }   // (the logs keep 50 entries)
+      }
       const inStrip = (x) => x.on - t0 >= 0 && x.on - t0 < STRIP;
       const rel = (x) => ({ on: x.on - t0, last: x.last - t0, end: x.repEnd ? x.repEnd - t0 : null, n: x.n });
-      return { S, M, rec12, t0, A: [...atr].filter(inStrip).sort((a, b) => a.on - b.on).map(rel), V: [...ven].filter(inStrip).sort((a, b) => a.on - b.on).map(rel) };
+      return { S, M, rec12, t0, A: [...atr].filter(inStrip).sort((a, b) => a.on - b.on).map(rel), V: [...ven].filter(inStrip).sort((a, b) => a.on - b.on).map(rel), stims: stims.map((x) => ({ ...x, t: x.t - t0 })) };
     }
     // a 3.6 s sinus beat of the same heart (measurements for the fast tachycardias, whose T runs into the next QRS)
     function sinusRead(M) {
@@ -223,8 +262,18 @@
     }
     // the median beat (as clinical programs measure): every complete beat of the strip aligned at its
     // ventricular onset (engine timing), sample by sample the median of each lead
+    // the beats an ectopic stimulus produced (a PVC itself; the early beat a PAC conducts)
+    function ectopicBeats(sim) {
+      const out = new Set();
+      for (const st of sim.stims || []) {
+        const v = sim.V.find((x) => (st.kind === 'pac' ? x.on > st.t + 60 && x.on < st.t + 350 : x.on >= st.t - 5 && x.on <= st.t + 60));
+        if (v) out.add(v);
+      }
+      return out;
+    }
     function medianBeat(sim) {
-      const { rec12, V } = sim, rrs = V.slice(1).map((v, i) => v.on - V[i].on), rr = rrs.length ? rrs.slice().sort((a, b) => a - b)[rrs.length >> 1] : 833;
+      // (the RR for QTc and the window: the shorter, sinus cycle, not a pause of SA block or around an ectopic beat)
+      const ect = ectopicBeats(sim), { rec12 } = sim, V = sim.V.filter((v) => !ect.has(v)), rrs = V.slice(1).map((v, i) => v.on - V[i].on), rr = rrs.length ? rrs.slice().sort((a, b) => a - b)[Math.floor(rrs.length * 0.25)] : 833;
       const pre = Math.round(Math.min(520, Math.max(250, rr - 250))), post = Math.round(Math.min(650, rr - 20));
       const ons = V.map((v) => Math.round(v.on)).filter((o) => o - pre >= 0 && o + post < rec12.length);
       if (ons.length < 3) return null;
@@ -246,6 +295,7 @@
       let hidden = 0, n = 0;
       for (const a of A) {
         if (a.on < 200 || a.on > STRIP - 300) continue;
+        if ((sim.stims || []).some((x) => Math.abs(a.on - x.t) < 400)) continue;   // (a P next to an ectopic beat: hidden by it, as expected)
         const d = Math.max(40, a.last - a.on + 20); let cover = 0;   // (P wave ≈ atrial activation + 20 ms)
         for (const v of V) cover += overlap(a.on, a.on + d, v.on - 5, (v.end || v.last + 300));
         n++; if (cover / d > 0.5) hidden++;
@@ -340,6 +390,7 @@
       if (R.link) q.push(R.link);
       if (R.block) blocks.push(`${R.block[0]}.${R.block[1]}`);
       if (R.struct) struct.push(R.struct);
+      if (R.linkBlock) blocks.push(R.linkBlock);
       let isch = null;
       for (const a of rec.abn) { const d = ABN[a.k]; if (d.block) blocks.push(`${d.block[0]}.${d.block[1]}`); if (d.struct) struct.push(d.struct); if (d.isch) isch = a; }
       if (blocks.length) q.push(`b=${blocks.join(',')}`);
@@ -352,8 +403,8 @@
       const sim = simulate(rec);
       if (!sim) return fail('not induced', 'rhythm');
       const { M, rec12, A, V } = sim, R = RHYTHMS[rec.rhythm];
-      if (V.length < 4) return fail('too few beats', 'rhythm');
-      const rrs = V.slice(1).map((v, i) => v.on - V[i].on), rate = Math.round(60000 * rrs.length / rrs.reduce((x, y) => x + y, 0));
+      if (V.length < 4 && !R.vf) return fail('too few beats', 'rhythm');
+      const rrs = V.slice(1).map((v, i) => v.on - V[i].on), rate = R.vf ? null : Math.round(60000 * rrs.length / rrs.reduce((x, y) => x + y, 0));
       // rhythm: from the engine; P waves must be visible where the rhythm is read from them
       let rhythm = rec.rhythm;
       if (SINUS.includes(rhythm)) rhythm = rate < 60 ? 'sinusBrady' : rate > 100 ? 'sinusTachy' : 'sinus';
@@ -365,9 +416,24 @@
       const med = R.tachy ? null : medianBeat(sim);
       if (!R.tachy && !med) return fail('too few beats for a median beat', 'rhythm');
       const r = med ? read(med.rec, med.hint, med.rr, { minOff: med.qrsEnd }) : null, b = r ? r.interpret() : { dx: [], f: {} };
-      const findings = [], optional = new Set(), hl = new Set(), lines = {}, checks = [];
+      const findings = [], optional = new Set(), hl = new Set(), lines = {}, checks = [], hlBy = {};
+      const mark = (id, leads) => { for (const l of leads) { hl.add(l); (hlBy[id] = hlBy[id] || []).includes(l) || hlBy[id].push(l); } };   // (each finding's own leads: the result chips show them)
       for (const a of rec.abn) {
-        const d = ABN[a.k], c = criteria(a.k, a, r.m, r.L);
+        const d = ABN[a.k];
+        if (d.ectopy) {
+          // ectopy, from the engine's timing: every planned ectopic beat fired; PVCs wide (≥ 110 ms) and premature,
+          // PACs conducted to a narrow QRS
+          const ect = ectopicBeats(sim), med = rrs.slice().sort((x, y) => x - y)[rrs.length >> 1];
+          const pvcs = (sim.stims || []).filter((x) => x.kind === 'pvc'), pacs = (sim.stims || []).filter((x) => x.kind === 'pac');
+          const wide = [...ect].filter((v) => v.last - v.on >= 110), early = [...ect].filter((v) => { const i = V.indexOf(v); return i > 0 && v.on - V[i - 1].on < 0.85 * med; });
+          const want = d.ectopy === 'pac' ? 2 : 2, ok = d.ectopy === 'pac' ? pacs.length === 2 && ect.size === 2 && wide.length === 0 && early.length === 2 : pvcs.length === 2 && wide.length === 2 && early.length >= 1;
+          checks.push(`${a.k}: ${ect.size} ectopic beats (${wide.length} wide, ${early.length} premature)`);
+          if (!ok) return fail(`${a.k}: ectopic beats did not show as planned (${ect.size} of ${want})`, 'criteria');
+          findings.push({ id: d.id, skill: d.skill }); mark(d.id, ['II', 'V1']); lines[d.id] = d.line;
+          if (d.ectopy === 'couplet') optional.add('pvc');
+          continue;
+        }
+        const c = criteria(a.k, a, r.m, r.L);
         checks.push(`${a.k}: ${c.why}`);
         if (!c.ok) return fail(`${a.k}${a.site ? ' ' + a.site : ''} criteria not met (${c.why})`, 'criteria');
         // twin: the same scenario without this abnormality
@@ -380,19 +446,19 @@
           const site = MI_SITES[a.site], terr = terrOf(c.leads), depth = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].st80));
           const main = terr.slice().sort((x, y) => depth(x) - depth(y))[0];
           findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok])].filter((t) => t !== main) });
-          c.leads.forEach((l) => hl.add(l)); if (r.L.aVR.stJ >= 0.05) hl.add('aVR');
+          mark('std', c.leads); if (r.L.aVR.stJ >= 0.05) mark('std', ['aVR']);
           lines.std = `ST depression in ${c.leads.join(', ')}${r.L.aVR.stJ >= 0.05 ? ' with ST elevation in aVR' : ''}: subendocardial ischemia (NSTEMI pattern, here a narrowed ${site.name}). ST depression does not show which artery.`;
           ['reciprocal'].forEach((x) => optional.add(x)); if (twiLeads(r.L).length) optional.add('twi');
         } else if (a.k === 'nsstt') {
           findings.push({ id: 'nsstt', skill: d.skill });
-          c.leads.forEach((l) => hl.add(l));
+          mark('nsstt', c.leads);
           lines.nsstt = `Flat T waves in ${c.leads.join(', ')} with no territory, no ST depression of 1 mm and no Q waves: non-specific ST-T changes (electrolytes, drugs, rate…). Compare with an earlier ECG.`;
         } else if (a.k === 'hyper') {
           // (the T waves must be taller than this heart's own: at least 1.5× the twin's in those leads)
           if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr, { minOff: tmed.qrsEnd }).L, risen = c.leads.filter((n) => r.L[n].T >= 1.4 * Math.max(0.05, tr[n].T)); if (risen.length < 2) return fail(`hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); c.leads = risen; }
           const site = MI_SITES[a.site], ex = site.ste, terr = terrOf(c.leads), req = ex.req.filter((t) => terr.includes(t)).length ? ex.req.filter((t) => terr.includes(t)) : terr.slice(0, 1);
           findings.push({ id: 'hyperacute', skill: d.skill, regions: req, okRegions: [...new Set([...terr, ...ex.req, ...ex.ok])].filter((t) => !req.includes(t)) });
-          c.leads.forEach((l) => hl.add(l));
+          mark('hyperacute', c.leads);
           lines.hyperacute = `Tall, broad T waves in ${c.leads.join(', ')} with no ST elevation yet: hyperacute ${req.join('/')} ischemia (minutes after a ${site.name} occlusion). Repeat the ECG: STEMI may follow.`;
           ['twi', 'reciprocal'].forEach((x) => optional.add(x));
         } else if (a.k === 'recent') {
@@ -400,20 +466,21 @@
           findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
           const tReq = tt.filter((t) => ex.req.includes(t)).length ? tt.filter((t) => ex.req.includes(t)) : tt.slice(0, 1);
           findings.push({ id: 'twi', skill: d.skill, regions: tReq, okRegions: [...new Set([...tt, ...ex.req, ...ex.ok])].filter((t) => !tReq.includes(t)) });
-          c.leads.forEach((l) => hl.add(l)); c.leads2.forEach((l) => hl.add(l));
+          mark('qwaves', c.leads); mark('twi', c.leads2);
           lines.qwaves = lines.twi = `Q waves in ${c.leads.join(', ')} with T inversion in ${c.leads2.join(', ')}: recent ${ex.req.join('/')} infarct (about 2 days old).`;
           ['ste', 'poorR', 'longqt'].forEach((x) => optional.add(x));
         } else if (d.isch) {
           const site = MI_SITES[a.site], acute = d.isch < 24, ex = acute ? site.ste : site.q, terr = terrOf(c.leads);
           findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
-          c.leads.forEach((l) => hl.add(l));
+          mark(d.id, c.leads);
           lines[d.id] = acute ? `ST elevation in ${c.leads.join(', ')}: acute ${ex.req.join('/')} STEMI (${site.name} occlusion).` : `Q waves in ${c.leads.join(', ')}: old ${ex.req.join('/')} infarct.`;
-          if (acute) ['std', 'reciprocal', 'hyperacute', 'posteriorMI', 'twi'].forEach((x) => optional.add(x));
+          // (Q waves can form within hours of a STEMI: named with the STEMI, they are true)
+          if (acute) ['std', 'reciprocal', 'hyperacute', 'posteriorMI', 'twi', 'qwaves'].forEach((x) => optional.add(x));
         } else {
           findings.push({ id: d.id || a.k, skill: d.skill });
           // (the textbook leads, where the twin shows the change; else the leads that change most)
           const tl = tw ? d.leads.filter((l) => tw.per[l] >= 0.3 * tw.max) : d.leads;
-          (c.leads || (tl.length ? tl : tw ? tw.top : d.leads)).forEach((l) => hl.add(l));
+          mark(d.id || a.k, c.leads || (tl.length ? tl : tw ? tw.top : d.leads));
           lines[d.id || a.k] = d.line;
         }
       }
@@ -426,6 +493,8 @@
           if (words.some((w) => dx === w || dx.startsWith(w + ' '))) continue;
           if (!R.pRhythm && ['RAE', 'LAE', 'biatrial enlargement', '1st-degree AVB'].includes(dx)) { if (dx === '1st-degree AVB' && rec.rhythm === 'mobitz1') optional.add('avb1'); continue; }
           if (dx === 'long QT' && ['af', 'flutter'].includes(rec.rhythm)) continue;
+          if (rec.rhythm === 'flutter' && /^(STEMI|old MI|T inversion)/.test(dx)) continue;   // (flutter waves on the ST segment; flutter carries no ischemia)
+          if (dx === 'long QT' && (R.block || R.at || rec.abn.some((x) => ABN[x.k].ectopy))) continue;   // (QT after a pause is longer: QTc is not read across pauses)
           if (dx === 'poor R progression') { optional.add('poorR'); continue; }
           if (dx === 'LVH' && ks.includes('lafb')) { optional.add('lvh'); continue; }
           if (dx === 'T inversion' && ks.length) { optional.add('twi'); continue; }
@@ -452,8 +521,8 @@
       }
       for (const x of findings) optional.delete(x.id);
       // measurements: rate from the engine; intervals and axis from the median beat
-      const sm = R.tachy ? sinusRead(M).m : r.m;
-      const m = { rate, pr: R.pRhythm ? r.m.pr : null, qrs: R.vt ? null : sm.qrs, qtc: R.tachy || ['af', 'flutter'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt ? null : sm.axis };
+      const sm = R.vf ? null : R.tachy ? sinusRead(M).m : r.m;
+      const m = R.vf ? { rate: null, pr: null, qrs: null, qtc: null, axis: null } : { rate, pr: R.pRhythm ? r.m.pr : null, qrs: R.vt ? null : sm.qrs, qtc: R.tachy || R.block || R.at || ['af', 'flutter'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt ? null : sm.axis };
       // caliper on the interval that decides it (engine timing)
       const within = (lo, hi) => V.filter((v) => v.on > lo && v.on < hi);
       let caliper = null;
@@ -469,7 +538,7 @@
       const rating = itemRating(rec) + (pv.share > 0.2 ? 60 : 0);
       return {
         ok: true,
-        item: { id: `${rec.rhythm}-${rec.seed}`, title, recipe: rec, hz: HZ, ms: STRIP, leads, m, read: { rhythm: rr.rhythm, dx: b.dx, checks, hiddenP: pv }, key, highlight: hl.size ? LEADS.filter((l) => hl.has(l)) : ['II'], caliper,
+        item: { id: `${rec.rhythm}-${rec.seed}`, title, recipe: rec, hz: HZ, ms: STRIP, leads, m, read: { rhythm: rr.rhythm, dx: b.dx, checks, hiddenP: pv }, key, highlight: hl.size ? LEADS.filter((l) => hl.has(l)) : ['II'], hlBy, caliper,
           lines: { rhythm: RHYTHM_LINE[rhythm], ...lines }, link: linkOf(rec), rating, skills: Object.keys(skills), n: rec.abn.length },
       };
     }

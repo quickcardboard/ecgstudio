@@ -1547,3 +1547,30 @@ uniform part), and the plateau sags by up to `nssttSag` 0.06. No territory, no n
   ischemia, pericarditis, Brugada, bundle-branch block, hypertrophy, WPW or flutter.
 - Vocabulary: "Flat T waves" (a region term) is folded into "Non-specific ST-T abnormality" (synonyms
   include flat T, T wave flattening, NSSTTA).
+
+## training-1 round 11: testers' round 1 (75 ECGs)
+
+- Screen: keys 56 px (were 46); the suggestions take the chip row while typing (no row of their own, the
+  "Add every abnormality…" hint removed), so the keyboard grows without shrinking the ECG. Result chips are
+  buttons: tapping one shows that finding's leads only (the rhythm: the caliper) and its own line (or "not
+  present", or "also true: secondary"). Speed on the radar: 15 s = edge, 60 s = centre.
+- Scoring: "LVH with strain" counts as LVH (and bifascicular block as RBBB/LAFB); Mobitz II counts for 2:1
+  AV block (the more serious reading).
+- Generator mix: the rhythm is drawn first by its weight; the number of abnormalities follows the target
+  (one per ~300 rating points); abnormalities are drawn by weight. Best-of-many selection had favoured the
+  abnormalities with the largest rating bonus (hypertrophy, Brugada, 2:1 block). Weights lowered for
+  hypertrophy, Brugada, atrial enlargement, Mobitz II, 2:1 block, LAFB/LPFB, first-degree block; raised
+  for narrowing, recent infarct, non-specific ST-T, hyperacute T, WPW.
+- New rhythms: VF; SA exit block (3:2); sinus pause (2.6 s, at 3 s into the strip; link `b=SAN.pause`).
+  New abnormalities (sinus rhythm only): two PVCs, two PACs, or a ventricular couplet, timed from the
+  engine's own beats (PVC ≥ 0.6 RR after the last QRS; PAC 0.35 RR before the next sinus discharge);
+  verified from the engine's timing (fired, premature; PVC ≥ 110 ms wide, PAC narrow) and left out of the
+  median beat; P waves beside an ectopic beat not counted as hidden. QTc not shown and "long QT" not read
+  across pauses (the QT after a pause is longer).
+- Rules: no hypertrophy with STEMI (the hypertrophy source gain also amplifies the injury current: ST
+  elevation far too tall); no fascicular block with hyperacute T (the territory repolarises in two waves:
+  an M-shaped T); Q waves named with an acute STEMI are true (optional).
+- Audit (30 scenarios, seed 21): 22 passed, no errors (VF, couplets, PACs, AVRT/AVNRT and narrowings
+  among them). From the rejections: no WPW with a circumflex infarct (the left-lateral pathway's insertion
+  dies: pre-excitation lost) or with ectopy; flutter's ST/T reads ignored (flutter waves on the ST segment,
+  no ischemia in flutter).

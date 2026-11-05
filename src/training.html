@@ -130,7 +130,11 @@ header h1 span { color: var(--accent); }
 
 /* answer area */
 #answer { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 6px; }
-#picked { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px; min-height: 32px; align-items: center; }
+/* one slot above the field: the chips, or the suggestions while typing (no row of its own for them) */
+#slot { height: 42px; display: flex; }
+#picked { flex: 1; display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 6px; padding: 0 12px; align-items: center; }
+#picked::-webkit-scrollbar { display: none; }
+#picked .achip { flex: none; white-space: nowrap; }
 .achip { font: 500 13px/1.15 var(--font-ui); padding: 7px 10px; border-radius: 999px; background: var(--raised); border: 1px solid #3a4a59; display: inline-flex; align-items: center; gap: 6px; }
 .achip.rhythm { border-color: var(--accent); }
 .achip .x { color: var(--muted); font-size: 12px; }
@@ -139,6 +143,8 @@ header h1 span { color: var(--accent); }
 .achip.part { border-color: var(--part); background: rgba(255,154,61,0.14); }
 .achip.bad { border-color: var(--bad); background: rgba(255,90,100,0.12); text-decoration: line-through; text-decoration-color: rgba(255,90,100,0.8); }
 .achip.miss { border-style: dashed; border-color: var(--miss); color: var(--muted); background: transparent; }
+.achip.sel { outline: 2px solid var(--fg); outline-offset: 1px; }
+#rchips .achip { cursor: pointer; }
 .achip .tag { font-size: 10.5px; color: var(--muted); text-decoration: none; display: inline-block; }
 .prompt { color: var(--muted); font-size: 13px; }
 #fieldRow { display: flex; gap: 8px; margin: 0 12px; }
@@ -150,7 +156,7 @@ header h1 span { color: var(--accent); }
 @keyframes blink { 50% { opacity: 0; } }
 #field.shake { animation: shake 0.3s; border-color: var(--accent); }
 @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
-#suggest { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 0 12px; min-height: 38px; align-items: center; }
+#suggest { flex: 1; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 0 12px; align-items: center; }
 #suggest::-webkit-scrollbar { display: none; }
 #suggest button { white-space: nowrap; padding: 9px 12px; font-size: 14px; flex: none; }
 #suggest button small { color: var(--muted); font-size: 11.5px; margin-left: 6px; }
@@ -160,7 +166,7 @@ header h1 span { color: var(--accent); }
    a space bar below */
 #kbd { display: flex; flex-direction: column; gap: 7px; padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 6px); background: #0f1922; border-top: 1px solid var(--line); }
 #kbd .row { display: flex; gap: 5px; }
-#kbd button { flex: 1 1 0; min-width: 0; height: 46px; padding: 0; border-radius: 6px; background: var(--key); border-color: #2f3f4e; font: 500 19px/1 var(--font-ui); text-transform: lowercase; }
+#kbd button { flex: 1 1 0; min-width: 0; height: 56px; padding: 0; border-radius: 6px; background: var(--key); border-color: #2f3f4e; font: 500 19px/1 var(--font-ui); text-transform: lowercase; }
 #kbd button:active, #kbd button.down { background: #3a4d5f; }
 #kbd .wide { flex: 1.6 1 0; font-size: 14px; text-transform: none; }
 #kbd .add { color: var(--accent); border-color: rgba(239,91,122,0.6); font-weight: 600; }
@@ -245,9 +251,8 @@ body.land #fsClose { display: none; }
   </div>
 
   <div id="answer">
-    <div id="picked"></div>
+    <div id="slot"><div id="picked"></div><div id="suggest" hidden></div></div>
     <div id="fieldRow"><div id="field"><span class="typed" id="typed"></span><span class="caret"></span><span class="ph" id="ph">Name the rhythm</span></div><button type="button" class="primary" id="submit">Submit</button></div>
-    <div id="suggest"></div>
   </div>
   <div id="kbd" aria-label="Keyboard"></div>
 
