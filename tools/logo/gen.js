@@ -118,6 +118,7 @@ function svg(S, body) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}" width="${S}" height="${S}">\n  ${body}\n</svg>\n`;
 }
 
+if (require.main === module) {
 const out = {
   'concept-a-voxel-heart.svg': conceptA(),
   'concept-a-voxel-heart-plain.svg': conceptA({ ecg: false }),
@@ -128,3 +129,5 @@ const out = {
 };
 for (const [f, t] of Object.entries(out)) fs.writeFileSync(path.join(OUT, f), t);
 console.log(Object.keys(out).map((f) => path.join('icons/logo', f)).join('\n'));
+}
+module.exports = { PAL, mix, shade, heartCells, phases, state, bgRect, svg, FRONT };

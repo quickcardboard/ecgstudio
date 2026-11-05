@@ -1574,3 +1574,17 @@ uniform part), and the plateau sags by up to `nssttSag` 0.06. No territory, no n
   among them). From the rejections: no WPW with a circumflex infarct (the left-lateral pathway's insertion
   dies: pre-excitation lost) or with ectopy; flutter's ST/T reads ignored (flutter waves on the ST segment,
   no ischemia in flutter).
+
+## claude/magical-keller-whbpj7 round 1: logo
+
+- Mark: a 9-wide voxel heart in isometric view, two voxels thick, coloured by a wavefront spreading from
+  the upper-left lobe (the sinus node's side): green repolarising behind, light blue depolarised, bright
+  blue front (raised one voxel), pink resting ahead (the tissue colours of `src/app.js`, a little more
+  saturated).
+- `tools/logo/iso.js` renders it (unit cubes, hidden faces dropped, painted back to front) into
+  `icons/logo/`: `logo.svg` (no tile, no outlines: header and favicon), `app-icon.svg` (rounded tile),
+  `app-icon-square.svg` (full bleed: Apple touch icon, Play Store) and `app-icon-maskable.svg` (art inside
+  the 80 % safe circle). `tools/logo/gen.js` holds the flat 2D concepts and the shared palette and masks.
+- `tools/build.py` inlines `icons/logo/logo.svg` as the header mark and as the favicon data URI of the app
+  and of Training. PNGs (`icons/icon-*.png`, `icons/apple-touch-icon.png`, `icons/logo/play-store-512.png`,
+  512×512 RGBA for Google Play) are screenshots of the SVGs in Chromium.

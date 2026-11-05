@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#121b26">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="ECG Studio">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28S3 20 3 11a6.5 6.5 0 0 1 13-1 6.5 6.5 0 0 1 13 1c0 9-13 17-13 17z' fill='%23c2304f'/%3E%3Cpath d='M5 15h6l2-4 3 9 2-5h9' stroke='%23fff' stroke-width='2' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="{{LOGO_URI}}">
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -59,6 +59,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.4 var(--
 }
 header.top { display: flex; align-items: center; gap: 14px; min-height: 36px; }
 .brand { display: flex; align-items: baseline; gap: 10px; }
+.brand .logo { width: 30px; height: 30px; flex: none; align-self: center; margin-right: -2px; }
 .brand h1 { margin: 0; font: 600 21px/1 var(--font-display); letter-spacing: 0.01em; }
 .brand h1 b { color: var(--accent); font-weight: 600; }
 .brand span { color: var(--muted); font-size: 12.5px; }
@@ -315,6 +316,7 @@ body.m #c3d, body.m #ecgWrap, body.m .live, body.m #shead { -webkit-user-select:
 body.m #app { padding: env(safe-area-inset-top, 0px) 0 0; gap: 0; }
 body.m header.top { min-height: 50px; gap: 8px; padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); }
 body.m .brand h1 { font-size: 19px; }
+body.m .brand .logo { width: 26px; height: 26px; }
 body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp, body.m #btnInstall { display: none; }
 body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mctl button { height: 38px; min-width: 42px; padding: 0 11px; border-radius: 19px; display: grid; place-items: center; }
@@ -451,7 +453,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
 
 <div id="app">
   <header class="top">
-    <div class="brand"><h1>ECG <b>Studio</b></h1><span>Interactive 3D heart and 12-lead ECG simulator</span></div>
+    <div class="brand">{{LOGO_SVG}}<h1>ECG <b>Studio</b></h1><span>Interactive 3D heart and 12-lead ECG simulator</span></div>
     <div class="spacer"></div>
     <div class="simctl" role="group" aria-label="Simulation">
       <label class="tsrow" for="timescale"><span class="lab">Speed</span>
