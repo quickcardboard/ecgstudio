@@ -1518,3 +1518,7 @@ then outside the measured QRS and read as a coved Brugada ST). Off by default: v
 - Checks: `evalecg` identical; panel reads proximal LAD, circumflex and RCA narrowings as subendocardial
   ischemia, mid LAD as no diagnostic change, a 2-day anterior infarct with T inversion V2–V5, acute STEMI
   unchanged.
+- Training (round 9): T inversion also counts behind Q/QS waves (as the panel); narrowing questions use
+  proximal LAD, proximal circumflex and proximal/mid RCA (mid LAD stays under 1 mm). Narrowings now pass
+  with 1.5–2.5 mm horizontal ST depression. Audit before the textbook rules: 40/50 (0–1 abnormalities
+  26/28).
