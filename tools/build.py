@@ -52,6 +52,12 @@ self.onmessage = (e) => {
     self.postMessage({ type: 'ready' });
     return;
   }
+  if (d.type === 'build') {   // (a review: the same scenario rebuilt from its recipe)
+    const t = performance.now(); let item = null, err = null;
+    try { const r = G.build(d.recipe); item = r.ok ? r.item : null; if (!r.ok) err = r.why; } catch (x) { err = String((x && x.stack) || x); }
+    self.postMessage({ type: 'item', req: d.req, item, err, ms: performance.now() - t });
+    return;
+  }
   if (d.type === 'make') {
     const t = performance.now(); let item = null, err = null;
     try { item = G.make({ target: d.target, focus: d.focus, seed: d.seed, tries: 12, log: (rec, res) => { if (!res.ok) self.postMessage({ type: 'log', msg: [rec.rhythm, ...rec.abn.map((a) => a.k)].join(' + ') + ': ' + res.why }); } }); }

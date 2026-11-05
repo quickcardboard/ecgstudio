@@ -43,7 +43,12 @@
   // ------------------------------------------------------------------ live ECGs (background worker)
   const decode = (it) => ({ ...it, data: it.leads.map((b) => { const bin = atob(b), a = new Int16Array(bin.length / 2); for (let i = 0; i < a.length; i++) a[i] = (bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8)) << 16 >> 16; return a; }) });
   const QUEUE_N = 2;
-  const gen = { worker: null, ready: false, queue: [], pending: 0, waiting: false, req: 0, failed: 0 };
+  const gen = { worker: null, ready: false, queue: [], pending: 0, waiting: false, req: 0, failed: 0, cb: {}, tag: {}, onReady: [] };
+  // one-off ECG (daily ECG, a review): msg = { type: 'make', … } or { type: 'build', recipe }; cb(item or null)
+  function request(msg, cb) {
+    if (!gen.ready) { gen.onReady.push(() => request(msg, cb)); return; }
+    const req = ++gen.req; gen.cb[req] = cb; gen.worker.postMessage({ ...msg, req });
+  }
   function startWorker() {
     const src = document.getElementById('worker-src').textContent;
     const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
@@ -62,27 +67,41 @@
   }
   function onWorker(e) {
     const d = e.data;
-    if (d.type === 'ready') { gen.ready = true; fill(); return; }
+    if (d.type === 'ready') { gen.ready = true; gen.onReady.splice(0).forEach((f) => f()); fill(); return; }
     if (d.type === 'log') { console.debug('training gate:', d.msg); return; }
     if (d.type !== 'item') return;
+    if (gen.cb[d.req]) { const cb = gen.cb[d.req]; delete gen.cb[d.req]; if (d.err) console.warn('training generator', d.err); cb(d.item ? checkVocab(d.item) && decode(d.item) : null); return; }
     gen.pending--;
+    const tag = gen.tag[d.req]; delete gen.tag[d.req];
+    if (tag !== practiceTag()) { fill(); return; }   // (asked for another practice mode)
     if (d.err) console.warn('training generator', d.err);
-    const unknown = d.item && [d.item.key.rhythm, ...d.item.key.findings.map((f) => f.id), ...d.item.key.optional, ...(d.item.key.alt || [])].filter((id) => !BY_ID[id]);
-    if (unknown && unknown.length) { console.warn('training: not in the vocabulary:', unknown.join(', ')); d.item.key.optional = d.item.key.optional.filter((id) => BY_ID[id]); d.item.key.alt = (d.item.key.alt || []).filter((id) => BY_ID[id]); if (!BY_ID[d.item.key.rhythm] || d.item.key.findings.some((f) => !BY_ID[f.id])) d.item = null; }
-    if (d.item) { gen.failed = 0; gen.queue.push(decode(d.item)); console.debug(`training: ${d.item.title} (${Math.round(d.ms)} ms)`); }
+    if (d.item && !checkVocab(d.item)) d.item = null;
+    if (d.item) { gen.failed = 0; gen.queue.push({ ...decode(d.item), tag }); console.debug(`training: ${d.item.title} (${Math.round(d.ms)} ms)`); }
     else gen.failed++;
     if (gen.waiting && gen.queue.length) { gen.waiting = false; nextItem(); }
     fill();
   }
+  // the answer key must use the vocabulary (an unknown optional term is dropped; an unknown answer rejects)
+  function checkVocab(item) {
+    const k = item.key, unknown = [k.rhythm, ...k.findings.map((f) => f.id), ...k.optional, ...(k.alt || [])].filter((id) => !BY_ID[id]);
+    if (!unknown.length) return true;
+    console.warn('training: not in the vocabulary:', unknown.join(', '));
+    k.optional = k.optional.filter((id) => BY_ID[id]); k.alt = (k.alt || []).filter((id) => BY_ID[id]);
+    return !!BY_ID[k.rhythm] && k.findings.every((f) => BY_ID[f.id]);
+  }
+  const practiceTag = () => (st.mode === 'skill' ? st.focus : st.mode === 'train' ? '' : null);
   // keep two ECGs ready, chosen for this user's level: about 70–75% expected success (Glicko-2), half the
   // time on the weakest skill
   function fill() {
     if (!gen.ready || gen.failed > 4) { if (gen.failed > 4) setLoading('Could not prepare an ECG. Reload the page to try again.'); return; }
+    const tag = practiceTag(); if (tag === null) return;
+    gen.queue = gen.queue.filter((x) => x.tag === tag);
     while (gen.queue.length + gen.pending < QUEUE_N) {
       const weakest = SKILLS.slice().sort((a, b) => st.skills[a].r - st.skills[b].r)[0];
-      const target = overall() - 168 + (Math.random() - 0.5) * 160;
-      gen.pending++;
-      gen.worker.postMessage({ type: 'make', req: ++gen.req, target, focus: Math.random() < 0.5 ? weakest : null, seed: (Math.random() * 2 ** 31) | 0 });
+      const focus = tag || (Math.random() < 0.5 ? weakest : null), r = tag ? st.skills[tag].r : overall();
+      const target = r - 168 + (Math.random() - 0.5) * 160;
+      gen.pending++; const req = ++gen.req; gen.tag[req] = tag;
+      gen.worker.postMessage({ type: 'make', req, target, focus, seed: (Math.random() * 2 ** 31) | 0 });
     }
   }
   function setLoading(msg) {
@@ -220,16 +239,67 @@
   const st = {
     item: null, page: 0, picked: [], typed: '', phase: 'answer',   // answer | region | result
     region: null, t0: 0, fs: false, hist: [], skills: Object.fromEntries(SKILLS.map((k) => [k, fresh()])),
+    mode: null, focus: null,      // mode: train | skill (focus) | daily | review
+    reviews: [], days: {}, xp: 0, reviewRun: [],
   };
-  // progress on the phone: ratings and the last 300 answers (export/import comes later)
+  // progress on the phone: ratings, the last 300 answers, the review queue, days practised, experience
+  // (export/import comes later)
   const STORE = 'ecgTraining.v1';
-  function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify({ skills: st.skills, hist: st.hist.slice(-300) })); } catch (e) { /* storage blocked */ } }
-  try { const j = JSON.parse(localStorage.getItem(STORE) || 'null'); if (j) { st.hist = j.hist || []; for (const k of SKILLS) if (j.skills && j.skills[k]) st.skills[k] = j.skills[k]; } } catch (e) { /* none */ }
+  function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify({ skills: st.skills, hist: st.hist.slice(-300), reviews: st.reviews, days: st.days, xp: st.xp })); } catch (e) { /* storage blocked */ } }
+  try { const j = JSON.parse(localStorage.getItem(STORE) || 'null'); if (j) { st.hist = j.hist || []; for (const k of SKILLS) if (j.skills && j.skills[k]) st.skills[k] = j.skills[k]; st.reviews = j.reviews || []; st.days = j.days || {}; st.xp = j.xp || 0; } } catch (e) { /* none */ }
+
+  // ------------------------------------------------------------------ days, streak, levels, reviews
+  const DAY = 864e5, dayKey = (t = Date.now()) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const today = () => st.days[dayKey()] || (st.days[dayKey()] = { n: 0 });
+  // a day counts for the streak with the daily ECG or 5 practice ECGs; today not yet done does not break it
+  function streak() {
+    const done = (k) => st.days[k] && (st.days[k].daily !== undefined || st.days[k].n >= 5);
+    let n = 0, t = Date.now(); if (!done(dayKey(t))) t -= DAY;
+    while (done(dayKey(t))) { n++; t -= DAY; }
+    return n;
+  }
+  // levels: clinical roles; experience for every answered ECG (score × difficulty); levels never go down
+  const LEVELS = [[0, 'Medical student'], [150, 'Clerk'], [400, 'Intern'], [900, 'Resident'], [1800, 'Registrar'], [3200, 'Cardiology fellow'], [5500, 'Cardiologist'], [9000, 'Electrophysiologist'], [14000, 'Professor of cardiology']];
+  function level() { let i = 0; while (i + 1 < LEVELS.length && st.xp >= LEVELS[i + 1][0]) i++; const [lo, name] = LEVELS[i], hi = LEVELS[i + 1] ? LEVELS[i + 1][0] : null; return { name, i, frac: hi ? (st.xp - lo) / (hi - lo) : 1, next: hi && LEVELS[i + 1][1], toNext: hi ? hi - st.xp : 0 }; }
+  // spaced repetition: a missed or partly right ECG returns after 1, 3, 7, 16 and 35 days (rebuilt from its recipe)
+  const BOXES = [1, 3, 7, 16, 35];
+  const dueReviews = () => st.reviews.filter((r) => r.due <= Date.now());
+  function scheduleReview(item, score) {
+    const i = st.reviews.findIndex((r) => r.id === item.id);
+    if (st.mode === 'review' && i >= 0) {
+      const r = st.reviews[i];
+      if (score >= 0.8) { r.box++; if (r.box >= BOXES.length) st.reviews.splice(i, 1); else r.due = Date.now() + BOXES[r.box] * DAY; }
+      else { r.box = 0; r.due = Date.now() + DAY; }
+      return;
+    }
+    if (score < 0.8 && i < 0) st.reviews.push({ id: item.id, recipe: item.recipe, title: itemTitle(item.key), box: 0, due: Date.now() + DAY });
+  }
+  // the daily ECG: the same for everyone on a date (seeded by the date, a mid-level target), not rated
+  const dailySeed = () => +dayKey().replace(/-/g, '');
   const rhythmPick = () => st.picked.find((p) => BY_ID[p.id].kind === 'rhythm');
 
+  // start a mode from the home screen
+  const MODE_TITLE = { train: 'Training', daily: 'Daily ECG', review: 'Reviews' };
+  function startMode(mode, focus = null) {
+    st.mode = mode; st.focus = focus; st.reviewRun = mode === 'review' ? dueReviews().map((r) => r.id) : [];
+    $('modeTitle').textContent = mode === 'skill' ? `${SKILL_NAME[focus]} practice` : MODE_TITLE[mode];
+    $('home').hidden = true; nextItem(); fill();
+  }
+  function goHome() { st.mode = null; st.item = null; gen.waiting = false; setLoading(null); renderHome(); $('home').hidden = false; }
+  function showItem(item) {
+    if (!item) { toast('Could not prepare that ECG'); goHome(); return; }
+    setLoading(null); st.item = item; st.t0 = performance.now(); setPage(0, false); render();
+  }
   function nextItem() {
-    st.picked = []; st.typed = ''; st.phase = 'answer'; st.region = null; st.score = null;
-    if (!gen.queue.length) { gen.waiting = true; st.item = null; setLoading(gen.ready ? 'Preparing the next ECG…' : 'Building the heart…'); render(); return; }
+    st.picked = []; st.typed = ''; st.phase = 'answer'; st.region = null; st.score = null; st.item = null;
+    const loading = () => { setLoading(gen.ready ? 'Preparing the ECG…' : 'Building the heart…'); render(); };
+    if (st.mode === 'daily') { loading(); request({ type: 'make', target: 1500, focus: null, seed: dailySeed() }, showItem); return; }
+    if (st.mode === 'review') {
+      const id = st.reviewRun.shift(), r = st.reviews.find((x) => x.id === id);
+      if (!r) { toast('Reviews done for today'); goHome(); return; }
+      loading(); request({ type: 'build', recipe: r.recipe }, showItem); return;
+    }
+    if (!gen.queue.length) { gen.waiting = true; setLoading(gen.ready ? 'Preparing the next ECG…' : 'Building the heart…'); render(); fill(); return; }
     setLoading(null);
     st.item = gen.queue.shift(); fill(); st.t0 = performance.now();
     setPage(0, false); render();
@@ -430,10 +500,14 @@
     // Glicko-2 per skill against the item's rating (from its rhythm and the number and type of its
     // abnormalities): the rhythm skill on the rhythm, each other skill on its findings (location half)
     const before = overall(), opp = { r: st.item.rating, rd: 60 }, sub = st.score.skill;
-    for (const k of SKILLS) if (sub[k] !== undefined) st.skills[k] = glicko(st.skills[k], opp, sub[k]);
+    if (st.mode !== 'daily') for (const k of SKILLS) if (sub[k] !== undefined) st.skills[k] = glicko(st.skills[k], opp, sub[k]);   // (the daily ECG is not rated)
     st.delta = overall() - before;
+    st.xpGain = Math.round(10 * st.score.total * (1 + st.item.n));
+    st.xp += st.xpGain;
+    const d = today(); if (st.mode === 'daily') d.daily = st.score.total; else d.n++;
+    scheduleReview(st.item, st.score.total);
     st.phase = 'result'; st.typed = ''; st.shownAt = performance.now();
-    st.hist.push({ id: st.item.id, title: itemTitle(st.item.key), score: st.score.total, time: st.time, rhythm: st.score.rhythm, delta: st.delta, at: Date.now() });
+    st.hist.push({ id: st.item.id, title: itemTitle(st.item.key), score: st.score.total, time: st.time, rhythm: st.score.rhythm, delta: st.delta, at: Date.now(), mode: st.mode });
     saveProgress();
     // show the half of the ECG that carries the answer
     const hl = st.item.highlight || [], chest = hl.filter((l) => l.startsWith('V')).length, limb = hl.length - chest;
@@ -496,11 +570,35 @@
     const sc = st.score, pct = Math.round(sc.total * 100);
     $('rscore').textContent = `${pct}%`;
     $('rbar').style.width = '0%'; requestAnimationFrame(() => { $('rbar').style.width = `${pct}%`; $('rbar').style.background = pct >= 80 ? 'var(--ok)' : pct >= 40 ? 'var(--part)' : 'var(--bad)'; });
-    const d = Math.round(st.delta);
-    $('rdelta').textContent = `${d >= 0 ? '+' : '−'}${Math.abs(d)}`; $('rdelta').className = `delta ${d >= 0 ? 'up' : 'down'}`;
+    const d = Math.round(st.delta), daily = st.mode === 'daily';
+    $('rdelta').textContent = daily ? 'not rated' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`; $('rdelta').className = `delta ${daily ? '' : d >= 0 ? 'up' : 'down'}`;
+    $('share').hidden = !daily;
+    $('next').textContent = daily || (st.mode === 'review' && !st.reviewRun.length) ? 'Done' : 'Next';
     $('rtime').textContent = `${Math.round(st.time)} s`;
     $('rchips').innerHTML = sc.rows.map((r) => `<span class="achip ${r.cls}">${r.label}${r.tag ? ` <span class="tag">${r.tag}</span>` : ''}</span>`).join('');
     $('rline').textContent = oneLine(sc, st.item);
+  }
+
+  // ------------------------------------------------------------------ home
+  function renderHome() {
+    const lv = level(), due = dueReviews().length, dd = st.days[dayKey()], daily = dd && dd.daily !== undefined ? dd.daily : null;
+    const date = new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+    $('hRating').textContent = Math.round(overall());
+    $('hStreak').textContent = streak();
+    $('hLevel').textContent = lv.name;
+    $('hLevelBar').style.width = `${Math.round(lv.frac * 100)}%`;
+    $('hLevelNext').textContent = lv.next ? `${lv.toNext} XP to ${lv.next}` : 'Highest level';
+    $('hDailyDate').textContent = date;
+    $('hDailyState').textContent = daily === null ? 'Same ECG for everyone today · not rated' : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
+    $('hReviews').textContent = due ? `${due} due` : st.reviews.length ? 'none due today' : 'none yet';
+    $('btnReviews').disabled = !due;
+    $('hSkills').innerHTML = SKILLS.map((k) => `<button type="button" data-skill="${k}"><b>${SKILL_NAME[k]}</b><small>${Math.round(st.skills[k].r)}</small></button>`).join('');
+  }
+  function shareDaily() {
+    const pct = Math.round(st.score.total * 100), text = `ECG Studio · Daily ECG ${new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}: ${pct}%${streak() > 1 ? ` · ${streak()}-day streak` : ''}\nhttps://ecgstudio.app/training`;
+    if (navigator.share) navigator.share({ text }).catch(() => {});
+    else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast('Result copied: paste it to share'), () => toast(text));
+    else toast(text);
   }
 
   // ------------------------------------------------------------------ wiring
@@ -516,7 +614,15 @@
     $('regionCancel').addEventListener('click', () => endRegion(false));
     // (the tap that submitted must not land on the result's buttons, which open under the finger)
     const justShown = () => performance.now() - (st.shownAt || 0) < 450;
-    $('next').addEventListener('click', () => { if (!justShown()) nextItem(); });
+    $('next').addEventListener('click', () => { if (justShown()) return; if ($('next').textContent === 'Done') goHome(); else nextItem(); });
+    $('share').addEventListener('click', () => { if (!justShown()) shareDaily(); });
+    $('homeBtn').addEventListener('click', goHome);
+    $('btnTrain').addEventListener('click', () => startMode('train'));
+    $('btnDaily').addEventListener('click', () => startMode('daily'));
+    $('btnReviews').addEventListener('click', () => startMode('review'));
+    $('hSkills').addEventListener('click', (e) => { const b = e.target.closest('[data-skill]'); if (b) startMode('skill', b.dataset.skill); });
+    $('btnStats').addEventListener('click', () => { renderStats(); $('stats').hidden = false; });
+    $('btnHelp').addEventListener('click', () => { $('help').hidden = false; });
     // Show me why: the simulator on the same scenario; coming back starts a new ECG (progress is saved)
     $('why').addEventListener('click', () => { if (!justShown()) location.href = `../index.html#${st.item.link}`; });
     addEventListener('resize', syncFs);
@@ -528,15 +634,16 @@
     menu.addEventListener('click', (e) => {
       const b = e.target.closest('[data-go]'); if (!b) return;
       showMenu(false);
+      if (b.dataset.go === 'home') goHome();
       if (b.dataset.go === 'stats') { renderStats(); $('stats').hidden = false; }
       if (b.dataset.go === 'help') $('help').hidden = false;
       if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {
-        st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); saveProgress(); render();
+        st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); st.reviews = []; st.days = {}; st.xp = 0; saveProgress(); goHome();
       }
     });
     for (const b of document.querySelectorAll('.page [data-close]')) b.addEventListener('click', () => { b.closest('.page').hidden = true; });
-    window.ECGTraining = { st, gen, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, VOCAB, BY_ID };   // (automated tests)
-    startWorker(); nextItem(); syncFs();
+    window.ECGTraining = { st, gen, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, startMode, goHome, VOCAB, BY_ID };   // (automated tests)
+    startWorker(); renderHome(); syncFs();   // (the heart is built in the background while the home screen shows)
     if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(drawAll));
   }
   init();

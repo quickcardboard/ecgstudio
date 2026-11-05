@@ -1394,3 +1394,18 @@ linked from the menu yet.
   single-abnormality ECG), before the combination rules above.
 - Open: AF looks organised (11 fixed-rate foci, mostly left atrial: waves repeat every 160–176 ms, tiny
   in V1) and flutter's inferior sawtooth is small and uneven: proposed engine work on milestone-1.
+
+## training-1 round 5: training home
+
+- Home screen (opened first; the heart is built in the background meanwhile): rating, day streak, level
+  with experience to the next, Daily ECG, Train, Reviews (due count), practice by skill (the skill's
+  rating; ECGs aimed at that skill), Statistics, How it works, the simulator. Prototype: all unlocked.
+- Daily ECG: the same for everyone on a date (generator seeded by the date, target 1500), not rated;
+  the result can be shared as text (score, streak, link; no answer).
+- Reviews: an ECG scored under 80% returns after 1, 3, 7, 16 and 35 days (Leitner boxes; a miss
+  starts again at 1 day), rebuilt in the worker from its recipe (same seed: the same ECG).
+- Streak: a day counts with the daily ECG or 5 ECGs. Levels (experience = 10 × score × (1 + number of
+  abnormalities)): Medical student, Clerk, Intern, Resident, Registrar, Cardiology fellow, Cardiologist,
+  Electrophysiologist, Professor of cardiology (0, 150, 400, 900, 1800, 3200, 5500, 9000, 14000 XP).
+- Stored on the phone (localStorage `ecgTraining.v1`): ratings, last 300 answers, reviews, days, XP.
+- The simulator's phone menu links to Training (milestone-1).
