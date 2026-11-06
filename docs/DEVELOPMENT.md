@@ -1621,3 +1621,11 @@ uniform part), and the plateau sags by up to `nssttSag` 0.06. No territory, no n
   simulated 50-ECG sessions: the exact same interpretation within the last 20 fell from 38% to 7%, the same
   non-sinus rhythm within 20 from 33% to 16%, twice in a row from 4% to 0.5%.
 - The home screen already prepares Train ECGs (first one ready in ~4–12 s in a desktop browser).
+
+## Round 45: ventricular escape at 32/min
+
+`ventEscapeRate` 40 → 32, the middle of the textbook 20–40/min range for a ventricular escape. The rate was
+at the top edge of the range. The pacemaker below a His block or bilateral bundle branch block now fires every 1875 ms.
+That covers the escape after His-level complete AV block and after sinus arrest with His block. The junctional
+escape is unchanged (48/min). `tools/rhythmscen.js` chbHis: 32/min, QRS 121 ms. The reader still reads
+"complete AV block (ventricular escape)" there, and chbAVN still reads as a junctional escape.

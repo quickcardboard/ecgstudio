@@ -258,7 +258,7 @@
     // Automaticity (cycle lengths, ms)
     sinusRate: 72,
     junctionalRate: 48,
-    ventEscapeRate: 40,
+    ventEscapeRate: 32,
     idioventricularRate: 34,
 
     // ECG
