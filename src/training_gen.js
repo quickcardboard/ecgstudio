@@ -25,6 +25,9 @@
     read: (r) => r === 'atrial fibrillation' },
     flutter: { w: 2.5, open: true, notWith: ['stemi', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt'],   // (flutter waves sit on the ST segment)
       rating: 150, rate: [60, 100], vLink: true, link: 'a=flutter', start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate); }, read: (r) => r === 'atrial flutter' },
+    // multifocal atrial tachycardia: four atrial foci taking turns (±25% cycle), so ≥ 3 P shapes with varying PR and RR;
+    // the blind rhythm read must see it (gateRead), and the P waves must be visible
+    mat: { w: 1, open: true, pVisible: true, gateRead: true, rating: 170, rate: [105, 130], link: 'a=mat', start: (S, rec, M, h) => { S.run(2000); S.startArrhythmia('mat', { cells: h.matFoci(M) }); }, read: (r) => r === 'multifocal atrial tachycardia' },
     avnrt: { w: 1.5, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
     avrt: { w: 1.5, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
     mobitz1: { w: 2, open: true, rating: 150, block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
@@ -44,6 +47,7 @@
     sinusBrady: 'A P before every QRS, rate under 60: sinus bradycardia.',
     sinusTachy: 'A P before every QRS, rate over 100: sinus tachycardia.',
     af: 'Irregularly irregular, no P waves: atrial fibrillation.',
+    mat: 'Irregular, rate over 100, at least three different P-wave shapes with varying PR: multifocal atrial tachycardia.',
     flutter: 'Sawtooth flutter waves at about 300/min, every fourth one conducted: atrial flutter.',
     avnrt: 'Regular narrow tachycardia under 200 with no visible P: AVNRT.',
     avrt: 'Regular narrow tachycardia above 200 with no visible P: AVRT, not AVNRT.',
@@ -241,6 +245,12 @@
       }
       return null;
     }
+    // MAT foci in four distinct parts of the atria, so the P shapes differ visibly: high RA (sinus-like P), low RA
+    // (inverted in II, III, aVF), LA appendage (negative in I) and the left inferior pulmonary vein (posterior LA)
+    function matFoci(M) {
+      const A = M.A, at = (lm, lab) => A.nearest(A.landmarks[lm].c, (c) => A.label[c] === lab && M.kind[c] === LH.KIND.ATRIAL && !M.seg[c]);
+      return [at('SVC', LAB.RA), at('IVC', LAB.RA), at('LAA', LAB.LA), at('LIPV', LAB.LA)].filter((c) => c >= 0);
+    }
     function vtCell(A) { for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.epi[c] && A.zuvc[c] > 0.35 && A.zuvc[c] < 0.45 && A.phi[c] < -2.2) return c; return -1; }
     // the scenario run: 10 s of 12 leads, and the engine's own timing of every atrial and ventricular
     // activation in the strip (start and end; for the ventricles also the end of repolarisation)
@@ -248,7 +258,7 @@
       const hypA = rec.abn.find((a) => ABN[a.k].hyp), M = model(hypA ? ABN[hypA.k].hyp : null), R = RHYTHMS[rec.rhythm];
       let S;
       if (R.induce) S = induce(M, rec);
-      else { S = base(M, rec); if (R.start) R.start(S, rec); if (R.vt) { S.run(2000); S.startArrhythmia('vt', { cell: vtCell(M.A) }); } }
+      else { S = base(M, rec); if (R.start) R.start(S, rec, M, { matFoci }); if (R.vt) { S.run(2000); S.startArrhythmia('vt', { cell: vtCell(M.A) }); } }
       if (!S) return null;
       S.run(R.induce || rec.rhythm === 'flutter' ? 1500 : SETTLE);   // (flutter and the induced tachycardias have run 3–5 s in their own start-up)
       const rec12 = []; let t0 = null; const atr = new Set(), ven = new Set(), stims = [];
@@ -448,7 +458,7 @@
       const sinusRate = rec.abn.some((x) => ABN[x.k].sinusNode || ABN[x.k].pause) ? Math.round(60000 / rrs.slice().sort((x, y) => x - y)[Math.floor(rrs.length * 0.25)]) : rate;
       if (SINUS.includes(rhythm)) rhythm = sinusRate < 60 ? 'sinusBrady' : sinusRate > 100 ? 'sinusTachy' : 'sinus';
       const pv = pVisibility(sim);
-      if (R.pRhythm && pv.share > 0.2) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
+      if ((R.pRhythm || R.pVisible) && pv.share > 0.2) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
       if (R.noP) {
         // (sinus arrest: no atrial activation may precede a QRS by the time of a PR; retrograde P after it is expected)
         const pre = A.filter((a) => V.some((v) => v.on - a.on > 60 && v.on - a.on < 300)).length;
@@ -457,7 +467,8 @@
         if (rate < lim[0] || rate > lim[1]) return fail(`escape rate ${rate}`, 'rhythm');
       }
       if (R.block && !R.noP && pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.5)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
-      const rr = readRhythm(rec12);   // (blind rhythm read: kept for the record and the audit, not the gate)
+      const rr = readRhythm(rec12);   // (blind rhythm read: kept for the record and the audit, not the gate, except where the rhythm asks)
+      if (R.gateRead && !R.read(rr.rhythm)) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm');
       // morphology on the median beat
       const med = R.tachy ? null : medianBeat(sim);
       if (!R.tachy && !med) return fail('too few beats for a median beat', 'rhythm');
@@ -475,7 +486,7 @@
         for (const dx of b.dx) {
           if (words.some((w) => dx === w || dx.startsWith(w + ' '))) continue;
           if (!R.pRhythm && ['RAE', 'LAE', 'biatrial enlargement', '1st-degree AVB'].includes(dx)) { if (dx === '1st-degree AVB' && rec.rhythm === 'mobitz1') optional.add('avb1'); continue; }
-          if (dx === 'long QT' && ['af', 'flutter'].includes(rec.rhythm)) continue;
+          if (dx === 'long QT' && ['af', 'flutter', 'mat'].includes(rec.rhythm)) continue;
           if (rec.rhythm === 'flutter' && /^(STEMI|old MI)/.test(dx)) continue;
           if (ks.includes('peri') && /^STEMI/.test(dx)) continue;   // (AF pericarditis: without a PR segment the reader cannot tell it from STEMI)   // (flutter waves on the ST segment; flutter carries no ischemia)
           if (dx === 'long QT' && (R.block || R.at || rec.abn.some((x) => ABN[x.k].ectopy || ABN[x.k].pause || ABN[x.k].sinusNode))) continue;   // (QT after a pause is longer: QTc is not read across pauses)
@@ -597,7 +608,7 @@
       if (!R.pRhythm && lines.pericarditis) lines.pericarditis = 'Diffuse concave ST elevation with ST depression in aVR (no PR segment to read): pericarditis.';
       // measurements: rate from the engine; intervals and axis from the median beat
       const sm = R.vf ? null : R.tachy ? sinusRead(M).m : r.m;
-      const m = R.vf ? { rate: null, pr: null, qrs: null, qtc: null, axis: null } : { rate, pr: R.pRhythm ? r.m.pr : null, qrs: R.vt ? null : sm.qrs, qtc: R.noP ? null : R.tachy || R.block || R.at || rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].ectopy || ABN[x.k].sinusNode) || ['af', 'flutter'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt || R.wide ? null : sm.axis };
+      const m = R.vf ? { rate: null, pr: null, qrs: null, qtc: null, axis: null } : { rate, pr: R.pRhythm ? r.m.pr : null, qrs: R.vt ? null : sm.qrs, qtc: R.noP ? null : R.tachy || R.block || R.at || rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].ectopy || ABN[x.k].sinusNode) || ['af', 'flutter', 'mat'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt || R.wide ? null : sm.axis };
       // caliper on the interval that decides it (engine timing)
       const within = (lo, hi) => V.filter((v) => v.on > lo && v.on < hi);
       let caliper = null;

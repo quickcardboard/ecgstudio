@@ -1722,3 +1722,9 @@ The median beat and the blind read were under 3%. AF/flutter/induced tachycardia
   2.9–5.5 s (8 runs), was 5.7–9.8 s.
 - Vocabulary: 61 terms that no generated ECG asks or accepts were removed (paced rhythms, electrolytes, MAT, TdP,
   Wellens, Sgarbossa, ...). 51 remain. A term no ECG uses could only ever be marked "not present".
+- MAT added back as a training rhythm (it is in the simulator): `mat` w1, rate 105–130, rating 170, link `a=mat`.
+  Its four foci are placed in distinct parts of the atria (`matFoci`: high RA near the SVC, low RA near the IVC, LA appendage,
+  left inferior pulmonary vein). Random foci often gave P shapes too alike: 1 in 6 strips read as MAT. With the placed foci,
+  10 of 12 do. The blind rhythm read must call it MAT (`gateRead`), and the P waves must be visible (≤ 20% hidden).
+  No P-wave findings, ectopy or pericarditis with it; QTc not shown. Vocabulary term restored.
+  (The simulator's own MAT, opened from the Model link, still picks its foci at random.)

@@ -26,6 +26,7 @@ mobitz1 | Mobitz I | Wenckebach, Wenck, second degree AV block type 1, 2nd degre
 mobitz2 | Mobitz II | second degree AV block type 2, 2nd degree AV block type 2, Mobitz type 2, Mobitz 2, 2AVB type 2, 2 AVB 2, 2AVB2, type 2 second degree, 2nd degree type II
 avb2to1 | 2:1 AV block | two to one AV block, 2 to 1 block, 21 block, 21 AVB, 2 1 AV block, second degree 2:1, 2nd degree 2 to 1, 2AVB 21
 vf | Ventricular fibrillation | VF, v fib, vfib, fibrillation ventricular
+mat | Multifocal atrial tachycardia | MAT, chaotic atrial tachycardia, multifocal, multifocal atrial rhythm
 junctional | Junctional rhythm | nodal rhythm, junctional escape, junctional escape rhythm, JR
 idioventricular | Idioventricular rhythm | ventricular escape rhythm, IVR, ventricular escape
 
