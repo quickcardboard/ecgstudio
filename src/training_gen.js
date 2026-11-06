@@ -107,6 +107,9 @@
   // WPW and ectopy)
   const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8 };
   const ITEM_BASE = 1200, PER_ABN = 180;
+  // (difficulty above the base is stretched ×1.32: the hardest ECGs, four findings on a hard rhythm, reach ~2700
+  // instead of ~2340, leaving headroom above the top title; the generator works on the unstretched scale)
+  const ITEM_SCALE = 1.32;
 
   // Combination rules (the author's clinical calls; see docs/DEVELOPMENT.md training-1):
   // - at most one QRS-changing condition, except RBBB with LAFB or LPFB (bifascicular block)
@@ -145,7 +148,7 @@
     && !(list.includes('avb1') && /RCA/.test(site))
     && !(list.includes('wpw') && /LCx/.test(site));   // (the left-lateral pathway inserts in circumflex territory: an infarct there removes the pre-excitation)   // (a proximal RCA occlusion slows the AV node too: with first-degree block the P sinks into the T)
   function itemRating(rec) {
-    return ITEM_BASE + RHYTHMS[rec.rhythm].rating + rec.abn.reduce((s, a) => s + PER_ABN + ABN[a.k].rating, 0);
+    return Math.round(ITEM_BASE + ITEM_SCALE * (RHYTHMS[rec.rhythm].rating + rec.abn.reduce((s, a) => s + PER_ABN + ABN[a.k].rating, 0)));
   }
   // (a weight that is missing or not a number counts as 0.5: one undefined weight made the whole draw pick the
   // last entry every time)
@@ -170,7 +173,8 @@
     const R = RHYTHMS[rhythm];
     // (a plain normal ECG only now and then (~6%): it was the most repeated interpretation; a rhythm that takes
     // findings otherwise gets at least one)
-    const n0 = R.open ? Math.min(nMax, Math.round((target - ITEM_BASE - R.rating) / (PER_ABN + 120) + (rand() - 0.5))) : 0;
+    const raw = ITEM_BASE + (target - ITEM_BASE) / ITEM_SCALE;   // (the target on the generator's own scale)
+    const n0 = R.open ? Math.min(nMax, Math.round((raw - ITEM_BASE - R.rating) / (PER_ABN + 120) + (rand() - 0.5))) : 0;
     const n = R.open ? Math.max(focus && focus !== 'rhythm' ? 1 : 0, n0 > 0 || rand() < 0.15 * (adjust.normal === undefined ? 1 : adjust.normal) ? n0 : 1) : 0;
     const list = [];
     for (let i = 0; i < n; i++) {

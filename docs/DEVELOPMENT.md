@@ -1651,3 +1651,25 @@ at the top edge of the range. The pacemaker below a His block or bilateral bundl
 That covers the escape after His-level complete AV block and after sinus arrest with His block. The junctional
 escape is unchanged (48/min). `tools/rhythmscen.js` chbHis: 32/min, QRS 121 ms. The reader still reads
 "complete AV block (ventricular escape)" there, and chbAVN still reads as a junctional escape.
+
+## training-1 round 14: rating scale
+
+A tester at 1900 gained 1–2 points per correct ECG, and Professor (2350) was out of reach. The hardest ECG was
+rated about 2340, and at 1900 the median ECG offered was about 1700. Also, the rating deviation floor of 40 made each step small.
+- Item difficulty above the base 1200 is stretched ×1.32 (`ITEM_SCALE`), so the hardest ECGs reach about 2705. `sample()`
+  turns the target back to the unstretched scale before choosing the number of findings. The aim (rating − 168 ± 80)
+  is unchanged, by the author's call (aiming closer would narrow the generation and repeat more).
+- Glicko-2 RD floor 40 → 60: a perfect answer at 1900 against a 1700 ECG gives +5 (was +2.3).
+- Titles compressed so Professor is at 2100. The bands: Nursing student 1300, Medical student 1450, Intern 1550, Resident 1650,
+  Fellow 1750, Cardiologist 1850, Electrophysiologist 1975, Professor 2100.
+- Simulated single skill from 1500 (rating settles where the average score meets the expected score):
+
+  | Average score | Settles near |
+  |---|---|
+  | 95% | 2540 |
+  | 90% | 2320 |
+  | 85% | 2050 |
+  | 80% | 1880 |
+  | 70% | 1710 |
+
+  Professor needs about 87% sustained. The title uses the mean of the four skills.

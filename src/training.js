@@ -156,7 +156,7 @@
     let fA = f(A), fB = f(B);
     for (let i = 0; i < 60 && Math.abs(B - A) > 1e-6; i++) { const C = A + (A - B) * fA / (fB - fA), fC = f(C); if (fC * fB <= 0) { A = B; fA = fB; } else fA /= 2; B = C; fB = fC; }
     const vol = Math.exp(A / 2), phiStar = Math.sqrt(phi * phi + vol * vol), phiNew = 1 / Math.sqrt(1 / (phiStar * phiStar) + 1 / v);
-    return { r: (mu + phiNew * phiNew * g * (s - E)) * q + 1500, rd: Math.max(40, phiNew * q), v: vol };
+    return { r: (mu + phiNew * phiNew * g * (s - E)) * q + 1500, rd: Math.max(60, phiNew * q), v: vol };
   }
   const overall = () => SKILLS.reduce((a, k) => a + st.skills[k].r, 0) / SKILLS.length;
 
@@ -296,7 +296,7 @@
   }
   // titles from the overall rating (like chess titles): a new user (1500) is a medical student; a title is
   // lost when the rating falls below its band. Bands are first guesses, to be tuned with real answers.
-  const TITLES = [[-Infinity, 'Clerk'], [1300, 'Nursing student'], [1450, 'Medical student'], [1600, 'Intern'], [1750, 'Resident'], [1900, 'Cardiology fellow'], [2050, 'Cardiologist'], [2200, 'Electrophysiologist'], [2350, 'Professor of cardiology']];
+  const TITLES = [[-Infinity, 'Clerk'], [1300, 'Nursing student'], [1450, 'Medical student'], [1550, 'Intern'], [1650, 'Resident'], [1750, 'Cardiology fellow'], [1850, 'Cardiologist'], [1975, 'Electrophysiologist'], [2100, 'Professor of cardiology']];
   function title(r = overall()) { let i = 0; while (i + 1 < TITLES.length && r >= TITLES[i + 1][0]) i++; return { name: TITLES[i][1], next: TITLES[i + 1] ? TITLES[i + 1][1] : null, toNext: TITLES[i + 1] ? Math.ceil(TITLES[i + 1][0] - r) : 0 }; }
   // spaced repetition: a missed or partly right ECG returns after 1, 3, 7, 16 and 35 days (rebuilt from its recipe)
   const BOXES = [1, 3, 7, 16, 35];
