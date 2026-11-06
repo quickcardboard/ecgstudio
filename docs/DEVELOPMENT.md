@@ -1673,3 +1673,37 @@ rated about 2340, and at 1900 the median ECG offered was about 1700. Also, the r
   | 70% | 1710 |
 
   Professor needs about 87% sustained. The title uses the mean of the four skills.
+
+## Round 46: RAE without a standing offset; inferior STEMI height
+
+- **RAE P wave.** Before, the enlarged RA's action potential was raised ×2.6 (`vAmp`). While the atria were depolarised,
+  the step between that high RA plateau and the normal LA was a standing dipole, through the P wave and into the PR segment.
+  In lead I it made a late hump of 1.2 mm (a notched, P-mitrale look), and in II it left a −1.6 mm dip after the P.
+  Now the RA keeps the normal action potential, and the extra (`raeGain` − 1)× is summed through lead weights with zero mean
+  over the RA (`_raWave`, `_raWbar`, `_raList` in `_ecg`). Like a closed region in the body, the moving wavefront shows
+  but a fully depolarised RA adds nothing.
+
+  | RAE | Before | After (`raeGain` 2.2) |
+  |---|---|---|
+  | P in II | 3.8 mm | 4.0 mm, peaked |
+  | P duration | 134 ms | 105–134 ms |
+  | Dip after P in II | −1.6 mm | −0.3 to −0.6 mm |
+  | Lead I late hump | 1.2 mm | 0.6 mm (normal heart 0.4) |
+
+  BAE: P in II 0.28 mV. LAE and the normal heart are unchanged. Lead I still has the normal heart's small double
+  hump (atrial model limitation).
+- **Inferior STEMI.** At full strength an RCA occlusion gave 12–15 mm in III (aVL −9 to −10) at 1 h. The inferior wall
+  faces the inferior limb leads squarely in this torso. `occlusionInj` scales the early ST/T sources of an occlusion by
+  artery family: the injury current (resting rise and plateau drop) and the K-ATP shortening. The LV uses RCA 0.33;
+  RV muscle uses ×`occlusionInjRV` 1.8 (≈ 0.6), so RV involvement keeps V1 elevation.
+
+  | 1 h, before → after (mm) | II | III | aVF | aVL |
+  |---|---|---|---|---|
+  | pRCA | 6.6 → 1.5 | 12.0 → 3.1 | 9.3 → 2.3 | −8.6 → −2.4 |
+  | mRCA | 9.7 → 3.5 | 15.3 → 5.6 | 12.5 → 4.6 | −10.4 → −3.9 |
+  | dRCA | 9.5 → 3.1 | 14.3 → 4.7 | 11.9 → 3.9 | −9.5 → −3.2 |
+
+  pRCA also shows V1 1.7 mm. Necrosis, Q waves, late T inversion and the time course are unchanged. The fullcheck
+  ischaemia lead groups are identical. The reader scores 47/57 (was 46): the acute marginal now reads as a clean inferior STEMI.
+  Hyperacute T at pRCA stays under 5 mm, so the training generator no longer asks it there (mid RCA covers it).
+  The normal ECG (evalecg) is unchanged.

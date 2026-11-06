@@ -698,7 +698,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-06 (c5600f2).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-06 (cde72c7).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -742,7 +742,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-06 (c5600f2).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-06 (cde72c7).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -2079,7 +2079,11 @@ THE SOFTWARE.
     apDelay: 6, apErp: 280,
 
     // Atrial enlargement (see Sim.setAtrialEnlargement)
-    raeGain: 2.6, raeSlow: 0.85,
+    // RA enlargement: the larger right atrium's extra source strength ((raeGain − 1)× its action potential) is seen
+    // through lead weights with zero mean over the RA, as a closed region is by the body: the activation wavefront
+    // shows (tall P), a fully depolarised RA adds nothing. Raising the RA plateau with plain weights left a standing
+    // dipole through the P wave and PR segment (a late hump in lead I, read as P mitrale, and a deep dip after P in II)
+    raeGain: 2.2, raeSlow: 0.85,
     laeGain: 2.0, laeSlow: 0.85, laeAvnMul: 1.35, laeBachmannSlow: 1, laeInteratrialSlow: 1, laeInteratrialMm: 10, laeInteratrialEdgeSlow: 28,
 
     // Ischaemia (see Sim._ischemicState)
@@ -2094,6 +2098,12 @@ THE SOFTWARE.
     // artery family (the injury of a territory saturates: these give 1.5–2 mm of horizontal ST depression at
     // J+80 in two contiguous leads at 1 h for the proximal artery; a mid-LAD territory reaches ~1 mm at most)
     stenosisSev: { LAD: 0.65, LCx: 0.55, RCA: 0.17, LM: 0.5 },
+    // occlusion: the injury current (resting depolarisation, the ST shift) per artery family. The inferior wall faces
+    // the inferior limb leads squarely in this torso: at full strength an RCA STEMI gave 12–15 mm in III. The scale
+    // keeps III at most ~5–6 mm, aVF ~4–5, II ~3–4 at 1 h (and less R loss in the injured wall). It applies to LV
+    // muscle only (the RV keeps its V1 elevation). Necrosis, Q waves and the time course are unchanged.
+    occlusionInj: { LAD: 1, LCx: 1, RCA: 0.33, LM: 1 },
+    occlusionInjRV: 1.8,   // (× occlusionInj in RV muscle: ~0.6)
     // non-specific ST-T changes (Sim.setNonspecificSTT): the transmural repolarisation gradient that makes the
     // T wave upright is reduced in patches that follow no artery (a smooth pattern from the Sim's seed), by up
     // to nssttGrad of it, and the plateau sags a little (nssttSag): flat or slightly inverted T waves and
@@ -3609,12 +3619,20 @@ THE SOFTWARE.
       for (let c = 0; c < M.nVox; c++) {
         if (M.kind[c] !== KIND.ATRIAL) continue;
         const isRA = A.label[c] === LAB.RA, on = isRA ? ra : la;
-        this.vAmp[c] = P.vAmp * (on ? (isRA ? P.raeGain : P.laeGain) : 1);
+        this.vAmp[c] = P.vAmp * (on && !isRA ? P.laeGain : 1);
+        if (isRA) { if (on) (this._raWave || (this._raWave = new Float32Array(M.nVox)))[c] = (P.raeGain - 1) * P.vAmp; else if (this._raWave) this._raWave[c] = 0; }
         let cv = on ? (isRA ? P.raeSlow : P.laeSlow) : 1;
         // interatrial conduction delay: Bachmann's bundle and any fast tract tissue on the LA side
         if (la && (M.seg[c] === SEG.BACHMANN || (!isRA && M.seg[c] === SEG.CRISTA))) cv *= P.laeBachmannSlow;
         if (la && this._interatrial()[c]) cv *= P.laeInteratrialSlow;
         this.cvMul[c] = cv;
+      }
+      if (ra && !this._raWbar) {
+        // mean lead weight over the RA, per electrode (the zero-mean weights of the enlargement term)
+        const NE = M.NE, W = this.W, wb = new Float64Array(NE); let n = 0;
+        for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.ATRIAL && A.label[c] === LAB.RA) { n++; for (let e = 0; e < NE; e++) wb[e] += W[c * NE + e]; }
+        for (let e = 0; e < NE; e++) wb[e] /= Math.max(1, n);
+        this._raWbar = wb;
       }
       this._rebuildPlateauSums();
     }
@@ -3645,6 +3663,7 @@ THE SOFTWARE.
       for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
       const ins = this._makeInsult('occlusion', aff, this.P.ischBorderMm);
       ins.node = node; ins.branch = M.coronary.nodes[node].branch;
+      { const oi = this.P.occlusionInj, fam = this._family(ins.branch); ins.injScale = oi ? (typeof oi === 'number' ? oi : oi[fam] === undefined ? 1 : oi[fam]) : 1; }
       ins.nodal = { san: M.isDownstream(M.coronary.sanNode, node), avn: M.isDownstream(M.coronary.avnNode, node) };
       return this._addInsult(ins);
     }
@@ -3655,12 +3674,13 @@ THE SOFTWARE.
       const M = this.M, A = M.A, vn = M.coronary.voxNode, aff = new Uint8Array(A.n);
       for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
       const ins = this._makeInsult('subendo', aff, this.P.ischBorderMm);
-      const br = M.coronary.nodes[node].branch, fam = /^(LAD|D\d)$/.test(br) ? 'LAD' : /^(LCx|OM\d|PLV)$/.test(br) ? 'LCx' : /^(RCA|PDA|AM)$/.test(br) ? 'RCA' : 'LM';
+      const br = M.coronary.nodes[node].branch, fam = this._family(br);
       const sv = typeof this.P.stenosisSev === 'number' ? this.P.stenosisSev : this.P.stenosisSev[fam];
       for (let q = 0; q < ins.sev.length; q++) ins.sev[q] *= sv * (A.label[ins.cells[q]] === LAB.RV ? this.P.subendoRVGain : 1);   // (thin, low-pressure RV: milder)
       ins.node = node; ins.branch = M.coronary.nodes[node].branch; ins.stenosis = true;
       return this._addInsult(ins);
     }
+    _family(br) { return /^(LAD|D\d)$/.test(br) ? 'LAD' : /^(LCx|OM\d|PLV)$/.test(br) ? 'LCx' : /^(RCA|PDA|AM)$/.test(br) ? 'RCA' : 'LM'; }
     // a patch of the clicked wall (same chamber, nearby in the ventricular
     // coordinates, so the opposite wall across the cavity is not included)
     addSubendocardial(cell, radiusMm = 28) {
@@ -3810,7 +3830,7 @@ THE SOFTWARE.
 
     // Cell state h hours after onset for severity s and transmural depth tm.
     // Returns {apd, vRest, amp, cv, dead} multipliers/values.
-    _ischemicState(s, tm, h, kind) {
+    _ischemicState(s, tm, h, kind, k = 1) {   // k: occlusionInj of the artery family (the early ST/T sources: injury current, K-ATP shortening)
       const P = this.P, sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
       if (kind === 'subendo') s *= 1 - sm((tm - 0.12) / 0.2);                // confined to the inner wall
       if (s <= 0.01) return null;
@@ -3819,7 +3839,7 @@ THE SOFTWARE.
       // injury current: develops over half an hour, eases after a few hours, gone by ~2 days (ST back to baseline)
       const inj = Math.min(1, s * (kind === 'subendo' ? P.ischSubendoGain : 1)) * (kind === 'subendo' ? P.subendoInj : 1) * sm((h - P.ischInjuryOnset) / P.ischInjuryH)
         * (kind === 'subendo' ? (1 - P.ischStResolve * sm((h - 3) / 5)) * (1 - sm((h - 12) / 30)) : stResidual(h));
-      let apd = 1 - P.ischApdShort * s * katp;
+      let apd = 1 - P.ischApdShort * s * katp * k;
       // prolonged repolarisation in the surviving border: T inversion from ~6 h, deepest at 1–3 days,
       // fading over the following weeks (T waves upright again in an old infarct)
       const late = sm((h - P.ischLateH) / 3) * (1 + 0.8 * sm((h - 12) / 30)) * (1 - P.ischTRecover * sm((h - 200) / 400));
@@ -3837,8 +3857,8 @@ THE SOFTWARE.
       return {
         apd, dead, rim, unexcitable, level: Math.max(inj, 0.5 * s * katp), kind,
         // necrotic muscle stays depolarised (and partly coupled, see _uncoupleDead) until it turns to scar
-        vRest: dead ? P.vRest + P.ischDvRest * (kind === 'subendo' ? 0 : stResidual(h)) : P.vRest + P.ischDvRest * inj,
-        amp: dead ? 0 : 1 - P.ischAmpDrop * inj,
+        vRest: dead ? P.vRest + P.ischDvRest * k * (kind === 'subendo' ? 0 : stResidual(h)) : P.vRest + P.ischDvRest * inj * k,
+        amp: dead ? 0 : 1 - P.ischAmpDrop * inj * k,
         cv: 1 + P.ischCvSlow * inj,
       };
     }
@@ -3897,7 +3917,7 @@ THE SOFTWARE.
         // it as mid-wall (it dies through its thickness), subendocardial patches
         // take its inner layers (everything off the epicardial surface)
         const c = ins.cells[q], rv = A.label[c] === LAB.RV, tm = rv ? (ins.kind === 'subendo' ? (A.epi[c] ? 1 : 0.05) : 0.5) : A.tm[c] < 0 ? 0.5 : A.tm[c];
-        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind);
+        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale);   // (RV muscle less reduced: the V1 elevation of RV involvement)
         if (!st) continue;
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);
@@ -4258,6 +4278,7 @@ THE SOFTWARE.
       this.arrive[c] = Infinity;
       if (this._pendingStim && this._pendingStim.cell === c) { this._pendingStim.captured = true; this._pendingStim = null; }
       if (c < this.M.nVox && this.M.kind[c]) this._ecgEnter(c, ta, apd);
+      if (this._raWave && this.atria && this.atria.ra && c < this.M.nVox && this._raWave[c] && !(this._raIn || (this._raIn = new Uint8Array(this.M.nVox)))[c]) { this._raIn[c] = 1; (this._raList || (this._raList = [])).push(c); }
       this._logActivation(c, ta);
       // propagate
       const M = this.M, st = M.start, nb = M.nbr, w0 = M.w0, nVox = M.nVox;
@@ -4509,6 +4530,19 @@ THE SOFTWARE.
           if (kx === 0) continue;
           for (let e = 0; e < NE; e++) phi[e] -= kx * H[o + e];
         }
+      }
+      if (this._raList && this._raList.length) {
+        // RA enlargement: (raeGain − 1)× each activated RA cell's action potential, through zero-mean RA weights
+        const L = this._raList, wb = this._raWbar; let n = 0;
+        for (let q = 0; q < L.length; q++) {
+          const c = L[q], s = t - this.tAct[c];
+          if (s >= this.apd[c] + 0.5 * this.repW[c] || !this.atria || !this.atria.ra) { this._raIn[c] = 0; continue; }
+          L[n++] = c;
+          if (s <= 0) continue;
+          const dv = this._raWave[c] * (this.vm(c, t) - this.vRest[c]) / this.vAmp[c], o = c * NE;
+          for (let e = 0; e < NE; e++) phi[e] += (W[o + e] - wb[e]) * dv;
+        }
+        L.length = n;
       }
       for (let q = 0; q < this.nDyn; q++) {
         const c = this.dyn[q];

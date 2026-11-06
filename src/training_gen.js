@@ -187,7 +187,7 @@
     const abn = list.map((k) => {
       const a = { k };
       // (a mid-LAD narrowing stays under 1 mm: not asked)
-      if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list) && !(k === 'narrow' && x === 'mLAD') && !(k === 'hyper' && /LCx/.test(x))); if (!sites.length) return null; a.site = sites[Math.floor(rand() * sites.length)]; }   // (no hyperacute T at a circumflex site: its T barely grows)
+      if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list) && !(k === 'narrow' && x === 'mLAD') && !(k === 'hyper' && /LCx|pRCA/.test(x))); if (!sites.length) return null; a.site = sites[Math.floor(rand() * sites.length)]; }   // (no hyperacute T at a circumflex site: its T barely grows; nor at the proximal RCA, whose inferior T stays under 5 mm)
       return a;
     }).filter(Boolean);
     return { rhythm, abn, seed: 1 + Math.floor(rand() * 1e6), rate: R.rate ? Math.round(R.rate[0] + rand() * (R.rate[1] - R.rate[0])) : 72 };
