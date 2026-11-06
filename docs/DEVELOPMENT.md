@@ -1588,3 +1588,14 @@ uniform part), and the plateau sags by up to `nssttSag` 0.06. No territory, no n
 - `tools/build.py` inlines `icons/logo/logo.svg` as the header mark and as the favicon data URI of the app
   and of Training. PNGs (`icons/icon-*.png`, `icons/apple-touch-icon.png`, `icons/logo/play-store-512.png`,
   512×512 RGBA for Google Play) are screenshots of the SVGs in Chromium.
+
+## Round 44: non-specific ST-T clearer; RAE P wave noted
+
+- Non-specific ST-T (testers: highlighted leads still showed upright T): `nssttGrad` 1.0, `nssttPatch` 0.4.
+  Over seeds 1–8 every heart has T within ±0.5 mm in V3–V6 (often minimal inferior inversion); 2 of 8 go
+  past 1 mm of T inversion in II/aVF (the training checker rejects those). Panel: flat = within ±0.5 mm.
+- Open (testers): RAE reads like P mitrale in lead I. The model's P axis is ~90° even in the normal heart
+  (lead I P ≈ 0 mV; normal ~50–60°): with RAE the early right-atrial part is slightly negative in I and
+  the left-atrial part a late positive hump, so lead I shows a dip then a hump. RAE also has a large
+  atrial repolarisation wave in II (−0.19 mV after the P). Needs atrial activation / torso work.
+- Checks: `evalecg` identical.

@@ -231,7 +231,7 @@
     // T wave upright is reduced in patches that follow no artery (a smooth pattern from the Sim's seed), by up
     // to nssttGrad of it, and the plateau sags a little (nssttSag): flat or slightly inverted T waves and
     // minimal ST sagging in some lead groups, as with electrolytes, drugs, rate or autonomic tone
-    nssttGrad: 0.9, nssttSag: 0.06, nssttPatch: 0.5,
+    nssttGrad: 1.0, nssttSag: 0.06, nssttPatch: 0.4,   // (testers: T waves must look flat, ±0.5 mm, in the leads called flat)
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.15,

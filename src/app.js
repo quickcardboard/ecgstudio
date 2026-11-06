@@ -1922,11 +1922,11 @@
     // Brugada type 1: coved J-point elevation ≥ 2 mm in V1–V2 ending in a negative T wave
     const cov = ['V1', 'V2'].filter((n) => { const k = L_IDX[n], b0 = at(k, qrsBaseT(vb)), J = S.beatEnds(vb).last + 6; return at(k, J + 10) - b0 >= 0.2 && at(k, vb.on + 300) - b0 < -0.05; });
     if (cov.length) out.push(`Coved ST elevation ≥ 2 mm with T inversion in ${cov.join(', ')}: Brugada type 1 pattern`);
-    // non-specific ST-T changes: flat T waves (between −1 and +1 mm) in two contiguous leads where T is normally
+    // non-specific ST-T changes: flat T waves (within ±0.5 mm) in two contiguous leads where T is normally
     // upright, without ischemia or a cause read elsewhere (the normal heart's flattest such T, V6, is 1.2 mm)
     const st = ui.struct;
     if (!S.insults.length && !S.ap && !st.lvh && !st.rvh && !st.peri && !st.brugada && !Object.keys(S.blocks).some((b) => ['LBB', 'RBB'].includes(b))) {
-      const flat = ['I', 'II', 'aVF', 'V3', 'V4', 'V5', 'V6'].filter((n) => Math.abs(m[n].t) < 0.1);
+      const flat = ['I', 'II', 'aVF', 'V3', 'V4', 'V5', 'V6'].filter((n) => Math.abs(m[n].t) <= 0.05);   // (flat: within ±0.5 mm)
       const nb = { I: [], II: ['aVF'], aVF: ['II'], V3: ['V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5'] }, fc = flat.filter((n) => nb[n].some((x) => flat.includes(x)));
       if (fc.length >= 2) out.push(`Flat T waves in ${fc.join(', ')}: non-specific ST-T changes`);
     }
