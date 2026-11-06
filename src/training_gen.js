@@ -50,7 +50,7 @@
     chb: 'P waves march through at their own rate, unrelated to a slow regular escape: complete AV block.',
     vt: 'Regular broad-complex tachycardia without related P waves: ventricular tachycardia.',
     vf: 'Chaotic, irregular deflections with no identifiable QRS complexes: ventricular fibrillation. Defibrillate.',
-    saBlock: 'P waves drop out together with their QRS, and each pause is an exact multiple of the P–P interval: sinoatrial exit block.',
+    saBlock: 'Whole P–QRS complexes drop out; each pause is a multiple of the P–P interval: sinoatrial exit block.',
   };
 
   // ---------------------------------------------------------------- abnormalities
@@ -89,7 +89,7 @@
     // ectopy (sinus rhythm only): two PVCs, two PACs, or one ventricular couplet in the strip, timed from the
     // engine's own beats; verified from its timing (the ectopic beat fired, premature, wide or narrow)
     pvc: { group: 'ectopy', skill: 'rhythm', rating: 20, ectopy: 'pvc', id: 'pvc', leads: ['II'], line: 'An early, wide, bizarre QRS with no P wave before it and a full compensatory pause: premature ventricular complexes.' },
-    pac: { group: 'ectopy', skill: 'rhythm', rating: 80, ectopy: 'pac', id: 'pac', leads: ['II'], line: 'An early P wave of another shape followed by a normal narrow QRS, then a pause shorter than compensatory: premature atrial complexes.' },
+    pac: { group: 'ectopy', skill: 'rhythm', rating: 80, ectopy: 'pac', id: 'pac', leads: ['II'], line: 'An early P of another shape, a normal narrow QRS, then a less-than-compensatory pause: premature atrial complexes.' },
     // a sinus pause (2.6 s, at 3 s into the strip): a finding on sinus rhythm, like ectopy
     sinusPause: { group: 'ectopy', skill: 'rhythm', rating: 60, id: 'sinusPause', pause: true, linkBlock: 'SAN.pause', at: [[3000, (S) => S.setBlock('SAN', 'pause', { ms: 2600 })]], leads: ['II'], line: 'A sudden pause with no P wave, not a multiple of the P–P interval, then sinus beats resume: sinus pause.' },
     couplet: { group: 'ectopy', skill: 'rhythm', rating: 60, ectopy: 'couplet', id: 'couplet', leads: ['II'], line: 'Two premature wide complexes in a row: a ventricular couplet (three or more would be non-sustained VT).' },
@@ -347,10 +347,10 @@
         case 'lvh': { const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S; return yes(sok >= 3.5 || corn > 2.8 || L.aVL.R >= 1.1, `Sokolow ${sok.toFixed(2)}, Cornell ${corn.toFixed(2)}`); }
         case 'rvh': return yes((m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7), `axis ${m.axis}°, R V1 ${L.V1.R}`);
         case 'nsstt': {
-          // flat T (between −1 and +1 mm) in two contiguous leads where T is normally upright, and neither the
+          // flat T (within ±0.5 mm) in two contiguous leads where T is normally upright, and neither the
           // ischemic T-inversion nor the ST-depression rule met (else it is not non-specific)
           const UP = ['I', 'II', 'aVF', 'V3', 'V4', 'V5', 'V6'], nb = { I: [], II: ['aVF'], aVF: ['II'], V3: ['V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5'] };
-          const flat = UP.filter((n) => Math.abs(L[n].T) < 0.1), fc = flat.filter((n) => nb[n].some((x) => flat.includes(x)));
+          const flat = UP.filter((n) => Math.abs(L[n].T) <= 0.05), fc = flat.filter((n) => nb[n].some((x) => flat.includes(x)));   // (flat: within ±0.5 mm)
           const twi = twiLeads(L), std = stdLeads(L);
           return yes(fc.length >= 2 && !twi.length && !std.length, `flat T in ${fc.join(' ') || 'none'}${twi.length ? `, T inversion in ${twi.join(' ')}` : ''}${std.length ? `, ST depression in ${std.join(' ')}` : ''}`, fc);
         }
@@ -465,19 +465,19 @@
           const main = terr.slice().sort((x, y) => depth(x) - depth(y))[0];
           findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok])].filter((t) => t !== main) });
           mark('std', c.leads); if (r.L.aVR.stJ >= 0.05) mark('std', ['aVR']);
-          lines.std = `ST depression in ${c.leads.join(', ')}${r.L.aVR.stJ >= 0.05 ? ' with ST elevation in aVR' : ''}: subendocardial ischemia (NSTEMI pattern, here a narrowed ${site.name}). ST depression does not show which artery.`;
+          lines.std = `ST depression in ${c.leads.join(', ')}${r.L.aVR.stJ >= 0.05 ? ', ST up in aVR' : ''}: subendocardial ischemia (NSTEMI pattern). It does not localise the artery.`;
           ['reciprocal'].forEach((x) => optional.add(x)); if (twiLeads(r.L).length) optional.add('twi');
         } else if (a.k === 'nsstt') {
           findings.push({ id: 'nsstt', skill: d.skill });
           mark('nsstt', c.leads);
-          lines.nsstt = `Flat T waves in ${c.leads.join(', ')} with no territory, no ST depression of 1 mm and no Q waves: non-specific ST-T changes (electrolytes, drugs, rate…). Compare with an earlier ECG.`;
+          lines.nsstt = `Flat T waves in ${c.leads.join(', ')}, no territory, no ST depression or Q waves: non-specific ST-T changes.`;
         } else if (a.k === 'hyper') {
           // (the T waves must be taller than this heart's own: at least 1.5× the twin's in those leads)
           if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr, { minOff: tmed.qrsEnd }).L, risen = c.leads.filter((n) => r.L[n].T >= 1.4 * Math.max(0.05, tr[n].T)); if (risen.length < 2) return fail(`hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); c.leads = risen; }
           const site = MI_SITES[a.site], ex = site.ste, terr = terrOf(c.leads), req = ex.req.filter((t) => terr.includes(t)).length ? ex.req.filter((t) => terr.includes(t)) : terr.slice(0, 1);
           findings.push({ id: 'hyperacute', skill: d.skill, regions: req, okRegions: [...new Set([...terr, ...ex.req, ...ex.ok])].filter((t) => !req.includes(t)) });
           mark('hyperacute', c.leads);
-          lines.hyperacute = `Tall, broad T waves in ${c.leads.join(', ')} with no ST elevation yet: hyperacute ${req.join('/')} ischemia (minutes after a ${site.name} occlusion). Repeat the ECG: STEMI may follow.`;
+          lines.hyperacute = `Tall, broad T waves in ${c.leads.join(', ')}, no ST elevation yet: hyperacute ${req.join('/')} ischemia. Repeat the ECG.`;
           ['twi', 'reciprocal'].forEach((x) => optional.add(x));
         } else if (a.k === 'recent') {
           const site = MI_SITES[a.site], ex = site.q, terr = terrOf(c.leads), tt = terrOf(c.leads2);
@@ -485,13 +485,13 @@
           const tReq = tt.filter((t) => ex.req.includes(t)).length ? tt.filter((t) => ex.req.includes(t)) : tt.slice(0, 1);
           findings.push({ id: 'twi', skill: d.skill, regions: tReq, okRegions: [...new Set([...tt, ...ex.req, ...ex.ok])].filter((t) => !tReq.includes(t)) });
           mark('qwaves', c.leads); mark('twi', c.leads2);
-          lines.qwaves = lines.twi = `Q waves in ${c.leads.join(', ')} with T inversion in ${c.leads2.join(', ')}: recent ${ex.req.join('/')} infarct (about 2 days old).`;
+          lines.qwaves = lines.twi = `Q waves in ${c.leads.join(', ')}, T inversion in ${c.leads2.join(', ')}: recent ${ex.req.join('/')} infarct (days old).`;
           ['ste', 'poorR', 'longqt'].forEach((x) => optional.add(x));
         } else if (d.isch) {
           const site = MI_SITES[a.site], acute = d.isch < 24, ex = acute ? site.ste : site.q, terr = terrOf(c.leads);
           findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
           mark(d.id, c.leads);
-          lines[d.id] = acute ? `ST elevation in ${c.leads.join(', ')}: acute ${ex.req.join('/')} STEMI (${site.name} occlusion).` : `Q waves in ${c.leads.join(', ')}: old ${ex.req.join('/')} infarct.`;
+          lines[d.id] = acute ? `ST elevation in ${c.leads.join(', ')}: acute ${ex.req.join('/')} STEMI.` : `Q waves in ${c.leads.join(', ')}: old ${ex.req.join('/')} infarct.`;
           // (Q waves can form within hours of a STEMI: named with the STEMI, they are true)
           if (acute) ['std', 'reciprocal', 'hyperacute', 'posteriorMI', 'twi', 'qwaves'].forEach((x) => optional.add(x));
         } else {

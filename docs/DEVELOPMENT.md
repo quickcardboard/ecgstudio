@@ -1599,3 +1599,25 @@ uniform part), and the plateau sags by up to `nssttSag` 0.06. No territory, no n
   the left-atrial part a late positive hump, so lead I shows a dip then a hump. RAE also has a large
   atrial repolarisation wave in II (−0.19 mV after the P). Needs atrial activation / torso work.
 - Checks: `evalecg` identical.
+
+## training-1 round 12: testers' round 2 (50 ECGs)
+
+- Screen: the bottom area keeps the typing view's height (chips, field, keyboard) in every phase, so the ECG
+  never changes size; the region view puts Cancel/Done under the instruction (they had fallen below the
+  screen on phones) and scrolls its buttons; the result view scrolls its chips and line, actions pinned.
+  Keyboard: bottom row 123/abc (numbers: 1–0, : / -), a shorter space bar, Clear; 16 px more below it.
+  Explanation lines condensed to ≤ ~130 characters (3 lines).
+- Suggestions ranked by match: exact abbreviation; the name or a one-word abbreviation starts with the text;
+  a whole word of the name is the text; a word of the name starts with it, across spaces ("tw" → T wave
+  inversion, hyperacute T waves); a synonym; then commonness. Vocabulary: sinus pause is a finding; AV
+  dissociation is a synonym of complete AV block (no longer a finding); non-specific ST-T moved up.
+- Generator: sinus pause as a finding on sinus rhythm (timed like ectopy, checked from the engine: one RR
+  ≥ 1.6× the usual); AF ventricular rate 60–150 and flutter 60–100 (`v=` in the link); LVH/RVH make T
+  inversion true (strain), also in flutter; non-specific ST-T flat = within ±0.5 mm (Round 44 engine).
+- Variety: a weight left undefined (sinus pause) made the draw pick the last entry every time (Brugada and
+  the couplet: a third of all repeats); missing weights now count as 0.5. The page sends weight multipliers:
+  what was in the last 8 ECGs ×0.15, in the last 20 ×0.6; missed or partly right in the last 40 up to ×2.5;
+  right 3+ times and never missed ×0.6; a plain normal ECG only ~6% (it was the most repeated). In 200
+  simulated 50-ECG sessions: the exact same interpretation within the last 20 fell from 38% to 7%, the same
+  non-sinus rhythm within 20 from 33% to 16%, twice in a row from 4% to 0.5%.
+- The home screen already prepares Train ECGs (first one ready in ~4–12 s in a desktop browser).
