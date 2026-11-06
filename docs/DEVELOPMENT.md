@@ -1707,3 +1707,18 @@ rated about 2340, and at 1900 the median ECG offered was about 1700. Also, the r
   ischaemia lead groups are identical. The reader scores 47/57 (was 46): the acute marginal now reads as a clean inferior STEMI.
   Hyperacute T at pRCA stays under 5 mm, so the training generator no longer asks it there (mid RCA covers it).
   The normal ECG (evalecg) is unchanged.
+
+## training-1 round 15: faster first ECG; vocabulary trimmed
+
+The first ECG took 15–30 s on phones. Profile (Node, 14 scenarios): the main 10 s run was 62% of the time and the twin runs 35%.
+The median beat and the blind read were under 3%. AF/flutter/induced tachycardias cost 5–11 s for the strip alone
+(the engine: many atrial activations; in AF ~3,000 short-APD atrial cells are summed sample by sample).
+- Fail fast: the blind read and every abnormality's criteria now run before any twin, so a rejected scenario costs no twin runs.
+- Twins run a 6 s strip (`TWIN_STRIP`): only their median beat is read.
+- Flutter and the induced tachycardias settle 1.5 s instead of 4 s (their start-up has already run 3–5 s).
+- Two workers where the phone has ≥ 4 cores (`N_WORKERS`). The queued ECGs are made side by side, so the first one shown is
+  whichever finishes first. Each worker builds its own heart (~100–150 MB).
+- Result: generator time −20% on the same scenarios with the same pass/fail. First ECG in headless Chromium:
+  2.9–5.5 s (8 runs), was 5.7–9.8 s.
+- Vocabulary: 61 terms that no generated ECG asks or accepts were removed (paced rhythms, electrolytes, MAT, TdP,
+  Wellens, Sgarbossa, ...). 51 remain. A term no ECG uses could only ever be marked "not present".

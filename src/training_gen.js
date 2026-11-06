@@ -8,7 +8,7 @@
 (function (root) {
   'use strict';
   const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
-  const SETTLE = 4000, STRIP = 10000, HZ = 250;
+  const SETTLE = 4000, STRIP = 10000, TWIN_STRIP = 6000, HZ = 250;   // (a twin is only read for its median beat)
   const SKILLS = ['rhythm', 'conduction', 'ischemia', 'conditions'];
   const RL = { septal: ['V1', 'V2'], anterior: ['V3', 'V4'], lateral: ['I', 'aVL', 'V5', 'V6'], inferior: ['II', 'III', 'aVF'] };
   const territory = (t) => (t === 'lowLateral' || t === 'highLateral' ? 'lateral' : RL[t] ? t : null);
@@ -244,13 +244,13 @@
     function vtCell(A) { for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.epi[c] && A.zuvc[c] > 0.35 && A.zuvc[c] < 0.45 && A.phi[c] < -2.2) return c; return -1; }
     // the scenario run: 10 s of 12 leads, and the engine's own timing of every atrial and ventricular
     // activation in the strip (start and end; for the ventricles also the end of repolarisation)
-    function simulate(rec) {
+    function simulate(rec, strip = STRIP) {
       const hypA = rec.abn.find((a) => ABN[a.k].hyp), M = model(hypA ? ABN[hypA.k].hyp : null), R = RHYTHMS[rec.rhythm];
       let S;
       if (R.induce) S = induce(M, rec);
       else { S = base(M, rec); if (R.start) R.start(S, rec); if (R.vt) { S.run(2000); S.startArrhythmia('vt', { cell: vtCell(M.A) }); } }
       if (!S) return null;
-      S.run(SETTLE);
+      S.run(R.induce || rec.rhythm === 'flutter' ? 1500 : SETTLE);   // (flutter and the induced tachycardias have run 3–5 s in their own start-up)
       const rec12 = []; let t0 = null; const atr = new Set(), ven = new Set(), stims = [];
       S.onSample((t, v) => { if (t0 === null) t0 = t; rec12.push(Array.from(v)); });
       // timed events in the strip: the rhythm's own (a sinus pause) and ectopic beats
@@ -274,12 +274,12 @@
         };
         for (const t of kind === 'couplet' || kind === 'acouplet' ? [3800] : [2600, 6600]) events.push({ t, fn: fire });
       }
-      for (let t = 0; t < STRIP; t += 100) {
+      for (let t = 0; t < strip; t += 100) {
         for (const e of events) if (!e.done && e.t >= t && e.t < t + 100) { e.done = true; e.fn(S); }
         S.run(100);
         if (t % 500 === 400) { S.log.atrial.forEach((x) => atr.add(x)); S.log.vent.forEach((x) => ven.add(x)); }   // (the logs keep 50 entries)
       }
-      const inStrip = (x) => x.on - t0 >= 0 && x.on - t0 < STRIP;
+      const inStrip = (x) => x.on - t0 >= 0 && x.on - t0 < strip;
       const rel = (x) => ({ on: x.on - t0, last: x.last - t0, end: x.repEnd ? x.repEnd - t0 : null, n: x.n });
       return { S, M, rec12, t0, A: [...atr].filter(inStrip).sort((a, b) => a.on - b.on).map(rel), V: [...ven].filter(inStrip).sort((a, b) => a.on - b.on).map(rel), stims: stims.map((x) => ({ ...x, t: x.t - t0 })) };
     }
@@ -464,6 +464,53 @@
       const r = med ? read(med.rec, med.hint, med.rr, { minOff: med.qrsEnd }) : null, b = r ? r.interpret() : { dx: [], f: {} };
       const findings = [], optional = new Set(), hl = new Set(), lines = {}, checks = [], hlBy = {};
       const mark = (id, leads) => { for (const l of leads) { hl.add(l); (hlBy[id] = hlBy[id] || []).includes(l) || hlBy[id].push(l); } };   // (each finding's own leads: the result chips show them)
+      // (the cheap checks first, so a scenario that fails them costs no twin runs: the blind read, then every
+      // abnormality's criteria; the twins run only once all of these pass)
+      // blind read of the median beat: a finding we did not put in must not show (it would be marked
+      // "not present" for a student who names it); true consequences become optional
+      (R.optional || []).forEach((x) => optional.add(x));   // (naming the sinus arrest behind an escape rhythm is true)
+      if (r && !R.vt && !R.wide) {   // (a ventricular escape beat is wide and abnormal by nature: its shape is not a finding)
+        const ks = rec.abn.map((a) => a.k), words = rec.abn.flatMap((a) => (a.k === 'recent' ? ['old MI', 'T inversion'] : ABN[a.k].isch ? [ABN[a.k].isch < 24 ? 'STEMI' : 'old MI'] : [ABN[a.k].dx]));
+        const rca = rec.abn.some((a) => /RCA/.test(a.site || ''));
+        for (const dx of b.dx) {
+          if (words.some((w) => dx === w || dx.startsWith(w + ' '))) continue;
+          if (!R.pRhythm && ['RAE', 'LAE', 'biatrial enlargement', '1st-degree AVB'].includes(dx)) { if (dx === '1st-degree AVB' && rec.rhythm === 'mobitz1') optional.add('avb1'); continue; }
+          if (dx === 'long QT' && ['af', 'flutter'].includes(rec.rhythm)) continue;
+          if (rec.rhythm === 'flutter' && /^(STEMI|old MI)/.test(dx)) continue;
+          if (ks.includes('peri') && /^STEMI/.test(dx)) continue;   // (AF pericarditis: without a PR segment the reader cannot tell it from STEMI)   // (flutter waves on the ST segment; flutter carries no ischemia)
+          if (dx === 'long QT' && (R.block || R.at || rec.abn.some((x) => ABN[x.k].ectopy || ABN[x.k].pause || ABN[x.k].sinusNode))) continue;   // (QT after a pause is longer: QTc is not read across pauses)
+          if (dx === 'poor R progression') { optional.add('poorR'); continue; }
+          if (dx === 'LVH' && ks.includes('lafb')) { optional.add('lvh'); continue; }
+          if (dx === 'T inversion' && ks.length) { optional.add('twi'); continue; }
+          if (dx === 'long QT' && ks.length) { optional.add('longqt'); continue; }
+          if (dx.startsWith('old MI') && ks.includes('lafb') && !ks.includes('oldmi') && !ks.includes('recent')) { optional.add('qwaves'); continue; }   // (LAFB pseudo-infarct)
+          if (dx === '1st-degree AVB' && rca) { optional.add('avb1'); continue; }
+          if (dx.startsWith('STEMI') && ks.includes('recent')) { optional.add('ste'); continue; }   // (residual ST elevation at 2 days)
+          if (dx.startsWith('old MI') && ks.includes('stemi')) { optional.add('qwaves'); continue; }   // (Q waves form within hours of a STEMI)
+          // (an infarct moves the axis and the R waves: lateral and posterior loss gives right axis and a tall R
+          // in V1, inferior loss a tall R in aVL; the reader's RVH/LVH voltage rules have no infarct exception, so
+          // these reads are not findings of the ECG. Clinically: "tall R in V1: posterior MI or RVH?")
+          if (dx === 'RVH' && !ks.includes('rvh') && rec.abn.some((a) => ABN[a.k].isch && ABN[a.k].isch >= 24)) { optional.add('dominantRV1'); optional.add('posteriorMI'); continue; }
+          if (dx === 'LVH' && !ks.includes('lvh') && rec.abn.some((a) => ABN[a.k].isch && ABN[a.k].isch >= 24)) continue;
+          if (dx.startsWith('STEMI posterior') && ks.includes('stemi')) { optional.add('posteriorMI'); continue; }
+          if (dx === 'IVCD' && ks.some((k) => ['lvh', 'rvh', 'lpfb', 'lafb'].includes(k))) { optional.add('ivcd'); continue; }
+          // (the blind read's chained rules: a block it called instead of an intended one is not "extra")
+          if (['LBBB', 'RBBB', 'IVCD', 'LAFB', 'LPFB'].includes(dx) && ks.some((k) => ['lbbb', 'rbbb', 'lafb', 'lpfb', 'wpw'].includes(k))) continue;
+          return fail(`unexpected "${dx}" in the blind read`, 'extra');
+        }
+        if (b.f.axis === 'LAD') optional.add('lad');
+        if (b.f.axis === 'RAD') optional.add('rad');
+        if (ks.includes('lvh')) optional.add('lvhStrain');
+        if (ks.includes('lvh') || ks.includes('rvh')) optional.add('twi');   // (the strain pattern: lateral or right-precordial T inversion)
+        if (ks.includes('rbbb') && ks.includes('lafb')) optional.add('bifascicular');
+      }
+      const crits = new Map();
+      for (const a of rec.abn) {
+        const d = ABN[a.k]; if (d.sinusNode || d.pause || d.ectopy) continue;
+        const c = criteria(a.k, R.pRhythm ? a : { ...a, noP: true }, r.m, r.L);
+        if (!c.ok) return fail(`${a.k}${a.site ? ' ' + a.site : ''} criteria not met (${c.why})`, 'criteria');
+        crits.set(a, c);
+      }
       for (const a of rec.abn) {
         const d = ABN[a.k];
         if (d.sinusNode) {
@@ -496,11 +543,10 @@
           if (d.ectopy === 'acouplet') optional.add('pac');
           continue;
         }
-        const c = criteria(a.k, R.pRhythm ? a : { ...a, noP: true }, r.m, r.L);
+        const c = crits.get(a);
         checks.push(`${a.k}: ${c.why}`);
-        if (!c.ok) return fail(`${a.k}${a.site ? ' ' + a.site : ''} criteria not met (${c.why})`, 'criteria');
         // twin: the same scenario without this abnormality
-        const twinRec = { ...rec, abn: rec.abn.filter((x) => x !== a) }, tsim = simulate(twinRec), tmed = tsim && medianBeat(tsim);
+        const twinRec = { ...rec, abn: rec.abn.filter((x) => x !== a) }, tsim = simulate(twinRec, TWIN_STRIP), tmed = tsim && medianBeat(tsim);
         let tw = null;
         if (tmed) { tw = twinDiff(med, tmed, a.k); if (!tw.ok) return fail(`${a.k} barely changes the tracing (${tw.max} mV)`, 'twin'); }
         if (a.k === 'narrow') {
@@ -547,46 +593,8 @@
           lines[d.id || a.k] = d.line;
         }
       }
-      // blind read of the median beat: a finding we did not put in must not show (it would be marked
-      // "not present" for a student who names it); true consequences become optional
-      (R.optional || []).forEach((x) => optional.add(x));   // (naming the sinus arrest behind an escape rhythm is true)
-      if (!R.pRhythm && lines.pericarditis) lines.pericarditis = 'Diffuse concave ST elevation with ST depression in aVR (no PR segment to read): pericarditis.';
-      if (r && !R.vt && !R.wide) {   // (a ventricular escape beat is wide and abnormal by nature: its shape is not a finding)
-        const ks = rec.abn.map((a) => a.k), words = rec.abn.flatMap((a) => (a.k === 'recent' ? ['old MI', 'T inversion'] : ABN[a.k].isch ? [ABN[a.k].isch < 24 ? 'STEMI' : 'old MI'] : [ABN[a.k].dx]));
-        const rca = rec.abn.some((a) => /RCA/.test(a.site || ''));
-        for (const dx of b.dx) {
-          if (words.some((w) => dx === w || dx.startsWith(w + ' '))) continue;
-          if (!R.pRhythm && ['RAE', 'LAE', 'biatrial enlargement', '1st-degree AVB'].includes(dx)) { if (dx === '1st-degree AVB' && rec.rhythm === 'mobitz1') optional.add('avb1'); continue; }
-          if (dx === 'long QT' && ['af', 'flutter'].includes(rec.rhythm)) continue;
-          if (rec.rhythm === 'flutter' && /^(STEMI|old MI)/.test(dx)) continue;
-          if (ks.includes('peri') && /^STEMI/.test(dx)) continue;   // (AF pericarditis: without a PR segment the reader cannot tell it from STEMI)   // (flutter waves on the ST segment; flutter carries no ischemia)
-          if (dx === 'long QT' && (R.block || R.at || rec.abn.some((x) => ABN[x.k].ectopy || ABN[x.k].pause || ABN[x.k].sinusNode))) continue;   // (QT after a pause is longer: QTc is not read across pauses)
-          if (dx === 'poor R progression') { optional.add('poorR'); continue; }
-          if (dx === 'LVH' && ks.includes('lafb')) { optional.add('lvh'); continue; }
-          if (dx === 'T inversion' && ks.length) { optional.add('twi'); continue; }
-          if (dx === 'long QT' && ks.length) { optional.add('longqt'); continue; }
-          if (dx.startsWith('old MI') && ks.includes('lafb') && !ks.includes('oldmi') && !ks.includes('recent')) { optional.add('qwaves'); continue; }   // (LAFB pseudo-infarct)
-          if (dx === '1st-degree AVB' && rca) { optional.add('avb1'); continue; }
-          if (dx.startsWith('STEMI') && ks.includes('recent')) { optional.add('ste'); continue; }   // (residual ST elevation at 2 days)
-          if (dx.startsWith('old MI') && ks.includes('stemi')) { optional.add('qwaves'); continue; }   // (Q waves form within hours of a STEMI)
-          // (an infarct moves the axis and the R waves: lateral and posterior loss gives right axis and a tall R
-          // in V1, inferior loss a tall R in aVL; the reader's RVH/LVH voltage rules have no infarct exception, so
-          // these reads are not findings of the ECG. Clinically: "tall R in V1: posterior MI or RVH?")
-          if (dx === 'RVH' && !ks.includes('rvh') && rec.abn.some((a) => ABN[a.k].isch && ABN[a.k].isch >= 24)) { optional.add('dominantRV1'); optional.add('posteriorMI'); continue; }
-          if (dx === 'LVH' && !ks.includes('lvh') && rec.abn.some((a) => ABN[a.k].isch && ABN[a.k].isch >= 24)) continue;
-          if (dx.startsWith('STEMI posterior') && ks.includes('stemi')) { optional.add('posteriorMI'); continue; }
-          if (dx === 'IVCD' && ks.some((k) => ['lvh', 'rvh', 'lpfb', 'lafb'].includes(k))) { optional.add('ivcd'); continue; }
-          // (the blind read's chained rules: a block it called instead of an intended one is not "extra")
-          if (['LBBB', 'RBBB', 'IVCD', 'LAFB', 'LPFB'].includes(dx) && ks.some((k) => ['lbbb', 'rbbb', 'lafb', 'lpfb', 'wpw'].includes(k))) continue;
-          return fail(`unexpected "${dx}" in the blind read`, 'extra');
-        }
-        if (b.f.axis === 'LAD') optional.add('lad');
-        if (b.f.axis === 'RAD') optional.add('rad');
-        if (ks.includes('lvh')) optional.add('lvhStrain');
-        if (ks.includes('lvh') || ks.includes('rvh')) optional.add('twi');   // (the strain pattern: lateral or right-precordial T inversion)
-        if (ks.includes('rbbb') && ks.includes('lafb')) optional.add('bifascicular');
-      }
       for (const x of findings) optional.delete(x.id);
+      if (!R.pRhythm && lines.pericarditis) lines.pericarditis = 'Diffuse concave ST elevation with ST depression in aVR (no PR segment to read): pericarditis.';
       // measurements: rate from the engine; intervals and axis from the median beat
       const sm = R.vf ? null : R.tachy ? sinusRead(M).m : r.m;
       const m = R.vf ? { rate: null, pr: null, qrs: null, qtc: null, axis: null } : { rate, pr: R.pRhythm ? r.m.pr : null, qrs: R.vt ? null : sm.qrs, qtc: R.noP ? null : R.tachy || R.block || R.at || rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].ectopy || ABN[x.k].sinusNode) || ['af', 'flutter'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt || R.wide ? null : sm.axis };

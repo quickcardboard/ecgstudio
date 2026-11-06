@@ -52,21 +52,34 @@
   // ------------------------------------------------------------------ live ECGs (background worker)
   const decode = (it) => ({ ...it, data: it.leads.map((b) => { const bin = atob(b), a = new Int16Array(bin.length / 2); for (let i = 0; i < a.length; i++) a[i] = (bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8)) << 16 >> 16; return a; }) });
   const QUEUE_N = 2;
-  const gen = { worker: null, ready: false, queue: [], pending: 0, waiting: false, req: 0, failed: 0, cb: {}, tag: {}, onReady: [] };
+  // (two workers where the phone has the cores: the next ECGs are made side by side, and a slow or rejected one
+  // does not hold up the other; each builds its own heart)
+  const N_WORKERS = (navigator.hardwareConcurrency || 2) >= 4 ? 2 : 1;
+  const gen = { workers: [], ready: false, queue: [], pending: 0, waiting: false, req: 0, failed: 0, cb: {}, tag: {}, by: {}, onReady: [] };
+  // the ready worker with the least work (null: none ready yet); idle: only one with nothing to do
+  const pickWorker = (idle) => { const r = gen.workers.filter((w) => w.ready && (!idle || !w.busy)).sort((a, b) => a.busy - b.busy); return r[0] || null; };
+  function post(w, msg) { w.busy++; gen.by[msg.req] = w; w.w.postMessage(msg); }
   // one-off ECG (daily ECG, a review): msg = { type: 'make', … } or { type: 'build', recipe }; cb(item or null)
   function request(msg, cb) {
     if (!gen.ready) { gen.onReady.push(() => request(msg, cb)); return; }
-    const req = ++gen.req; gen.cb[req] = cb; gen.worker.postMessage({ ...msg, req });
+    const req = ++gen.req; gen.cb[req] = cb; post(pickWorker(false), { ...msg, req });
   }
   function startWorker() {
     const src = document.getElementById('worker-src').textContent;
     const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
-    try { gen.worker = new Worker(url); } catch (e) { gen.worker = inlineWorker(src); }
-    gen.worker.onmessage = onWorker;
-    gen.worker.onerror = (e) => { console.warn('training worker', e.message); if (!gen.ready) { gen.worker = inlineWorker(src); gen.worker.onmessage = onWorker; initWorker(); } };
-    initWorker();
+    const add = (w) => { const o = { w, ready: false, busy: 0 }; gen.workers.push(o); w.onmessage = (e) => onWorker(e, o); return o; };
+    let real = 0;
+    for (let i = 0; i < N_WORKERS; i++) {
+      let o; try { o = add(new Worker(url)); real++; } catch (e) { break; }
+      o.w.onerror = (e) => {   // (a worker that cannot start: fall back to the same code on the page)
+        console.warn('training worker', e.message);
+        if (!o.ready) { gen.workers.splice(gen.workers.indexOf(o), 1); if (!gen.workers.length) initWorker(add(inlineWorker(src))); }
+      };
+      initWorker(o);
+    }
+    if (!real) initWorker(add(inlineWorker(src)));
   }
-  function initWorker() { gen.worker.postMessage({ type: 'init', anatomy: $('anatomy-data').textContent, torso: $('torso-data').textContent }); }
+  function initWorker(o) { o.w.postMessage({ type: 'init', anatomy: $('anatomy-data').textContent, torso: $('torso-data').textContent }); }
   // (no Worker, as on some file:// pages: the same code on the page, between frames)
   function inlineWorker(src) {
     const w = { onmessage: null }, self = { postMessage: (d) => setTimeout(() => w.onmessage && w.onmessage({ data: d }), 0) };
@@ -74,12 +87,13 @@
     w.postMessage = (d) => setTimeout(() => scope.onmessage({ data: d }), 30);
     return w;
   }
-  function onWorker(e) {
+  function onWorker(e, o) {
     const d = e.data;
-    if (d.type === 'ready') { gen.ready = true; gen.onReady.splice(0).forEach((f) => f()); fill(); return; }
+    if (d.type === 'ready') { o.ready = true; gen.ready = true; gen.onReady.splice(0).forEach((f) => f()); fill(); return; }
     if (d.type === 'log') { console.debug('training gate:', d.msg); return; }
     if (d.type !== 'item') return;
-    if (gen.cb[d.req]) { const cb = gen.cb[d.req]; delete gen.cb[d.req]; if (d.err) console.warn('training generator', d.err); cb(d.item ? checkVocab(d.item) && decode(d.item) : null); return; }
+    if (gen.by[d.req]) { gen.by[d.req].busy--; delete gen.by[d.req]; }
+    if (gen.cb[d.req]) { const cb = gen.cb[d.req]; delete gen.cb[d.req]; if (d.err) console.warn('training generator', d.err); cb(d.item ? checkVocab(d.item) && decode(d.item) : null); fill(); return; }
     gen.pending--;
     const tag = gen.tag[d.req]; delete gen.tag[d.req];
     if (tag !== practiceTag()) { fill(); return; }   // (asked for another practice mode)
@@ -131,12 +145,13 @@
     if (!gen.ready || gen.failed > 4) { if (gen.failed > 4) setLoading('Could not prepare an ECG. Reload the page to try again.'); return; }
     const tag = practiceTag(); if (tag === null) return;
     gen.queue = gen.queue.filter((x) => x.tag === tag);
-    while (gen.queue.length + gen.pending < QUEUE_N) {
+    let w;
+    while (gen.queue.length + gen.pending < QUEUE_N && (w = pickWorker(true))) {
       const weakest = SKILLS.slice().sort((a, b) => st.skills[a].r - st.skills[b].r)[0];
       const focus = tag || (Math.random() < 0.5 ? weakest : null), r = tag ? st.skills[tag].r : overall();
       const target = r - 168 + (Math.random() - 0.5) * 160;
       gen.pending++; const req = ++gen.req; gen.tag[req] = tag;
-      gen.worker.postMessage({ type: 'make', req, target, focus, seed: (Math.random() * 2 ** 31) | 0, adjust: adjustments() });
+      post(w, { type: 'make', req, target, focus, seed: (Math.random() * 2 ** 31) | 0, adjust: adjustments() });
     }
   }
   function setLoading(msg) {

@@ -3,7 +3,8 @@
 # One term per line:   id | Name shown on the chip | synonyms and abbreviations, comma-separated | flags
 #   - ORDER MATTERS: within each section, terms are listed from most to least common. Suggestions are
 #     shown in this order, so typing "si" offers Sinus rhythm first. Move a line up to make it come first.
-#   - "id" is what the answer keys use; do not rename an id that a question uses (tools/trainbank.js).
+#   - "id" is what the answer keys use (src/training_gen.js); do not rename one. Only terms the generator can ask or
+#     accept are listed: a term no ECG uses could only ever be marked "not present".
 #   - Typing matches the start of any word of the name or a synonym, with or without spaces
 #     ("fib" finds "Atrial fibrillation", "3avb" finds "3 AVB" and "3AVB"). A typed text that equals a
 #     synonym exactly ("af", "chb") puts that term first.
@@ -26,24 +27,7 @@ mobitz2 | Mobitz II | second degree AV block type 2, 2nd degree AV block type 2,
 avb2to1 | 2:1 AV block | two to one AV block, 2 to 1 block, 21 block, 21 AVB, 2 1 AV block, second degree 2:1, 2nd degree 2 to 1, 2AVB 21
 vf | Ventricular fibrillation | VF, v fib, vfib, fibrillation ventricular
 junctional | Junctional rhythm | nodal rhythm, junctional escape, junctional escape rhythm, JR
-ectopicAtrial | Ectopic atrial rhythm | low atrial rhythm, EAR, ectopic atrial
-sinusArr | Sinus arrhythmia | respiratory sinus arrhythmia, SA, sinus arrythmia
-mat | Multifocal atrial tachycardia | MAT, chaotic atrial tachycardia, multifocal
-ectopicAT | Ectopic atrial tachycardia | focal atrial tachycardia, atrial tachycardia, EAT, AT
-pacedV | Ventricular paced rhythm | ventricular pacing, paced rhythm, paced, pacemaker rhythm, VVI
-pacedAV | AV paced rhythm | dual chamber pacing, AV sequential pacing, DDD, dual paced
-pacedA | Atrial paced rhythm | atrial pacing, AAI, atrially paced
-asystole | Asystole | flatline, flat line, cardiac standstill
-pea | Pulseless electrical activity | PEA, electromechanical dissociation, EMD
-tdp | Torsades de pointes | torsades, TdP, torsade
-pvt | Polymorphic VT | polymorphic ventricular tachycardia, PMVT
 idioventricular | Idioventricular rhythm | ventricular escape rhythm, IVR, ventricular escape
-aivr | Accelerated idioventricular rhythm | AIVR, accelerated idioventricular
-accelJunctional | Accelerated junctional rhythm | accelerated junctional, AJR
-jt | Junctional tachycardia | JET, nodal tachycardia, JT
-antiAvrt | Antidromic AVRT | antidromic, preexcited tachycardia, pre-excited tachycardia
-highGradeAvb | High-grade AV block | advanced AV block, high grade block, HGAVB, 3:1 AV block, 31 block
-wap | Wandering atrial pacemaker | WAP, wandering pacemaker
 
 ## Findings
 # (most common first)
@@ -74,55 +58,11 @@ hyperacute | Hyperacute T waves | hyperacute T, tall T waves, hyperacute | regio
 reciprocal | Reciprocal ST depression | reciprocal change, reciprocal changes, mirror image, reciprocity | region
 posteriorMI | Posterior MI | posterior infarct, posterior STEMI, posterior wall MI, PMI, posterior
 lvhStrain | LVH with strain | strain pattern, LV strain, LVH strain
-incRbbb | Incomplete RBBB | incomplete right bundle branch block, IRBBB, partial RBBB
 ivcd | Nonspecific intraventricular conduction delay | IVCD, intraventricular conduction delay, NSIVCD, wide QRS
-lowVoltage | Low QRS voltage | low voltage, small complexes, LQRSV
-earlyRepol | Early repolarisation | early repolarization, benign early repolarisation, BER, J point elevation, ERP
-hyperK | Hyperkalaemia | hyperkalemia, peaked T waves, high potassium, high K, hyper K, tented T
-hypoK | Hypokalaemia | hypokalemia, U waves, low potassium, low K, hypo K
 bifascicular | Bifascicular block | RBBB with LAFB, RBBB LAFB, bifasicular
 lpfb | Left posterior fascicular block | LPFB, left posterior hemiblock, LPHB, posterior hemiblock, posterior fascicular block
-bigeminy | Ventricular bigeminy | bigeminy, bigeminal, PVC bigeminy
-biphasicT | Biphasic T waves | Wellens, Wellens syndrome, biphasic T | region
-nstemi | NSTEMI pattern | non ST elevation MI, NSTEMI, NSTE ACS, ACS
 bae | Biatrial enlargement | biatrial abnormality, BAE, both atria enlarged
-pe | Pulmonary embolism pattern | PE, S1Q3T3, SI QIII TIII, right heart strain, pulmonary embolus
-rvStrain | Right ventricular strain | RV strain
-prDepression | PR depression | PR segment depression, PR down
 brugada | Brugada pattern | Brugada type 1, Brugada syndrome, coved ST elevation, Brugada
 dominantRV1 | Dominant R in V1 | tall R in V1, prominent R V1, tall R V1, R V1
-incLbbb | Incomplete LBBB | incomplete left bundle branch block, ILBBB, partial LBBB
-trigeminy | Ventricular trigeminy | trigeminy, trigeminal
 couplet | Ventricular couplet | couplets, paired PVCs, pair
 acouplet | Atrial couplet | paired PACs, PAC couplet, atrial pair, couplet of PACs
-nsvt | Non-sustained VT | NSVT, salvo, run of VT
-shortPR | Short PR interval | short PR, PR short
-extremeAxis | Extreme axis deviation | northwest axis, no man's land axis, extreme axis, NW axis
-pjc | Premature junctional complexes | PJC, PJCs, junctional ectopic, junctional premature beats
-escape | Escape beats | escape complex, escape beat
-digoxin | Digoxin effect | reverse tick, Salvador Dali sagging, dig effect, digitalis effect, dig
-leadReversal | Limb lead reversal | lead misplacement, arm lead reversal, reversed leads, lead reversal, LA RA reversal
-artefact | Artefact | artifact, noise, tremor, interference, baseline wander
-uWaves | Prominent U waves | U wave, U waves
-hypoCa | Hypocalcaemia | hypocalcemia, long ST, low calcium, low Ca, hypo Ca
-hyperCa | Hypercalcaemia | hypercalcemia, short ST, high calcium, high Ca, hyper Ca
-shortqt | Short QT | short QTc, SQTS
-deWinter | De Winter T waves | de Winter, deWinter
-sgarbossa | Sgarbossa positive | Sgarbossa criteria, modified Sgarbossa, Sgarbossa
-lvAneurysm | LV aneurysm pattern | persistent ST elevation, ventricular aneurysm, LV aneurysm
-hcm | Hypertrophic cardiomyopathy pattern | HCM, HOCM, dagger Q waves
-takotsubo | Takotsubo pattern | stress cardiomyopathy, broken heart
-trifascicular | Trifascicular block | trifasicular
-bvh | Biventricular hypertrophy | BVH, Katz Wachtel
-fragQRS | Fragmented QRS | fQRS, fragmented
-electricalAlt | Electrical alternans | alternans, QRS alternans
-fusion | Fusion beats | fusion complex, fusion
-capture | Capture beats | capture complex, capture
-pacingSpikes | Pacing spikes | pacemaker spikes, pacing artefact, spikes
-failCapture | Failure to capture | loss of capture, non capture
-failSense | Failure to sense | undersensing, under sensing
-ronT | R on T | R on T phenomenon
-epsilon | Epsilon wave | ARVC, epsilon
-osborn | Osborn wave | J wave, hypothermia wave, Osborn, hypothermia
-dextrocardia | Dextrocardia | mirror image dextrocardia, dextro
-lgl | LGL pattern | Lown Ganong Levine, LGL
