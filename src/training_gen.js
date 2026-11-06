@@ -35,7 +35,8 @@
     vf: { w: 0.8, tachy: true, rating: 40, link: 'a=vf', vf: true, start: (S) => { S.run(2000); S.startArrhythmia('vf'); }, read: (r) => r === 'ventricular fibrillation' },
     // sinus arrest for the whole strip with an escape rhythm: junctional (narrow, retrograde P hidden after the QRS)
     // or ventricular (block in the His bundle below it: wide); naming the sinus pause is true but not required
-    junctional: { w: 0.8, open: true, noP: true, rating: 140, block: ['SAN', 'arrest'], optional: ['sinusPause'], read: () => true },
+    junctional: { w: 0.8, open: true, noP: true, notWith: ['lbbb', 'rbbb', 'nsstt'],   // (a wide QRS would pass for a ventricular escape; the retrograde P sits on the ST-T)
+      rating: 140, block: ['SAN', 'arrest'], optional: ['sinusPause'], read: () => true },
     idioventricular: { w: 0.5, noP: true, wide: true, rating: 160, block: ['SAN', 'arrest'], block2: ['HIS', 'complete'], optional: ['sinusPause'], read: () => true },
   };
   const RHYTHM_LINE = {
@@ -124,7 +125,7 @@
     if ((R.notWith || []).includes(k)) return false;
     if ((a.ectopy || a.pause || a.sinusNode) && !['sinus', 'sinusBrady'].includes(rh)) return false;   // (ectopy and pauses are timed from sinus beats)
     // (pericarditis: with P waves (PR depression read), or in AF (diffuse concave ST elevation alone))
-    if (k === 'peri' && !(R.pRhythm || rh === 'af')) return false;
+    if (k === 'peri' && !(R.pRhythm || rh === 'af' || rh === 'junctional')) return false;
     if (has('wpw') && all.some((x) => ABN[x].ectopy || ABN[x].pause || ABN[x].sinusNode)) return false;   // (at 106–125/min the P sits on the previous T: hidden or not read)
     for (const j of list) {
       const b = ABN[j];
@@ -545,7 +546,7 @@
       // blind read of the median beat: a finding we did not put in must not show (it would be marked
       // "not present" for a student who names it); true consequences become optional
       (R.optional || []).forEach((x) => optional.add(x));   // (naming the sinus arrest behind an escape rhythm is true)
-      if (rec.rhythm === 'af' && lines.pericarditis) lines.pericarditis = 'Diffuse concave ST elevation with ST depression in aVR (no PR segment in AF): pericarditis.';
+      if (!R.pRhythm && lines.pericarditis) lines.pericarditis = 'Diffuse concave ST elevation with ST depression in aVR (no PR segment to read): pericarditis.';
       if (r && !R.vt && !R.wide) {   // (a ventricular escape beat is wide and abnormal by nature: its shape is not a finding)
         const ks = rec.abn.map((a) => a.k), words = rec.abn.flatMap((a) => (a.k === 'recent' ? ['old MI', 'T inversion'] : ABN[a.k].isch ? [ABN[a.k].isch < 24 ? 'STEMI' : 'old MI'] : [ABN[a.k].dx]));
         const rca = rec.abn.some((a) => /RCA/.test(a.site || ''));

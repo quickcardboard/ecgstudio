@@ -1640,6 +1640,10 @@ uniform part), and the plateau sags by up to `nssttSag` 0.06. No territory, no n
 - Pericarditis in AF: no PR segment, so the check is diffuse ST elevation (≥ 4 leads, 2 territories) and aVR depression
   without reciprocal depression. The ST must also be concave upward in at least half the elevated leads (J+40 below the chord from J to J+80).
   The blind reader's STEMI read is ignored beside pericarditis. Still not with flutter or AV block.
+- Junctional escape with other findings: everything that leaves the QRS narrow (ischemia, fascicular blocks,
+  hypertrophy, pericarditis by the no-P check). Not LBBB or RBBB, because a wide QRS would pass for a ventricular escape.
+  Not non-specific ST-T, because the inverted retrograde P sits on the inferior ST-T and reads as T inversion. The P-wave
+  findings and ectopy are not combined with it (no sinus P waves).
 ## Round 45: ventricular escape at 32/min
 
 `ventEscapeRate` 40 → 32, the middle of the textbook 20–40/min range for a ventricular escape. The rate was
