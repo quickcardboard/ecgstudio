@@ -8,6 +8,9 @@
 (function (root) {
   'use strict';
   const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
+  const ELECTRODES = ['RA', 'LA', 'LL', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
+  // artifact size at level 1 on its electrode (mV): tremor RMS, wander peak, mains peak (to be set from the gallery)
+  const ART_MAX = { tremor: 0.12, wander: 1.2, mains: 0.12 };
   const SETTLE = 4000, STRIP = 10000, TWIN_STRIP = 6000, HZ = 250;   // (a twin is only read for its median beat)
   const SKILLS = ['rhythm', 'conduction', 'ischemia', 'conditions'];
   const RL = { septal: ['V1', 'V2'], anterior: ['V3', 'V4'], lateral: ['I', 'aVL', 'V5', 'V6'], inferior: ['II', 'III', 'aVF'] };
@@ -211,6 +214,47 @@
       return models[key];
     };
     const LAB = LH.LAB;
+    // ---------------------------------------------------------------- artifacts (a reading layer, generator only)
+    // Added to the finished strip after every check (the checks read the clean ECG); the simulator never sees them.
+    // Each artifact is a potential on one electrode (or, for mains interference, on all of them); the 12 leads are
+    // formed from the electrodes as the machine forms them, so a right-arm artifact shows in I, II, aVR, aVL, aVF
+    // and every V lead (through Wilson's central terminal) but not in III, and one on V3 only in V3.
+    // art = { kinds: ['tremor' | 'wander' | 'mains'], el: { tremor, wander }, level 0–1 } (rec.art)
+    function artifactLeads(art, seed, n, hz = HZ) {
+      const r = LH.rng((seed ^ 0xa27f) >>> 0), E = {}, dt = 1 / hz;
+      for (const e of ELECTRODES) E[e] = new Float32Array(n);
+      const gauss = () => Math.sqrt(-2 * Math.log(r() + 1e-12)) * Math.cos(2 * Math.PI * r());
+      const lv = art.level;
+      if (art.kinds.includes('tremor')) {
+        // muscle tremor: bursts of fine irregular noise (EMG), 2–4 of 0.6–2 s, on one electrode
+        const x = E[art.el.tremor], A = ART_MAX.tremor * lv, nb = 2 + Math.floor(r() * 3);
+        let w0 = 0, w1 = 0;
+        const env = new Float32Array(n);
+        for (let b = 0; b < nb; b++) {
+          const len = (0.6 + 1.4 * r()) * hz, t0 = r() * (n - len), ramp = 0.15 * hz;
+          for (let i = Math.max(0, Math.floor(t0)); i < Math.min(n, t0 + len); i++) { const u = Math.min(1, (i - t0) / ramp, (t0 + len - i) / ramp); env[i] = Math.max(env[i], 0.5 - 0.5 * Math.cos(Math.PI * u)); }
+        }
+        for (let i = 0; i < n; i++) { const g = gauss(); const v = 0.5 * g + 0.3 * w0 + 0.2 * w1; w1 = w0; w0 = g; x[i] += A * env[i] * v / 0.62; }
+      }
+      if (art.kinds.includes('wander')) {
+        // baseline wander: slow swings (breathing 0.15–0.3 Hz, and a slower drift) on one electrode
+        const x = E[art.el.wander], A = ART_MAX.wander * lv, f1 = 0.15 + 0.15 * r(), f2 = 0.05 + 0.07 * r(), p1 = 2 * Math.PI * r(), p2 = 2 * Math.PI * r();
+        for (let i = 0; i < n; i++) x[i] += A * (0.65 * Math.sin(2 * Math.PI * f1 * i * dt + p1) + 0.35 * Math.sin(2 * Math.PI * f2 * i * dt + p2));
+      }
+      if (art.kinds.includes('mains')) {
+        // electrical interference: 50 Hz on every electrode, unequal (the amplifier rejects only the common part)
+        const ph = 2 * Math.PI * r();
+        for (const e of ELECTRODES) { const A = ART_MAX.mains * lv * (0.2 + 0.8 * r()); for (let i = 0; i < n; i++) E[e][i] += A * Math.sin(2 * Math.PI * 50 * i * dt + ph); }
+      }
+      const { RA, LA, LL } = E, out = LEADS.map(() => new Float32Array(n));
+      for (let i = 0; i < n; i++) {
+        const ra = RA[i], la = LA[i], ll = LL[i], wct = (ra + la + ll) / 3;
+        out[0][i] = la - ra; out[1][i] = ll - ra; out[2][i] = ll - la;
+        out[3][i] = ra - (la + ll) / 2; out[4][i] = la - (ra + ll) / 2; out[5][i] = ll - (ra + la) / 2;
+        for (let k = 1; k <= 6; k++) out[5 + k][i] = E['V' + k][i] - wct;
+      }
+      return out;
+    }
     // the scenario's structure on a fresh Sim (everything except the rhythm)
     function base(M, rec) {
       const S = new LH.Sim(M, { seed: rec.seed });
@@ -616,7 +660,8 @@
       if (R.tachy) { const [a, c] = within(1500, 4600); if (a && c) caliper = { lead: 'rhythm', t0: Math.round(a.on), t1: Math.round(c.on), label: `RR ${Math.round(c.on - a.on)} ms = ${Math.round(60000 / (c.on - a.on))}/min` }; }
       else if (calK === 'qrs') { const [a] = within(5200, 7200); if (a) caliper = { lead: 'V1', t0: Math.round(a.on), t1: Math.round(a.on + r.m.qrs), label: `QRS ${r.m.qrs} ms` }; }
       else if ((calK === 'pr' || rec.abn.some((a) => a.k === 'avb1')) && r.m.pr) { const [a] = within(1200, 4600); if (a) caliper = { lead: 'rhythm', t0: Math.round(a.on - r.m.pr), t1: Math.round(a.on), label: `PR ${r.m.pr} ms` }; }
-      const leads = LEADS.map((_, k) => { const x = new Int16Array(STRIP / (1000 / HZ)); for (let i = 0; i < x.length; i++) x[i] = Math.round(rec12[i * (1000 / HZ)][k] * 1000); return b64(x); });
+      const nS = STRIP / (1000 / HZ), art = rec.art ? artifactLeads(rec.art, rec.seed, nS) : null;
+      const leads = LEADS.map((_, k) => { const x = new Int16Array(nS); for (let i = 0; i < x.length; i++) x[i] = Math.max(-32000, Math.min(32000, Math.round((rec12[i * (1000 / HZ)][k] + (art ? art[k][i] : 0)) * 1000))); return b64(x); });
       const key = { rhythm, alt: R.alt || (SINUS.includes(rhythm) && rhythm !== 'sinus' ? ['sinus'] : []), findings, optional: [...optional] };
       const skills = { rhythm: true }; for (const a of rec.abn) skills[ABN[a.k].skill] = true;
       const title = [rhythm, ...rec.abn.map((a) => (ABN[a.k].isch ? `${a.k} (${a.site})` : a.k))].join(' + ');
@@ -639,7 +684,7 @@
       }
       return null;
     }
-    return { make, build, sample, model, itemRating };
+    return { make, build, sample, model, itemRating, artifactLeads, ART_MAX };
   }
   TrainGen.RHYTHMS = RHYTHMS; TrainGen.ABN = ABN; TrainGen.SKILLS = SKILLS; TrainGen.itemRating = itemRating; TrainGen.sample = sample;
   if (typeof module !== 'undefined' && module.exports) module.exports = TrainGen; else root.TrainGen = TrainGen;
