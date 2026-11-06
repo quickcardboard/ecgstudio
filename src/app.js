@@ -1709,13 +1709,13 @@
     else if (avrt) {
       const SITE = { 'left-lateral': 'left lateral', 'left-posterior': 'left posterior', posteroseptal: 'posteroseptal', 'right-free-wall': 'right free wall', 'right-anteroseptal': 'right anteroseptal' };
       rhythm = `Orthodromic AVRT: down the AV node, back up the ${SITE[S.apLocation] || ''} accessory pathway (narrow QRS, no pre-excitation)`;
-    } else if (avComplete) {
+    } else if (B.SAN && B.SAN.type === 'arrest') rhythm = `Sinus arrest with ${fired('ventricular') || fired('idioventricular') ? 'ventricular' : 'junctional'} escape rhythm`;
+    else if (avComplete) {
       const esc = fired('idioventricular') ? 'idioventricular' : fired('ventricular') ? 'ventricular' : 'junctional';
       const level = distal && !(B.HIS && B.HIS.type === 'complete') && !(B.AVN && B.AVN.type === 'complete')
         ? (B.LBB ? ' (bilateral bundle branch block)' : ' (trifascicular block)') : '';
       rhythm = `3rd-degree (complete) AV block${level} with ${esc} escape rhythm`;
-    } else if (B.SAN && B.SAN.type === 'arrest') rhythm = 'Sinus arrest with junctional escape rhythm';
-    else if (B.SAN && B.SAN.type === 'pause' && S.t < S.sinusPauseUntil + 6000) rhythm = `Sinus rhythm with sinus pause${fired('junctional') ? ' and junctional escape beats' : ''}`;
+    } else if (B.SAN && B.SAN.type === 'pause' && S.t < S.sinusPauseUntil + 6000) rhythm = `Sinus rhythm with sinus pause${fired('junctional') ? ' and junctional escape beats' : ''}`;
     else if (B.SAN && B.SAN.type === 'sa-exit') rhythm = 'Sinus rhythm with 2nd-degree SA exit block';
     else if (B.AVN && B.AVN.type === 'wenckebach') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz I (Wenckebach)';
     else if (B.AVN && B.AVN.type === 'two-to-one') rhythm = 'Sinus rhythm with 2:1 AV block';

@@ -23,18 +23,20 @@
     sinusTachy: { w: 2, rate: [106, 125], pRhythm: true, open: true, rating: 20, notWith: ['avb1', 'wpw', 'lbbb', 'rbbb', 'peri', 'bae'], read: (r) => /^sinus (rhythm|tachycardia)$/.test(r) },
     af: { w: 3, open: true, rating: 60, rate: [60, 150], vLink: true, link: 'a=af', struct: 'fib', start: (S, rec) => { S.setAtrialFibrosis(true); S.run(2000); S.startArrhythmia('af'); S.setVentricularResponse(rec.rate); },   // (AF on its substrate, as in the app)
     read: (r) => r === 'atrial fibrillation' },
-    flutter: { w: 2, open: true, notWith: ['stemi', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt'],   // (flutter waves sit on the ST segment)
+    flutter: { w: 2.5, open: true, notWith: ['stemi', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt'],   // (flutter waves sit on the ST segment)
       rating: 150, rate: [60, 100], vLink: true, link: 'a=flutter', start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate); }, read: (r) => r === 'atrial flutter' },
     avnrt: { w: 1.5, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
     avrt: { w: 1.5, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
     mobitz1: { w: 2, open: true, rating: 150, block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
-    mobitz2: { w: 1, open: true, rating: 180, block: ['HIS', 'mobitz2', { n: 4 }], read: (r) => /Mobitz II /.test(r) },
+    mobitz2: { w: 1.2, open: true, rating: 180, block: ['HIS', 'mobitz2', { n: 4 }], read: (r) => /Mobitz II /.test(r) },
     avb2to1: { w: 0.6, open: true, rating: 200, block: ['AVN', 'two-to-one'], read: (r) => /2:1 AV block/.test(r) },
-    chb: { w: 2, open: true, rating: 120, block: ['AVN', 'complete'], read: (r) => /complete AV block/.test(r) },
+    chb: { w: 0.9, open: true, rating: 120, block: ['AVN', 'complete'], read: (r) => /complete AV block/.test(r) },
     vt: { w: 1.2, tachy: true, rating: 120, link: 'a=vt', vt: true, read: (r) => r === 'ventricular tachycardia' },
     vf: { w: 0.8, tachy: true, rating: 40, link: 'a=vf', vf: true, start: (S) => { S.run(2000); S.startArrhythmia('vf'); }, read: (r) => r === 'ventricular fibrillation' },
-    // sinus node: 2nd-degree SA exit block (3:2, regular dropped beats) and one sinus pause in the strip
-    saBlock: { w: 1, open: true, pRhythm: true, rate: [64, 84], rating: 160, block: ['SAN', 'sa-exit', { n: 3 }], read: (r) => /pauses|SA block/.test(r) },
+    // sinus arrest for the whole strip with an escape rhythm: junctional (narrow, retrograde P hidden after the QRS)
+    // or ventricular (block in the His bundle below it: wide); naming the sinus pause is true but not required
+    junctional: { w: 0.8, open: true, noP: true, rating: 140, block: ['SAN', 'arrest'], optional: ['sinusPause'], read: () => true },
+    idioventricular: { w: 0.5, noP: true, wide: true, rating: 160, block: ['SAN', 'arrest'], block2: ['HIS', 'complete'], optional: ['sinusPause'], read: () => true },
   };
   const RHYTHM_LINE = {
     sinus: 'Regular, a P before every QRS at a normal rate: sinus rhythm.',
@@ -50,7 +52,8 @@
     chb: 'P waves march through at their own rate, unrelated to a slow regular escape: complete AV block.',
     vt: 'Regular broad-complex tachycardia without related P waves: ventricular tachycardia.',
     vf: 'Chaotic, irregular deflections with no identifiable QRS complexes: ventricular fibrillation. Defibrillate.',
-    saBlock: 'Whole P–QRS complexes drop out; each pause is a multiple of the P–P interval: sinoatrial exit block.',
+    junctional: 'No P waves before the QRS (sinus arrest); regular narrow QRS at 40–60/min: junctional escape rhythm.',
+    idioventricular: 'No P waves (sinus arrest); regular wide QRS at 20–40/min: ventricular escape (idioventricular) rhythm.',
   };
 
   // ---------------------------------------------------------------- abnormalities
@@ -85,12 +88,15 @@
     recent: { group: 'isch', skill: 'ischemia', rating: 120, isch: 48, excl: ['peri', 'brugada'], id: 'qwaves' },
     // non-specific ST-T changes: flat T waves in leads where T is normally upright, no territory
     nsstt: { group: 'repol', skill: 'conditions', rating: 120, id: 'nsstt', nsstt: true, struct: 'nsstt', excl: ['isch', 'peri', 'brugada', 'bbb', 'hyp', 'wpw'], leads: [], line: '' },
-    peri: { group: 'peri', skill: 'conditions', rating: 80, needP: true,   // (PR depression needs a P before every QRS)
-      id: 'pericarditis', dx: 'pericarditis', peri: true, struct: 'peri', excl: ['isch', 'brugada'], leads: ['I', 'II', 'aVF', 'V5', 'V6', 'aVR'], line: 'Diffuse concave ST elevation with PR depression and ST depression in aVR: pericarditis.' },
+    peri: { group: 'peri', skill: 'conditions', rating: 80, id: 'pericarditis', dx: 'pericarditis', peri: true, struct: 'peri', excl: ['isch', 'brugada'], leads: ['I', 'II', 'aVF', 'V5', 'V6', 'aVR'], line: 'Diffuse concave ST elevation with PR depression and ST depression in aVR: pericarditis.' },
     // ectopy (sinus rhythm only): two PVCs, two PACs, or one ventricular couplet in the strip, timed from the
     // engine's own beats; verified from its timing (the ectopic beat fired, premature, wide or narrow)
     pvc: { group: 'ectopy', skill: 'rhythm', rating: 20, ectopy: 'pvc', id: 'pvc', leads: ['II'], line: 'An early, wide, bizarre QRS with no P wave before it and a full compensatory pause: premature ventricular complexes.' },
     pac: { group: 'ectopy', skill: 'rhythm', rating: 80, ectopy: 'pac', id: 'pac', leads: ['II'], line: 'An early P of another shape, a normal narrow QRS, then a less-than-compensatory pause: premature atrial complexes.' },
+    // SA exit block (3:2): whole P–QRS complexes drop out, each pause twice the P–P interval
+    saBlock: { group: 'ectopy', skill: 'rhythm', rating: 100, id: 'saBlock', sinusNode: true, block: ['SAN', 'sa-exit', { n: 3 }], leads: ['II'], line: 'Whole P–QRS complexes drop out; each pause is twice the P–P interval: sinoatrial exit block.' },
+    // atrial couplet: two PACs in a row
+    acouplet: { group: 'ectopy', skill: 'rhythm', rating: 70, ectopy: 'acouplet', id: 'acouplet', leads: ['II'], line: 'Two early P waves of another shape in a row, each with a narrow QRS: an atrial couplet.' },
     // a sinus pause (2.6 s, at 3 s into the strip): a finding on sinus rhythm, like ectopy
     sinusPause: { group: 'ectopy', skill: 'rhythm', rating: 60, id: 'sinusPause', pause: true, linkBlock: 'SAN.pause', at: [[3000, (S) => S.setBlock('SAN', 'pause', { ms: 2600 })]], leads: ['II'], line: 'A sudden pause with no P wave, not a multiple of the P–P interval, then sinus beats resume: sinus pause.' },
     couplet: { group: 'ectopy', skill: 'rhythm', rating: 60, ectopy: 'couplet', id: 'couplet', leads: ['II'], line: 'Two premature wide complexes in a row: a ventricular couplet (three or more would be non-sustained VT).' },
@@ -98,7 +104,7 @@
   };
   // (testers' round 1: fewer hypertrophy, Brugada and atrial enlargement; more ST depression, T changes,
   // WPW and ectopy)
-  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.25, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2 };
+  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8 };
   const ITEM_BASE = 1200, PER_ABN = 180;
 
   // Combination rules (the author's clinical calls; see docs/DEVELOPMENT.md training-1):
@@ -116,8 +122,10 @@
     if (a.needP && !R.pRhythm) return false;
     if (a.group === 'av' && R.block) return false;
     if ((R.notWith || []).includes(k)) return false;
-    if ((a.ectopy || a.pause) && !['sinus', 'sinusBrady'].includes(rh)) return false;   // (ectopy and pauses are timed from sinus beats)
-    if (has('wpw') && all.some((x) => ABN[x].ectopy)) return false;   // (at 106–125/min the P sits on the previous T: hidden or not read)
+    if ((a.ectopy || a.pause || a.sinusNode) && !['sinus', 'sinusBrady'].includes(rh)) return false;   // (ectopy and pauses are timed from sinus beats)
+    // (pericarditis: with P waves (PR depression read), or in AF (diffuse concave ST elevation alone))
+    if (k === 'peri' && !(R.pRhythm || rh === 'af')) return false;
+    if (has('wpw') && all.some((x) => ABN[x].ectopy || ABN[x].pause || ABN[x].sinusNode)) return false;   // (at 106–125/min the P sits on the previous T: hidden or not read)
     for (const j of list) {
       const b = ABN[j];
       if (b.group === a.group) return false;
@@ -211,6 +219,7 @@
       }
       if (atria.ra || atria.la) S.setAtrialEnlargement(atria);
       if (R.block) S.setBlock(R.block[0], R.block[1], R.block[2] || {});
+      if (R.block2) S.setBlock(R.block2[0], R.block2[1], R.block2[2] || {});
       const isch = rec.abn.find((a) => ABN[a.k].isch);
       if (isch) { const node = MI_SITES[isch.site].f(M.coronary.branches); if (ABN[isch.k].stenosis) S.addStenosis(node); else S.addOcclusion(node); S.setIschemiaTime(ABN[isch.k].isch); }
       return S;
@@ -245,16 +254,20 @@
       if (ect) {
         const er = LH.rng((rec.seed ^ 0xec70) >>> 0), A = M.A, kind = ABN[ect.k].ectopy, rr = 60000 / (R.rate ? rec.rate : 72);
         const pickCell = (f) => { const pool = []; for (let c = 0; c < M.nVox; c++) if (f(c)) pool.push(c); return pool[Math.floor(er() * pool.length)]; };
-        const cell = kind === 'pac' ? pickCell((c) => M.kind[c] === LH.KIND.ATRIAL && !M.seg[c]) : pickCell((c) => M.kind[c] === LH.KIND.VENT && A.epi[c]);
+        const cell = kind === 'pac' || kind === 'acouplet' ? pickCell((c) => M.kind[c] === LH.KIND.ATRIAL && !M.seg[c]) : pickCell((c) => M.kind[c] === LH.KIND.VENT && A.epi[c]);
         // a PVC ~0.6 RR after the last QRS (after its T wave, before the next sinus beat conducts); a PAC ~0.65 RR
         // after the last P wave; a couplet: a second PVC 380 ms after the first
         const fire = () => {
           const lv = S.log.vent[S.log.vent.length - 1], next = S.nextSinus();
-          if (kind === 'pac') { let tp = next - 0.35 * rr; if (tp <= S.t + 5) tp += rr; S.stimulateAt(cell, tp); stims.push({ t: tp, kind }); return; }
+          if (kind === 'pac' || kind === 'acouplet') {
+            let tp = next - 0.35 * rr; if (tp <= S.t + 5) tp += rr; S.stimulateAt(cell, tp); stims.push({ t: tp, kind: 'pac' });
+            if (kind === 'acouplet') { const t2 = tp + Math.max(440, 0.62 * rr); S.stimulateAt(cell, t2); stims.push({ t: t2, kind: 'pac' }); }   // (the second PAC early after the first)
+            return;
+          }
           const tp = Math.max(S.t + 5, lv.on + Math.max(420, 0.6 * rr));
           if (tp < next + 100) { S.stimulateAt(cell, tp); stims.push({ t: tp, kind: 'pvc' }); if (kind === 'couplet') { S.stimulateAt(cell, tp + 380); stims.push({ t: tp + 380, kind: 'pvc' }); } }
         };
-        for (const t of kind === 'couplet' ? [3800] : [2600, 6600]) events.push({ t, fn: fire });
+        for (const t of kind === 'couplet' || kind === 'acouplet' ? [3800] : [2600, 6600]) events.push({ t, fn: fire });
       }
       for (let t = 0; t < STRIP; t += 100) {
         for (const e of events) if (!e.done && e.t >= t && e.t < t + 100) { e.done = true; e.fn(S); }
@@ -378,7 +391,13 @@
         }
         case 'peri': {
           const ste = steLeads(L), std = contiguous(LEADS.filter((n) => n !== 'aVR' && L[n].stJ <= -0.05)).filter((n) => n !== 'V1');
-          return yes(ste.length >= 4 && terrOf(ste).length >= 2 && L.aVR.stJ <= -0.05 && !std.length && m.prSeg && (m.prSeg.II <= -0.08 || m.prSeg.aVR >= 0.08), `ST up in ${ste.join(' ')}, aVR ${L.aVR.stJ}`, ste);
+          const diffuse = ste.length >= 4 && terrOf(ste).length >= 2 && L.aVR.stJ <= -0.05 && !std.length;
+          if (a.noP) {
+            // (AF: no PR segment; the ST must be concave upward: at J+40 below the chord from J to J+80)
+            const conc = ste.filter((n) => L[n].st40 < (L[n].stJ + L[n].st80) / 2 - 0.005);
+            return yes(diffuse && conc.length >= Math.ceil(ste.length / 2), `ST up in ${ste.join(' ')}, concave in ${conc.join(' ')}, aVR ${L.aVR.stJ}`, ste);
+          }
+          return yes(diffuse && m.prSeg && (m.prSeg.II <= -0.08 || m.prSeg.aVR >= 0.08), `ST up in ${ste.join(' ')}, aVR ${L.aVR.stJ}`, ste);
         }
         case 'brugada': { const b = ['V1', 'V2'].filter((n) => L[n].stJ >= 0.2 && L[n].stJ > L[n].st40 && L[n].st40 > L[n].st80 && L[n].tTerm < -0.03); return yes(b.length, `coved ST in ${b.join(' ') || 'neither V1 nor V2'}`, b); }
       }
@@ -399,6 +418,7 @@
       q.push(`r=${R.rate ? rec.rate : 72}`);
       if (R.link) q.push(R.link);
       if (R.block) blocks.push(`${R.block[0]}.${R.block[1]}`);
+      if (R.block2) blocks.push(`${R.block2[0]}.${R.block2[1]}`);
       if (R.struct) struct.push(R.struct);
       if (R.linkBlock) blocks.push(R.linkBlock);
       for (const a of rec.abn) if (ABN[a.k].linkBlock) blocks.push(ABN[a.k].linkBlock);
@@ -419,10 +439,19 @@
       const rrs = V.slice(1).map((v, i) => v.on - V[i].on), rate = R.vf ? null : Math.round(60000 * rrs.length / rrs.reduce((x, y) => x + y, 0));
       // rhythm: from the engine; P waves must be visible where the rhythm is read from them
       let rhythm = rec.rhythm;
-      if (SINUS.includes(rhythm)) rhythm = rate < 60 ? 'sinusBrady' : rate > 100 ? 'sinusTachy' : 'sinus';
+      // (with SA exit block or a pause, the rate class comes from the sinus cycle, not the average with the pauses)
+      const sinusRate = rec.abn.some((x) => ABN[x.k].sinusNode || ABN[x.k].pause) ? Math.round(60000 / rrs.slice().sort((x, y) => x - y)[Math.floor(rrs.length * 0.25)]) : rate;
+      if (SINUS.includes(rhythm)) rhythm = sinusRate < 60 ? 'sinusBrady' : sinusRate > 100 ? 'sinusTachy' : 'sinus';
       const pv = pVisibility(sim);
       if (R.pRhythm && pv.share > 0.2) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
-      if (R.block && pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.5)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
+      if (R.noP) {
+        // (sinus arrest: no atrial activation may precede a QRS by the time of a PR; retrograde P after it is expected)
+        const pre = A.filter((a) => V.some((v) => v.on - a.on > 60 && v.on - a.on < 300)).length;
+        if (pre) return fail(`${pre} P waves before a QRS in sinus arrest`, 'rhythm');
+        const lim = rec.rhythm === 'junctional' ? [40, 60] : [20, 40];
+        if (rate < lim[0] || rate > lim[1]) return fail(`escape rate ${rate}`, 'rhythm');
+      }
+      if (R.block && !R.noP && pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.5)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
       const rr = readRhythm(rec12);   // (blind rhythm read: kept for the record and the audit, not the gate)
       // morphology on the median beat
       const med = R.tachy ? null : medianBeat(sim);
@@ -432,6 +461,14 @@
       const mark = (id, leads) => { for (const l of leads) { hl.add(l); (hlBy[id] = hlBy[id] || []).includes(l) || hlBy[id].push(l); } };   // (each finding's own leads: the result chips show them)
       for (const a of rec.abn) {
         const d = ABN[a.k];
+        if (d.sinusNode) {
+          // SA exit block (3:2): pauses of twice the sinus cycle, at least two of them
+          const cyc = rrs.slice().sort((x, y) => x - y)[Math.floor(rrs.length * 0.25)], longs = rrs.filter((x) => x > 1.7 * cyc && x < 2.3 * cyc);
+          checks.push(`SA exit block: ${longs.length} pauses of 2× the sinus cycle (${Math.round(cyc)} ms)`);
+          if (longs.length < 2) return fail('SA exit block pauses not seen', 'criteria');
+          findings.push({ id: d.id, skill: d.skill }); mark(d.id, ['II']); lines[d.id] = d.line;
+          continue;
+        }
         if (d.pause) {
           const medRR = rrs.slice().sort((x, y) => x - y)[rrs.length >> 1], longest = Math.max(...rrs);
           checks.push(`pause: longest RR ${Math.round(longest)} ms (${(longest / medRR).toFixed(1)}× the usual)`);
@@ -445,14 +482,16 @@
           const ect = ectopicBeats(sim), med = rrs.slice().sort((x, y) => x - y)[rrs.length >> 1];
           const pvcs = (sim.stims || []).filter((x) => x.kind === 'pvc'), pacs = (sim.stims || []).filter((x) => x.kind === 'pac');
           const wide = [...ect].filter((v) => v.last - v.on >= 110), early = [...ect].filter((v) => { const i = V.indexOf(v); return i > 0 && v.on - V[i - 1].on < 0.85 * med; });
-          const want = d.ectopy === 'pac' ? 2 : 2, ok = d.ectopy === 'pac' ? pacs.length === 2 && ect.size === 2 && wide.length === 0 && early.length === 2 : pvcs.length === 2 && wide.length === 2 && early.length >= 1;
+          const atrial = d.ectopy === 'pac' || d.ectopy === 'acouplet';
+          const want = 2, ok = atrial ? pacs.length === 2 && ect.size === 2 && wide.length === 0 && early.length === 2 : pvcs.length === 2 && wide.length === 2 && early.length >= 1;
           checks.push(`${a.k}: ${ect.size} ectopic beats (${wide.length} wide, ${early.length} premature)`);
           if (!ok) return fail(`${a.k}: ectopic beats did not show as planned (${ect.size} of ${want})`, 'criteria');
           findings.push({ id: d.id, skill: d.skill }); mark(d.id, ['II', 'V1']); lines[d.id] = d.line;
           if (d.ectopy === 'couplet') optional.add('pvc');
+          if (d.ectopy === 'acouplet') optional.add('pac');
           continue;
         }
-        const c = criteria(a.k, a, r.m, r.L);
+        const c = criteria(a.k, R.pRhythm ? a : { ...a, noP: true }, r.m, r.L);
         checks.push(`${a.k}: ${c.why}`);
         if (!c.ok) return fail(`${a.k}${a.site ? ' ' + a.site : ''} criteria not met (${c.why})`, 'criteria');
         // twin: the same scenario without this abnormality
@@ -505,15 +544,18 @@
       }
       // blind read of the median beat: a finding we did not put in must not show (it would be marked
       // "not present" for a student who names it); true consequences become optional
-      if (r && !R.vt) {
+      (R.optional || []).forEach((x) => optional.add(x));   // (naming the sinus arrest behind an escape rhythm is true)
+      if (rec.rhythm === 'af' && lines.pericarditis) lines.pericarditis = 'Diffuse concave ST elevation with ST depression in aVR (no PR segment in AF): pericarditis.';
+      if (r && !R.vt && !R.wide) {   // (a ventricular escape beat is wide and abnormal by nature: its shape is not a finding)
         const ks = rec.abn.map((a) => a.k), words = rec.abn.flatMap((a) => (a.k === 'recent' ? ['old MI', 'T inversion'] : ABN[a.k].isch ? [ABN[a.k].isch < 24 ? 'STEMI' : 'old MI'] : [ABN[a.k].dx]));
         const rca = rec.abn.some((a) => /RCA/.test(a.site || ''));
         for (const dx of b.dx) {
           if (words.some((w) => dx === w || dx.startsWith(w + ' '))) continue;
           if (!R.pRhythm && ['RAE', 'LAE', 'biatrial enlargement', '1st-degree AVB'].includes(dx)) { if (dx === '1st-degree AVB' && rec.rhythm === 'mobitz1') optional.add('avb1'); continue; }
           if (dx === 'long QT' && ['af', 'flutter'].includes(rec.rhythm)) continue;
-          if (rec.rhythm === 'flutter' && /^(STEMI|old MI)/.test(dx)) continue;   // (flutter waves on the ST segment; flutter carries no ischemia)
-          if (dx === 'long QT' && (R.block || R.at || rec.abn.some((x) => ABN[x.k].ectopy || ABN[x.k].pause))) continue;   // (QT after a pause is longer: QTc is not read across pauses)
+          if (rec.rhythm === 'flutter' && /^(STEMI|old MI)/.test(dx)) continue;
+          if (ks.includes('peri') && /^STEMI/.test(dx)) continue;   // (AF pericarditis: without a PR segment the reader cannot tell it from STEMI)   // (flutter waves on the ST segment; flutter carries no ischemia)
+          if (dx === 'long QT' && (R.block || R.at || rec.abn.some((x) => ABN[x.k].ectopy || ABN[x.k].pause || ABN[x.k].sinusNode))) continue;   // (QT after a pause is longer: QTc is not read across pauses)
           if (dx === 'poor R progression') { optional.add('poorR'); continue; }
           if (dx === 'LVH' && ks.includes('lafb')) { optional.add('lvh'); continue; }
           if (dx === 'T inversion' && ks.length) { optional.add('twi'); continue; }
@@ -542,7 +584,7 @@
       for (const x of findings) optional.delete(x.id);
       // measurements: rate from the engine; intervals and axis from the median beat
       const sm = R.vf ? null : R.tachy ? sinusRead(M).m : r.m;
-      const m = R.vf ? { rate: null, pr: null, qrs: null, qtc: null, axis: null } : { rate, pr: R.pRhythm ? r.m.pr : null, qrs: R.vt ? null : sm.qrs, qtc: R.tachy || R.block || R.at || rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].ectopy) || ['af', 'flutter'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt ? null : sm.axis };
+      const m = R.vf ? { rate: null, pr: null, qrs: null, qtc: null, axis: null } : { rate, pr: R.pRhythm ? r.m.pr : null, qrs: R.vt ? null : sm.qrs, qtc: R.noP ? null : R.tachy || R.block || R.at || rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].ectopy || ABN[x.k].sinusNode) || ['af', 'flutter'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt || R.wide ? null : sm.axis };
       // caliper on the interval that decides it (engine timing)
       const within = (lo, hi) => V.filter((v) => v.on > lo && v.on < hi);
       let caliper = null;

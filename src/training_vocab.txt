@@ -43,7 +43,6 @@ accelJunctional | Accelerated junctional rhythm | accelerated junctional, AJR
 jt | Junctional tachycardia | JET, nodal tachycardia, JT
 antiAvrt | Antidromic AVRT | antidromic, preexcited tachycardia, pre-excited tachycardia
 highGradeAvb | High-grade AV block | advanced AV block, high grade block, HGAVB, 3:1 AV block, 31 block
-saBlock | SA exit block | sinoatrial block, SA block, sinoatrial exit block, SAB, sinus exit block
 wap | Wandering atrial pacemaker | WAP, wandering pacemaker
 
 ## Findings
@@ -62,6 +61,7 @@ rad | Right axis deviation | RAD, right axis, axis right
 pvc | Premature ventricular complexes | PVC, PVCs, VPC, VE, VEB, ventricular ectopic, ventricular ectopics, ventricular premature beats, ectopics
 pac | Premature atrial complexes | PAC, PACs, APC, atrial ectopic, atrial ectopics, atrial premature beats, SVE
 sinusPause | Sinus pause | sinus arrest, SA arrest, pause, sinus pauses
+saBlock | SA exit block | sinoatrial block, SA block, sinoatrial exit block, SAB, sinus exit block
 longqt | Long QT | prolonged QT, QT prolongation, long QTc, LQT, LQTS, QTc prolonged
 lafb | Left anterior fascicular block | LAFB, left anterior hemiblock, LAHB, anterior hemiblock, anterior fascicular block
 poorR | Poor R wave progression | PRWP, poor R progression, poor R
@@ -94,6 +94,7 @@ dominantRV1 | Dominant R in V1 | tall R in V1, prominent R V1, tall R V1, R V1
 incLbbb | Incomplete LBBB | incomplete left bundle branch block, ILBBB, partial LBBB
 trigeminy | Ventricular trigeminy | trigeminy, trigeminal
 couplet | Ventricular couplet | couplets, paired PVCs, pair
+acouplet | Atrial couplet | paired PACs, PAC couplet, atrial pair, couplet of PACs
 nsvt | Non-sustained VT | NSVT, salvo, run of VT
 shortPR | Short PR interval | short PR, PR short
 extremeAxis | Extreme axis deviation | northwest axis, no man's land axis, extreme axis, NW axis

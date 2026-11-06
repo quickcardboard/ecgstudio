@@ -1622,6 +1622,24 @@ uniform part), and the plateau sags by up to `nssttSag` 0.06. No territory, no n
   non-sinus rhythm within 20 from 33% to 16%, twice in a row from 4% to 0.5%.
 - The home screen already prepares Train ECGs (first one ready in ~4–12 s in a desktop browser).
 
+
+## training-1 round 13: escape rhythms, atrial couplet, SA exit block as a finding, AF pericarditis
+
+- Rhythm weights: flutter 2.5, Mobitz II 1.2, complete AV block 0.9 (flutter above CHB, CHB below Mobitz II).
+  Brugada 0.1. At target 1500–1700, the rhythm shares are: flutter 9.0%, Mobitz II 4.2%, CHB 3.0%; Brugada 0.4% of ECGs.
+- New rhythms: sinus arrest for the whole strip (`b=SAN.arrest`) with a junctional escape (48/min, narrow).
+  Also with a ventricular escape (`b=SAN.arrest,HIS.complete`, 32/min after Round 45, QRS ~124 ms).
+  Gate: no atrial activation 60–300 ms before a QRS, and a rate of 40–60 for junctional or 20–40 for ventricular.
+  "Sinus pause" is optional there: credited, not required. The wide escape QRS shape is not a finding,
+  so the blind read is skipped and the axis is not shown. Simulator rhythm line: "Sinus arrest with junctional/ventricular escape rhythm".
+- SA exit block (3:2) is now a finding on sinus rhythm (group ectopy). Check: at least two RRs of 1.7–2.3× the sinus cycle.
+  The rhythm label and rate class come from the 25th-percentile RR (the sinus cycle) when a sinus pause or SA block is present.
+  QTc is not shown. Not with WPW: the median beat across pauses misreads the PR.
+- Atrial couplet (`acouplet`): two PACs, the second max(440 ms, 0.62 RR) after the first. Both must conduct narrow and premature.
+  "PACs" is optional. Vocabulary: "Atrial couplet".
+- Pericarditis in AF: no PR segment, so the check is diffuse ST elevation (≥ 4 leads, 2 territories) and aVR depression
+  without reciprocal depression. The ST must also be concave upward in at least half the elevated leads (J+40 below the chord from J to J+80).
+  The blind reader's STEMI read is ignored beside pericarditis. Still not with flutter or AV block.
 ## Round 45: ventricular escape at 32/min
 
 `ventEscapeRate` 40 → 32, the middle of the textbook 20–40/min range for a ventricular escape. The rate was
