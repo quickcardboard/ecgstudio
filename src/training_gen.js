@@ -9,8 +9,9 @@
   'use strict';
   const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
   const ELECTRODES = ['RA', 'LA', 'LL', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
-  // artifact size at level 1 on its electrode (mV): tremor RMS, wander peak, mains peak (to be set from the gallery)
-  const ART_MAX = { tremor: 0.12, wander: 1.2, mains: 0.12 };
+  // artifact size at level 1, the most an ECG gets, on its electrode (mV): tremor RMS, wander peak, mains peak. Set by
+  // the author from galleries of one ECG at rising strength: the last level still readable.
+  const ART_MAX = { tremor: 0.12, wander: 1.2, mains: 0.18 };
   const SETTLE = 4000, STRIP = 10000, TWIN_STRIP = 6000, HZ = 250;   // (a twin is only read for its median beat)
   const SKILLS = ['rhythm', 'conduction', 'ischemia', 'conditions'];
   const RL = { septal: ['V1', 'V2'], anterior: ['V3', 'V4'], lateral: ['I', 'aVL', 'V5', 'V6'], inferior: ['II', 'III', 'aVF'] };
@@ -116,7 +117,22 @@
   const ITEM_BASE = 1200, PER_ABN = 180;
   // (difficulty above the base is stretched ×1.32: the hardest ECGs, four findings on a hard rhythm, reach ~2700
   // instead of ~2340, leaving headroom above the top title; the generator works on the unstretched scale)
-  const ITEM_SCALE = 1.32;
+  const ITEM_SCALE = 1.1;   // (hardest clean ECG ~2450; artifacts add up to ART_BONUS × 1.25 = 250, so the hardest reach ~2700)
+  // artifacts: a reading layer for users rated 1650 and above (target = rating − 168). Chance 35% at 1650 rising to 60%;
+  // strength rising with the target up to level 1 (ART_MAX); one kind, a quarter of the time two (from level 0.5)
+  const ART_FROM = 1650 - 168, ART_SPAN = 800, ART_BONUS = 200;
+  const ART_EL = [['RA', 2], ['LA', 2], ['LL', 2], ['V1', 0.5], ['V2', 0.5], ['V3', 0.5], ['V4', 0.5], ['V5', 0.5], ['V6', 0.5]];
+  const artBonus = (art) => (art ? Math.round(ART_BONUS * art.level * (1 + 0.25 * (art.kinds.length - 1))) : 0);
+  function sampleArt(rand, target, rhythm) {
+    if (target < ART_FROM || rhythm === 'vf') return null;
+    const x = Math.min(1, (target - ART_FROM) / ART_SPAN);
+    if (rand() >= 0.35 + 0.25 * x) return null;
+    const level = +Math.max(0.15, Math.min(1, 0.25 + 0.75 * x + (rand() - 0.5) * 0.3)).toFixed(2);
+    const all = ['tremor', 'wander', 'mains'], kinds = [all[Math.floor(rand() * 3)]];
+    if (level > 0.5 && rand() < 0.25) kinds.push(all.filter((k) => k !== kinds[0])[Math.floor(rand() * 2)]);
+    const el = {}; for (const k of ['tremor', 'wander']) if (kinds.includes(k)) el[k] = pickW(rand, ART_EL);
+    return { kinds, el, level };
+  }
 
   // Combination rules (the author's clinical calls; see docs/DEVELOPMENT.md training-1):
   // - at most one QRS-changing condition, except RBBB with LAFB or LPFB (bifascicular block)
@@ -155,7 +171,7 @@
     && !(list.includes('avb1') && /RCA/.test(site))
     && !(list.includes('wpw') && /LCx/.test(site));   // (the left-lateral pathway inserts in circumflex territory: an infarct there removes the pre-excitation)   // (a proximal RCA occlusion slows the AV node too: with first-degree block the P sinks into the T)
   function itemRating(rec) {
-    return Math.round(ITEM_BASE + ITEM_SCALE * (RHYTHMS[rec.rhythm].rating + rec.abn.reduce((s, a) => s + PER_ABN + ABN[a.k].rating, 0)));
+    return Math.round(ITEM_BASE + ITEM_SCALE * (RHYTHMS[rec.rhythm].rating + rec.abn.reduce((s, a) => s + PER_ABN + ABN[a.k].rating, 0))) + artBonus(rec.art);
   }
   // (a weight that is missing or not a number counts as 0.5: one undefined weight made the whole draw pick the
   // last entry every time)
@@ -180,7 +196,8 @@
     const R = RHYTHMS[rhythm];
     // (a plain normal ECG only now and then (~6%): it was the most repeated interpretation; a rhythm that takes
     // findings otherwise gets at least one)
-    const raw = ITEM_BASE + (target - ITEM_BASE) / ITEM_SCALE;   // (the target on the generator's own scale)
+    const art = sampleArt(rand, target, rhythm);
+    const raw = ITEM_BASE + (target - artBonus(art) - ITEM_BASE) / ITEM_SCALE;   // (the target on the generator's own scale, less the artifacts' share)
     const n0 = R.open ? Math.min(nMax, Math.round((raw - ITEM_BASE - R.rating) / (PER_ABN + 120) + (rand() - 0.5))) : 0;
     const n = R.open ? Math.max(focus && focus !== 'rhythm' ? 1 : 0, n0 > 0 || rand() < 0.15 * (adjust.normal === undefined ? 1 : adjust.normal) ? n0 : 1) : 0;
     const list = [];
@@ -197,7 +214,9 @@
       if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list) && !(k === 'narrow' && x === 'mLAD') && !(k === 'hyper' && /LCx|pRCA/.test(x))); if (!sites.length) return null; a.site = sites[Math.floor(rand() * sites.length)]; }   // (no hyperacute T at a circumflex site: its T barely grows; nor at the proximal RCA, whose inferior T stays under 5 mm)
       return a;
     }).filter(Boolean);
-    return { rhythm, abn, seed: 1 + Math.floor(rand() * 1e6), rate: R.rate ? Math.round(R.rate[0] + rand() * (R.rate[1] - R.rate[0])) : 72 };
+    const rec = { rhythm, abn, seed: 1 + Math.floor(rand() * 1e6), rate: R.rate ? Math.round(R.rate[0] + rand() * (R.rate[1] - R.rate[0])) : 72 };
+    if (art) rec.art = art;
+    return rec;
   }
 
   // ---------------------------------------------------------------- simulation
@@ -226,7 +245,8 @@
       const gauss = () => Math.sqrt(-2 * Math.log(r() + 1e-12)) * Math.cos(2 * Math.PI * r());
       const lv = art.level;
       if (art.kinds.includes('tremor')) {
-        // muscle tremor: bursts of fine irregular noise (EMG), 2–4 of 0.6–2 s, on one electrode
+        // muscle tremor: bursts of 0.6–2 s (2–4 of them) of a coarse 4–9 Hz shaking whose size and pace wander, with a
+        // little low-passed muscle noise on top: slower than mains interference, which is a fine even 50 Hz band
         const x = E[art.el.tremor], A = ART_MAX.tremor * lv, nb = 2 + Math.floor(r() * 3);
         let w0 = 0, w1 = 0;
         const env = new Float32Array(n);
@@ -234,7 +254,16 @@
           const len = (0.6 + 1.4 * r()) * hz, t0 = r() * (n - len), ramp = 0.15 * hz;
           for (let i = Math.max(0, Math.floor(t0)); i < Math.min(n, t0 + len); i++) { const u = Math.min(1, (i - t0) / ramp, (t0 + len - i) / ramp); env[i] = Math.max(env[i], 0.5 - 0.5 * Math.cos(Math.PI * u)); }
         }
-        for (let i = 0; i < n; i++) { const g = gauss(); const v = 0.5 * g + 0.3 * w0 + 0.2 * w1; w1 = w0; w0 = g; x[i] += A * env[i] * v / 0.62; }
+        const f0 = 4 + 5 * r(), v = new Float32Array(n); let ph = 2 * Math.PI * r(), am = 1, lp1 = 0, lp2 = 0, ss = 0;
+        const k = 1 - Math.exp(-2 * Math.PI * 15 / hz);   // (muscle noise low-passed at ~15 Hz)
+        for (let i = 0; i < n; i++) {
+          ph += 2 * Math.PI * f0 * (1 + 0.25 * gauss() * 0.3) * dt; am += 0.08 * gauss() - 0.04 * (am - 1);
+          lp1 += k * (gauss() - lp1); lp2 += k * (lp1 - lp2);
+          v[i] = Math.max(0.2, am) * Math.sin(ph) + 2.2 * lp2; ss += v[i] * v[i];
+        }
+        const norm = 1 / Math.sqrt(ss / n || 1);
+        for (let i = 0; i < n; i++) x[i] += A * env[i] * v[i] * norm;
+        void w0; void w1;
       }
       if (art.kinds.includes('wander')) {
         // baseline wander: slow swings (breathing 0.15–0.3 Hz, and a slower drift) on one electrode

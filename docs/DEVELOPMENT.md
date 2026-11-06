@@ -1728,3 +1728,28 @@ The median beat and the blind read were under 3%. AF/flutter/induced tachycardia
   10 of 12 do. The blind rhythm read must call it MAT (`gateRead`), and the P waves must be visible (≤ 20% hidden).
   No P-wave findings, ectopy or pericarditis with it; QTc not shown. Vocabulary term restored.
   (The simulator's own MAT, opened from the Model link, still picks its foci at random.)
+
+## training-1 round 16: artifacts (a difficulty layer above 1650)
+
+- `artifactLeads(art, seed, n)`: potentials on single electrodes (RA, LA, LL, V1–V6), with the 12 leads formed from them
+  as the machine forms them (Einthoven, Goldberger, Wilson's central terminal). RA → I, II, aVR full, aVL/aVF half, V leads a third, not III.
+  A V electrode → only its lead. Added to the finished strip after every check: the checks read the clean ECG. The simulator
+  never sees artifacts. Not an answer: no vocabulary term, no score.
+  - Muscle tremor: 2–4 bursts of 0.6–2 s of a coarse 4–9 Hz shake (size and pace wandering) plus ~15 Hz low-passed muscle noise.
+    Slower than mains, as the author asked: the first version, fine EMG noise, looked too much like interference.
+  - Baseline wander: breathing (0.15–0.3 Hz) and slower drift on one electrode.
+  - Electrical interference: 50 Hz on every electrode, of unequal size, so every lead shows some.
+- Maximum strength (`ART_MAX`, level 1), set by the author from galleries of one ECG at rising strength:
+  tremor 0.12 mV RMS, wander 1.2 mV peak, mains 0.18 mV peak.
+- Who gets them: target ≥ 1482 (rating 1650 − 168). Chance 35% rising to 60% over 800 points. Level 0.25 → 1 over the same span (±0.15).
+  One kind, a quarter of the time two (from level 0.5). Electrodes: limb 2 : chest 0.5 each. Not on VF.
+
+  | Player rating | ECGs with artifacts | Mean level |
+  |---|---|---|
+  | 1650 | 18% (target jitter) | 0.29 |
+  | 1950 | 43% | 0.53 |
+  | 2300 | 54% | 0.86 |
+- Ratings: the stretch drops to `ITEM_SCALE` 1.1 (hardest clean ECG ~2450). Artifacts add `ART_BONUS` 200 × level
+  (× 1.25 with two kinds), and the generator takes that share off the target before choosing the number of findings.
+  The hardest ECG is 2682 (four findings, tremor + mains at level 1). Simulated settling is unchanged:
+  95% → 2600, 90% → 2320, 85% → 2080, 80% → 1860, 70% → 1675. Professor (2100) needs ~86%.
