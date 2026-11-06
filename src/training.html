@@ -164,16 +164,18 @@ header h1 span { color: var(--accent); }
 
 /* in-app keyboard: QWERTY across the full width, Add (the first suggestion) and delete beside z–m,
    a space bar below */
-#kbd { display: flex; flex-direction: column; gap: 7px; padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 6px); background: #0f1922; border-top: 1px solid var(--line); }
+#kbd { display: flex; flex-direction: column; gap: 7px; padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 16px); background: #0f1922; border-top: 1px solid var(--line); }
 #kbd .row { display: flex; gap: 5px; }
 #kbd button { flex: 1 1 0; min-width: 0; height: 56px; padding: 0; border-radius: 6px; background: var(--key); border-color: #2f3f4e; font: 500 19px/1 var(--font-ui); text-transform: lowercase; }
 #kbd button:active, #kbd button.down { background: #3a4d5f; }
 #kbd .wide { flex: 1.6 1 0; font-size: 14px; text-transform: none; }
 #kbd .add { color: var(--accent); border-color: rgba(239,91,122,0.6); font-weight: 600; }
-#kbd .space { font-size: 14px; color: var(--muted); text-transform: none; }
+#kbd .space { flex: 4 1 0; font-size: 14px; color: var(--muted); text-transform: none; }
+#kbd .fn { flex: 1.5 1 0; font-size: 14px; color: var(--muted); background: #1d2a36; text-transform: none; }
+#kbd .gap { flex: 7 1 0; }
 
 /* region mode: pick the lead groups of a finding */
-#region { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px 10px; background: #0f1922; border-top: 1px solid var(--line); }
+#region { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 10px); overflow-y: auto; background: #0f1922; border-top: 1px solid var(--line); }
 #region .title { font-size: 14px; }
 #region .title b { font-weight: 600; }
 #region .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -182,9 +184,13 @@ header h1 span { color: var(--accent); }
 #region .grid button[aria-pressed="true"] { background: rgba(255,255,255,0.08); }
 #region .acts { display: flex; gap: 8px; }
 #region .acts button { flex: 1; padding: 12px; }
+#region .grid { flex: none; }
 
 /* result */
-#result { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px 10px; overflow-y: auto; }
+#bottom { flex: none; display: flex; flex-direction: column; min-height: 0; }
+#bottom > #result, #bottom > #region { flex: 1 1 auto; min-height: 0; }
+#result { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px); }
+#result .rscroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .scorebar { display: flex; align-items: center; gap: 10px; }
 .scorebar .bar { flex: 1; height: 10px; border-radius: 5px; background: var(--key); overflow: hidden; }
 .scorebar .bar i { display: block; height: 100%; border-radius: 5px; background: var(--ok); transition: width 0.5s; }
@@ -193,7 +199,7 @@ header h1 span { color: var(--accent); }
 .scorebar .delta.up { color: var(--ok); } .scorebar .delta.down { color: var(--bad); }
 .scorebar .time { font: 400 12px/1 var(--font-data); color: var(--muted); }
 #rchips { display: flex; flex-wrap: wrap; gap: 6px; }
-#rline { font-size: 15px; line-height: 1.35; padding: 10px 12px; border-radius: 8px; background: var(--surface); border-left: 3px solid var(--accent); }
+#rline { font-size: 14.5px; line-height: 1.35; min-height: calc(3 * 1.35em); padding: 10px 12px; border-radius: 8px; background: var(--surface); border-left: 3px solid var(--accent); }
 #result .acts { display: flex; gap: 8px; }
 #result .acts button { padding: 14px; font-size: 15px; }
 #result .acts .primary { flex: 2; }
@@ -241,11 +247,16 @@ body.land #fsClose { display: none; }
     <div id="loading" hidden><div class="spin"></div><div id="loadingMsg">Building the heart…</div><small>Simulating the heart and checking the reading</small></div></div>
   <div class="pager" id="pager"><i class="on"></i><i></i><span id="pageName">Limb leads</span><span class="hint" id="ghint">Double-tap: full ECG</span></div>
 
+  <!-- the bottom area keeps one height (the typing view's), so the ECG never changes size: the region and
+       result views use the same space -->
+  <div id="bottom">
   <div id="result" hidden>
     <div class="scorebar"><b id="rscore">0%</b><div class="bar"><i id="rbar"></i></div><span class="delta" id="rdelta"></span><span class="time" id="rtime"></span></div>
+    <div class="rscroll">
     <div id="rchips"></div>
     <div class="legend"><span class="l-ok">correct</span><span class="l-part">partly correct</span><span class="l-miss">missed</span><span class="l-bad">not present</span></div>
     <div id="rline"></div>
+    </div>
     <div class="acts"><button type="button" class="why" id="why">Model</button><button type="button" class="why" id="share" hidden>Share</button><button type="button" class="primary" id="next">Next</button></div>
     <button type="button" class="report" id="report">⚑ Report a problem with this ECG</button>
   </div>
@@ -258,8 +269,9 @@ body.land #fsClose { display: none; }
 
   <div id="region" hidden>
     <div class="title" id="regionTitle"></div>
-    <div class="grid" id="regionGrid"></div>
     <div class="acts"><button type="button" id="regionCancel">Cancel</button><button type="button" class="primary" id="regionDone" disabled>Done</button></div>
+    <div class="grid" id="regionGrid"></div>
+  </div>
   </div>
 
   <div class="page" id="home">

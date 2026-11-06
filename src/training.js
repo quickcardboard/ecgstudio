@@ -24,20 +24,29 @@
     }
   }
   const norm = (s) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
-  // a term matches when the typed text starts at the start of a word of its name or a synonym, or
-  // matches the name/synonym written without spaces ("3avb" → "3 AVB"). Returns { via, exact } or null:
-  // via is the synonym that matched ('' for the name), exact when the text is that whole synonym.
+  // How well a term matches the typed text (lower tier = better), or null. A match starts at the start of a word
+  // and may run across spaces ("tw" finds "T wave", "3avb" finds "3 AVB"):
+  //   0 the typed text is the whole name or a whole synonym ("af", "chb")
+  //   1 the name, or a one-word abbreviation of it, starts with it ("st" → ST elevation, "lb" → LBBB, "pa" → PAC)
+  //   2 a whole word of the name is it ("st" → Non-specific ST-T)
+  //   3 a later word of the name starts with it ("tw" → Hyperacute T waves)
+  //   4 only a synonym matches
+  // Suggestions are ordered by tier, then by how common the term is (file order). via: the synonym shown.
   function matchTerm(t, q) {
-    const qs = q.replace(/ /g, '');
-    let best = null;
-    for (const [s, isName] of [[t.name, true], ...t.syn.map((x) => [x, false])]) {
-      const n = norm(s), ns = n.replace(/ /g, '');
-      if (ns.startsWith(qs) || (' ' + n).includes(' ' + q)) {
-        const exact = ns === qs;
-        if (!best || (exact && !best.exact) || (isName && !best.exact && best.via)) best = { via: isName ? '' : s, exact };
-      }
+    const qs = q.replace(/ /g, ''), from = (n) => { const w = n.split(' '); return w.map((_, i) => w.slice(i).join('')); };
+    const name = norm(t.name), nw = name.split(' ');
+    let tier = null, via = '';
+    if (name.replace(/ /g, '') === qs) tier = 0;
+    else if (name.replace(/ /g, '').startsWith(qs)) tier = 1;
+    else if (nw.includes(qs)) tier = 2;
+    else if (from(name).some((x) => x.startsWith(qs))) tier = 3;
+    for (const sy of t.syn) {
+      const n = norm(sy), ns = n.replace(/ /g, '');
+      if (ns === qs) return { tier: 0, via: sy, exact: true };
+      if ((tier === null || tier > 1) && !n.includes(' ') && ns.startsWith(qs)) { tier = 1; via = sy; }
+      if (tier === null && from(n).some((x) => x.startsWith(qs))) { tier = 4; via = sy; }
     }
-    return best;
+    return tier === null ? null : { tier, via, exact: tier === 0 };
   }
 
   // ------------------------------------------------------------------ live ECGs (background worker)
@@ -89,9 +98,35 @@
     k.optional = k.optional.filter((id) => BY_ID[id]); k.alt = (k.alt || []).filter((id) => BY_ID[id]);
     return !!BY_ID[k.rhythm] && k.findings.every((f) => BY_ID[f.id]);
   }
-  const practiceTag = () => (st.mode === 'skill' ? st.focus : st.mode === 'train' ? '' : null);
+  // (on the home screen the queue already prepares Train ECGs, so Train starts at once)
+  const practiceTag = () => (st.mode === 'skill' ? st.focus : st.mode === 'train' || st.mode === null ? '' : null);
   // keep two ECGs ready, chosen for this user's level: about 70–75% expected success (Glicko-2), half the
   // time on the weakest skill
+  // weights for the next ECGs from this user's history: what was in the last 8 ECGs is much rarer (×0.15), in the
+  // last 20 a little (×0.6), so the same rhythm does not come back soon; what was missed or partly right in the last 40 is more likely (up to 2.5×); what was right 3+
+  // times and never missed is a little rarer (0.6×). (Sinus rhythm, the background of most ECGs, is not damped.)
+  const GEN_ID = { sinus: 'sinus', sinusBrady: 'sinusBrady', sinusTachy: 'sinusTachy', stemi: 'ste', oldmi: 'qwaves', recent: 'qwaves', hyper: 'hyperacute', narrow: 'std', peri: 'pericarditis' };
+  function adjustments() {
+    const adj = {}, mul = (k, f) => { adj[k] = (adj[k] === undefined ? 1 : adj[k]) * f; };
+    const recent = st.hist.slice(-20), SIN = ['sinus', 'sinusBrady', 'sinusTachy'];
+    recent.forEach((h, i) => {
+      const near = recent.length - i <= 8, ks = h.keys || [];
+      for (const k of ks) if (!SIN.includes(k)) mul(k, near ? 0.15 : 0.6);
+      if (ks.length === 1 && SIN.includes(ks[0])) mul('normal', near ? 0.3 : 0.8);   // (a normal ECG)
+    });
+    const seen = {}, missed = {};
+    for (const h of st.hist.slice(-40)) for (const k of h.keys || []) {
+      seen[k] = (seen[k] || 0) + 1;
+      const id = GEN_ID[k] || k;
+      if ((h.miss || []).includes(id) || (k === h.keys[0] && h.rhythm !== 'ok')) missed[k] = (missed[k] || 0) + 1;
+    }
+    for (const k of Object.keys(seen)) {
+      if (missed[k]) mul(k, Math.min(2.5, 1 + 0.75 * missed[k]));
+      else if (seen[k] >= 3 && !['sinus', 'sinusBrady', 'sinusTachy'].includes(k)) mul(k, 0.6);
+    }
+    for (const k of Object.keys(adj)) adj[k] = Math.max(0.08, adj[k]);
+    return adj;
+  }
   function fill() {
     if (!gen.ready || gen.failed > 4) { if (gen.failed > 4) setLoading('Could not prepare an ECG. Reload the page to try again.'); return; }
     const tag = practiceTag(); if (tag === null) return;
@@ -101,7 +136,7 @@
       const focus = tag || (Math.random() < 0.5 ? weakest : null), r = tag ? st.skills[tag].r : overall();
       const target = r - 168 + (Math.random() - 0.5) * 160;
       gen.pending++; const req = ++gen.req; gen.tag[req] = tag;
-      gen.worker.postMessage({ type: 'make', req, target, focus, seed: (Math.random() * 2 ** 31) | 0 });
+      gen.worker.postMessage({ type: 'make', req, target, focus, seed: (Math.random() * 2 ** 31) | 0, adjust: adjustments() });
     }
   }
   function setLoading(msg) {
@@ -287,7 +322,7 @@
     $('modeTitle').textContent = mode === 'skill' ? `${SKILL_NAME[focus]} practice` : MODE_TITLE[mode];
     $('home').hidden = true; nextItem(); fill();
   }
-  function goHome() { st.mode = null; st.item = null; gen.waiting = false; setLoading(null); renderHome(); $('home').hidden = false; }
+  function goHome() { st.mode = null; st.item = null; gen.waiting = false; setLoading(null); renderHome(); $('home').hidden = false; fill(); }
   function showItem(item) {
     if (!item) { toast('Could not prepare that ECG'); goHome(); return; }
     setLoading(null); st.item = item; st.t0 = performance.now(); setPage(0, false); render();
@@ -332,7 +367,7 @@
     if (q.replace(/ /g, '').length < 2) return { list: [], q };
     const list = [];
     for (const t of VOCAB) { if (t.kind !== kind || taken.has(t.id)) continue; const m = matchTerm(t, q); if (m) list.push({ t, ...m }); }
-    list.sort((a, b) => (b.exact - a.exact) || (a.t.rank - b.t.rank));   // an exact abbreviation, then the most common
+    list.sort((a, b) => (a.tier - b.tier) || (a.t.rank - b.t.rank));   // the best match, then the most common
     return { list, q };
   }
   function renderField() {
@@ -363,6 +398,12 @@
     const opts = res ? { highlight: hlSel, caliper: !sel || sel.rhythm ? it.caliper : null } : reg ? { regions: true, picked: new Set(st.region.regions) } : {};
     drawEcg($('c0'), it, PAGES[0], opts); drawEcg($('c1'), it, PAGES[1], opts);
     if (st.fs || document.body.classList.contains('land')) drawEcg($('cfull'), it, FULL, res ? opts : {});
+  }
+  // the bottom area keeps the typing view's height (chips, field, keyboard) in every phase, so the ECG keeps its size
+  function sizeBottom() {
+    if (st.phase !== 'answer' || $('kbd').hidden) return;
+    const b = $('bottom'); b.style.height = '';
+    const h = $('answer').offsetHeight + $('kbd').offsetHeight; if (h > 100) b.style.height = `${h}px`;
   }
   function render() {
     measChips($('meas')); measChips($('fsMeas'));
@@ -479,10 +520,15 @@
 
   // ------------------------------------------------------------------ keyboard and type-ahead
   function buildKeyboard() {
+    // letters, or numbers (1AVB, 3AVB, 2:1); bottom row: 123/abc, space, clear
     const el = $('kbd'), keys = (r) => [...r].map((c) => `<button type="button" data-k="${c}">${c}</button>`).join('');
-    el.innerHTML = `<div class="row">${keys('qwertyuiop')}</div><div class="row">${keys('asdfghjkl')}</div>`
-      + `<div class="row"><button type="button" class="wide add" data-k="add" aria-label="Add the first suggestion">Add</button>${keys('zxcvbnm')}<button type="button" class="wide" data-k="del" aria-label="Delete">⌫</button></div>`
-      + '<div class="row"><button type="button" class="space" data-k=" ">space</button></div>';
+    const draw = (num) => {
+      el.innerHTML = (num ? `<div class="row">${keys('1234567890')}</div><div class="row">${keys(':/-')}</div>` : `<div class="row">${keys('qwertyuiop')}</div><div class="row">${keys('asdfghjkl')}</div>`)
+        + `<div class="row"><button type="button" class="wide add" data-k="add" aria-label="Add the first suggestion">Add</button>${num ? '<span class="gap"></span>' : keys('zxcvbnm')}<button type="button" class="wide" data-k="del" aria-label="Delete">⌫</button></div>`
+        + `<div class="row"><button type="button" class="wide fn" data-k="num">${num ? 'abc' : '123'}</button><button type="button" class="space" data-k=" ">space</button><button type="button" class="wide fn" data-k="clear">Clear</button></div>`;
+      el.dataset.num = num ? '1' : '';
+    };
+    draw(false);
     // pointerdown (not click): typing feels immediate; holding delete repeats
     let rep = null;
     el.addEventListener('pointerdown', (e) => {
@@ -490,6 +536,8 @@
       e.preventDefault(); b.classList.add('down'); setTimeout(() => b.classList.remove('down'), 120);
       const k = b.dataset.k;
       if (k === 'add') { const first = $('suggest').querySelector('button[data-id]'); if (first) pick(first.dataset.id); return; }
+      if (k === 'num') { draw(!el.dataset.num); return; }
+      if (k === 'clear') { st.typed = ''; renderField(); return; }
       if (k === 'del') { del(); clearInterval(rep); const t0 = Date.now(); rep = setInterval(() => { if (Date.now() - t0 > 400) del(); }, 70); return; }
       type(k);
     });
@@ -498,7 +546,7 @@
     // a hardware keyboard works too (desktop testing)
     addEventListener('keydown', (e) => {
       if (st.phase !== 'answer' || e.metaKey || e.ctrlKey || e.altKey || !$('menu').hidden) return;
-      if (/^[a-z ]$/i.test(e.key)) type(e.key.toLowerCase());
+      if (/^[a-z0-9 :/-]$/i.test(e.key)) type(e.key.toLowerCase());
       else if (e.key === 'Backspace') del();
       else if (e.key === 'Enter') { const first = $('suggest').querySelector('button[data-id]'); if (first) pick(first.dataset.id); else submit(); }
       else return;
@@ -543,7 +591,9 @@
     const d = today(); if (st.mode === 'daily') d.daily = st.score.total; else d.n++;
     scheduleReview(st.item, st.score.total);
     st.phase = 'result'; st.typed = ''; st.shownAt = performance.now();
-    st.hist.push({ id: st.item.id, title: itemTitle(st.item.key), score: st.score.total, time: st.time, rhythm: st.score.rhythm, delta: st.delta, at: Date.now(), mode: st.mode });
+    const rk = st.item.recipe || { rhythm: st.item.key.rhythm, abn: [] };
+    st.hist.push({ id: st.item.id, title: itemTitle(st.item.key), score: st.score.total, time: st.time, rhythm: st.score.rhythm, delta: st.delta, at: Date.now(), mode: st.mode,
+      keys: [rk.rhythm, ...rk.abn.map((a) => a.k)], miss: st.score.rows.filter((r) => r.cls === 'miss' || r.cls === 'part').map((r) => r.id) });
     saveProgress();
     // show the half of the ECG that carries the answer
     const hl = st.item.highlight || [], chest = hl.filter((l) => l.startsWith('V')).length, limb = hl.length - chest;
@@ -723,8 +773,9 @@
       }
     });
     for (const b of document.querySelectorAll('.page [data-close]')) b.addEventListener('click', () => { b.closest('.page').hidden = true; });
-    window.ECGTraining = { st, gen, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, startMode, goHome, VOCAB, BY_ID };   // (automated tests)
-    startWorker(); renderHome(); syncFs();   // (the heart is built in the background while the home screen shows)
+    addEventListener('resize', () => requestAnimationFrame(sizeBottom));
+    window.ECGTraining = { st, gen, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, startMode, goHome, VOCAB, BY_ID, suggest: () => suggestions().list.map((x) => x.t.name) };   // (automated tests)
+    startWorker(); renderHome(); syncFs(); requestAnimationFrame(sizeBottom);   // (the heart is built in the background while the home screen shows)
     if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(drawAll));
   }
   init();

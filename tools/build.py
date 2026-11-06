@@ -60,7 +60,7 @@ self.onmessage = (e) => {
   }
   if (d.type === 'make') {
     const t = performance.now(); let item = null, err = null;
-    try { item = G.make({ target: d.target, focus: d.focus, seed: d.seed, tries: 12, log: (rec, res) => { if (!res.ok) self.postMessage({ type: 'log', msg: [rec.rhythm, ...rec.abn.map((a) => a.k)].join(' + ') + ': ' + res.why }); } }); }
+    try { item = G.make({ target: d.target, focus: d.focus, seed: d.seed, tries: 12, adjust: d.adjust || {}, log: (rec, res) => { if (!res.ok) self.postMessage({ type: 'log', msg: [rec.rhythm, ...rec.abn.map((a) => a.k)].join(' + ') + ': ' + res.why }); } }); }
     catch (x) { err = String((x && x.stack) || x); }
     self.postMessage({ type: 'item', req: d.req, item, err, ms: performance.now() - t });
   }
