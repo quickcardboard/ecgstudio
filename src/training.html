@@ -11,6 +11,7 @@
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="{{LOGO_URI}}">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<script>/*__INAPP__*/</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
 <style>
@@ -102,6 +103,15 @@ header h1 span { color: var(--accent); }
 .proto { font: 500 10px/1 var(--font-ui); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; text-transform: uppercase; letter-spacing: 0.06em; margin-left: 6px; vertical-align: 2px; }
 .stat { font: 500 12px/1 var(--font-data); padding: 6px 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); }
 .stat em { font: 400 11px/1 var(--font-ui); font-style: normal; color: var(--muted); margin-right: 5px; }
+/* In the app (html.inapp, src/inapp.js): the app shell draws the module tabs over the left of the header (and of the
+   pages' headers); the way back to the simulator and the page title are the tabs' job */
+html.inapp header, html.inapp .app-bar { min-height: 50px; box-sizing: border-box; padding-top: 0; padding-bottom: 0; padding-left: var(--tabs-w, 12px); }
+html.inapp #home .phead { justify-content: flex-end; }
+html.inapp #app { max-width: none; }   /* (tablets: the full width, under the tabs; the wider layout comes in app phase 4) */
+html.inapp #home .phead h2, html.inapp .hsim, html.inapp .menu a[href], html.inapp .menu hr { display: none; }
+/* (the header shares its row with the tabs: the mode title gives way, and the rating shows without its label) */
+html.inapp header h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; }
+html.inapp header .stat em { display: none; }
 
 /* measurement chips */
 .chips { display: flex; gap: 5px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 0 12px 6px; }
@@ -278,7 +288,7 @@ body.land #fsClose { display: none; }
   </div>
 
   <div class="page" id="home">
-    <div class="phead"><h2>ECG <span class="red">Studio</span> Training</h2><span class="proto">Prototype · all unlocked</span></div>
+    <div class="phead app-bar"><h2>ECG <span class="red">Studio</span> Training</h2><span class="proto">Prototype · all unlocked</span></div>
     <div class="pbody hbody">
       <a class="hsim" href="../index.html"><span>‹</span> Back to the ECG Studio simulator</a>
       <div class="hstats">

@@ -7,7 +7,9 @@ The history of every change is in `docs/DEVELOPMENT.md`: engine "Round N", train
 
 - **`milestone-1`** (the live site, ecgstudio.app) and **`training-1`** are the same commit: the newest commit on `milestone-1`.
   Training is live at ecgstudio.app/training and linked from the simulator's phone ⋯ menu. Everything is unlocked for the testers.
-- **Next:** the app work on a new branch **`app-1`** cut from `milestone-1` (see `docs/APP_PLAN.md`; phase 0 needs the author's answers first).
+- **App work** is on **`app-1`** (see `docs/APP_PLAN.md`): phase 0 answered, phase 1 done (the app shell `src/shell.html` and
+  module tabs; `src/inapp.js` in both pages; preview `app/index.html`). Next: phase 2 (menu, polish of the tabs) or phase 7 early
+  (Capacitor, so the closed test's 14 days can start).
 - **Training's parts:**
   - Page: `src/training.html`, `src/training.js`
   - Generator and checker: `src/training_gen.js`, shared by Node and the browser workers

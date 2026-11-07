@@ -47,7 +47,7 @@ If so, say so: a private repository can pull this one in as a submodule.
 Today the simulator (`index.html`, 3.7 MB) and Training (`training/index.html`, 3.0 MB) are separate pages, each carrying its own
 copy of the engine and anatomy. The app gets one shell page:
 
-- **Shell:** module switcher (no start screen; the app opens on the last module used), shared top toolbar, menu (Help, Tutorial, Settings, About, Restore purchases), entitlement service, router.
+- **Shell:** module tabs (no start screen; the app opens on the last module used), shared top toolbar, menu (Help, Tutorial, Settings, About, Restore purchases), entitlement service, router.
 - **Modules,** each registered with `{ id, title, icon, entitlement: 'free' | productId, mount(el), unmount(), help, tutorial }`:
   - `simulator`: free.
   - `training`: Train, Reviews and the skill drills are premium. Daily ECG and Statistics are free.
@@ -92,6 +92,10 @@ Rough sizes are working sessions. Each phase ends with a phone test (and a table
 | 6 | Entitlements and paywall (2) | Entitlement service; locked tiles; purchase sheet; Restore purchases; web unlock for testers | Buying, restoring and the locked states work with Play test accounts |
 | 7 | Capacitor Android (2–3) | `app/` project (package id, icons, splash, insets, back button, offline fonts); debug and release builds | Runs on a real Android phone offline |
 | 8 | Play Console and release (author + 1–2) | Store listing, screenshots, privacy policy, Data safety form, content rating; internal → closed → production tracks | Live on Google Play |
+
+**Phase 1 status (2026-11-07): done.** Shell, module tabs, both modules framed, `build.py --app`. Preview on a phone:
+`https://raw.githack.com/quickcardboard/ecgstudio/app-1/app/index.html`. Details: docs/DEVELOPMENT.md, app-1 round 1.
+For phase 4: on tablets (≥ 744 px wide) the simulator shows its tablet layout, not the phone one; decide which the app wants.
 
 ### Play Console notes
 

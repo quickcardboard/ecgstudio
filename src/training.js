@@ -6,6 +6,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
+  const INAPP = !!(window.ECGInApp && window.ECGInApp.active);   // (a module inside the app shell: src/inapp.js)
   const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
 
   // ------------------------------------------------------------------ vocabulary
@@ -743,7 +744,7 @@
     const k = it.key, name = (id) => (BY_ID[id] ? BY_ID[id].name : id);
     const keyTxt = [name(k.rhythm), ...k.findings.map((f) => (f.regions ? `${name(f.id)} (${f.regions.join(', ')})` : name(f.id)))].join('; ');
     const ans = st.picked.map(chipLabel).join('; ') || '(no answer yet)';
-    const link = new URL(`../index.html#${it.link}`, location.href).href;
+    const link = INAPP ? `${window.ECGInApp.site}#${it.link}` : new URL(`../index.html#${it.link}`, location.href).href;
     const ver = (document.querySelector('meta[name="version"]') || {}).content || '';
     const text = ['ECG Studio Training: problem report', '', 'What looks wrong: ', '',
       `Scenario in the simulator: ${link}`, `Answer key: ${keyTxt}`, `Also accepted: ${(k.optional || []).map(name).join(', ') || 'none'}`,
@@ -779,8 +780,12 @@
     $('hSkills').addEventListener('click', (e) => { const b = e.target.closest('[data-skill]'); if (b) startMode('skill', b.dataset.skill); });
     $('btnStats').addEventListener('click', () => { renderStats(); $('stats').hidden = false; });
     $('btnHelp').addEventListener('click', () => { $('help').hidden = false; });
-    // Model ("show me why"): the simulator on the same scenario; coming back starts a new ECG (progress is saved)
-    $('why').addEventListener('click', () => { if (!justShown()) location.href = `../index.html#${st.item.link}`; });
+    // Model ("show me why"): the simulator on the same scenario; coming back starts a new ECG (progress is saved).
+    // In the app: the Simulator tab opens on it, and the Training tab still holds this ECG.
+    $('why').addEventListener('click', () => {
+      if (justShown()) return;
+      if (INAPP) window.ECGInApp.go('simulator', st.item.link); else location.href = `../index.html#${st.item.link}`;
+    });
     addEventListener('resize', syncFs);
     $('submit').addEventListener('click', submit);
     // menu: statistics, help, restart, the simulator

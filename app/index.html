@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="author" content="Thomas Liou">
+<title>ECG Studio</title>
+<meta name="robots" content="noindex">
+<meta name="version" content="2026-11-07 (377faea)">
+<meta name="theme-color" content="#0b131a">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+CiAgPHBvbHlnb24gcG9pbnRzPSIxOTcuMCw0MTUuMSAyMzYuMyw0MzcuOCAyMzYuMyw0ODMuMyAxOTcuMCw0NjAuNSIgZmlsbD0iI2E2NmY4MSIvPjxwb2x5Z29uIHBvaW50cz0iMjM2LjMsNDM3LjggMjc1LjcsNDYwLjUgMjc1LjcsNTA2LjAgMjM2LjMsNDgzLjMiIGZpbGw9IiNhNjZmODEiLz48cG9seWdvbiBwb2ludHM9IjMxNS4wLDQzNy44IDI3NS43LDQ2MC41IDI3NS43LDUwNi4wIDMxNS4wLDQ4My4zIiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSIzNTQuNCwzNjkuNiAzMTUuMCwzOTIuNCAzMTUuMCw0MzcuOCAzNTQuNCw0MTUuMSIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsMzAxLjUgMzU0LjQsMzI0LjIgMzU0LjQsMzY5LjYgMzkzLjgsMzQ2LjkiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjQzMy4xLDIzMy4zIDM5My44LDI1Ni4wIDM5My44LDMwMS41IDQzMy4xLDI3OC43IiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSI0NzIuNSwxNjUuMSA0MzMuMSwxODcuOCA0MzMuMSwyMzMuMyA0NzIuNSwyMTAuNSIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMTU3LjYsMzkyLjQgMTk3LjAsNDE1LjEgMTk3LjAsNDYwLjUgMTU3LjYsNDM3LjgiIGZpbGw9IiNhNjZmODEiLz48cG9seWdvbiBwb2ludHM9IjMxNS4wLDM5Mi40IDI3NS43LDQxNS4xIDI3NS43LDQ2MC41IDMxNS4wLDQzNy44IiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSIzNTQuNCwzMjQuMiAzMTUuMCwzNDYuOSAzMTUuMCwzOTIuNCAzNTQuNCwzNjkuNiIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsMjU2LjAgMzU0LjQsMjc4LjcgMzU0LjQsMzI0LjIgMzkzLjgsMzAxLjUiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjQzMy4xLDE4Ny44IDM5My44LDIxMC41IDM5My44LDI1Ni4wIDQzMy4xLDIzMy4zIiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSI0NzIuNSwxMTkuNiA0MzMuMSwxNDIuNCA0MzMuMSwxODcuOCA0NzIuNSwxNjUuMSIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsMjguNyA0MzMuMSw1MS41IDM5My44LDc0LjIgMzU0LjQsNTEuNSIgZmlsbD0iI2Y4YzBkMiIvPjxwb2x5Z29uIHBvaW50cz0iMTk3LjAsNDE1LjEgMjM2LjMsNDM3LjggMjM2LjMsNDgzLjMgMTk3LjAsNDYwLjUiIGZpbGw9IiNhNjZmODEiLz48cG9seWdvbiBwb2ludHM9IjI3NS43LDQxNS4xIDIzNi4zLDQzNy44IDIzNi4zLDQ4My4zIDI3NS43LDQ2MC41IiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSIzMTUuMCwzNDYuOSAyNzUuNywzNjkuNiAyNzUuNyw0MTUuMSAzMTUuMCwzOTIuNCIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMzU0LjQsMjc4LjcgMzE1LjAsMzAxLjUgMzE1LjAsMzQ2LjkgMzU0LjQsMzI0LjIiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjM5My44LDIxMC41IDM1NC40LDIzMy4zIDM1NC40LDI3OC43IDM5My44LDI1Ni4wIiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSI0MzMuMSwxNDIuNCAzOTMuOCwxNjUuMSAzOTMuOCwyMTAuNSA0MzMuMSwxODcuOCIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iNDMzLjEsNTEuNSA0NzIuNSw3NC4yIDQzMy4xLDk2LjkgMzkzLjgsNzQuMiIgZmlsbD0iI2Y4YzBkMiIvPjxwb2x5Z29uIHBvaW50cz0iNDcyLjUsNzQuMiA0MzMuMSw5Ni45IDQzMy4xLDE0Mi40IDQ3Mi41LDExOS42IiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSIxMTguMiwzNjkuNiAxNTcuNiwzOTIuNCAxNTcuNiw0MzcuOCAxMTguMiw0MTUuMSIgZmlsbD0iIzIwNDlhZCIvPjxwb2x5Z29uIHBvaW50cz0iMjc1LjcsMzY5LjYgMjM2LjMsMzkyLjQgMjM2LjMsNDM3LjggMjc1LjcsNDE1LjEiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjMxNS4wLDMwMS41IDI3NS43LDMyNC4yIDI3NS43LDM2OS42IDMxNS4wLDM0Ni45IiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSIzNTQuNCwyMzMuMyAzMTUuMCwyNTYuMCAzMTUuMCwzMDEuNSAzNTQuNCwyNzguNyIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsMTY1LjEgMzU0LjQsMTg3LjggMzU0LjQsMjMzLjMgMzkzLjgsMjEwLjUiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjQzMy4xLDk2LjkgMzkzLjgsMTE5LjYgMzkzLjgsMTY1LjEgNDMzLjEsMTQyLjQiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjM1NC40LDYuMCAzOTMuOCwyOC43IDM1NC40LDUxLjUgMzE1LjAsMjguNyIgZmlsbD0iI2Y4YzBkMiIvPjxwb2x5Z29uIHBvaW50cz0iMTU3LjYsMzkyLjQgMTk3LjAsNDE1LjEgMTk3LjAsNDYwLjUgMTU3LjYsNDM3LjgiIGZpbGw9IiMyMDQ5YWQiLz48cG9seWdvbiBwb2ludHM9IjIzNi4zLDE2NS4xIDI3NS43LDE4Ny44IDIzNi4zLDIxMC41IDE5Ny4wLDE4Ny44IiBmaWxsPSIjYTVjMGZmIi8+PHBvbHlnb24gcG9pbnRzPSIyNzUuNyw5Ni45IDMxNS4wLDExOS42IDI3NS43LDE0Mi40IDIzNi4zLDExOS42IiBmaWxsPSIjNzI5YWZmIi8+PHBvbHlnb24gcG9pbnRzPSIyMzYuMywxMTkuNiAyNzUuNywxNDIuNCAyNzUuNywxODcuOCAyMzYuMywxNjUuMSIgZmlsbD0iIzIwNDlhZCIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsMTE5LjYgMzU0LjQsMTQyLjQgMzU0LjQsMTg3LjggMzkzLjgsMTY1LjEiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjMxNS4wLDI4LjcgMzU0LjQsNTEuNSAzMTUuMCw3NC4yIDI3NS43LDUxLjUiIGZpbGw9IiNmOGMwZDIiLz48cG9seWdvbiBwb2ludHM9IjI3NS43LDUxLjUgMzE1LjAsNzQuMiAzMTUuMCwxMTkuNiAyNzUuNyw5Ni45IiBmaWxsPSIjYTY2ZjgxIi8+PHBvbHlnb24gcG9pbnRzPSIzOTMuOCwyOC43IDQzMy4xLDUxLjUgMzkzLjgsNzQuMiAzNTQuNCw1MS41IiBmaWxsPSIjZjhjMGQyIi8+PHBvbHlnb24gcG9pbnRzPSI0MzMuMSw1MS41IDM5My44LDc0LjIgMzkzLjgsMTE5LjYgNDMzLjEsOTYuOSIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMjM2LjMsMzkyLjQgMjc1LjcsNDE1LjEgMjM2LjMsNDM3LjggMTk3LjAsNDE1LjEiIGZpbGw9IiM3MjlhZmYiLz48cG9seWdvbiBwb2ludHM9IjE5Ny4wLDQxNS4xIDIzNi4zLDQzNy44IDIzNi4zLDQ4My4zIDE5Ny4wLDQ2MC41IiBmaWxsPSIjMjA0OWFkIi8+PHBvbHlnb24gcG9pbnRzPSIyNzUuNyw0MTUuMSAyMzYuMyw0MzcuOCAyMzYuMyw0ODMuMyAyNzUuNyw0NjAuNSIgZmlsbD0iIzJmNmJmZiIvPjxwb2x5Z29uIHBvaW50cz0iNzguOSwzNDYuOSAxMTguMiwzNjkuNiAxMTguMiw0MTUuMSA3OC45LDM5Mi40IiBmaWxsPSIjNTM2ZWFkIi8+PHBvbHlnb24gcG9pbnRzPSIyMzYuMywzNDYuOSAxOTcuMCwzNjkuNiAxOTcuMCw0MTUuMSAyMzYuMywzOTIuNCIgZmlsbD0iIzdhYTJmZiIvPjxwb2x5Z29uIHBvaW50cz0iMjc1LjcsMzI0LjIgMzE1LjAsMzQ2LjkgMjc1LjcsMzY5LjYgMjM2LjMsMzQ2LjkiIGZpbGw9IiM3MjlhZmYiLz48cG9seWdvbiBwb2ludHM9IjIzNi4zLDM0Ni45IDI3NS43LDM2OS42IDI3NS43LDQxNS4xIDIzNi4zLDM5Mi40IiBmaWxsPSIjMjA0OWFkIi8+PHBvbHlnb24gcG9pbnRzPSIzMTUuMCwzNDYuOSAyNzUuNywzNjkuNiAyNzUuNyw0MTUuMSAzMTUuMCwzOTIuNCIgZmlsbD0iIzJmNmJmZiIvPjxwb2x5Z29uIHBvaW50cz0iMjc1LjcsMjc4LjcgMjM2LjMsMzAxLjUgMjM2LjMsMzQ2LjkgMjc1LjcsMzI0LjIiIGZpbGw9IiM3YWEyZmYiLz48cG9seWdvbiBwb2ludHM9IjMxNS4wLDI1Ni4wIDM1NC40LDI3OC43IDMxNS4wLDMwMS41IDI3NS43LDI3OC43IiBmaWxsPSIjNzI5YWZmIi8+PHBvbHlnb24gcG9pbnRzPSIyNzUuNywyNzguNyAzMTUuMCwzMDEuNSAzMTUuMCwzNDYuOSAyNzUuNywzMjQuMiIgZmlsbD0iIzIwNDlhZCIvPjxwb2x5Z29uIHBvaW50cz0iMzU0LjQsMjc4LjcgMzE1LjAsMzAxLjUgMzE1LjAsMzQ2LjkgMzU0LjQsMzI0LjIiIGZpbGw9IiMyZjZiZmYiLz48cG9seWdvbiBwb2ludHM9IjI3NS43LDE4Ny44IDMxNS4wLDIxMC41IDI3NS43LDIzMy4zIDIzNi4zLDIxMC41IiBmaWxsPSIjYTVjMGZmIi8+PHBvbHlnb24gcG9pbnRzPSIzMTUuMCwyMTAuNSAyNzUuNywyMzMuMyAyNzUuNywyNzguNyAzMTUuMCwyNTYuMCIgZmlsbD0iIzdhYTJmZiIvPjxwb2x5Z29uIHBvaW50cz0iMzE1LjAsMjEwLjUgMzU0LjQsMjMzLjMgMzU0LjQsMjc4LjcgMzE1LjAsMjU2LjAiIGZpbGw9IiMyMDQ5YWQiLz48cG9seWdvbiBwb2ludHM9IjM5My44LDIxMC41IDM1NC40LDIzMy4zIDM1NC40LDI3OC43IDM5My44LDI1Ni4wIiBmaWxsPSIjMmY2YmZmIi8+PHBvbHlnb24gcG9pbnRzPSIzMTUuMCwxMTkuNiAzNTQuNCwxNDIuNCAzMTUuMCwxNjUuMSAyNzUuNywxNDIuNCIgZmlsbD0iIzcyOWFmZiIvPjxwb2x5Z29uIHBvaW50cz0iMjc1LjcsMTQyLjQgMzE1LjAsMTY1LjEgMzE1LjAsMjEwLjUgMjc1LjcsMTg3LjgiIGZpbGw9IiMyMDQ5YWQiLz48cG9seWdvbiBwb2ludHM9IjM1NC40LDUxLjUgMzkzLjgsNzQuMiAzNTQuNCw5Ni45IDMxNS4wLDc0LjIiIGZpbGw9IiNmOGMwZDIiLz48cG9seWdvbiBwb2ludHM9IjMxNS4wLDc0LjIgMzU0LjQsOTYuOSAzNTQuNCwxNDIuNCAzMTUuMCwxMTkuNiIgZmlsbD0iI2E2NmY4MSIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsNzQuMiAzNTQuNCw5Ni45IDM1NC40LDE0Mi40IDM5My44LDExOS42IiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSIxMTguMiwzNjkuNiAxNTcuNiwzOTIuNCAxNTcuNiw0MzcuOCAxMTguMiw0MTUuMSIgZmlsbD0iIzUzNmVhZCIvPjxwb2x5Z29uIHBvaW50cz0iMTk3LjAsMzY5LjYgMTU3LjYsMzkyLjQgMTU3LjYsNDM3LjggMTk3LjAsNDE1LjEiIGZpbGw9IiM3YWEyZmYiLz48cG9seWdvbiBwb2ludHM9IjIzNi4zLDMwMS41IDE5Ny4wLDMyNC4yIDE5Ny4wLDM2OS42IDIzNi4zLDM0Ni45IiBmaWxsPSIjN2FhMmZmIi8+PHBvbHlnb24gcG9pbnRzPSIyNzUuNywyMzMuMyAyMzYuMywyNTYuMCAyMzYuMywzMDEuNSAyNzUuNywyNzguNyIgZmlsbD0iIzdhYTJmZiIvPjxwb2x5Z29uIHBvaW50cz0iMTk3LjAsMTQyLjQgMjM2LjMsMTY1LjEgMTk3LjAsMTg3LjggMTU3LjYsMTY1LjEiIGZpbGw9IiM4YmNmZDgiLz48cG9seWdvbiBwb2ludHM9IjM1NC40LDE0Mi40IDM5My44LDE2NS4xIDM1NC40LDE4Ny44IDMxNS4wLDE2NS4xIiBmaWxsPSIjNzI5YWZmIi8+PHBvbHlnb24gcG9pbnRzPSIzMTUuMCwxNjUuMSAzNTQuNCwxODcuOCAzNTQuNCwyMzMuMyAzMTUuMCwyMTAuNSIgZmlsbD0iIzIwNDlhZCIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsMTY1LjEgMzU0LjQsMTg3LjggMzU0LjQsMjMzLjMgMzkzLjgsMjEwLjUiIGZpbGw9IiMyZjZiZmYiLz48cG9seWdvbiBwb2ludHM9IjM5LjUsMzI0LjIgNzguOSwzNDYuOSA3OC45LDM5Mi40IDM5LjUsMzY5LjYiIGZpbGw9IiMzYTdlODYiLz48cG9seWdvbiBwb2ludHM9IjE5Ny4wLDMyNC4yIDE1Ny42LDM0Ni45IDE1Ny42LDM5Mi40IDE5Ny4wLDM2OS42IiBmaWxsPSIjNTViOWM1Ii8+PHBvbHlnb24gcG9pbnRzPSIyMzYuMywyNTYuMCAxOTcuMCwyNzguNyAxOTcuMCwzMjQuMiAyMzYuMywzMDEuNSIgZmlsbD0iIzU1YjljNSIvPjxwb2x5Z29uIHBvaW50cz0iMjM2LjMsMTY1LjEgMjc1LjcsMTg3LjggMjM2LjMsMjEwLjUgMTk3LjAsMTg3LjgiIGZpbGw9IiM4YmNmZDgiLz48cG9seWdvbiBwb2ludHM9IjI3NS43LDE4Ny44IDIzNi4zLDIxMC41IDIzNi4zLDI1Ni4wIDI3NS43LDIzMy4zIiBmaWxsPSIjNTViOWM1Ii8+PHBvbHlnb24gcG9pbnRzPSI3OC45LDM0Ni45IDExOC4yLDM2OS42IDExOC4yLDQxNS4xIDc4LjksMzkyLjQiIGZpbGw9IiMzYTdlODYiLz48cG9seWdvbiBwb2ludHM9IjE1Ny42LDM0Ni45IDExOC4yLDM2OS42IDExOC4yLDQxNS4xIDE1Ny42LDM5Mi40IiBmaWxsPSIjNTViOWM1Ii8+PHBvbHlnb24gcG9pbnRzPSIzOS41LDI3OC43IDc4LjksMzAxLjUgNzguOSwzNDYuOSAzOS41LDMyNC4yIiBmaWxsPSIjMjA4ZDVlIi8+PHBvbHlnb24gcG9pbnRzPSIxOTcuMCwyNzguNyAxNTcuNiwzMDEuNSAxNTcuNiwzNDYuOSAxOTcuMCwzMjQuMiIgZmlsbD0iIzJmY2Y4YSIvPjxwb2x5Z29uIHBvaW50cz0iMjM2LjMsMjEwLjUgMTk3LjAsMjMzLjMgMTk3LjAsMjc4LjcgMjM2LjMsMjU2LjAiIGZpbGw9IiMyZmNmOGEiLz48cG9seWdvbiBwb2ludHM9IjE1Ny42LDExOS42IDE5Ny4wLDE0Mi40IDE1Ny42LDE2NS4xIDExOC4yLDE0Mi40IiBmaWxsPSIjNzJkZWFmIi8+PHBvbHlnb24gcG9pbnRzPSI3OC45LDMwMS41IDExOC4yLDMyNC4yIDExOC4yLDM2OS42IDc4LjksMzQ2LjkiIGZpbGw9IiMyMDhkNWUiLz48cG9seWdvbiBwb2ludHM9IjE1Ny42LDMwMS41IDExOC4yLDMyNC4yIDExOC4yLDM2OS42IDE1Ny42LDM0Ni45IiBmaWxsPSIjMmZjZjhhIi8+PHBvbHlnb24gcG9pbnRzPSI3OC45LDIxMC41IDExOC4yLDIzMy4zIDc4LjksMjU2LjAgMzkuNSwyMzMuMyIgZmlsbD0iIzcyZGVhZiIvPjxwb2x5Z29uIHBvaW50cz0iMzkuNSwyMzMuMyA3OC45LDI1Ni4wIDc4LjksMzAxLjUgMzkuNSwyNzguNyIgZmlsbD0iIzIwOGQ1ZSIvPjxwb2x5Z29uIHBvaW50cz0iMTk3LjAsMjMzLjMgMTU3LjYsMjU2LjAgMTU3LjYsMzAxLjUgMTk3LjAsMjc4LjciIGZpbGw9IiMyZmNmOGEiLz48cG9seWdvbiBwb2ludHM9IjExOC4yLDE0Mi40IDE1Ny42LDE2NS4xIDExOC4yLDE4Ny44IDc4LjksMTY1LjEiIGZpbGw9IiM3MmRlYWYiLz48cG9seWdvbiBwb2ludHM9Ijc4LjksMTY1LjEgMTE4LjIsMTg3LjggMTE4LjIsMjMzLjMgNzguOSwyMTAuNSIgZmlsbD0iIzIwOGQ1ZSIvPjxwb2x5Z29uIHBvaW50cz0iMTk3LjAsMTQyLjQgMjM2LjMsMTY1LjEgMTk3LjAsMTg3LjggMTU3LjYsMTY1LjEiIGZpbGw9IiM3MmRlYWYiLz48cG9seWdvbiBwb2ludHM9IjIzNi4zLDE2NS4xIDE5Ny4wLDE4Ny44IDE5Ny4wLDIzMy4zIDIzNi4zLDIxMC41IiBmaWxsPSIjMmZjZjhhIi8+PHBvbHlnb24gcG9pbnRzPSIxMTguMiwyMzMuMyAxNTcuNiwyNTYuMCAxMTguMiwyNzguNyA3OC45LDI1Ni4wIiBmaWxsPSIjNzJkZWFmIi8+PHBvbHlnb24gcG9pbnRzPSI3OC45LDI1Ni4wIDExOC4yLDI3OC43IDExOC4yLDMyNC4yIDc4LjksMzAxLjUiIGZpbGw9IiMyMDhkNWUiLz48cG9seWdvbiBwb2ludHM9IjE1Ny42LDI1Ni4wIDExOC4yLDI3OC43IDExOC4yLDMyNC4yIDE1Ny42LDMwMS41IiBmaWxsPSIjMmZjZjhhIi8+PHBvbHlnb24gcG9pbnRzPSIxNTcuNiwxNjUuMSAxOTcuMCwxODcuOCAxNTcuNiwyMTAuNSAxMTguMiwxODcuOCIgZmlsbD0iIzcyZGVhZiIvPjxwb2x5Z29uIHBvaW50cz0iMTE4LjIsMTg3LjggMTU3LjYsMjEwLjUgMTU3LjYsMjU2LjAgMTE4LjIsMjMzLjMiIGZpbGw9IiMyMDhkNWUiLz48cG9seWdvbiBwb2ludHM9IjE5Ny4wLDE4Ny44IDE1Ny42LDIxMC41IDE1Ny42LDI1Ni4wIDE5Ny4wLDIzMy4zIiBmaWxsPSIjMmZjZjhhIi8+Cjwvc3ZnPg==">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+/* The app shell: one frame per module (simulator, training, later lessons, pacemaker, ...) and the module tabs.
+   The tabs sit over the left of the module's own header (the module leaves --tabs-w free there), so the module
+   keeps its phone layout and its own buttons on the right. Active tab: icon and name, first; the others follow
+   in a fixed order, icon only on phones and named on tablets. The frames are inset by the system bars, so the
+   modules see none. */
+:root {
+  --bg: #0b131a; --surface: #121d27; --raised: #1b2834; --fg: #e3eaf0; --muted: #93a3b1; --line: #24323f; --accent: #ef5b7a;
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
+  --bar-h: 50px;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; overscroll-behavior: none; }
+* { -webkit-tap-highlight-color: transparent; }
+#stage { position: fixed; top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px);
+  left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); }
+#stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: var(--bg); visibility: hidden; }
+#stage iframe.on { visibility: visible; }
+#tabs { position: fixed; z-index: 10; top: env(safe-area-inset-top, 0px); left: env(safe-area-inset-left, 0px); height: var(--bar-h);
+  display: flex; align-items: center; gap: 4px; padding: 0 6px 0 8px; transition: opacity 0.15s; }
+#tabs.off { opacity: 0; pointer-events: none; }
+#tabs button { all: unset; box-sizing: border-box; height: 38px; min-width: 38px; padding: 0 9px; border-radius: 19px; display: flex; align-items: center; justify-content: center; gap: 7px;
+  color: var(--muted); cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+#tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#tabs svg { width: 21px; height: 21px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#tabs .name { font: 600 17px/1 var(--font-display); letter-spacing: 0.01em; white-space: nowrap; display: none; }
+#tabs button.on { background: var(--raised); border: 1px solid #33434f; padding: 0 13px 0 10px; color: var(--fg); }
+#tabs button.on svg { color: var(--accent); }
+#tabs button.on .name { display: inline; }
+#tabs button:not(.on):active { background: rgba(255,255,255,0.07); }
+/* tablets: every tab named */
+@media (min-width: 600px) {
+  #tabs button .name { display: inline; font-size: 16px; }
+  #tabs button:not(.on) { padding: 0 12px 0 10px; }
+}
+</style>
+</head>
+<body>
+<nav id="tabs" role="tablist" aria-label="Modules"></nav>
+<div id="stage"></div>
+<script>
+(function () {
+  // the modules, in their fixed order (url: filled in by tools/build.py for the preview or the app build)
+  const URLS = {"simulator": "../index.html?app", "training": "../training/index.html?app"};
+  const ICONS = {
+    // heart with a trace through it
+    simulator: '<path d="M12 20.5s-7.5-4.6-8.9-9.6C2.2 7.7 4.2 4.5 7.3 4.5c2 0 3.6 1.1 4.7 2.8 1.1-1.7 2.7-2.8 4.7-2.8 3.1 0 5.1 3.2 4.2 6.4-1.4 5-8.9 9.6-8.9 9.6z"/><path d="M3.4 12.2h4.4l1.6-3 2.4 6 1.8-3.8h6.9"/>',
+    // mortarboard
+    training: '<path d="M2.5 9.2 12 4.8l9.5 4.4L12 13.6z"/><path d="M6.5 11.2v4.4c0 1.4 2.5 3 5.5 3s5.5-1.6 5.5-3v-4.4"/><path d="M21.5 9.2v5.3"/>',
+  };
+  const MODULES = [
+    { id: 'simulator', name: 'Simulator' },
+    { id: 'training', name: 'Training' },
+  ].map((m) => Object.assign(m, { url: URLS[m.id] }));
+  const BY = Object.fromEntries(MODULES.map((m) => [m.id, m]));
+  const KEY = 'ecgApp.module';
+  const tabs = document.getElementById('tabs'), stage = document.getElementById('stage');
+  const btn = {}, frame = {}, chrome = {};
+  let current = null;
+  const store = { get() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }, set(v) { try { localStorage.setItem(KEY, v); } catch (e) { /* private mode */ } } };
+
+  for (const m of MODULES) {
+    const b = btn[m.id] = document.createElement('button');
+    b.type = 'button'; b.setAttribute('role', 'tab'); b.dataset.id = m.id; b.setAttribute('aria-label', m.name);
+    b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[m.id] || ''}</svg><span class="name">${m.name}</span>`;
+    b.addEventListener('click', () => open(m.id));
+    tabs.appendChild(b);
+  }
+
+  function post(id, type, data) { const f = frame[id]; if (f && f.contentWindow) f.contentWindow.postMessage(Object.assign({ ecgApp: type }, data || {}), '*'); }
+  function tabsWidth() { return Math.ceil(tabs.getBoundingClientRect().width) + 2; }
+  function sendWidth() { const w = tabsWidth(); for (const id in frame) post(id, 'tabs', { w }); }
+  function syncChrome() { tabs.classList.toggle('off', chrome[current] === false); }
+
+  function load(id, hash) {
+    let f = frame[id];
+    const url = BY[id].url + (hash ? `#${hash}` : '');
+    if (!f) {
+      f = frame[id] = document.createElement('iframe');
+      f.title = BY[id].name; f.allow = 'clipboard-write; fullscreen; web-share';
+      f.src = url; stage.appendChild(f);
+    } else if (hash) {
+      f.src = url;   // (only the #scenario changes; the simulator reloads on a new scenario link)
+    }
+    return f;
+  }
+
+  // switch module: the tapped tab moves to the front and shows its name (animated from where each tab was)
+  function open(id, hash) {
+    if (!BY[id]) id = MODULES[0].id;
+    const prev = current;
+    if (id === prev && !hash) return;
+    const before = new Map(MODULES.map((m) => [m.id, btn[m.id].getBoundingClientRect().left]));
+    current = id; store.set(id);
+    for (const m of [BY[id], ...MODULES.filter((x) => x.id !== id)]) tabs.appendChild(btn[m.id]);
+    for (const m of MODULES) { btn[m.id].classList.toggle('on', m.id === id); btn[m.id].setAttribute('aria-selected', String(m.id === id)); }
+    if (prev && prev !== id && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      for (const m of MODULES) {
+        const dx = before.get(m.id) - btn[m.id].getBoundingClientRect().left;
+        if (Math.abs(dx) > 0.5) btn[m.id].animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 280, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+      }
+      const n = btn[id].querySelector('.name');
+      n.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
+    }
+    load(id, hash);
+    for (const m of MODULES) if (frame[m.id]) frame[m.id].classList.toggle('on', m.id === id);
+    if (prev && prev !== id) post(prev, 'hide');
+    post(id, 'show');
+    sendWidth(); syncChrome();
+  }
+
+  addEventListener('message', (e) => {
+    const d = e.data;
+    if (!d || !d.ecgApp) return;
+    const id = Object.keys(frame).find((k) => frame[k].contentWindow === e.source);
+    if (!id) return;
+    if (d.ecgApp === 'ready') { post(id, 'tabs', { w: tabsWidth() }); post(id, id === current ? 'show' : 'hide'); }
+    if (d.ecgApp === 'chrome') { chrome[id] = !!d.on; syncChrome(); }
+    if (d.ecgApp === 'go' && BY[d.module]) open(d.module, typeof d.hash === 'string' ? d.hash : '');
+  });
+  addEventListener('resize', sendWidth);
+  if (document.fonts) document.fonts.ready.then(sendWidth);   // (the tab names are wider once the font is in)
+
+  window.ECGAppShell = { open, MODULES, frame, get current() { return current; } };   // (automated tests)
+  open(store.get() || MODULES[0].id);
+})();
+</script>
+</body>
+</html>

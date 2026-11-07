@@ -12,6 +12,7 @@
 <link rel="icon" type="image/svg+xml" href="{{LOGO_URI}}">
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>/*__INAPP__*/</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
 <style>
@@ -450,6 +451,12 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
   #divider { flex: 0 0 12px; cursor: row-resize; }
   #divider::after { width: 44px; height: 4px; }
 }
+/* In the app (html.inapp, src/inapp.js): the app shell draws the module tabs over the left of the header, which
+   turns dark (the app's chrome); the brand, the Training link and the install offers are the app's. */
+html.inapp header.top { --bg: #0b131a; --surface: #1b2834; --fg: #e3eaf0; --muted: #93a3b1; --line: #33434f; --accent: #ef5b7a; --accent-fg: #160a0d;
+  background: var(--bg); color: var(--fg); color-scheme: dark; min-height: 50px; box-sizing: border-box; padding-left: var(--tabs-w, 12px); }
+html.inapp body:not(.m) header.top { margin: -10px calc(-1 * max(16px, env(safe-area-inset-right, 0px))) 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-right: 16px; }
+html.inapp .brand, html.inapp #mTraining, html.inapp #mInstall, html.inapp #btnInstall { display: none !important; }
 </style>
 
 <div id="app">

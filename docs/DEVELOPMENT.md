@@ -1804,3 +1804,29 @@ old LAD infarcts no longer read a false "long QT". fullcheck is identical (iErr 
 
 **Still open (the real fix):** V6 vs V5, and the upright giant T in V4–V5 of an inferior (mRCA) infarct at 2–30 days
 (V4 +16 mm), both from the chest forward model.
+
+## app-1 round 1: the app shell and module tabs (app phase 1)
+
+The Android app (docs/APP_PLAN.md) starts as one shell page that holds each module in its own frame, so the simulator and
+Training keep their phone layouts exactly and the website pages stay as they are.
+
+- **`src/shell.html`** (built by `tools/build.py`): the module tabs and one frame per module. `app/index.html` is a preview that
+  frames the website pages (`../index.html?app`, `../training/index.html?app`); `python3 tools/build.py --app` also writes
+  `app/www/` (the shell, `simulator.html`, `training.html`) for Capacitor (not in git).
+- **Tabs** (dark, Training's colours) sit over the left of the module's own header; the module keeps its buttons on the right.
+  The active tab shows its icon and name and comes first; the others follow in a fixed order, icon only on phones and named
+  at ≥ 600 px. On a switch each tab slides from where it was (280 ms; none with reduced motion). The app reopens on the
+  last module (`localStorage` `ecgApp.module`); a module's frame loads the first time it is opened.
+- **`src/inapp.js`** (inlined into both pages): with `?app` inside a frame it sets `html.inapp`, takes the tabs' width
+  (`--tabs-w`, the header's left padding) and tells the shell whether the header is showing (whatever covers the top-left
+  corner: full-screen views, help, Training's sub-pages hide the tabs; Training home's header is marked `.app-bar`).
+- **Simulator in the app:** dark header without the brand, no Training or Install items, no manifest or service worker; while
+  hidden it neither simulates nor draws (`ui.offstage`). Shared links point at ecgstudio.app.
+- **Training in the app:** no back-to-simulator link or menu item, no page title on home; in the header the mode title
+  shortens (ellipsis) and the rating shows without its label. **Model** switches to the Simulator tab on that scenario and
+  the Training tab still holds the ECG. Full width on tablets (the tabs need the left edge) until phase 4.
+- **Insets:** the frames are inset by the system bars in the shell, so the modules see none.
+
+Checked in Playwright (390×844 and 800×1280): switching, the animation, Model, the tabs hiding over Help/Statistics,
+the simulator stopped while hidden, the reopened module; the website pages unchanged (no `html.inapp`, no errors).
+Not yet: Android back button, offline fonts, PNG export and sharing in the WebView (phase 7); locked tabs (phase 6).

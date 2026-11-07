@@ -1,5 +1,7 @@
-"""Assemble the single-file app: src/template.html + Three.js + engine + app + anatomy -> index.html"""
-import datetime, html as htmlmod, json, pathlib, subprocess
+"""Assemble the single-file app: src/template.html + Three.js + engine + app + anatomy -> index.html,
+Training -> training/index.html, and the app shell (src/shell.html) -> app/index.html (a preview that frames the two
+pages above). `--app` also writes app/www/ for the native app (the shell and both pages side by side; not in git)."""
+import datetime, html as htmlmod, json, pathlib, shutil, subprocess, sys
 root = pathlib.Path(__file__).resolve().parent.parent
 src = root / 'src'
 html = (src / 'template.html').read_text()
@@ -11,6 +13,9 @@ LOGO_INLINE = re.sub(r'\s(width|height)="\d+"', '', logo_svg, count=2).replace('
 def with_logo(h):
     return h.replace('{{LOGO_URI}}', LOGO_URI).replace('{{LOGO_SVG}}', LOGO_INLINE)
 html = with_logo(html)
+inapp = (src / 'inapp.js').read_text()
+assert '</script' not in inapp
+html = html.replace('/*__INAPP__*/', inapp, 1)
 # author and version (site.json; version = build date + commit)
 site = json.loads((root / 'site.json').read_text())
 try:
@@ -75,7 +80,7 @@ self.onmessage = (e) => {
 };
 ''')
 t = with_logo((src / 'training.html').read_text()).replace('{{AUTHOR}}', htmlmod.escape(site['author'])).replace('{{VERSION}}', datetime.date.today().isoformat() + (f' ({rev})' if rev else ''))
-for key, text in (('/*__VOCAB__*/', json.dumps((src / 'training_vocab.txt').read_text())),
+for key, text in (('/*__INAPP__*/', inapp), ('/*__VOCAB__*/', json.dumps((src / 'training_vocab.txt').read_text())),
                   ('/*__ANATOMY__*/', anatomy), ('/*__TORSO__*/', torso), ('/*__WORKER__*/', worker),
                   ('/*__TRAIN__*/', (src / 'training.js').read_text())):
     assert '</script' not in text
@@ -83,3 +88,20 @@ for key, text in (('/*__VOCAB__*/', json.dumps((src / 'training_vocab.txt').read
 (root / 'training').mkdir(exist_ok=True)
 (root / 'training' / 'index.html').write_text(t)
 print('training/index.html', round(len(t.encode()) / 1e6, 2), 'MB')
+
+# The app shell (src/shell.html): one frame per module and the module tabs. app/index.html frames the website's
+# pages (../index.html, ../training/index.html) as a preview; --app writes app/www/ for Capacitor.
+version = datetime.date.today().isoformat() + (f' ({rev})' if rev else '')
+def shell(urls):
+    h = with_logo((src / 'shell.html').read_text()).replace('{{AUTHOR}}', htmlmod.escape(site['author'])).replace('{{VERSION}}', version)
+    return h.replace('/*__URLS__*/', json.dumps(urls), 1)
+(root / 'app').mkdir(exist_ok=True)
+(root / 'app' / 'index.html').write_text(shell({'simulator': '../index.html?app', 'training': '../training/index.html?app'}))
+print('app/index.html (preview)')
+if '--app' in sys.argv:
+    www = root / 'app' / 'www'
+    www.mkdir(parents=True, exist_ok=True)
+    (www / 'index.html').write_text(shell({'simulator': 'simulator.html?app', 'training': 'training.html?app'}))
+    shutil.copyfile(root / 'index.html', www / 'simulator.html')
+    shutil.copyfile(root / 'training' / 'index.html', www / 'training.html')
+    print('app/www/', sorted(p.name for p in www.iterdir()))
