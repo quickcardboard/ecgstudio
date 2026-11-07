@@ -1,7 +1,7 @@
 # ECG Studio app: plan (Android first, Capacitor)
 
 Draft for the author's review, 2026-11-07. Decisions already made are marked **Decided**. The phase 0 answers are recorded
-at the end; one open choice is left there (how to switch between modules). Nothing here is built yet.
+at the end; including the module switcher. Nothing here is built yet.
 
 ## Decided
 
@@ -83,9 +83,9 @@ Rough sizes are working sessions. Each phase ends with a phone test (and a table
 
 | # | Phase | What it delivers | Done when |
 |---|---|---|---|
-| 0 | Decisions and design | Answers to the questions below; the module switcher chosen | Switcher agreed |
+| 0 | Decisions and design | Answers to the questions below; the module switcher (decided: option A, dark) | Done |
 | 1 | Shell and modules (2–3) | `app-1` branch; one shell page; module registry; simulator and training mounted as modules; shared toolbar; `build.py --app` | Both modules run in one page in a phone browser |
-| 2 | Module switcher (1–2) | The chosen switcher in every module (locked state for paid modules), menu; Training's back-to-simulator button removed | Agreed by the author on a phone |
+| 2 | Module switcher (1–2) | Header tabs (active: icon and name at the left; inactive: icons on phones, names on tablets) in every module (locked state for paid modules), menu; Training's back-to-simulator button removed | Agreed by the author on a phone |
 | 3 | Simulator in the app (1–2) | The current phone layout, unchanged; desktop-only styles dropped from the app build | Identical to the phone site apart from navigation |
 | 4 | Tablet portrait (1) | Expanded ECG views at ≥ 600 dp wide (full 12-lead without paging); nothing else changes | Checked on a 10" tablet viewport (and a real tablet) |
 | 5 | First-run tutorial (1–2) | Skippable coach marks per module, replay from the menu, progress stored locally | First launch walks through; replay works |
@@ -112,19 +112,18 @@ Rough sizes are working sessions. Each phase ends with a phone test (and a table
 5. **Account:** personal, already created.
 6. **Phone layout:** the app copies the current phone layout exactly, apart from the module navigation.
 
-### Open: how to switch modules
+### Module switcher (decided)
 
-Constraints seen on the phone layouts: the simulator already has a bottom tab bar (Rhythm, Blocks, View, Ischemia,
-Conditions), and Training's bottom area holds the answer box and keyboard. A second bar at the bottom would clash with both,
-so the switcher belongs at the top.
+**Option A: module tabs in the top header, dark style** (Training's theme) in every module. The simulator's bottom bar
+(Rhythm, Blocks, View, Ischemia, Conditions) and Training's answer box and keyboard stay where they are, so the tabs belong at the top.
 
-- **A (recommended): module tabs in the top header.** The "ECG Studio" title becomes tabs: logo, then *Simulator* and *Training*
-  side by side, each module's own buttons (1×, pause, ⋯) on the right. Up to 3–4 short names fit at phone width; past that the
-  strip scrolls sideways with a fade at the edge (tap only, no swipe between modules, because swipes already page the ECG).
-- **B: a thin module strip above the header.** Same tabs on their own row, full width, so they never compete with the module's
-  buttons. Scales better; costs about 36 px of height.
-- **C: icon tabs** (icon over a short label, as in the simulator's bottom bar) in the header: fits 5–6 modules, but small labels.
-- Not recommended: a bottom bar (clashes as above), a side drawer or a title drop-down (both hide the modules, so they lose equal weight).
+- **Active tab:** expanded, with its icon and full name, at the far left of the header, where the "ECG Studio" title is now.
+- **Inactive tabs:** icon only on phones, full names on tablets, to the right of the active tab. The module's own buttons
+  (1×, pause, ⋯) stay at the right edge.
+- **Switching:** the tapped tab expands and slides to the left, and the previous one shrinks back to its icon (a short animation,
+  so it is clear where it went). Inactive tabs keep a fixed order. Tap only: swipes already page the ECG.
+- Other options considered: a separate tab row above the header (costs height), icon tabs with small labels, a bottom bar
+  (clashes with the simulator's bottom bar and Training's keyboard), a side drawer or title drop-down (hide the modules).
 
 Either way: each module keeps its state when you switch (the simulator pauses while hidden); a paid module shows a small lock
 and opens its preview and purchase sheet; Training's **Model** button switches to the Simulator tab with that heart loaded,
