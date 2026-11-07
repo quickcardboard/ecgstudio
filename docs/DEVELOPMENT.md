@@ -1857,4 +1857,8 @@ Not yet: Android back button, offline fonts, PNG export and sharing in the WebVi
   goes to the background (`App.minimizeApp`, state kept).
 - **Build:** `.github/workflows/android.yml` builds a debug APK on pushes to app-1 (this container cannot download the
   Android SDK). Locally: `cd app && npm install && npm run sync`, then open `app/android` in Android Studio.
-- Still to do: release signing (upload key) and the AAB, PNG export and sharing in the WebView.
+- **Sharing in the app:** the WebView has no Web Share, so `src/inapp.js` gives the pages a `navigator.share` that goes
+  through the shell (`@capacitor/filesystem` writes image files to the cache, `@capacitor/share` opens the system sheet).
+  Covers Save ECG image, Share this scenario, Training's report and daily result.
+- **Release:** `app/android/app/build.gradle` signs with the upload key from the environment and takes `VERSION_CODE`;
+  the workflow builds the signed AAB when run by hand with "release" (steps for the key: docs/APP_PLAN.md).

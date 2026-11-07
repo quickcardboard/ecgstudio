@@ -100,8 +100,25 @@ For phase 4: on tablets (≥ 744 px wide) the simulator still shows its website 
 layout there (decided), with more leads in the ECG views.
 
 **Phase 7 status (2026-11-07): started.** Android project in `app/` (Capacitor 8), icons, splash, offline fonts, back button,
-debug APK built by GitHub Actions. Next: release signing and the AAB, then the closed test (the tutorial, phase 5, during it).
+debug APK built by GitHub Actions (first build passed), sharing and image saving through the Android share sheet, signed
+release AAB on demand once the upload key is in the secrets (below). Next: the upload key, then the closed test (the tutorial, phase 5, during it).
 **The website's Training stays unlocked for testers until the app is published.**
+
+### Release signing: the upload key (the author, once)
+
+Google Play re-signs the app with its own key (Play App Signing); uploads are signed with an **upload key** that stays
+with the author and in the repository's GitHub secrets, never in the repository. If it is ever lost, Play support can
+reset it.
+
+1. Make the key (Java's `keytool`; Android Studio's *Build > Generate Signed Bundle > Create new* does the same):
+   `keytool -genkeypair -v -keystore ecgstudio-upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000`
+   Keep the file and both passwords in a password manager.
+2. Turn the file into text: macOS `base64 -i ecgstudio-upload.jks | pbcopy` (copied); Windows
+   `certutil -encodenohead ecgstudio-upload.jks key.txt` (then copy key.txt's contents).
+3. GitHub: repository Settings > Secrets and variables > Actions > New repository secret, four times:
+   `ANDROID_KEYSTORE_BASE64` (the text), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`upload`), `ANDROID_KEY_PASSWORD`.
+4. Actions > Android app > Run workflow (branch app-1), tick "release": the run's artifact `ecgstudio-release-aab` is the
+   bundle to upload in Play Console (internal testing first, then the closed test).
 
 ### Play Console notes
 

@@ -33,8 +33,32 @@
     const d = e.data;
     if (e.source !== parent || !d || !d.ecgApp) return;
     if (d.ecgApp === 'tabs') { document.documentElement.style.setProperty('--tabs-w', `${d.w}px`); soon(); }
+    if (d.ecgApp === 'caps' && d.share) nativeShare();
+    if (d.ecgApp === 'shared' && shares[d.id]) {
+      const p = shares[d.id]; delete shares[d.id];
+      if (d.ok) p.res(); else p.rej(Object.assign(new Error(d.err || 'Share failed'), { name: d.abort ? 'AbortError' : 'Error' }));
+    }
     for (const fn of listeners[d.ecgApp] || []) fn(d);
   });
+  // In the Android app the WebView has no Web Share: the page's navigator.share (text, links and image files) goes
+  // through the shell to the system share sheet (save to Photos, send, ...)
+  const shares = {}; let shareSeq = 0;
+  const asData = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(f); });
+  function nativeShare() {
+    const share = async (data) => {
+      data = data || {};
+      const files = await Promise.all([...(data.files || [])].map(async (f) => ({ name: f.name, data: await asData(f) })));
+      return new Promise((res, rej) => {
+        const id = ++shareSeq; shares[id] = { res, rej };
+        api.post('share', { id, title: data.title || '', text: data.text || '', url: data.url || '', files });
+      });
+    };
+    try {
+      Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+      Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true });
+    } catch (e) { /* the browser's own share stays */ }
+  }
+
   // is the header under the tabs showing? (whatever covers the top-left corner decides)
   let last = null, queued = false;
   function check() {
@@ -746,7 +770,7 @@ html.inapp .brand, html.inapp #mTraining, html.inapp #mInstall, html.inapp #btnI
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-07 (d48e51a).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-07 (a089bef).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -790,7 +814,7 @@ html.inapp .brand, html.inapp #mTraining, html.inapp #mInstall, html.inapp #btnI
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-07 (d48e51a).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-07 (a089bef).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>

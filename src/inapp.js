@@ -19,8 +19,32 @@
     const d = e.data;
     if (e.source !== parent || !d || !d.ecgApp) return;
     if (d.ecgApp === 'tabs') { document.documentElement.style.setProperty('--tabs-w', `${d.w}px`); soon(); }
+    if (d.ecgApp === 'caps' && d.share) nativeShare();
+    if (d.ecgApp === 'shared' && shares[d.id]) {
+      const p = shares[d.id]; delete shares[d.id];
+      if (d.ok) p.res(); else p.rej(Object.assign(new Error(d.err || 'Share failed'), { name: d.abort ? 'AbortError' : 'Error' }));
+    }
     for (const fn of listeners[d.ecgApp] || []) fn(d);
   });
+  // In the Android app the WebView has no Web Share: the page's navigator.share (text, links and image files) goes
+  // through the shell to the system share sheet (save to Photos, send, ...)
+  const shares = {}; let shareSeq = 0;
+  const asData = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(f); });
+  function nativeShare() {
+    const share = async (data) => {
+      data = data || {};
+      const files = await Promise.all([...(data.files || [])].map(async (f) => ({ name: f.name, data: await asData(f) })));
+      return new Promise((res, rej) => {
+        const id = ++shareSeq; shares[id] = { res, rej };
+        api.post('share', { id, title: data.title || '', text: data.text || '', url: data.url || '', files });
+      });
+    };
+    try {
+      Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+      Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true });
+    } catch (e) { /* the browser's own share stays */ }
+  }
+
   // is the header under the tabs showing? (whatever covers the top-left corner decides)
   let last = null, queued = false;
   function check() {

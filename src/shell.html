@@ -132,7 +132,8 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
     if (!d || !d.ecgApp) return;
     const id = Object.keys(frame).find((k) => frame[k].contentWindow === e.source);
     if (!id) return;
-    if (d.ecgApp === 'ready') { post(id, 'tabs', { w: tabsWidth() }); post(id, id === current ? 'show' : 'hide'); }
+    if (d.ecgApp === 'ready') { post(id, 'tabs', { w: tabsWidth() }); post(id, id === current ? 'show' : 'hide'); if (SharePlugin && FsPlugin) post(id, 'caps', { share: true }); }
+    if (d.ecgApp === 'share') share(id, d);
     if (d.ecgApp === 'chrome') { chrome[id] = !!d.on; syncChrome(); }
     if (d.ecgApp === 'go' && BY[d.module]) open(d.module, typeof d.hash === 'string' ? d.hash : '');
     if (d.ecgApp === 'back' && id === current && back.wait) { clearTimeout(back.wait); back.wait = 0; if (!d.handled) back.leave(); }
@@ -142,6 +143,25 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
   // to its start; when it has nothing to close, the app goes to the background (keeping its state)
   const CAP = window.Capacitor, AppPlugin = CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (CAP.Plugins.App || (CAP.registerPlugin && CAP.registerPlugin('App')));
   const back = { wait: 0, leave() { if (AppPlugin) AppPlugin.minimizeApp(); } };
+  // sharing from a module (src/inapp.js): files are written to the app's cache, then the system share sheet
+  const plugin = (n) => CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (CAP.Plugins[n] || (CAP.registerPlugin && CAP.registerPlugin(n)));
+  const SharePlugin = plugin('Share'), FsPlugin = plugin('Filesystem');
+  async function share(id, d) {
+    try {
+      const files = [];
+      for (const f of d.files || []) files.push((await FsPlugin.writeFile({ path: f.name, data: f.data, directory: 'CACHE' })).uri);
+      const opt = {};
+      if (d.title) opt.title = d.title;
+      if (d.text) opt.text = d.text;
+      if (d.url) opt.url = d.url;
+      if (files.length) opt.files = files;
+      await SharePlugin.share(opt);
+      post(id, 'shared', { id: d.id, ok: true });
+    } catch (e) {
+      const msg = String((e && e.message) || e);
+      post(id, 'shared', { id: d.id, ok: false, abort: /cancel/i.test(msg), err: msg });
+    }
+  }
   function onBack() {
     if (back.wait) return;
     if (!frame[current]) { back.leave(); return; }
