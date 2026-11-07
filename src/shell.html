@@ -22,15 +22,17 @@
   --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
   --bar-h: 50px;
+  /* system bars: the Android app's values (Capacitor SystemBars, insetsHandling "css"), else the browser's */
+  --in-t: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --in-b: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --in-l: var(--safe-area-inset-left, env(safe-area-inset-left, 0px)); --in-r: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
   color-scheme: dark;
 }
 html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; overscroll-behavior: none; }
 * { -webkit-tap-highlight-color: transparent; }
-#stage { position: fixed; top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px);
-  left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); }
+#stage { position: fixed; top: var(--in-t); bottom: var(--in-b); left: var(--in-l); right: var(--in-r); }
 #stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: var(--bg); visibility: hidden; }
 #stage iframe.on { visibility: visible; }
-#tabs { position: fixed; z-index: 10; top: env(safe-area-inset-top, 0px); left: env(safe-area-inset-left, 0px); height: var(--bar-h);
+#tabs { position: fixed; z-index: 10; top: var(--in-t); left: var(--in-l); height: var(--bar-h);
   display: flex; align-items: center; gap: 4px; padding: 0 6px 0 8px; transition: opacity 0.15s; }
 #tabs .mark { display: flex; margin-right: 4px; }
 #tabs .mark .logo { width: 26px; height: 26px; }
@@ -133,11 +135,24 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
     if (d.ecgApp === 'ready') { post(id, 'tabs', { w: tabsWidth() }); post(id, id === current ? 'show' : 'hide'); }
     if (d.ecgApp === 'chrome') { chrome[id] = !!d.on; syncChrome(); }
     if (d.ecgApp === 'go' && BY[d.module]) open(d.module, typeof d.hash === 'string' ? d.hash : '');
+    if (d.ecgApp === 'back' && id === current && back.wait) { clearTimeout(back.wait); back.wait = 0; if (!d.handled) back.leave(); }
   });
+
+  // Android back button (in the app): the showing module closes what is open (menu, page, full-screen view) or goes
+  // to its start; when it has nothing to close, the app goes to the background (keeping its state)
+  const CAP = window.Capacitor, AppPlugin = CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (CAP.Plugins.App || (CAP.registerPlugin && CAP.registerPlugin('App')));
+  const back = { wait: 0, leave() { if (AppPlugin) AppPlugin.minimizeApp(); } };
+  function onBack() {
+    if (back.wait) return;
+    if (!frame[current]) { back.leave(); return; }
+    back.wait = setTimeout(() => { back.wait = 0; back.leave(); }, 600);   // (a module still loading does not answer)
+    post(current, 'back');
+  }
+  if (AppPlugin) AppPlugin.addListener('backButton', onBack);
   addEventListener('resize', sendWidth);
   if (document.fonts) document.fonts.ready.then(sendWidth);   // (the tab names are wider once the font is in)
 
-  window.ECGAppShell = { open, MODULES, frame, get current() { return current; } };   // (automated tests)
+  window.ECGAppShell = { open, onBack, MODULES, frame, get current() { return current; } };   // (automated tests)
   open(store.get() || MODULES[0].id);
 })();
 </script>

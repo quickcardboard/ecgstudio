@@ -772,6 +772,18 @@
     $('rchips').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b && !justShown()) selectRow(+b.dataset.i); });
     $('report').addEventListener('click', () => { if (!justShown()) reportProblem(); });
     // (in the app: tapping the Training tab while it is showing returns to Training home; on the website: the menu)
+    // Android back (in the app): close what is open, then back to Training home; at home the app leaves
+    if (INAPP) window.ECGInApp.listen('back', () => {
+      const pg = [...document.querySelectorAll('.page:not(#home)')].find((x) => !x.hidden);
+      let handled = true;
+      if (!$('menu').hidden) $('menu').hidden = true;
+      else if (pg) pg.hidden = true;
+      else if (st.fs) setFs(false);
+      else if (st.phase === 'region') endRegion(false);
+      else if ($('home').hidden) goHome();
+      else handled = false;
+      window.ECGInApp.post('back', { handled });
+    });
     if (INAPP) window.ECGInApp.listen('reselect', () => { $('menu').hidden = true; for (const pg of document.querySelectorAll('.page:not(#home)')) pg.hidden = true; if ($('home').hidden) goHome(); });
     $('btnTrain').addEventListener('click', () => startMode('train'));
     $('btnDaily').addEventListener('click', () => startMode('daily'));

@@ -2924,6 +2924,12 @@
     if (INAPP) {   // the app shell: pause everything while another module shows
       window.ECGInApp.listen('hide', () => { ui.offstage = true; });
       window.ECGInApp.listen('show', () => { ui.offstage = false; });
+      // Android back: close the open layer (menu, sheet, full-screen view, help), as the browser's back does here
+      window.ECGInApp.listen('back', () => {
+        let handled = true;
+        if (layers.length) history.back(); else if (!$('guide').hidden) hideGuide(); else handled = false;
+        window.ECGInApp.post('back', { handled });
+      });
     }
     $('btnSavePng').addEventListener('click', saveEcgPng);
     $('guideClose').addEventListener('click', hideGuide);

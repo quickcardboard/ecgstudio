@@ -99,6 +99,10 @@ Rough sizes are working sessions. Each phase ends with a phone test (and a table
 For phase 4: on tablets (≥ 744 px wide) the simulator still shows its website tablet layout; the app should use the phone
 layout there (decided), with more leads in the ECG views.
 
+**Phase 7 status (2026-11-07): started.** Android project in `app/` (Capacitor 8), icons, splash, offline fonts, back button,
+debug APK built by GitHub Actions. Next: release signing and the AAB, then the closed test (the tutorial, phase 5, during it).
+**The website's Training stays unlocked for testers until the app is published.**
+
 ### Play Console notes
 
 - **New personal developer accounts must run a closed test first:** at least 12 testers opted in for 14 days in a row before

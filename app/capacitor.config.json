@@ -1,0 +1,16 @@
+{
+  "appId": "com.ecgstudio.app",
+  "appName": "ECG Studio",
+  "webDir": "www",
+  "backgroundColor": "#0b131a",
+  "android": {
+    "backgroundColor": "#0b131a"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover",
+      "style": "DARK"
+    }
+  }
+}
