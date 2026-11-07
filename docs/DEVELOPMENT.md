@@ -1753,3 +1753,22 @@ The median beat and the blind read were under 3%. AF/flutter/induced tachycardia
   (× 1.25 with two kinds), and the generator takes that share off the target before choosing the number of findings.
   The hardest ECG is 2682 (four findings, tremor + mains at level 1). Simulated settling is unchanged:
   95% → 2600, 90% → 2320, 85% → 2080, 80% → 1860, 70% → 1675. Professor (2100) needs ~86%.
+
+## training-1 round 17: testers' round 3
+
+- Home bar over the keyboard (installed iOS web app, sometimes): `#app` was sized by `100dvh`, which an installed iOS web
+  app sometimes reports taller than the screen on a cold start. Now it is pinned to the screen's edges (`position: fixed; inset: 0`).
+  The bottom areas keep clear of the home bar themselves, so `#app` adds no bottom padding: when the app did fit, that padding
+  had doubled the gap. The bottom area is re-measured on `pageshow` and `visualViewport` resize.
+- Complete AV block: the atrial rate was always 72 against the 48/min junctional escape, exactly 3:2, so P waves fell in the
+  same two places instead of marching through. The atrial rate is now 60–100, skipping rates within 4% of 1, 1.5, 2 or 2.5×
+  the escape (70–74 and 93–99 are skipped).
+- Two identical ECGs in a row: the queued ECGs are requested at the same time from the same history (two workers), so both
+  could draw the same combination. Now the ECG on screen and the queued ones count as just seen in `adjustments()`, and an
+  arriving ECG with the same rhythm family and abnormalities as the one on screen, one in the queue or one of the last two
+  answered is dropped and made again (up to 3 times running).
+- V6 vs V5 (not fixed; open): V6's chest-lead vector is 0.64 long against V5 1.14 and V4 1.67 (`leadDistExp` 1.5 over 80 → 118 mm),
+  and V6 lies ~60° from the T vector. Normal T is V4 6.9, V5 3.8, V6 1.2 mm. After an LAD infarct (48 h) T is V4 −11.9,
+  V5 −6.6, V6 −0.7 mm. The heart-vector share (`precordialDipoleW` 0.7–0.8) and `leadDistExp` 0.6–1.0 barely change V6.
+  The bundled solved torso has limb fields only, so `chestTorso` falls back. A real fix needs the chest electrodes solved
+  on the torso (`tools/torso_v2.py`), then the chest-lead ischaemia patterns revalidated.

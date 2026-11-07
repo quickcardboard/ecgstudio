@@ -55,7 +55,12 @@
   // (two workers where the phone has the cores: the next ECGs are made side by side, and a slow or rejected one
   // does not hold up the other; each builds its own heart)
   const N_WORKERS = (navigator.hardwareConcurrency || 2) >= 4 ? 2 : 1;
-  const gen = { workers: [], ready: false, queue: [], pending: 0, waiting: false, req: 0, failed: 0, cb: {}, tag: {}, by: {}, onReady: [] };
+  const gen = { workers: [], ready: false, queue: [], pending: 0, waiting: false, req: 0, failed: 0, dups: 0, cb: {}, tag: {}, by: {}, onReady: [] };
+  // an ECG's combination: rhythm (the sinus family as one) and its abnormalities, from a recipe or a history entry's keys
+  const SIN_FAM = ['sinus', 'sinusBrady', 'sinusTachy'];
+  const sigOfKeys = (ks) => [SIN_FAM.includes(ks[0]) ? 'sinus' : ks[0], ...ks.slice(1).slice().sort()].join('+');
+  const sigOf = (rec) => (rec ? sigOfKeys([rec.rhythm, ...rec.abn.map((a) => a.k)]) : '');
+  const recentSigs = () => [st.item && sigOf(st.item.recipe), ...gen.queue.map((q) => sigOf(q.recipe)), ...st.hist.slice(-2).map((h) => sigOfKeys(h.keys || []))].filter(Boolean);
   // the ready worker with the least work (null: none ready yet); idle: only one with nothing to do
   const pickWorker = (idle) => { const r = gen.workers.filter((w) => w.ready && (!idle || !w.busy)).sort((a, b) => a.busy - b.busy); return r[0] || null; };
   function post(w, msg) { w.busy++; gen.by[msg.req] = w; w.w.postMessage(msg); }
@@ -99,7 +104,10 @@
     if (tag !== practiceTag()) { fill(); return; }   // (asked for another practice mode)
     if (d.err) console.warn('training generator', d.err);
     if (d.item && !checkVocab(d.item)) d.item = null;
-    if (d.item) { gen.failed = 0; gen.queue.push({ ...decode(d.item), tag }); console.debug(`training: ${d.item.title} (${Math.round(d.ms)} ms)`); }
+    // (two ECGs are made at once from the same history, so both can draw the same combination: one that repeats the
+    // ECG on screen, one in the queue or one of the last two answered is dropped and made again, up to 3 times running)
+    if (d.item && gen.dups < 3 && recentSigs().includes(sigOf(d.item.recipe))) { gen.dups++; console.debug(`training: dropped a repeat (${d.item.title})`); fill(); return; }
+    if (d.item) { gen.failed = 0; gen.dups = 0; gen.queue.push({ ...decode(d.item), tag }); console.debug(`training: ${d.item.title} (${Math.round(d.ms)} ms)`); }
     else gen.failed++;
     if (gen.waiting && gen.queue.length) { gen.waiting = false; nextItem(); }
     fill();
@@ -122,7 +130,10 @@
   const GEN_ID = { sinus: 'sinus', sinusBrady: 'sinusBrady', sinusTachy: 'sinusTachy', stemi: 'ste', oldmi: 'qwaves', recent: 'qwaves', hyper: 'hyperacute', narrow: 'std', peri: 'pericarditis' };
   function adjustments() {
     const adj = {}, mul = (k, f) => { adj[k] = (adj[k] === undefined ? 1 : adj[k]) * f; };
-    const recent = st.hist.slice(-20), SIN = ['sinus', 'sinusBrady', 'sinusTachy'];
+    const SIN = ['sinus', 'sinusBrady', 'sinusTachy'];
+    // (the ECG on screen and those queued count as just seen)
+    const inFlight = [st.item, ...gen.queue].filter((x) => x && x.recipe).map((x) => ({ keys: [x.recipe.rhythm, ...x.recipe.abn.map((a) => a.k)] }));
+    const recent = [...st.hist.slice(-20), ...inFlight].slice(-20);
     recent.forEach((h, i) => {
       const near = recent.length - i <= 8, ks = h.keys || [];
       for (const k of ks) if (!SIN.includes(k)) mul(k, near ? 0.15 : 0.6);
@@ -789,6 +800,9 @@
     });
     for (const b of document.querySelectorAll('.page [data-close]')) b.addEventListener('click', () => { b.closest('.page').hidden = true; });
     addEventListener('resize', () => requestAnimationFrame(sizeBottom));
+    // (an installed iOS web app can settle its screen size and home-bar inset only after the first layout)
+    addEventListener('pageshow', () => requestAnimationFrame(sizeBottom));
+    if (window.visualViewport) visualViewport.addEventListener('resize', () => requestAnimationFrame(sizeBottom));
     window.ECGTraining = { st, gen, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, startMode, goHome, VOCAB, BY_ID, suggest: () => suggestions().list.map((x) => x.t.name) };   // (automated tests)
     startWorker(); renderHome(); syncFs(); requestAnimationFrame(sizeBottom);   // (the heart is built in the background while the home screen shows)
     if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(drawAll));

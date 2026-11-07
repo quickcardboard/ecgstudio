@@ -37,7 +37,9 @@
     mobitz1: { w: 2, open: true, rating: 150, block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
     mobitz2: { w: 1.2, open: true, rating: 180, block: ['HIS', 'mobitz2', { n: 4 }], read: (r) => /Mobitz II /.test(r) },
     avb2to1: { w: 0.6, open: true, rating: 200, block: ['AVN', 'two-to-one'], read: (r) => /2:1 AV block/.test(r) },
-    chb: { w: 0.9, open: true, rating: 120, block: ['AVN', 'complete'], read: (r) => /complete AV block/.test(r) },
+    // (the atrial rate must not be a whole or half multiple of the 48/min junctional escape: at 72 or 96 the P waves
+    // fall in the same places beat after beat instead of marching through)
+    chb: { w: 0.9, open: true, rating: 120, rate: [60, 100], rateOk: (x) => ![1, 1.5, 2, 2.5].some((q) => Math.abs(x / 48 - q) < 0.04 * q), block: ['AVN', 'complete'], read: (r) => /complete AV block/.test(r) },
     vt: { w: 1.2, tachy: true, rating: 120, link: 'a=vt', vt: true, read: (r) => r === 'ventricular tachycardia' },
     vf: { w: 0.8, tachy: true, rating: 40, link: 'a=vf', vf: true, start: (S) => { S.run(2000); S.startArrhythmia('vf'); }, read: (r) => r === 'ventricular fibrillation' },
     // sinus arrest for the whole strip with an escape rhythm: junctional (narrow, retrograde P hidden after the QRS)
@@ -214,7 +216,9 @@
       if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list) && !(k === 'narrow' && x === 'mLAD') && !(k === 'hyper' && /LCx|pRCA/.test(x))); if (!sites.length) return null; a.site = sites[Math.floor(rand() * sites.length)]; }   // (no hyperacute T at a circumflex site: its T barely grows; nor at the proximal RCA, whose inferior T stays under 5 mm)
       return a;
     }).filter(Boolean);
-    const rec = { rhythm, abn, seed: 1 + Math.floor(rand() * 1e6), rate: R.rate ? Math.round(R.rate[0] + rand() * (R.rate[1] - R.rate[0])) : 72 };
+    let rate = 72;
+    if (R.rate) for (let i = 0; i < 50; i++) { rate = Math.round(R.rate[0] + rand() * (R.rate[1] - R.rate[0])); if (!R.rateOk || R.rateOk(rate)) break; }
+    const rec = { rhythm, abn, seed: 1 + Math.floor(rand() * 1e6), rate };
     if (art) rec.art = art;
     return rec;
   }
