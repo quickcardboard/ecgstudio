@@ -236,7 +236,10 @@
     // keeps III at most ~5–6 mm, aVF ~4–5, II ~3–4 at 1 h (and less R loss in the injured wall). It applies to LV
     // muscle only (the RV keeps its V1 elevation). Necrosis, Q waves and the time course are unchanged.
     occlusionInj: { LAD: 1, LCx: 1, RCA: 0.33, LM: 1 },
-    occlusionInjRV: 1.8,   // (× occlusionInj in RV muscle: ~0.6)
+    occlusionInjRV: 1.8,
+    // BANDAGE, not a fix (with cavityWindowT): the late T inversion (APD prolongation in and around the infarct, from ~6 h)
+    // per artery family; see cavityWindowT and docs/DEVELOPMENT.md Round 47
+    occlusionLate: { LAD: 0.5, LCx: 1, RCA: 1, LM: 1 },   // (× occlusionInj in RV muscle: ~0.6)
     // non-specific ST-T changes (Sim.setNonspecificSTT): the transmural repolarisation gradient that makes the
     // T wave upright is reduced in patches that follow no artery (a smooth pattern from the Sim's seed), by up
     // to nssttGrad of it, and the plateau sags a little (nssttSag): flat or slightly inverted T waves and
@@ -245,6 +248,7 @@
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
+    cavityWindowT: 0.25,   // BANDAGE, not a fix: the cavity window's share during the ST-T (full during the QRS). See below and docs/DEVELOPMENT.md Round 47
     cavityWindow: 0.45,    // >0: a chest electrode over a transmural scar sees the LV cavity potential through it (Wilson): V += k·Ω·(φ_cavity − V), Ω = scar share of the electrode's view of the LV epicardium
     scarWindow: 0.5,       // old scar as an electrical window: its would-be activation counted inverted (0 = silent scar)
     scarRefractory: 200,   // ms between phantom activations of a scar cell
@@ -1796,7 +1800,8 @@
       for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
       const ins = this._makeInsult('occlusion', aff, this.P.ischBorderMm);
       ins.node = node; ins.branch = M.coronary.nodes[node].branch;
-      { const oi = this.P.occlusionInj, fam = this._family(ins.branch); ins.injScale = oi ? (typeof oi === 'number' ? oi : oi[fam] === undefined ? 1 : oi[fam]) : 1; }
+      { const oi = this.P.occlusionInj, fam = this._family(ins.branch); ins.injScale = oi ? (typeof oi === 'number' ? oi : oi[fam] === undefined ? 1 : oi[fam]) : 1;
+        const ol = this.P.occlusionLate; ins.lateScale = ol ? (typeof ol === 'number' ? ol : ol[fam] === undefined ? 1 : ol[fam]) : 1; }
       ins.nodal = { san: M.isDownstream(M.coronary.sanNode, node), avn: M.isDownstream(M.coronary.avnNode, node) };
       return this._addInsult(ins);
     }
@@ -1963,7 +1968,7 @@
 
     // Cell state h hours after onset for severity s and transmural depth tm.
     // Returns {apd, vRest, amp, cv, dead} multipliers/values.
-    _ischemicState(s, tm, h, kind, k = 1) {   // k: occlusionInj of the artery family (the early ST/T sources: injury current, K-ATP shortening)
+    _ischemicState(s, tm, h, kind, k = 1, kl = 1) {   // k: occlusionInj of the artery family (the early ST/T sources: injury current, K-ATP shortening)
       const P = this.P, sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
       if (kind === 'subendo') s *= 1 - sm((tm - 0.12) / 0.2);                // confined to the inner wall
       if (s <= 0.01) return null;
@@ -1976,7 +1981,7 @@
       // prolonged repolarisation in the surviving border: T inversion from ~6 h, deepest at 1–3 days,
       // fading over the following weeks (T waves upright again in an old infarct)
       const late = sm((h - P.ischLateH) / 3) * (1 + 0.8 * sm((h - 12) / 30)) * (1 - P.ischTRecover * sm((h - 200) / 400));
-      if (kind !== 'subendo') apd *= 1 + P.ischApdLate * Math.min(1, s + 0.3) * late;   // (inner-wall prolongation would only steepen the normal gradient: tall T)
+      if (kind !== 'subendo') apd *= 1 + P.ischApdLate * Math.min(1, s + 0.3) * late * kl;   // (inner-wall prolongation would only steepen the normal gradient: tall T)
       // necrosis advances from endocardium to epicardium (wavefront phenomenon)
       // (the innermost layer, fed from the cavity blood, survives with the Purkinje junctions)
       const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : P.ischFrontMax);
@@ -2050,7 +2055,7 @@
         // it as mid-wall (it dies through its thickness), subendocardial patches
         // take its inner layers (everything off the epicardial surface)
         const c = ins.cells[q], rv = A.label[c] === LAB.RV, tm = rv ? (ins.kind === 'subendo' ? (A.epi[c] ? 1 : 0.05) : 0.5) : A.tm[c] < 0 ? 0.5 : A.tm[c];
-        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale);   // (RV muscle less reduced: the V1 elevation of RV involvement)
+        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale, ins.lateScale === undefined ? 1 : ins.lateScale);   // (RV muscle less reduced: the V1 elevation of RV involvement)
         if (!st) continue;
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);
@@ -2086,7 +2091,7 @@
       const lateF = sm((h - P.ischLateH) / 3) * (1 + 0.8 * sm((h - 12) / 30)) * (1 - P.ischTRecover * sm((h - 200) / 400));
       if (lateF > 0) for (const ins of this.insults) if (ins.halo) for (let q = 0; q < ins.halo.length; q++) {
         const c = ins.halo[q]; if (best.has(c)) continue;
-        const f = 1 + P.ischHaloLate * ins.haloW[q] * lateF;
+        const f = 1 + P.ischHaloLate * ins.haloW[q] * lateF * (ins.lateScale === undefined ? 1 : ins.lateScale);
         if (this.apdMax0[c] * f > this.apdMax[c]) { this.apdMax[c] = this.apdMax0[c] * f; this._ischCells.add(c); }
       }
       this._uncoupleDead();
@@ -2729,10 +2734,17 @@
       // (b) the near-field electrode potential vs Wilson's central terminal,
       // which keeps each lead sensitive to the tissue beneath it.
       const wct = (v(0) + v(1) + v(2)) / 3, P = this.P, dir = this.M.leadDir;
+      // BANDAGE, not a fix (cavityWindowT): the cavity window is there for the Q waves of a transmural scar, but it
+      // also carried the cavity's inverted T into V3–V5, giving −12 to −16 mm anterior T inversion at 2–30 days,
+      // and V6 (no window) looked unrelated to V5. Full strength during the QRS, then cavityWindowT of it from 15 ms
+      // after the last ventricular activation (40 ms ramp) until the next QRS. The real fix is the chest leads' forward
+      // model (a solved-torso chest field with the infarct patterns re-tuned).
+      let cavF = 1;
+      if (this._cavOmega && P.cavityWindowT < 1 && this._curV) { const end = this._curV.last + 15; if (t > end) cavF = 1 - Math.min(1, (t - end) / 40) * (1 - P.cavityWindowT); }
       for (let k = 0; k < 6; k++) {
         const u = dir[k], proj = D[0] * u[0] + D[1] * u[1] + D[2] * u[2];
         L[6 + k] = P.precordialGain * (P.precordialDipoleW * P.precordialDipoleGain * proj + (1 - P.precordialDipoleW) * (v(3 + k) - wct));
-        if (this._cavOmega) { const om = this._cavOmega[k]; L[6 + k] = (1 - om) * L[6 + k] + om * P.precordialGain * (v(this.M.cavityE) - wct); }
+        if (this._cavOmega) { const om = this._cavOmega[k] * cavF; L[6 + k] = (1 - om) * L[6 + k] + om * P.precordialGain * (v(this.M.cavityE) - wct); }
       }
       }
       // recording chain: 2nd-order Butterworth low-pass per lead (ECG machine filter)

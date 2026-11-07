@@ -57,6 +57,10 @@ Known limitations (rebuild-1 rounds 10–17 in docs/DEVELOPMENT.md):
 - acute marginal (RV branch) occlusion gives inferior ST elevation and, at 30 days, inferior Q instead of
   the V1/V4R pattern of isolated RV infarction
 - VT/VF slow the simulation on slower machines
+- chest leads: V3–V5 are dominated by the near field (and the cavity window over a scar), V6 (8 cm from the heart) by the
+  heart vector, so V6 can look unrelated to V5 (normal T V4/V5/V6 6.9/3.8/1.2 mm). Round 47's `cavityWindowT` and
+  `occlusionLate` are a BANDAGE on the deep post-infarct T inversion, not a fix. The fix is a solved-torso chest field
+  (`export_heart_torso.js` + `ANISO=1 tools/torso_v2.py`, ~1 min) with the infarct Q/T patterns re-tuned (planned)
 
 ## Conventions
 

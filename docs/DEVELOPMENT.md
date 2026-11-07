@@ -1772,3 +1772,35 @@ The median beat and the blind read were under 3%. AF/flutter/induced tachycardia
   V5 −6.6, V6 −0.7 mm. The heart-vector share (`precordialDipoleW` 0.7–0.8) and `leadDistExp` 0.6–1.0 barely change V6.
   The bundled solved torso has limb fields only, so `chestTorso` falls back. A real fix needs the chest electrodes solved
   on the torso (`tools/torso_v2.py`), then the chest-lead ischaemia patterns revalidated.
+
+## Round 47: post-infarct T inversion trimmed (BANDAGE, not a fix); the V6 problem
+
+**This is a bandage.** Testers saw V6 unlike V5, and giant T inversion after anterior infarcts (V4 −12 to −16 mm at 2–30 days).
+
+**Diagnosis.** Each chest lead is a heart-vector projection plus the electrode's near field. Over a scar it also includes the
+cavity window. V3–V5 lie 19–39 mm from the ventricle and V6 77 mm, so V3–V5 follow the tissue under them and V6 follows the
+heart vector. V6's dipole vector is short (0.64 against V5 1.14, V4 1.67) and sits ~60° from the T vector. Normal T is
+V4/V5/V6 6.9/3.8/1.2 mm. Neither `precordialDipoleW` (0.55 → 0.8) nor `leadDistExp` (1.5 → 0.6) changes V6.
+
+**Solved-torso test.** The chest field re-solved for heartRotation 17 (`export_heart_torso.js` + `ANISO=1 torso_v2.py`, 3 mm,
+52 s; Burger triangle I −16°, II 72°, III 104°) and used as the local field (`chestTorso`). The anterior T at 2 days becomes
+realistic (V4 −12 → −3 mm), and the normal ECG is unchanged. But V6 is still unlike V5, and the lateral (pLCx) infarct loses its
+V5/V6 Q waves. Adopting it means re-tuning the infarct Q/T patterns and revalidating every chest-lead finding: a dedicated round.
+The field is not bundled (it would add ~2.8 MB to each page).
+
+**Bandage.**
+- `cavityWindowT` 0.25: the cavity window keeps full strength during the QRS (the anterior Q waves) but 0.25 of it from 15 ms
+  after the last ventricular activation (40 ms ramp) until the next QRS. Most of the deep anterior T came from the cavity's
+  inverted T seen through the scar: without the window, pLAD at 48 h has V4 T −5.5 instead of −11.9.
+- `occlusionLate` LAD 0.5: the late APD prolongation (in the infarct and its halo) of LAD occlusions at half strength.
+
+| T at 48 h (mm, V4 / V5) | Before | After |
+|---|---|---|
+| pLAD | −11.9 / −6.6 | −3.5 / −1.1 |
+| mLAD | −15.9 / −7.8 | −6.0 / −2.2 |
+
+pLCx goes from V5/V6 −6.1/−10.9 to −3.7/−6.2. The acute patterns (1 h) and RCA are unchanged. Reader 47/57 as before;
+old LAD infarcts no longer read a false "long QT". fullcheck is identical (iErr 4). Training recent/old infarcts pass at every site.
+
+**Still open (the real fix):** V6 vs V5, and the upright giant T in V4–V5 of an inferior (mRCA) infarct at 2–30 days
+(V4 +16 mm), both from the chest forward model.
