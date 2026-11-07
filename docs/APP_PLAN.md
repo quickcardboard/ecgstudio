@@ -1,7 +1,7 @@
 # ECG Studio app: plan (Android first, Capacitor)
 
-Draft for the author's review, 2026-11-07. Decisions already made are marked **Decided**. The questions for the author
-are at the end, and phase 0 needs those answers. Nothing here is built yet.
+Draft for the author's review, 2026-11-07. Decisions already made are marked **Decided**. The phase 0 answers are recorded
+at the end; one open choice is left there (how to switch between modules). Nothing here is built yet.
 
 ## Decided
 
@@ -13,6 +13,16 @@ are at the end, and phase 0 needs those answers. Nothing here is built yet.
   - Testers get Play Console promo codes.
 - **Orientation:** portrait only, phones and tablets. Tablets should show the whole 12-lead without paging if there is room.
 - **The app does not need the simulator's desktop layout.**
+- **Name and id:** "ECG Studio" on Google Play, package id `com.ecgstudio.app` (permanent).
+- **Developer account:** personal (already created), so a closed test of at least 12 testers for 14 days in a row comes before production.
+- **Price:** one-time Training purchase of about US$4.99–9.99, with Google Play's automatic local prices per country.
+- **Website after launch:** the simulator only (it works well on a big screen), with a prompt that advertises the app for
+  Training and the other modules. Training leaves the website once the app is out.
+- **Layouts stay as they are.** The app copies the current phone layouts exactly (the simulator's and Training's, already
+  portrait). The only change is how users move between modules.
+- **Module navigation:** every module gets equal visual weight, and there is **no start screen** (an extra step). Training is no
+  longer behind the ⋯ menu, and its "Back to the ECG Studio simulator" button goes.
+- **Tablets:** only the ECG views expand (the full 12-lead without paging); everything else as on phones.
 - **V6 / chest-lead engine work waits** until after the app work (Round 47 is a bandage; reminder set for 2026-11-14).
 
 ## Branch, not a new repository (recommendation)
@@ -37,7 +47,7 @@ If so, say so: a private repository can pull this one in as a submodule.
 Today the simulator (`index.html`, 3.7 MB) and Training (`training/index.html`, 3.0 MB) are separate pages, each carrying its own
 copy of the engine and anatomy. The app gets one shell page:
 
-- **Shell:** start screen, shared top toolbar, menu (Help, Tutorial, Settings, About, Restore purchases), entitlement service, router.
+- **Shell:** module switcher (no start screen; the app opens on the last module used), shared top toolbar, menu (Help, Tutorial, Settings, About, Restore purchases), entitlement service, router.
 - **Modules,** each registered with `{ id, title, icon, entitlement: 'free' | productId, mount(el), unmount(), help, tutorial }`:
   - `simulator`: free.
   - `training`: Train, Reviews and the skill drills are premium. Daily ECG and Statistics are free.
@@ -73,11 +83,11 @@ Rough sizes are working sessions. Each phase ends with a phone test (and a table
 
 | # | Phase | What it delivers | Done when |
 |---|---|---|---|
-| 0 | Decisions and design | Answers to the questions below; the author's mock-ups (start screen, toolbar, simulator phone layout, tablet) | Mock-ups agreed |
+| 0 | Decisions and design | Answers to the questions below; the module switcher chosen | Switcher agreed |
 | 1 | Shell and modules (2–3) | `app-1` branch; one shell page; module registry; simulator and training mounted as modules; shared toolbar; `build.py --app` | Both modules run in one page in a phone browser |
-| 2 | Start screen and toolbar (1–2) | Equal-weight module tiles (locked state, daily ECG card), the standard toolbar in every module, menu | Matches the mock-ups |
-| 3 | Simulator, phone first (3–5) | Portrait phone layout from the existing phone work (`mobile-1`); desktop-only styles dropped from the app build | All simulator controls usable one-handed in portrait |
-| 4 | Tablet portrait (1–2) | Layout at ≥ 600 dp wide; full 12-lead without paging in Training; larger simulator view | Checked on a 10" tablet viewport (and a real tablet) |
+| 2 | Module switcher (1–2) | The chosen switcher in every module (locked state for paid modules), menu; Training's back-to-simulator button removed | Agreed by the author on a phone |
+| 3 | Simulator in the app (1–2) | The current phone layout, unchanged; desktop-only styles dropped from the app build | Identical to the phone site apart from navigation |
+| 4 | Tablet portrait (1) | Expanded ECG views at ≥ 600 dp wide (full 12-lead without paging); nothing else changes | Checked on a 10" tablet viewport (and a real tablet) |
 | 5 | First-run tutorial (1–2) | Skippable coach marks per module, replay from the menu, progress stored locally | First launch walks through; replay works |
 | 6 | Entitlements and paywall (2) | Entitlement service; locked tiles; purchase sheet; Restore purchases; web unlock for testers | Buying, restoring and the locked states work with Play test accounts |
 | 7 | Capacitor Android (2–3) | `app/` project (package id, icons, splash, insets, back button, offline fonts); debug and release builds | Runs on a real Android phone offline |
@@ -92,13 +102,30 @@ Rough sizes are working sessions. Each phase ends with a phone test (and a table
   is still required (it can live on ecgstudio.app).
 - **Medical content:** an educational-use statement belongs in the listing and in About (not a diagnostic device).
 
-## Questions for the author (phase 0)
+## Phase 0 answers (2026-11-07)
 
-1. **The website after launch.** Does ecgstudio.app keep Training free and unlocked (a way around the purchase)? Should it show
-   only the simulator plus the daily ECG? Or should it stay a free preview with a "Get the app" prompt?
-2. **Names:** the app name on Google Play (e.g. "ECG Studio") and the package id (e.g. `app.ecgstudio`; it cannot change later).
-3. **Price** of the Training module (and the region pricing, if any).
-4. **Design:** will you provide mock-ups for the start screen, toolbar, phone simulator and tablet layouts? Or should I make
-   clickable prototypes for you to mark up?
-5. **Developer account:** personal or organisation (an organisation account skips the 12-tester rule but needs a D-U-N-S number).
-6. **The simulator's phone work on `mobile-1`:** reuse it as the starting point for phase 3, or start the phone layout fresh from the mock-ups?
+1. **Website:** simulator only; advertise the app for Training and later modules.
+2. **Names:** "ECG Studio", `com.ecgstudio.app`.
+3. **Price:** agreed (one-time, about US$4.99–9.99, automatic local prices).
+4. **Design:** keep all current layouts; only the navigation between modules changes, with equal weight per module and
+   no start screen. Tablets: expanded ECG views only.
+5. **Account:** personal, already created.
+6. **Phone layout:** the app copies the current phone layout exactly, apart from the module navigation.
+
+### Open: how to switch modules
+
+Constraints seen on the phone layouts: the simulator already has a bottom tab bar (Rhythm, Blocks, View, Ischemia,
+Conditions), and Training's bottom area holds the answer box and keyboard. A second bar at the bottom would clash with both,
+so the switcher belongs at the top.
+
+- **A (recommended): module tabs in the top header.** The "ECG Studio" title becomes tabs: logo, then *Simulator* and *Training*
+  side by side, each module's own buttons (1×, pause, ⋯) on the right. Up to 3–4 short names fit at phone width; past that the
+  strip scrolls sideways with a fade at the edge (tap only, no swipe between modules, because swipes already page the ECG).
+- **B: a thin module strip above the header.** Same tabs on their own row, full width, so they never compete with the module's
+  buttons. Scales better; costs about 36 px of height.
+- **C: icon tabs** (icon over a short label, as in the simulator's bottom bar) in the header: fits 5–6 modules, but small labels.
+- Not recommended: a bottom bar (clashes as above), a side drawer or a title drop-down (both hide the modules, so they lose equal weight).
+
+Either way: each module keeps its state when you switch (the simulator pauses while hidden); a paid module shows a small lock
+and opens its preview and purchase sheet; Training's **Model** button switches to the Simulator tab with that heart loaded,
+and the Training tab returns to the same ECG.
