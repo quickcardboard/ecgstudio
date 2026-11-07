@@ -37,7 +37,7 @@ the session that wrote this (phone screenshots 1080×1920; the 512×512 icon is 
 > patients.
 
 **App icon**: `icons/logo/play-store-512.png`.
-**Feature graphic** (1024×500): `feature-graphic.png` (from this session).
+**Feature graphic** (1024×500): `feature-graphic.png` (from this session): logo, "ECG Studio", "3D Heart Simulator / Learn, Explore, Practice".
 **Phone screenshots** (2–8, 1080×1920): the six `1-…` to `6-…` PNGs (from this session).
 **Tablet screenshots**: optional; leave until the tablet layout (phase 4).
 
@@ -45,7 +45,7 @@ the session that wrote this (phone screenshots 1080×1920; the 512×512 icon is 
 
 - **App category:** Education (Medical also fits; Education keeps it clearly a learning tool).
 - **Tags:** pick the closest offered (e.g. Medical education, Science).
-- **Email:** required and shown publicly on the listing. **Website:** https://ecgstudio.app
+- **Email:** tlioudevelop@gmail.com (shown publicly). **Website:** https://ecgstudio.app
 
 ## Policy → App content
 
