@@ -1830,3 +1830,14 @@ Training keep their phone layouts exactly and the website pages stay as they are
 Checked in Playwright (390×844 and 800×1280): switching, the animation, Model, the tabs hiding over Help/Statistics,
 the simulator stopped while hidden, the reopened module; the website pages unchanged (no `html.inapp`, no errors).
 Not yet: Android back button, offline fonts, PNG export and sharing in the WebView (phase 7); locked tabs (phase 6).
+
+## app-1 round 2: the author's review of the tabs and Training's header
+
+- **Logo** at the far left of the app header, before the tabs (in the shell).
+- **Dark only in the app:** `src/inapp.js` sets `data-theme="dark"` (the simulator's dark theme, whatever the phone's
+  setting). The website still follows the phone.
+- **Training** (website and app):
+  - The header keeps only ‹ (back to Training home) and ⋯: no mode title ("Training", "Daily ECG", ...) and no rating.
+  - The rating shows in the result, under the score percentage ("Rating 1518").
+  - Home: "Prototype · all unlocked" gone; ⋯ on the home header too (menu without the items about an ECG there);
+    "How it works" moved into ⋯ as **Help**; **Statistics** a full-width card under Reviews with a subheading.

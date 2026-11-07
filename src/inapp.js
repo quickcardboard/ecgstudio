@@ -14,6 +14,7 @@
   };
   if (!active) return;
   document.documentElement.classList.add('inapp');
+  document.documentElement.dataset.theme = 'dark';   // (the app is dark only; the website follows the phone's setting)
   addEventListener('message', (e) => {
     const d = e.data;
     if (e.source !== parent || !d || !d.ecgApp) return;

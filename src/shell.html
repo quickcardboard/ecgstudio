@@ -15,7 +15,7 @@
 /* The app shell: one frame per module (simulator, training, later lessons, pacemaker, ...) and the module tabs.
    The tabs sit over the left of the module's own header (the module leaves --tabs-w free there), so the module
    keeps its phone layout and its own buttons on the right. Active tab: icon and name, first; the others follow
-   in a fixed order, icon only on phones and named on tablets. The frames are inset by the system bars, so the
+   in a fixed order, icon only on phones and named on tablets. The logo stays at the far left. The frames are inset by the system bars, so the
    modules see none. */
 :root {
   --bg: #0b131a; --surface: #121d27; --raised: #1b2834; --fg: #e3eaf0; --muted: #93a3b1; --line: #24323f; --accent: #ef5b7a;
@@ -32,6 +32,8 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
 #stage iframe.on { visibility: visible; }
 #tabs { position: fixed; z-index: 10; top: env(safe-area-inset-top, 0px); left: env(safe-area-inset-left, 0px); height: var(--bar-h);
   display: flex; align-items: center; gap: 4px; padding: 0 6px 0 8px; transition: opacity 0.15s; }
+#tabs .mark { display: flex; margin-right: 4px; }
+#tabs .mark .logo { width: 26px; height: 26px; }
 #tabs.off { opacity: 0; pointer-events: none; }
 #tabs button { all: unset; box-sizing: border-box; height: 38px; min-width: 38px; padding: 0 9px; border-radius: 19px; display: flex; align-items: center; justify-content: center; gap: 7px;
   color: var(--muted); cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
@@ -50,7 +52,7 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
 </style>
 </head>
 <body>
-<nav id="tabs" role="tablist" aria-label="Modules"></nav>
+<nav id="tabs" role="tablist" aria-label="Modules"><span class="mark">{{LOGO_SVG}}</span></nav>
 <div id="stage"></div>
 <script>
 (function () {

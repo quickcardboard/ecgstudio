@@ -22,7 +22,8 @@ at the end; including the module switcher. Nothing here is built yet.
   portrait). The only change is how users move between modules.
 - **Module navigation:** every module gets equal visual weight, and there is **no start screen** (an extra step). Training is no
   longer behind the ⋯ menu, and its "Back to the ECG Studio simulator" button goes.
-- **Tablets:** only the ECG views expand (the full 12-lead without paging); everything else as on phones.
+- **Tablets:** the phone layout, with the ECG views showing **more leads** where there is room (the full 12-lead without
+  paging), not a bigger share of the screen; everything else as on phones.
 - **V6 / chest-lead engine work waits** until after the app work (Round 47 is a bandage; reminder set for 2026-11-14).
 
 ## Branch, not a new repository (recommendation)
@@ -87,7 +88,7 @@ Rough sizes are working sessions. Each phase ends with a phone test (and a table
 | 1 | Shell and modules (2–3) | `app-1` branch; one shell page; module registry; simulator and training mounted as modules; shared toolbar; `build.py --app` | Both modules run in one page in a phone browser |
 | 2 | Module switcher (1–2) | Header tabs (active: icon and name at the left; inactive: icons on phones, names on tablets) in every module (locked state for paid modules), menu; Training's back-to-simulator button removed | Agreed by the author on a phone |
 | 3 | Simulator in the app (1–2) | The current phone layout, unchanged; desktop-only styles dropped from the app build | Identical to the phone site apart from navigation |
-| 4 | Tablet portrait (1) | Expanded ECG views at ≥ 600 dp wide (full 12-lead without paging); nothing else changes | Checked on a 10" tablet viewport (and a real tablet) |
+| 4 | Tablet portrait (1–2) | The phone layout at ≥ 600 dp wide, the ECG views showing more leads (full 12-lead without paging), same share of the screen | Checked on a 10" tablet viewport (and a real tablet) |
 | 5 | First-run tutorial (1–2) | Skippable coach marks per module, replay from the menu, progress stored locally | First launch walks through; replay works |
 | 6 | Entitlements and paywall (2) | Entitlement service; locked tiles; purchase sheet; Restore purchases; web unlock for testers | Buying, restoring and the locked states work with Play test accounts |
 | 7 | Capacitor Android (2–3) | `app/` project (package id, icons, splash, insets, back button, offline fonts); debug and release builds | Runs on a real Android phone offline |
@@ -95,7 +96,8 @@ Rough sizes are working sessions. Each phase ends with a phone test (and a table
 
 **Phase 1 status (2026-11-07): done.** Shell, module tabs, both modules framed, `build.py --app`. Preview on a phone:
 `https://raw.githack.com/quickcardboard/ecgstudio/app-1/app/index.html`. Details: docs/DEVELOPMENT.md, app-1 round 1.
-For phase 4: on tablets (≥ 744 px wide) the simulator shows its tablet layout, not the phone one; decide which the app wants.
+For phase 4: on tablets (≥ 744 px wide) the simulator still shows its website tablet layout; the app should use the phone
+layout there (decided), with more leads in the ECG views.
 
 ### Play Console notes
 

@@ -343,10 +343,8 @@
   const rhythmPick = () => st.picked.find((p) => BY_ID[p.id].kind === 'rhythm');
 
   // start a mode from the home screen
-  const MODE_TITLE = { train: 'Training', daily: 'Daily ECG', review: 'Reviews' };
   function startMode(mode, focus = null) {
     st.mode = mode; st.focus = focus; st.reviewRun = mode === 'review' ? dueReviews().map((r) => r.id) : [];
-    $('modeTitle').textContent = mode === 'skill' ? `${SKILL_NAME[focus]} practice` : MODE_TITLE[mode];
     $('home').hidden = true; nextItem(); fill();
   }
   function goHome() { st.mode = null; st.item = null; gen.waiting = false; setLoading(null); renderHome(); $('home').hidden = false; fill(); }
@@ -434,7 +432,6 @@
   }
   function render() {
     measChips($('meas')); measChips($('fsMeas'));
-    $('rating').innerHTML = `<em>Rating</em>${Math.round(overall())}`;
     const ph = st.phase;
     $('answer').hidden = ph === 'result'; $('kbd').hidden = ph !== 'answer'; $('region').hidden = ph !== 'region'; $('result').hidden = ph !== 'result';
     renderPicked();
@@ -688,7 +685,7 @@
   }
   function renderResult() {
     const sc = st.score, pct = Math.round(sc.total * 100);
-    $('rscore').textContent = `${pct}%`;
+    $('rscore').textContent = `${pct}%`; $('rrating').textContent = `Rating ${Math.round(overall())}`;
     $('rbar').style.width = '0%'; requestAnimationFrame(() => { $('rbar').style.width = `${pct}%`; $('rbar').style.background = pct >= 80 ? 'var(--ok)' : pct >= 40 ? 'var(--part)' : 'var(--bad)'; });
     const d = Math.round(st.delta), daily = st.mode === 'daily';
     $('rdelta').textContent = daily ? 'not rated' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`; $('rdelta').className = `delta ${daily ? '' : d >= 0 ? 'up' : 'down'}`;
@@ -779,7 +776,6 @@
     $('btnReviews').addEventListener('click', () => startMode('review'));
     $('hSkills').addEventListener('click', (e) => { const b = e.target.closest('[data-skill]'); if (b) startMode('skill', b.dataset.skill); });
     $('btnStats').addEventListener('click', () => { renderStats(); $('stats').hidden = false; });
-    $('btnHelp').addEventListener('click', () => { $('help').hidden = false; });
     // Model ("show me why"): the simulator on the same scenario; coming back starts a new ECG (progress is saved).
     // In the app: the Simulator tab opens on it, and the Training tab still holds this ECG.
     $('why').addEventListener('click', () => {
@@ -788,10 +784,15 @@
     });
     addEventListener('resize', syncFs);
     $('submit').addEventListener('click', submit);
-    // menu: statistics, help, restart, the simulator
-    const menu = $('menu'), showMenu = (on) => { menu.hidden = !on; $('menuBtn').setAttribute('aria-expanded', String(on)); };
-    $('menuBtn').addEventListener('click', (e) => { e.stopPropagation(); showMenu(menu.hidden); });
-    addEventListener('pointerdown', (e) => { if (!menu.hidden && !e.target.closest('#menu, #menuBtn')) showMenu(false); });
+    // menu (from the ECG's header or the home screen's): statistics, help, restart, the simulator; on the home screen
+    // without the items about an ECG
+    const menu = $('menu'), showMenu = (on) => {
+      const home = !$('home').hidden;
+      for (const b of menu.querySelectorAll('[data-go="home"], [data-go="report"]')) b.hidden = home;
+      menu.hidden = !on; for (const id of ['menuBtn', 'homeMenuBtn']) $(id).setAttribute('aria-expanded', String(on));
+    };
+    for (const id of ['menuBtn', 'homeMenuBtn']) $(id).addEventListener('click', (e) => { e.stopPropagation(); showMenu(menu.hidden); });
+    addEventListener('pointerdown', (e) => { if (!menu.hidden && !e.target.closest('#menu, #menuBtn, #homeMenuBtn')) showMenu(false); });
     menu.addEventListener('click', (e) => {
       const b = e.target.closest('[data-go]'); if (!b) return;
       showMenu(false);
