@@ -105,7 +105,7 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
   function open(id, hash) {
     if (!BY[id]) id = MODULES[0].id;
     const prev = current;
-    if (id === prev && !hash) return;
+    if (id === prev && !hash) { post(id, 'reselect'); return; }   // (the showing module's tab again: back to its start)
     const before = new Map(MODULES.map((m) => [m.id, btn[m.id].getBoundingClientRect().left]));
     current = id; store.set(id);
     for (const m of [BY[id], ...MODULES.filter((x) => x.id !== id)]) tabs.appendChild(btn[m.id]);

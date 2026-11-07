@@ -685,10 +685,11 @@
   }
   function renderResult() {
     const sc = st.score, pct = Math.round(sc.total * 100);
-    $('rscore').textContent = `${pct}%`; $('rrating').textContent = `Rating ${Math.round(overall())}`;
+    $('rscore').textContent = `${pct}%`;
     $('rbar').style.width = '0%'; requestAnimationFrame(() => { $('rbar').style.width = `${pct}%`; $('rbar').style.background = pct >= 80 ? 'var(--ok)' : pct >= 40 ? 'var(--part)' : 'var(--bad)'; });
     const d = Math.round(st.delta), daily = st.mode === 'daily';
-    $('rdelta').textContent = daily ? 'not rated' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`; $('rdelta').className = `delta ${daily ? '' : d >= 0 ? 'up' : 'down'}`;
+    // the rating before this ECG, then the change ("1500+13")
+    $('rdelta').innerHTML = daily ? 'not rated' : `${Math.round(overall() - st.delta)}<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>`;
     $('share').hidden = !daily;
     $('next').textContent = daily || (st.mode === 'review' && !st.reviewRun.length) ? 'Done' : 'Next';
     $('rtime').textContent = `${Math.round(st.time)} s`;
@@ -770,7 +771,8 @@
     $('share').addEventListener('click', () => { if (!justShown()) shareDaily(); });
     $('rchips').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b && !justShown()) selectRow(+b.dataset.i); });
     $('report').addEventListener('click', () => { if (!justShown()) reportProblem(); });
-    $('homeBtn').addEventListener('click', goHome);
+    // (in the app: tapping the Training tab while it is showing returns to Training home; on the website: the menu)
+    if (INAPP) window.ECGInApp.listen('reselect', () => { $('menu').hidden = true; for (const pg of document.querySelectorAll('.page:not(#home)')) pg.hidden = true; if ($('home').hidden) goHome(); });
     $('btnTrain').addEventListener('click', () => startMode('train'));
     $('btnDaily').addEventListener('click', () => startMode('daily'));
     $('btnReviews').addEventListener('click', () => startMode('review'));

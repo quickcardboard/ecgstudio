@@ -71,7 +71,6 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .radar { display: block; width: 100%; max-width: 340px; margin: 0 auto; }
 .empty { color: var(--muted); }
 #result .report { align-self: center; background: transparent; border: 0; color: var(--muted); font-size: 13px; padding: 6px 10px; }
-#homeBtn { font-size: 22px; line-height: 1; padding: 4px 10px 6px; border-radius: 999px; background: var(--surface); }
 .red { color: var(--accent); }
 #home { z-index: 23; }
 #home .phead { justify-content: space-between; }
@@ -200,10 +199,8 @@ html.inapp #home .phead h2, html.inapp .hsim, html.inapp .menu a[href], html.ina
 .scorebar .bar { flex: 1; height: 10px; border-radius: 5px; background: var(--key); overflow: hidden; }
 .scorebar .bar i { display: block; height: 100%; border-radius: 5px; background: var(--ok); transition: width 0.5s; }
 .scorebar b { font: 600 20px/1 var(--font-data); min-width: 54px; }
-.scorebar .rsc { display: flex; flex-direction: column; gap: 4px; min-width: 54px; }
-.scorebar .rsc span { font: 400 11px/1 var(--font-data); color: var(--muted); white-space: nowrap; }
-.scorebar .delta { font: 500 13px/1 var(--font-data); }
-.scorebar .delta.up { color: var(--ok); } .scorebar .delta.down { color: var(--bad); }
+.scorebar .delta { font: 500 13px/1 var(--font-data); color: var(--muted); white-space: nowrap; margin-left: 4px; }
+.scorebar .delta .up { color: var(--ok); } .scorebar .delta .down { color: var(--bad); }
 .scorebar .time { font: 400 12px/1 var(--font-data); color: var(--muted); }
 #rchips { display: flex; flex-wrap: wrap; gap: 6px; }
 #rline { font-size: 14.5px; line-height: 1.35; min-height: calc(3 * 1.35em); padding: 10px 12px; border-radius: 8px; background: var(--surface); border-left: 3px solid var(--accent); }
@@ -235,7 +232,6 @@ body.land #fsClose { display: none; }
 <body>
 <div id="app">
   <header>
-    <button type="button" id="homeBtn" aria-label="Training home">‹</button>
     <span class="hspace"></span>
     <button type="button" id="menuBtn" aria-label="Menu" aria-expanded="false">⋯</button>
   </header>
@@ -257,7 +253,7 @@ body.land #fsClose { display: none; }
        result views use the same space -->
   <div id="bottom">
   <div id="result" hidden>
-    <div class="scorebar"><div class="rsc"><b id="rscore">0%</b><span id="rrating"></span></div><div class="bar"><i id="rbar"></i></div><span class="delta" id="rdelta"></span><span class="time" id="rtime"></span></div>
+    <div class="scorebar"><b id="rscore">0%</b><div class="bar"><i id="rbar"></i></div><span class="delta" id="rdelta"></span><span class="time" id="rtime"></span></div>
     <div class="rscroll">
     <div id="rchips"></div>
     <div class="legend"><span class="l-ok">correct</span><span class="l-part">partly correct</span><span class="l-miss">missed</span><span class="l-bad">not present</span></div>
