@@ -1868,3 +1868,7 @@ Not yet: Android back button, offline fonts, PNG export and sharing in the WebVi
 Training's help is now a dialog like the simulator's (dimmed page behind, Close at the top right, tap outside to close),
 with pages **Train** (the introduction, The ECG, Answering), **Progress** (Scoring, Ratings) and **About** (Other, About
 these ECGs). The author's text is unchanged, only regrouped. Opened from ⋯ → Help; Android back and the Training tab close it.
+## Lead picker laid out like a 12-lead
+
+The phone's live-lead picker (expanded heart view, tap the lead name) fills its 4×3 grid down the columns, so it reads like
+a 12-lead ECG: I/II/III, aVR/aVL/aVF, V1–V3, V4–V6 (it went along the rows: I, II, III, aVR on the top row).
