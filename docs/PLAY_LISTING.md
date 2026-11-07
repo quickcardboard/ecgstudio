@@ -52,7 +52,7 @@ the session that wrote this (phone screenshots 1080×1920; the 512×512 icon is 
 | Form | Answer |
 |---|---|
 | **Privacy policy** | https://ecgstudio.app/privacy/ |
-| **App access** | All functionality is available without special access (no login). |
+| **App access** | **No** (nothing is restricted yet). **Change to Yes when the Training purchase ships**, before uploading that release, and give the reviewers a way in (e.g. a Play promo code for Training, or instructions to a tester-only unlock). |
 | **Ads** | No, the app does not contain ads. |
 | **Content rating** | Questionnaire category: *Reference, News, or Educational*. Answer **No** to everything (violence, sexuality, language, drugs, gambling, user interaction, sharing location, digital purchases: **No** for now; change to **Yes** when the Training purchase is added). Expected rating: Everyone / PEGI 3. |
 | **Target audience** | **18 and over** (medical students, nurses, doctors). Not designed for children; "Appeals to children": No. |
