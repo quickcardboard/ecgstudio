@@ -1862,3 +1862,9 @@ Not yet: Android back button, offline fonts, PNG export and sharing in the WebVi
   Covers Save ECG image, Share this scenario, Training's report and daily result.
 - **Release:** `app/android/app/build.gradle` signs with the upload key from the environment and takes `VERSION_CODE`;
   the workflow builds the signed AAB when run by hand with "release" (steps for the key: docs/APP_PLAN.md).
+
+## app-1 round 4: Training help as a dialog
+
+Training's help is now a dialog like the simulator's (dimmed page behind, Close at the top right, tap outside to close),
+with pages **Train** (the introduction, The ECG, Answering), **Progress** (Scoring, Ratings) and **About** (Other, About
+these ECGs). The author's text is unchanged, only regrouped. Opened from ⋯ → Help; Android back and the Training tab close it.

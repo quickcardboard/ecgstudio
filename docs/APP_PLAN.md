@@ -104,6 +104,16 @@ debug APK built by GitHub Actions (first build passed), sharing and image saving
 release AAB on demand once the upload key is in the secrets (below). Next: the upload key, then the closed test (the tutorial, phase 5, during it).
 **The website's Training stays unlocked for testers until the app is published.**
 
+### How updates work (website and app)
+
+- **Engine and shared code** stay on `milestone-1` (the website updates when it is pushed). `origin/milestone-1` is merged
+  into `app-1` to bring them to the app (never copied by hand). Once the app is live, `app-1` goes into `milestone-1`
+  through a pull request, so one branch holds both.
+- **The app carries a copy of the pages** from when it was built. It changes only when a new version is uploaded to
+  Google Play: run the workflow with "release" (version number goes up by itself), then upload the AAB in Play Console
+  (later this upload can be automated with a Play service account). Phones then update from the Play Store by themselves.
+- Bump `versionName` in `app/android/app/build.gradle` for releases users will notice (0.1.0, 0.2.0, ... 1.0.0 at launch).
+
 ### Release signing: the upload key (the author, once)
 
 Google Play re-signs the app with its own key (Play App Signing); uploads are signed with an **upload key** that stays

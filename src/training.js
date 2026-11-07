@@ -736,6 +736,12 @@
   // ------------------------------------------------------------------ bug report (testers)
   // Opens the share sheet (or copies to the clipboard) with everything needed to rebuild and check the ECG:
   // the simulator link, the key, the tester's answer, the reader's checks and the generator recipe.
+  function helpPage(page) {
+    for (const x of document.querySelectorAll('#help .toc button')) x.setAttribute('aria-selected', String(x.dataset.page === page));
+    for (const pg of document.querySelectorAll('#help .hpage')) pg.hidden = pg.dataset.page !== page;
+    $('help').querySelector('.sheet').scrollTop = 0;
+  }
+  function showHelp() { $('help').hidden = false; }
   function reportProblem() {
     const it = st.item;
     if (!it) { toast('No ECG on screen to report'); return; }
@@ -777,6 +783,7 @@
       const pg = [...document.querySelectorAll('.page:not(#home)')].find((x) => !x.hidden);
       let handled = true;
       if (!$('menu').hidden) $('menu').hidden = true;
+      else if (!$('help').hidden) $('help').hidden = true;
       else if (pg) pg.hidden = true;
       else if (st.fs) setFs(false);
       else if (st.phase === 'region') endRegion(false);
@@ -784,7 +791,7 @@
       else handled = false;
       window.ECGInApp.post('back', { handled });
     });
-    if (INAPP) window.ECGInApp.listen('reselect', () => { $('menu').hidden = true; for (const pg of document.querySelectorAll('.page:not(#home)')) pg.hidden = true; if ($('home').hidden) goHome(); });
+    if (INAPP) window.ECGInApp.listen('reselect', () => { $('menu').hidden = true; $('help').hidden = true; for (const pg of document.querySelectorAll('.page:not(#home)')) pg.hidden = true; if ($('home').hidden) goHome(); });
     $('btnTrain').addEventListener('click', () => startMode('train'));
     $('btnDaily').addEventListener('click', () => startMode('daily'));
     $('btnReviews').addEventListener('click', () => startMode('review'));
@@ -813,11 +820,16 @@
       if (b.dataset.go === 'home') goHome();
       if (b.dataset.go === 'report') reportProblem();
       if (b.dataset.go === 'stats') { renderStats(); $('stats').hidden = false; }
-      if (b.dataset.go === 'help') $('help').hidden = false;
+      if (b.dataset.go === 'help') showHelp();
       if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {
         st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); st.reviews = []; st.days = {}; saveProgress(); goHome();
       }
     });
+    // help (a dialog; tap outside or Close)
+    for (const b of document.querySelectorAll('#help .toc button')) b.addEventListener('click', () => helpPage(b.dataset.page));
+    $('helpClose').addEventListener('click', () => { $('help').hidden = true; });
+    $('help').addEventListener('click', (e) => { if (e.target.id === 'help') $('help').hidden = true; });
+    addEventListener('keydown', (e) => { if (e.key === 'Escape') $('help').hidden = true; });
     for (const b of document.querySelectorAll('.page [data-close]')) b.addEventListener('click', () => { b.closest('.page').hidden = true; });
     addEventListener('resize', () => requestAnimationFrame(sizeBottom));
     // (an installed iOS web app can settle its screen size and home-bar inset only after the first layout)
