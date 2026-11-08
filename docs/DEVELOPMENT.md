@@ -1809,3 +1809,8 @@ old LAD infarcts no longer read a false "long QT". fullcheck is identical (iErr 
 
 The phone's live-lead picker (expanded heart view, tap the lead name) fills its 4×3 grid down the columns, so it reads like
 a 12-lead ECG: I/II/III, aVR/aVL/aVF, V1–V3, V4–V6 (it went along the rows: I, II, III, aVR on the top row).
+## Privacy policy page
+
+`privacy/index.html` (https://ecgstudio.app/privacy/): the privacy policy for the website and the Android app, needed by
+Google Play. No personal data is collected; progress stays on the device; sharing only when the user chooses; purchases
+through Google Play; GitHub Pages and Google Fonts see visitors' technical data. Contact: tlioudevelop@gmail.com.
