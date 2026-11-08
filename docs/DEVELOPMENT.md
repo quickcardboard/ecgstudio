@@ -1814,3 +1814,11 @@ a 12-lead ECG: I/II/III, aVR/aVL/aVF, V1–V3, V4–V6 (it went along the rows: 
 `privacy/index.html` (https://ecgstudio.app/privacy/): the privacy policy for the website and the Android app, needed by
 Google Play. No personal data is collected; progress stays on the device; sharing only when the user chooses; purchases
 through Google Play; GitHub Pages and Google Fonts see visitors' technical data. Contact: tlioudevelop@gmail.com.
+
+## Join the alpha (website)
+
+The Android app is in closed testing, so the website now recruits testers instead of offering itself as an installable app:
+- **Join the alpha** opens the testers' Google Group (https://groups.google.com/g/ecgstudio) in a new tab: in the phone's
+  ⋯ menu (last item, in place of Install app) and in the desktop header (in place of Install app).
+- The **Training** item is gone from the phone's ⋯ menu; ecgstudio.app/training stays online, unlinked.
+- No web-app manifest or install prompts any more; the service worker stays, so the website still works offline once visited.
