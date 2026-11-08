@@ -1805,6 +1805,10 @@ old LAD infarcts no longer read a false "long QT". fullcheck is identical (iErr 
 **Still open (the real fix):** V6 vs V5, and the upright giant T in V4–V5 of an inferior (mRCA) infarct at 2–30 days
 (V4 +16 mm), both from the chest forward model.
 
+## Lead picker laid out like a 12-lead
+
+The phone's live-lead picker (expanded heart view, tap the lead name) fills its 4×3 grid down the columns, so it reads like
+a 12-lead ECG: I/II/III, aVR/aVL/aVF, V1–V3, V4–V6 (it went along the rows: I, II, III, aVR on the top row).
 ## Privacy policy page
 
 `privacy/index.html` (https://ecgstudio.app/privacy/): the privacy policy for the website and the Android app, needed by
