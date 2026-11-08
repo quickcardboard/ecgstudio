@@ -2761,37 +2761,20 @@
     });
   }
 
-  // Installable app (PWA). The manifest and service worker are files beside
-  // index.html, so they are added only when the page is served (not from file://).
-  // Android/Chrome offer their own install prompt; iOS Safari installs from the
-  // Share sheet, so the menu item explains that instead.
-  let installPrompt = null;
-  function initInstall() {
-    const served = /^https?:$/.test(location.protocol), item = $('mInstall');
-    const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-    if (served) {
-      const l = document.createElement('link'); l.rel = 'manifest'; l.href = 'manifest.webmanifest'; document.head.appendChild(l);
-      if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
-    }
-    item.hidden = standalone;
-    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; $('btnInstall').hidden = false; });
-    window.addEventListener('appinstalled', () => { installPrompt = null; item.hidden = $('btnInstall').hidden = true; toast('ECG Studio is installed: open it from your home screen or app list.'); });
-    const install = async () => {
-      if (hasLayer('menu')) closeLayer('menu');
-      if (installPrompt) { const p = installPrompt; installPrompt = null; p.prompt(); await p.userChoice.catch(() => null); return; }
-      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      toast(!served ? 'Install from the website (ecgstudio.app); a saved copy of the page cannot be installed.'
-        : ios ? 'To install on iPhone or iPad: in Safari, tap the Share button, then <b>Add to Home Screen</b>.'
-          : 'To install: open the browser menu (⋮) and choose <b>Install app</b> or <b>Add to Home screen</b>.', 9000);
-    };
-    item.addEventListener('click', install); $('btnInstall').addEventListener('click', install);
+  // Offline use of the website (service worker, only when served, not from file://). The site is no longer offered as an
+  // installable web app (the Android app is on Google Play); instead "Join the alpha" opens the testers' Google Group.
+  const ALPHA_URL = 'https://groups.google.com/g/ecgstudio';
+  function initAlpha() {
+    if (/^https?:$/.test(location.protocol) && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
+    const join = () => { if (hasLayer('menu')) closeLayer('menu'); window.open(ALPHA_URL, '_blank', 'noopener'); };
+    $('mAlpha').addEventListener('click', join); $('btnAlpha').addEventListener('click', join);
   }
 
   function initPhone() {
     MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode);
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
-    initTouch(); initEcgTouch(); initSheet(); initInstall();
+    initTouch(); initEcgTouch(); initSheet(); initAlpha();
     new ResizeObserver(sizeSheet).observe($('split')); sizeSheet();
     // header: speed, pause (hold to reset), more
     $('mSpeed').addEventListener('click', () => setSpeed(ui.scaleIdx > 0 ? ui.scaleIdx - 1 : SCALES.length - 1));
@@ -2916,7 +2899,6 @@
     initPhone();
     $('btnHelp').addEventListener('click', showGuide);
     $('btnShare').addEventListener('click', shareScenario);
-    $('mTraining').addEventListener('click', () => { location.href = 'training/index.html'; });   // (the training page, beside this one)
     window.addEventListener('hashchange', () => location.reload());   // a scenario link pasted into an open tab
     $('btnSavePng').addEventListener('click', saveEcgPng);
     $('guideClose').addEventListener('click', hideGuide);

@@ -318,7 +318,7 @@ body.m #app { padding: env(safe-area-inset-top, 0px) 0 0; gap: 0; }
 body.m header.top { min-height: 50px; gap: 8px; padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); }
 body.m .brand h1 { font-size: 19px; }
 body.m .brand .logo { width: 26px; height: 26px; }
-body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp, body.m #btnInstall { display: none; }
+body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp, body.m #btnAlpha { display: none; }
 body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mctl button { height: 38px; min-width: 42px; padding: 0 11px; border-radius: 19px; display: grid; place-items: center; }
 .mctl svg { width: 20px; height: 20px; fill: currentColor; }
@@ -330,9 +330,9 @@ body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mplay.holding::after { width: 100%; transition: width 0.7s linear; }
 body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index: 21; right: max(10px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 50px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
 .mmenu button { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
-.mmenu .minstall { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; color: var(--accent); font-weight: 600; }
-.binstall { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); border-color: var(--accent); }
-.binstall svg, .minstall svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mmenu .malpha { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; color: var(--accent); font-weight: 600; }
+.balpha { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); border-color: var(--accent); }
+.balpha svg, .malpha svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 body.m #split { flex-direction: column; gap: 6px; padding: 0 8px 6px; }
 body.m #pane3d { flex: 0 0 60%; --vb: 0px; }
@@ -466,7 +466,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <button id="btnReset" type="button">Reset</button>
     </div>
     <button id="btnShare" type="button" title="Copy a link that reopens this exact scenario">Share</button>
-    <button id="btnInstall" type="button" class="binstall" title="Install ECG Studio as an app" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Install app</button>
+    <button id="btnAlpha" type="button" class="balpha" title="Sign up to test the ECG Studio Android app (Google Group)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Join the alpha</button>
     <button id="btnHelp" type="button">Help</button>
     <div class="mctl" role="group" aria-label="Simulation">
       <button type="button" id="mSpeed" class="mspeed" aria-label="Simulation speed: 1×. Tap to change">1×</button>
@@ -475,11 +475,10 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
     </div>
   </header>
   <div class="mmenu" id="mMenu" role="menu" hidden>
-    <button type="button" role="menuitem" id="mTraining">Training</button>
     <button type="button" role="menuitem" id="mShare">Share this scenario</button>
     <button type="button" role="menuitem" id="mPng">Save ECG image</button>
     <button type="button" role="menuitem" id="mHelp">Help</button>
-    <button type="button" role="menuitem" id="mInstall" class="minstall"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Install app</button>
+    <button type="button" role="menuitem" id="mAlpha" class="malpha"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Join the alpha</button>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
@@ -698,7 +697,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-07 (e0a56d9).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-08 (f2157f2).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -742,7 +741,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-07 (e0a56d9).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-08 (f2157f2).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -7454,37 +7453,20 @@ THE SOFTWARE.
     });
   }
 
-  // Installable app (PWA). The manifest and service worker are files beside
-  // index.html, so they are added only when the page is served (not from file://).
-  // Android/Chrome offer their own install prompt; iOS Safari installs from the
-  // Share sheet, so the menu item explains that instead.
-  let installPrompt = null;
-  function initInstall() {
-    const served = /^https?:$/.test(location.protocol), item = $('mInstall');
-    const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-    if (served) {
-      const l = document.createElement('link'); l.rel = 'manifest'; l.href = 'manifest.webmanifest'; document.head.appendChild(l);
-      if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
-    }
-    item.hidden = standalone;
-    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; $('btnInstall').hidden = false; });
-    window.addEventListener('appinstalled', () => { installPrompt = null; item.hidden = $('btnInstall').hidden = true; toast('ECG Studio is installed: open it from your home screen or app list.'); });
-    const install = async () => {
-      if (hasLayer('menu')) closeLayer('menu');
-      if (installPrompt) { const p = installPrompt; installPrompt = null; p.prompt(); await p.userChoice.catch(() => null); return; }
-      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      toast(!served ? 'Install from the website (ecgstudio.app); a saved copy of the page cannot be installed.'
-        : ios ? 'To install on iPhone or iPad: in Safari, tap the Share button, then <b>Add to Home Screen</b>.'
-          : 'To install: open the browser menu (⋮) and choose <b>Install app</b> or <b>Add to Home screen</b>.', 9000);
-    };
-    item.addEventListener('click', install); $('btnInstall').addEventListener('click', install);
+  // Offline use of the website (service worker, only when served, not from file://). The site is no longer offered as an
+  // installable web app (the Android app is on Google Play); instead "Join the alpha" opens the testers' Google Group.
+  const ALPHA_URL = 'https://groups.google.com/g/ecgstudio';
+  function initAlpha() {
+    if (/^https?:$/.test(location.protocol) && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
+    const join = () => { if (hasLayer('menu')) closeLayer('menu'); window.open(ALPHA_URL, '_blank', 'noopener'); };
+    $('mAlpha').addEventListener('click', join); $('btnAlpha').addEventListener('click', join);
   }
 
   function initPhone() {
     MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode);
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
-    initTouch(); initEcgTouch(); initSheet(); initInstall();
+    initTouch(); initEcgTouch(); initSheet(); initAlpha();
     new ResizeObserver(sizeSheet).observe($('split')); sizeSheet();
     // header: speed, pause (hold to reset), more
     $('mSpeed').addEventListener('click', () => setSpeed(ui.scaleIdx > 0 ? ui.scaleIdx - 1 : SCALES.length - 1));
@@ -7609,7 +7591,6 @@ THE SOFTWARE.
     initPhone();
     $('btnHelp').addEventListener('click', showGuide);
     $('btnShare').addEventListener('click', shareScenario);
-    $('mTraining').addEventListener('click', () => { location.href = 'training/index.html'; });   // (the training page, beside this one)
     window.addEventListener('hashchange', () => location.reload());   // a scenario link pasted into an open tab
     $('btnSavePng').addEventListener('click', saveEcgPng);
     $('guideClose').addEventListener('click', hideGuide);
