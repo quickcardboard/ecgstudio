@@ -1943,3 +1943,18 @@ its cellular effect:
   Q/QS waves, lost R waves or T inversion in LBBB). Learn text "STEMI in LBBB: Sgarbossa criteria".
 - Training: Wellens types A and B (not with flutter, fascicular blocks, bundle branch blocks, hypertrophy, WPW, electrolytes).
 - Validation: reader 47/57, fullcheck iErr 4. Audit (seeds 13–14): 91/120 kept, including LBBB + STEMI at the proximal LAD and OM1.
+
+## Round 53: torsades de pointes; LBBB + STEMI answered separately; hypothermia under "Other"
+
+- **Torsades de pointes** (`startArrhythmia('tdp')`; Rhythm list, Ventricular; link `a=tdp`). One ventricular focus at
+  `tdpCl` 230 ms (±8%, about 260/min) whose site moves a step every beat along a loop over the LV epicardium: once around the
+  ventricle (rotational UVC −π → π) while swinging between apex and base (apicobasal 0.12–0.72), `tdpSteps` 16 beats per
+  turn. The activation direction turns through a full circle, so the QRS grows, shrinks and changes polarity in spindles in
+  every lead. Sustained until a shock or another rhythm (AV node blocked as in VT/VF). Interpretation line (no axis or QT
+  chip while the axis turns), Learn text (long QT causes, magnesium/pacing), Shock offered. Training rhythm "Torsades de
+  pointes" (synonyms TdP, polymorphic VT).
+- **LBBB + STEMI in Training** (the author): LBBB and ST elevation are two separate answers, as any other combination; the ST
+  elevation's region is the artery's (any territory the criteria flag accepted). The Sgarbossa criteria (Round 52) stay the
+  gate for whether the STEMI is visible; "Sgarbossa" is a synonym of ST elevation; the separate term is removed.
+- **Hypothermia** moved from "Temperature" to the **Other** heading of the Conditions panel.
+- Validation: reader 47/57, `tools/arrhythmia.js` identical.

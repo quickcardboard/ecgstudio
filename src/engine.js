@@ -205,6 +205,7 @@
     matClMin: 380, matClMax: 640,
     ectopicDist: 25,        // ectopic atrial focus: distance (mm) from the AV node, low in the right atrium
     vtCl: 330,
+    tdpCl: 230, tdpSteps: 16,   // torsades: cycle length (ms, ±8%) and beats per full turn of the axis
     vfFoci: 12, vfClMin: 140, vfClMax: 240,
     adenosineDelay: 1000, adenosineBlock: 3000, shockRefractory: 160,
 
@@ -2379,12 +2380,24 @@
       } else if (type === 'vt') {
         const c = opts.cell !== undefined ? opts.cell : pick(vent, 1)[0];
         this.drivers.push({ kind: 'focus', cell: c, next: this.t, cl: () => opts.cl || P.vtCl });
+      } else if (type === 'tdp') {
+        // torsades de pointes (Round 53): one ventricular focus at tdpCl whose site moves a step every beat around a loop
+        // over the LV epicardium (around the ventricle while swinging between apex and base), so the QRS axis turns
+        // through a full circle every tdpSteps beats: the QRS "twists" around the baseline, its amplitude waxing and waning
+        const A = M.A, path = [];
+        for (let i = 0; i < P.tdpSteps; i++) {
+          const th = 2 * Math.PI * i / P.tdpSteps, ph = -Math.PI + th, z = 0.42 + 0.3 * Math.cos(th);
+          let best = -1, bd = Infinity;
+          for (let c = 0; c < M.nVox; c++) if (vent(c) && A.label[c] === LAB.LV && A.epi[c]) { let dp = Math.abs(A.phi[c] - ph); if (dp > Math.PI) dp = 2 * Math.PI - dp; const d = dp * dp + 4 * (A.zuvc[c] - z) ** 2; if (d < bd) { bd = d; best = c; } }
+          if (best >= 0) path.push(best);
+        }
+        this.drivers.push({ kind: 'tdp', cells: path, i: 0, next: this.t, cl: () => P.tdpCl * (0.92 + 0.16 * r()) });
       } else if (type === 'vf') {
         for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
       } else throw new Error('unknown arrhythmia ' + type);
       this.arrhythmia = { type, t: this.t, cell: opts.cell, clockwise: !!opts.clockwise };
       this.rhythmChangedAt = this.t;
-      if (type === 'vt' || type === 'vf') { this._ventArr = true; this._applyAvn(); }
+      if (type === 'vt' || type === 'vf' || type === 'tdp') { this._ventArr = true; this._applyAvn(); }
     }
     // substrate for R-on-T ventricular fibrillation: acute ischaemia (minutes
     // to ~2 days after onset)
@@ -2434,7 +2447,7 @@
           continue;
         }
         if (t >= d.next) {
-          const c = d.kind === 'rotate' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.cell;
+          const c = d.kind === 'rotate' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.kind === 'tdp' ? d.cells[d.i++ % d.cells.length] : d.cell;
           if (d.kind === 'rotate') { this.fireLog.push({ name: 'focus', t, cell: c }); if (this.fireLog.length > 40) this.fireLog.shift(); }   // (which MAT focus fired: read by the training generator)
           if (t >= this.refEnd[c] && !this.blocked[c]) this.schedule(c, t);
           d.next = t + d.cl();

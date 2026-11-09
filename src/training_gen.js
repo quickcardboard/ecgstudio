@@ -45,6 +45,8 @@
     // fall in the same places beat after beat instead of marching through)
     chb: { w: 0.9, open: true, rating: 120, rate: [60, 100], rateOk: (x) => ![1, 1.5, 2, 2.5].some((q) => Math.abs(x / 48 - q) < 0.04 * q), block: ['AVN', 'complete'], read: (r) => /complete AV block/.test(r) },
     vt: { w: 1.2, tachy: true, rating: 120, link: 'a=vt', vt: true, read: (r) => r === 'ventricular tachycardia' },
+    // torsades de pointes (Round 53): polymorphic VT, the QRS axis twisting (a focus moving around the LV each beat)
+    tdp: { w: 0.6, tachy: true, rating: 180, link: 'a=tdp', poly: true, start: (S) => { S.run(2000); S.startArrhythmia('tdp'); }, read: (r) => /ventricular/.test(r) },
     vf: { w: 0.8, tachy: true, rating: 40, link: 'a=vf', vf: true, start: (S) => { S.run(2000); S.startArrhythmia('vf'); }, read: (r) => r === 'ventricular fibrillation' },
     // sinus arrest for the whole strip with an escape rhythm: junctional (narrow, retrograde P hidden after the QRS)
     // or ventricular (block in the His bundle below it: wide); naming the sinus pause is true but not required
@@ -67,6 +69,7 @@
     avb2to1: 'Every second P is not conducted: 2:1 AV block (Mobitz I or II cannot be told apart).',
     chb: 'P waves march through at their own rate, unrelated to a slow regular escape: complete AV block.',
     vt: 'Regular broad-complex tachycardia without related P waves: ventricular tachycardia.',
+    tdp: 'Broad-complex tachycardia whose QRS axis twists around the baseline, the complexes growing and shrinking in spindles: torsades de pointes (polymorphic VT on a long QT).',
     vf: 'Chaotic, irregular deflections with no identifiable QRS complexes: ventricular fibrillation. Defibrillate.',
     junctional: 'No P waves before the QRS (sinus arrest); regular narrow QRS at 40–60/min: junctional escape rhythm.',
     idioventricular: 'No P waves (sinus arrest); regular wide QRS at 20–40/min: ventricular escape (idioventricular) rhythm.',
@@ -751,10 +754,13 @@
           lines.qwaves = lines.twi = `Q waves in ${c.leads.join(', ')}, T inversion in ${c.leads2.join(', ')}: recent ${ex.req.join('/')} infarct (days old).`;
           ['ste', 'poorR', 'longqt'].forEach((x) => optional.add(x));
         } else if (a.k === 'stemi' && rec.abn.some((x) => x.k === 'lbbb')) {
-          findings.push({ id: 'sgarbossa', skill: d.skill });
-          mark('sgarbossa', c.leads);
-          lines.sgarbossa = `Sgarbossa criteria (modified) positive: ${c.why}: an acute STEMI despite the LBBB.`;
-          ['ste', 'std', 'reciprocal', 'hyperacute', 'twi', 'qwaves', 'posteriorMI'].forEach((x) => optional.add(x));
+          // (STEMI in LBBB: answered as ST elevation, a finding of its own beside the LBBB; seen through the Sgarbossa
+          // criteria, so the region asked is the artery's and every territory the criteria flag is accepted)
+          const site = MI_SITES[a.site], ex = site.ste, terr = terrOf(c.leads);
+          findings.push({ id: 'ste', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
+          mark('ste', c.leads);
+          lines.ste = `${c.why}: Sgarbossa criteria (modified) positive, an acute ${ex.req.join('/')} STEMI despite the LBBB.`;
+          ['std', 'reciprocal', 'hyperacute', 'posteriorMI'].forEach((x) => optional.add(x));
         } else if (d.isch) {
           const site = MI_SITES[a.site], acute = d.isch < 24, ex = acute ? site.ste : site.q, terr = terrOf(c.leads);
           findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
@@ -774,7 +780,7 @@
       if (!R.pRhythm && lines.pericarditis) lines.pericarditis = 'Diffuse concave ST elevation with ST depression in aVR (no PR segment to read): pericarditis.';
       // measurements: rate from the engine; intervals and axis from the median beat
       const sm = R.vf ? null : R.tachy ? sinusRead(M).m : r.m;
-      const m = R.vf ? { rate: null, pr: null, qrs: null, qtc: null, axis: null } : { rate, pr: R.pRhythm ? r.m.pr : null, qrs: R.vt ? null : sm.qrs, qtc: R.noP ? null : R.tachy || R.block || R.at || rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].ectopy || ABN[x.k].sinusNode) || ['af', 'flutter', 'mat'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt || R.wide ? null : sm.axis };
+      const m = R.vf ? { rate: null, pr: null, qrs: null, qtc: null, axis: null } : { rate, pr: R.pRhythm ? r.m.pr : null, qrs: R.vt || R.poly ? null : sm.qrs, qtc: R.noP ? null : R.tachy || R.block || R.at || rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].ectopy || ABN[x.k].sinusNode) || ['af', 'flutter', 'mat'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt || R.wide || R.poly ? null : sm.axis };
       // caliper on the interval that decides it (engine timing)
       const within = (lo, hi) => V.filter((v) => v.on > lo && v.on < hi);
       let caliper = null;

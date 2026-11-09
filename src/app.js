@@ -1407,7 +1407,7 @@
     ['sinus', 'Sinus rhythm', ''],
     ['af', 'Atrial fibrillation', 'Atrial'], ['flutter', 'Atrial flutter', 'Atrial'], ['ectopic', 'Ectopic atrial rhythm', 'Atrial'], ['mat', 'WAP/MAT', 'Atrial'],
     ['avnrt', 'AVNRT', 'Re-entry through the AV node'], ['avrt', 'Orthodromic AVRT', 'Re-entry through the AV node'],
-    ['vt', 'Ventricular tachycardia', 'Ventricular'], ['vf', 'Ventricular fibrillation', 'Ventricular'],
+    ['vt', 'Ventricular tachycardia', 'Ventricular'], ['tdp', 'Torsades de pointes', 'Ventricular'], ['vf', 'Ventricular fibrillation', 'Ventricular'],
   ];
   const RATE_RHYTHMS = ['sinus', 'af', 'flutter', 'ectopic', 'mat'];
   function currentRhythm() {
@@ -1705,6 +1705,7 @@
     } else if (arr === 'ectopic') rhythm = `Ectopic atrial ${vr > 100 ? 'tachycardia' : 'rhythm'}: low right-atrial focus, ${vr} bpm, inverted P in II, III and aVF`;
     else if (arr === 'mat') rhythm = vr > 100 ? `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes` : `Wandering atrial pacemaker: ${vr} bpm, irregular, three or more P-wave shapes`;
     else if (arr === 'vt') rhythm = `Monomorphic ventricular tachycardia, ${vr} bpm, with AV dissociation`;
+    else if (arr === 'tdp') rhythm = `Torsades de pointes: polymorphic ventricular tachycardia, ${vr} bpm, the QRS axis twisting around the baseline (amplitude waxing and waning)`;
     else if (avnrt) rhythm = `AVNRT (typical slow–fast): ${vr} bpm, narrow QRS, retrograde P hidden at the end of the QRS`;
     else if (avrt) {
       const SITE = { 'left-lateral': 'left lateral', 'left-posterior': 'left posterior', posteroseptal: 'posteroseptal', 'right-free-wall': 'right free wall', 'right-anteroseptal': 'right anteroseptal' };
@@ -1754,10 +1755,10 @@
       chip(dissociated ? 'Ventricular' : 'Rate', `${Math.round(rate)} bpm`, rate < 60 || rate > 100),
       dissociated && aRate ? chip('Atrial', `${Math.round(aRate)} bpm`, aRate < 60 || aRate > 100) : '',
       arr === 'af' ? chip('Atrial', 'fibrillatory', true) : arr === 'flutter' && flutterCl ? chip('Atrial', `${Math.round(60000 / flutterCl)}/min`, true) : '',
-      arr === 'af' || arr === 'flutter' || arr === 'vt' ? '' : avrt ? chip('RP', (() => { const a = Aa.find((x) => x.on > vb.on); return a ? `${Math.round(a.on - vb.on)} ms (retrograde P)` : '—'; })()) : chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
+      arr === 'af' || arr === 'flutter' || arr === 'vt' || arr === 'tdp' ? '' : avrt ? chip('RP', (() => { const a = Aa.find((x) => x.on > vb.on); return a ? `${Math.round(a.on - vb.on)} ms (retrograde P)` : '—'; })()) : chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
       chip('QRS', `${Math.round(QRS)} ms`, QRS >= 120),
-      chip('QT/QTcF', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 450),
-      chip(rbbOnly && ui.normalAxis !== undefined ? 'Axis (LV forces)' : axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
+      arr === 'tdp' ? '' : chip('QT/QTcF', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 450),
+      arr === 'tdp' ? '' : chip(rbbOnly && ui.normalAxis !== undefined ? 'Axis (LV forces)' : axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
     const f = tachy ? [] : structFindings(vb, QTc).concat(ischFindings(vb));
     $('findings').innerHTML = f.map((x, i) => `<li${i === 0 && x.head ? ' class="head"' : ''}>${x.text || x}</li>`).join('');
@@ -1779,6 +1780,7 @@
     mat: { t: 'Wandering atrial pacemaker / multifocal atrial tachycardia', f: ['At least three different P-wave shapes in one lead, each followed by a QRS.', 'Varying PR and RR intervals: irregular. Rate below 100: wandering atrial pacemaker (WAP); above 100: multifocal atrial tachycardia (MAT). Set the rate with the slider.'], p: ['Easily mistaken for AF: look for a distinct P before every QRS. Classically seen in severe lung disease.'] },
     avnrt: { t: 'AVNRT', f: ['Regular narrow-complex tachycardia, typically 140–180 bpm, starting abruptly (often after a PAC with a long PR).', 'No visible P before the QRS: the retrograde P is buried in the QRS or seen as a pseudo-r′ in V1 / pseudo-S in II.'], p: ['Adenosine (or vagal manoeuvres) terminates it, unlike atrial flutter or atrial tachycardia.'] },
     avrt: { t: 'Orthodromic AVRT', f: ['Regular narrow-complex tachycardia, typically faster than AVNRT (often above 200 bpm); retrograde P after the QRS with RP > 70 ms (the impulse returns up the accessory pathway).', 'In sinus rhythm the same patient may show pre-excitation (short PR, delta wave).'], p: ['A rate above 200 bpm and RP > 70 ms favour AVRT over typical AVNRT (140–180 bpm, the P hidden in the QRS).'] },
+    tdp: { t: 'Torsades de pointes', f: ['Polymorphic VT (often 200–250/min) whose QRS axis twists around the baseline: the complexes grow, shrink and change polarity in spindles every 5–20 beats.', 'It arises on a long QT (congenital, drugs, low potassium or magnesium, bradycardia), typically after a short–long–short sequence of beats.', 'Here: one ventricular focus that moves a step every beat around the left ventricle, between apex and base, so the activation direction turns through a full circle.'], p: ['Treatment differs from monomorphic VT: magnesium, raise the heart rate (pacing, isoprenaline), correct potassium, stop QT-prolonging drugs; defibrillate if it does not stop.', 'Runs often stop on their own and recur; it can degenerate into VF.'] },
     vt: { t: 'Ventricular tachycardia', f: ['Regular broad-complex tachycardia (QRS ≥ 120 ms), rate > 100.', 'AV dissociation: P waves march through at their own slower rate; capture and fusion beats prove it.', 'Concordance (all chest leads positive or all negative) and extreme axis favour VT.'], p: ['A broad regular tachycardia is VT until proven otherwise, even if the patient looks well.'] },
     vf: { t: 'Ventricular fibrillation', f: ['Chaotic, irregular deflections of varying amplitude; no identifiable QRS, P or T waves.'], p: ['Check leads and the patient: artefact can mimic VF, but if pulseless, defibrillate now.'] },
     first: { t: '1st-degree AV block', f: ['PR > 200 ms and constant; every P is followed by a QRS.'], p: [] },
@@ -2125,7 +2127,7 @@
     { id: 'hypoK', cat: 'Electrolytes', label: 'Hypokalemia', name: 'Hypokalemia', also: 'low potassium K U wave flat T ST depression long QU', apply: (v) => S.setElectrolyte('hypoK', v) },
     { id: 'hypoCa', cat: 'Electrolytes', label: 'Hypocalcemia', name: 'Hypocalcemia', also: 'low calcium Ca long QT long ST segment', apply: (v) => S.setElectrolyte('hypoCa', v) },
     { id: 'hyperCa', cat: 'Electrolytes', label: 'Hypercalcemia', name: 'Hypercalcemia', also: 'high calcium Ca short QT short ST segment', apply: (v) => S.setElectrolyte('hyperCa', v) },
-    { id: 'hypothermia', cat: 'Temperature', label: 'Hypothermia', name: 'Hypothermia', also: 'cold Osborn J wave camel hump bradycardia long QT',
+    { id: 'hypothermia', cat: 'Other', label: 'Hypothermia', name: 'Hypothermia', also: 'cold Osborn J wave camel hump bradycardia long QT',
       apply: (v) => { S.setElectrolyte('hypothermia', v); if (v && !S.arrhythmia && ui.rate > 50) { ui.rate = 45; S.setRate(45); if (ui.rateMode === 'sinus') { $('rate').value = 45; $('rateVal').textContent = '45 bpm'; } } } },   // (hypothermia slows the sinus node: 45/min)
   ];
   const COND = Object.fromEntries(CONDITIONS.map((c) => [c.id, c]));
@@ -2214,7 +2216,7 @@
   // scenario re-runs from the same starting point.
   // ---------------------------------------------------------------------------
   const STRUCT_KEYS = CONDITIONS.filter((c) => !c.options).map((c) => c.id);
-  const ARR_TYPES = ['af', 'flutter', 'ectopic', 'mat', 'avnrt', 'avrt', 'vt', 'vf'];
+  const ARR_TYPES = ['af', 'flutter', 'ectopic', 'mat', 'avnrt', 'avrt', 'vt', 'tdp', 'vf'];
   // Coronary node numbers in share links. Links made before the left main was lengthened
   // (no c=2) number the nodes of the old tree: each is mapped to the same branch, at the
   // same fraction along it, in the current tree.
@@ -2458,7 +2460,7 @@
     if (!isM()) return;
     const arr = S.arrhythmia && S.arrhythmia.type, s = ui.snap || {};
     const cur = currentRhythm();
-    $('mShock').hidden = !['af', 'flutter', 'vt', 'vf', 'ectopic', 'mat'].includes(arr);
+    $('mShock').hidden = !['af', 'flutter', 'vt', 'tdp', 'vf', 'ectopic', 'mat'].includes(arr);
     $('mAdeno').hidden = !(s.avnrt || s.avrt || cur === 'avnrt' || cur === 'avrt');
   }
 
