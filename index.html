@@ -697,7 +697,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-09 (ae85fbd).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-09 (5df3566).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -741,7 +741,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-09 (ae85fbd).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-09 (5df3566).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -2090,13 +2090,16 @@ THE SOFTWARE.
     ischKatpH: 0.15,       // hours for K-ATP APD shortening to develop (hyperacute T)
     ischInjuryOnset: 0.15, // hours before the injury current starts (the first minutes show hyperacute T only)
     ischInjuryH: 0.6,      // hours for the injury current (resting depolarisation) to develop
-    ischApdShort: 0.45, ischApdLate: 0.9, ischLateH: 3,
+    ischApdShort: 0.35, ischApdLate: 0.9, ischLateH: 3,
+    ischPlateauDrop: 0.25, ischKatpFloor: 0.7,    // minutes (with the K-ATP shortening): extra fall of the plateau over the APD in the ischaemic zone (a broad T rising from the ST)
     ischSubendoGain: 1.6, subendoInj: 0.6, subendoRVGain: 0.5, subendoSpanPhi: 1.6, subendoSpanZ: 0.5,  // demand ischaemia: the inner wall is the most severely injured
     ischStResolve: 0.6,    // subendocardial: fraction of the injury current gone by 8 h
     // narrowing (Sim.addStenosis): severity of the partial-flow ischaemia in the territory's inner wall, per
     // artery family (the injury of a territory saturates: these give 1.5–2 mm of horizontal ST depression at
     // J+80 in two contiguous leads at 1 h for the proximal artery; a mid-LAD territory reaches ~1 mm at most)
     stenosisSev: { LAD: 0.65, LCx: 0.55, RCA: 0.17, LM: 0.5 },
+    stenosisGlobal: 0.3,   // narrowing: share of its severity in the rest of the LV inner wall
+    stenosisBaseGain: 1, stenosisBaseZ: 0.6,   // narrowing: severity in the basal inner wall (apicobasal UVC above stenosisBaseZ)
     // occlusion: the injury current (resting depolarisation, the ST shift) per artery family. The inferior wall faces
     // the inferior limb leads squarely in this torso: at full strength an RCA STEMI gave 12–15 mm in III. The scale
     // keeps III at most ~5–6 mm, aVF ~4–5, II ~3–4 at 1 h (and less R loss in the injured wall). It applies to LV
@@ -2147,7 +2150,7 @@ THE SOFTWARE.
     atrialLimbGain: 1.85,      // atrial sources in the solved-torso limb leads: keeps the P-wave calibration made with the cylinder field (P in II 0.23 mV)
     limbTorso2: true,          // limb leads I, II from the solved torso (src/torso_limb.json: shoulder/axilla and hip contact patches) instead of the cylinder field
     fullTorso: false,          // with chestTorso: every lead from the solved torso's electrode potentials (limb LA−RA, LL−RA; chest V − WCT), no heart-vector blend
-    chestTorsoT: 1, chestTorsoT0: 40, chestTorsoTRamp: 80, chestTorsoTGain: 1, chestTorsoTCav: 0, chestTorsoTLead: [0, 0, 0, 1, 1, 1],   // ST-T of the chest leads from the solved torso (see the chest leads in Sim)
+    chestTorsoT: 1, chestTorsoT0: 40, chestTorsoTRamp: 80, chestTorsoTGain: 1, chestTorsoTCav: 0, chestTorsoTLead: [0, 0, 0, 0.5, 1, 1],   // ST-T of the chest leads from the solved torso (see the chest leads in Sim)
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
@@ -3688,7 +3691,17 @@ THE SOFTWARE.
       const ins = this._makeInsult('subendo', aff, this.P.ischBorderMm);
       const br = M.coronary.nodes[node].branch, fam = this._family(br);
       const sv = typeof this.P.stenosisSev === 'number' ? this.P.stenosisSev : this.P.stenosisSev[fam];
-      for (let q = 0; q < ins.sev.length; q++) ins.sev[q] *= sv * (A.label[ins.cells[q]] === LAB.RV ? this.P.subendoRVGain : 1);   // (thin, low-pressure RV: milder)
+      const dg = this.P.stenosisBaseGain, nodes = M.coronary.nodes;
+      for (let q = 0; q < ins.sev.length; q++) { const c = ins.cells[q], b = vn[c] >= 0 ? nodes[vn[c]].branch : ''; ins.sev[q] *= sv * (A.label[c] === LAB.RV ? this.P.subendoRVGain : 1) * (A.zuvc[c] > this.P.stenosisBaseZ ? dg : 1); }   // (thin, low-pressure RV: milder; the basal wall: stenosisBaseGain)
+      // (stenosisGlobal: the rest of the LV inner wall shares a little of it (demand): ST depression that does not localise)
+      const g = this.P.stenosisGlobal;
+      if (g > 0) {
+        const have = new Set(ins.cells);
+        const xc = [], xs = [];
+        for (let c = 0; c < A.n; c++) if (A.label[c] === LAB.LV && !have.has(c) && this.M.kind[c] === KIND.VENT) { xc.push(c); xs.push(g * sv); }
+        const cat = (a0, b0) => { const o = new a0.constructor(a0.length + b0.length); o.set(a0); o.set(b0, a0.length); return o; };
+        ins.cells = cat(ins.cells, xc); ins.sev = cat(ins.sev, xs);
+      }
       ins.node = node; ins.branch = M.coronary.nodes[node].branch; ins.stenosis = true;
       return this._addInsult(ins);
     }
@@ -3851,7 +3864,8 @@ THE SOFTWARE.
       // injury current: develops over half an hour, eases after a few hours, gone by ~2 days (ST back to baseline)
       const inj = Math.min(1, s * (kind === 'subendo' ? P.ischSubendoGain : 1)) * (kind === 'subendo' ? P.subendoInj : 1) * sm((h - P.ischInjuryOnset) / P.ischInjuryH)
         * (kind === 'subendo' ? (1 - P.ischStResolve * sm((h - 3) / 5)) * (1 - sm((h - 12) / 30)) : stResidual(h));
-      let apd = 1 - P.ischApdShort * s * katp * k;
+      const kk = Math.max(k, P.ischKatpFloor);   // (the hyperacute T keeps at least this share where occlusionInj trims the injury current)
+      let apd = 1 - P.ischApdShort * s * katp * kk;
       // prolonged repolarisation in the surviving border: T inversion from ~6 h, deepest at 1–3 days,
       // fading over the following weeks (T waves upright again in an old infarct)
       const late = sm((h - P.ischLateH) / 3) * (1 + 0.8 * sm((h - 12) / 30)) * (1 - P.ischTRecover * sm((h - 200) / 400));
@@ -3867,7 +3881,7 @@ THE SOFTWARE.
       // conducting (sodium-channel inactivation) while it still drives injury current
       const unexcitable = !dead && kind !== 'subendo' && h >= 2 && s > P.ischDeadS && inj > P.ischBlockInj;
       return {
-        apd, dead, rim, unexcitable, level: Math.max(inj, 0.5 * s * katp), kind,
+        apd, dead, rim, unexcitable, level: Math.max(inj, 0.5 * s * katp), kind, decl: dead ? 0 : P.ischPlateauDrop * s * katp * kk,
         // necrotic muscle stays depolarised (and partly coupled, see _uncoupleDead) until it turns to scar
         vRest: dead ? P.vRest + P.ischDvRest * k * (kind === 'subendo' ? 0 : stResidual(h)) : P.vRest + P.ischDvRest * inj * k,
         amp: dead ? 0 : 1 - P.ischAmpDrop * inj * k,
@@ -3922,6 +3936,7 @@ THE SOFTWARE.
       for (const c of this._ischCells) {                                     // restore healthy values
         lvl[c] = 0; this.apdMax[c] = this.apdMax0[c]; this.vRest[c] = this.vRest0[c]; this.vAmp[c] = this.vAmp0[c]; this.cvMul[c] = 1; this.blocked[c] = 0;
       }
+      if (this._pDeclSave) { for (const [c, v] of this._pDeclSave) this.pDecl[c] = v; this._pDeclSave.clear(); }
       this._ischCells = new Set();
       const best = new Map();                                                // strongest insult per cell
       for (const ins of this.insults) for (let q = 0; q < ins.cells.length; q++) {
@@ -3956,6 +3971,7 @@ THE SOFTWARE.
         if (st.dead && st.kind !== 'subendo' && M.kind[c] === KIND.VENT) ph[c] = 1;   // (a subendocardial scar is covered by living muscle: no window)
         this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = this.vAmp0[c] * st.amp;
         this.cvMul[c] = st.cv; this.blocked[c] = st.dead || st.unexcitable ? 1 : 0; this._ischCells.add(c);
+        if (st.decl > 0) { const sv = this._pDeclSave || (this._pDeclSave = new Map()); if (!sv.has(c)) sv.set(c, this.pDecl[c]); this.pDecl[c] = Math.min(0.9, sv.get(c) + st.decl); }
         lvl[c] = st.dead || st.rim ? 2 : st.level;   // (display only: 2 = necrotic)
         if (st.dead) nDead++;
       }

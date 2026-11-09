@@ -99,7 +99,7 @@
     // narrowing (partial flow, 1 h): subendocardial ischemia, ST depression (with ST elevation in aVR)
     narrow: { group: 'isch', skill: 'ischemia', rating: 100, isch: 1, stenosis: true, excl: ['peri', 'brugada', 'hyp', 'wpw'], id: 'std' },
     // hyperacute phase (15 min): tall, broad T waves over the territory before the ST rises
-    hyper: { group: 'isch', skill: 'ischemia', rating: 140, isch: 0.25, excl: ['peri', 'brugada', 'hyp', 'wpw', 'fasc'], id: 'hyperacute' },   // (with a fascicular block the territory repolarises in two waves: a notched, M-shaped T)
+    hyper: { group: 'isch', skill: 'ischemia', rating: 140, isch: 0.25, excl: ['peri', 'brugada', 'hyp', 'wpw'], id: 'hyperacute' },   // (Round 50: with the K-ATP plateau slope the T stays single with a fascicular block)
     // a recent infarct (2 days): Q waves with T inversion over the territory, ST elevation mostly resolved
     recent: { group: 'isch', skill: 'ischemia', rating: 120, isch: 48, excl: ['peri', 'brugada'], id: 'qwaves' },
     // non-specific ST-T changes: flat T waves in leads where T is normally upright, no territory
@@ -175,7 +175,9 @@
     if (has('wpw') && all.some((x) => ['rae', 'lae', 'bae', 'avb1', 'peri'].includes(x))) return false;
     return true;
   }
-  const siteOk = (site, list) => !(list.includes('lafb') && /RCA|LCx/.test(site)) && !(list.includes('lpfb') && /LAD|LCx/.test(site))
+  // (Round 50: LAFB with an old or recent inferior/circumflex infarct stays out: the inferior Q waves replace LAFB's rS, as
+  // in real ECGs; LAFB with an acute STEMI anywhere, and LPFB with any infarct, are allowed and gated on their criteria)
+  const siteOk = (site, list, k) => !(list.includes('lafb') && /RCA|LCx/.test(site) && ['oldmi', 'recent'].includes(k)) && !(list.includes('lpfb') && /RCA/.test(site) && ['oldmi', 'recent'].includes(k))
     && !(list.includes('avb1') && /RCA/.test(site))
     && !(list.includes('wpw') && /LCx/.test(site));   // (the left-lateral pathway inserts in circumflex territory: an infarct there removes the pre-excitation)   // (a proximal RCA occlusion slows the AV node too: with first-degree block the P sinks into the T)
   function itemRating(rec) {
@@ -219,7 +221,7 @@
     const abn = list.map((k) => {
       const a = { k };
       // (a mid-LAD narrowing stays under 1 mm: not asked)
-      if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list) && !(k === 'narrow' && x === 'mLAD') && !(k === 'hyper' && /LCx|pRCA/.test(x))); if (!sites.length) return null; a.site = sites[Math.floor(rand() * sites.length)]; }   // (no hyperacute T at a circumflex site: its T barely grows; nor at the proximal RCA, whose inferior T stays under 5 mm)
+      if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list, k) && !(k === 'hyper' && /LCx/.test(x))); if (!sites.length) return null; a.site = sites[Math.floor(rand() * sites.length)]; }   // (no hyperacute T at a circumflex site: its T barely grows; nor at the proximal RCA, whose inferior T stays under 5 mm)
       return a;
     }).filter(Boolean);
     let rate = 72;
@@ -443,7 +445,8 @@
     // V1 not counted
     // (behind Q/QS waves the R is gone and inverted T still counts)
     const twiLeads = (L) => contiguous(LEADS.filter((n) => !['aVR', 'III', 'V1'].includes(n) && L[n].T <= -0.1 && (L[n].R > L[n].S || L[n].qs || L[n].q.dur >= 30)));
-    const qLeads = (L) => contiguous(LEADS.filter((n) => (n === 'V2' || n === 'V3' ? L[n].q.dur >= 20 || L[n].qs : ['I', 'II', 'aVL', 'aVF', 'V4', 'V5', 'V6'].includes(n) && ((L[n].q.dur >= 30 && L[n].q.amp <= -0.1) || L[n].qs))));
+    // (4th UDMI: lead III counts with aVF or II beside it (contiguous), never alone)
+    const qLeads = (L) => contiguous(LEADS.filter((n) => (n === 'V2' || n === 'V3' ? L[n].q.dur >= 20 || L[n].qs : ['I', 'II', 'III', 'aVL', 'aVF', 'V4', 'V5', 'V6'].includes(n) && ((L[n].q.dur >= 30 && L[n].q.amp <= -0.1) || L[n].qs))));
     // criteria (ACC/AHA 2009 conduction, Sokolow-Lyon/Cornell, 4th UDMI, the reader's P-wave and Brugada
     // rules; tools/reader.js has the sources) → { ok, why, leads }
     function criteria(k, a, m, L) {
@@ -473,7 +476,7 @@
           // subendocardial ischemia: horizontal or downsloping ST depression ≥ 1 mm (stdLeads), no ST-elevation
           // criteria met
           const std = stdLeads(L);
-          return yes(std.length >= 2 && !steLeads(L).length, `ST depression (J+80) in ${std.map((n) => `${n} ${(L[n].st80 * 10).toFixed(1)}`).join(', ') || 'none ≥ 1 mm horizontal'}${steLeads(L).length ? ', ST elevation' : ''}`, std);
+          return yes(std.length >= 2 && !steLeads(L).length, `ST depression (J+80) in ${std.map((n) => `${n} ${(L[n].st80 * 10).toFixed(1)}`).join(', ') || 'none ≥ 1 mm horizontal'}${steLeads(L).length ? `, ST elevation in ${steLeads(L).join(' ')}` : ''}`, std);
         }
         case 'hyper': {
           // textbook: T ≥ 5 mm in a limb lead or ≥ 10 mm in a chest lead, in two contiguous leads of the
