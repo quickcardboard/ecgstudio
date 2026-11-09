@@ -24,14 +24,18 @@
   const RHYTHMS = {
     sinus: { w: 8, rate: [62, 95], pRhythm: true, open: true, rating: 0, read: (r) => /^sinus (rhythm|bradycardia|tachycardia)$/.test(r) },
     sinusBrady: { w: 2, rate: [44, 55], pRhythm: true, open: true, rating: 20, read: (r) => /^sinus (rhythm|bradycardia)$/.test(r) },
-    sinusTachy: { w: 2, rate: [106, 125], pRhythm: true, open: true, rating: 20, notWith: ['avb1', 'wpw', 'lbbb', 'rbbb', 'peri', 'bae'], read: (r) => /^sinus (rhythm|tachycardia)$/.test(r) },
+    // (with first-degree block, WPW or a bundle branch block the P can sit on the previous T: allowed, and SVT is accepted too)
+    sinusTachy: { w: 2, rate: [106, 125], pRhythm: true, open: true, rating: 20, notWith: ['peri', 'bae'], read: (r) => /^sinus (rhythm|tachycardia)$/.test(r) },
     af: { w: 3, open: true, rating: 60, rate: [60, 150], vLink: true, link: 'a=af', struct: 'fib', start: (S, rec) => { S.setAtrialFibrosis(true); S.run(2000); S.startArrhythmia('af'); S.setVentricularResponse(rec.rate); },   // (AF on its substrate, as in the app)
     read: (r) => r === 'atrial fibrillation' },
     flutter: { w: 2.5, open: true, notWith: ['stemi', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt'],   // (flutter waves sit on the ST segment)
       rating: 150, rate: [60, 100], vLink: true, link: 'a=flutter', start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate); }, read: (r) => r === 'atrial flutter' },
     // multifocal atrial tachycardia: four atrial foci taking turns (±25% cycle), so ≥ 3 P shapes with varying PR and RR;
     // the blind rhythm read must see it (gateRead), and the P waves must be visible
-    mat: { w: 1, open: true, pVisible: true, gateRead: true, rating: 170, rate: [105, 130], link: 'a=mat', start: (S, rec, M, h) => { S.run(2000); S.startArrhythmia('mat', { cells: h.matFoci(M) }); }, read: (r) => r === 'multifocal atrial tachycardia' },
+    // WAP/MAT: below 100/min a wandering atrial pacemaker, above it multifocal atrial tachycardia (key: 'wap' or 'mat', both
+    // accepted at 95–105). Gated on the engine's own record (≥ 3 different foci fired in the strip, P waves visible), not on
+    // the blind rhythm read, which can take MAT for AF.
+    mat: { w: 1, open: true, pVisible: true, foci: true, rating: 170, rate: [70, 130], link: 'a=mat', start: (S, rec, M, h) => { S.run(2000); S.startArrhythmia('mat', { cells: h.matFoci(M) }); }, read: (r) => /multifocal|wandering/.test(r) },
     avnrt: { w: 1.5, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
     avrt: { w: 1.5, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
     mobitz1: { w: 2, open: true, rating: 150, block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
@@ -54,6 +58,7 @@
     sinusTachy: 'A P before every QRS, rate over 100: sinus tachycardia.',
     af: 'Irregularly irregular, no P waves: atrial fibrillation.',
     mat: 'Irregular, rate over 100, at least three different P-wave shapes with varying PR: multifocal atrial tachycardia.',
+    wap: 'Irregular, rate under 100, at least three different P-wave shapes with varying PR: wandering atrial pacemaker (the slow form of MAT).',
     flutter: 'Sawtooth flutter waves at about 300/min, every fourth one conducted: atrial flutter.',
     avnrt: 'Regular narrow tachycardia under 200 with no visible P: AVNRT.',
     avrt: 'Regular narrow tachycardia above 200 with no visible P: AVRT, not AVNRT.',
@@ -109,7 +114,8 @@
     // atrial couplet: two PACs in a row
     acouplet: { group: 'ectopy', skill: 'rhythm', rating: 70, ectopy: 'acouplet', id: 'acouplet', leads: ['II'], line: 'Two early P waves of another shape in a row, each with a narrow QRS: an atrial couplet.' },
     // a sinus pause (2.6 s, at 3 s into the strip): a finding on sinus rhythm, like ectopy
-    sinusPause: { group: 'ectopy', skill: 'rhythm', rating: 60, id: 'sinusPause', pause: true, linkBlock: 'SAN.pause', at: [[3000, (S) => S.setBlock('SAN', 'pause', { ms: 2600 })]], leads: ['II'], line: 'A sudden pause with no P wave, not a multiple of the P–P interval, then sinus beats resume: sinus pause.' },
+    // (rec.pauseEscape: the junctional escape fires during the pause (true), or stays silent too: a pure pause)
+    sinusPause: { group: 'ectopy', skill: 'rhythm', rating: 60, id: 'sinusPause', pause: true, linkBlock: 'SAN.pause', at: [[3000, (S, rec) => S.setBlock('SAN', 'pause', { ms: 2600, escape: !!rec.pauseEscape })]], leads: ['II'], line: 'A sudden pause with no P wave, not a multiple of the P–P interval, then sinus beats resume: sinus pause.' },
     couplet: { group: 'ectopy', skill: 'rhythm', rating: 60, ectopy: 'couplet', id: 'couplet', leads: ['II'], line: 'Two premature wide complexes in a row: a ventricular couplet (three or more would be non-sustained VT).' },
     brugada: { group: 'brugada', skill: 'conditions', rating: 80, dx: 'Brugada type 1', brugada: true, struct: 'brugada', excl: ['isch', 'peri'], leads: ['V1', 'V2'], line: 'Coved ST elevation ≥ 2 mm in V1–V2 into a negative T: Brugada pattern.' },
   };
@@ -219,6 +225,7 @@
     let rate = 72;
     if (R.rate) for (let i = 0; i < 50; i++) { rate = Math.round(R.rate[0] + rand() * (R.rate[1] - R.rate[0])); if (!R.rateOk || R.rateOk(rate)) break; }
     const rec = { rhythm, abn, seed: 1 + Math.floor(rand() * 1e6), rate };
+    if (abn.some((a) => a.k === 'sinusPause')) rec.pauseEscape = rand() < 0.5;
     if (art) rec.art = art;
     return rec;
   }
@@ -338,7 +345,7 @@
       else { S = base(M, rec); if (R.start) R.start(S, rec, M, { matFoci }); if (R.vt) { S.run(2000); S.startArrhythmia('vt', { cell: vtCell(M.A) }); } }
       if (!S) return null;
       S.run(R.induce || rec.rhythm === 'flutter' ? 1500 : SETTLE);   // (flutter and the induced tachycardias have run 3–5 s in their own start-up)
-      const rec12 = []; let t0 = null; const atr = new Set(), ven = new Set(), stims = [];
+      const rec12 = []; let t0 = null; const atr = new Set(), ven = new Set(), stims = [], fired = new Set();
       S.onSample((t, v) => { if (t0 === null) t0 = t; rec12.push(Array.from(v)); });
       // timed events in the strip: the rhythm's own (a sinus pause) and ectopic beats
       const events = [...(R.at || []), ...rec.abn.flatMap((a) => ABN[a.k].at || [])].map(([t, fn]) => ({ t, fn }));
@@ -362,13 +369,13 @@
         for (const t of kind === 'couplet' || kind === 'acouplet' ? [3800] : [2600, 6600]) events.push({ t, fn: fire });
       }
       for (let t = 0; t < strip; t += 100) {
-        for (const e of events) if (!e.done && e.t >= t && e.t < t + 100) { e.done = true; e.fn(S); }
+        for (const e of events) if (!e.done && e.t >= t && e.t < t + 100) { e.done = true; e.fn(S, rec); }
         S.run(100);
-        if (t % 500 === 400) { S.log.atrial.forEach((x) => atr.add(x)); S.log.vent.forEach((x) => ven.add(x)); }   // (the logs keep 50 entries)
+        if (t % 500 === 400) { S.log.atrial.forEach((x) => atr.add(x)); S.log.vent.forEach((x) => ven.add(x)); S.fireLog.forEach((x) => { if (x.name === 'focus') fired.add(x); }); }   // (the logs keep 50 entries)
       }
       const inStrip = (x) => x.on - t0 >= 0 && x.on - t0 < strip;
       const rel = (x) => ({ on: x.on - t0, last: x.last - t0, end: x.repEnd ? x.repEnd - t0 : null, n: x.n });
-      return { S, M, rec12, t0, A: [...atr].filter(inStrip).sort((a, b) => a.on - b.on).map(rel), V: [...ven].filter(inStrip).sort((a, b) => a.on - b.on).map(rel), stims: stims.map((x) => ({ ...x, t: x.t - t0 })) };
+      return { S, M, rec12, t0, A: [...atr].filter(inStrip).sort((a, b) => a.on - b.on).map(rel), V: [...ven].filter(inStrip).sort((a, b) => a.on - b.on).map(rel), stims: stims.map((x) => ({ ...x, t: x.t - t0 })), foci: [...fired].filter((x) => x.t - t0 >= 0 && x.t - t0 < strip).map((x) => ({ t: x.t - t0, cell: x.cell })) };
     }
     // a 3.6 s sinus beat of the same heart (measurements for the fast tachycardias, whose T runs into the next QRS)
     function sinusRead(M) {
@@ -411,6 +418,8 @@
       for (const a of A) {
         if (a.on < 200 || a.on > STRIP - 300) continue;
         if ((sim.stims || []).some((x) => Math.abs(a.on - x.t) < 400)) continue;   // (a P next to an ectopic beat: hidden by it, as expected)
+        // (a retrograde P from an escape beat (a QRS no P conducted) sits in that QRS, as expected)
+        if (V.some((v) => a.on >= v.on - 20 && a.on <= v.on + 200 && !A.some((x) => v.on - x.on > 60 && v.on - x.on < 300))) continue;
         const d = Math.max(40, a.last - a.on + 20); let cover = 0;   // (P wave ≈ atrial activation + 20 ms)
         for (const v of V) cover += overlap(a.on, a.on + d, v.on - 5, (v.end || v.last + 300));
         n++; if (cover / d > 0.5) hidden++;
@@ -535,7 +544,8 @@
       const sinusRate = rec.abn.some((x) => ABN[x.k].sinusNode || ABN[x.k].pause) ? Math.round(60000 / rrs.slice().sort((x, y) => x - y)[Math.floor(rrs.length * 0.25)]) : rate;
       if (SINUS.includes(rhythm)) rhythm = sinusRate < 60 ? 'sinusBrady' : sinusRate > 100 ? 'sinusTachy' : 'sinus';
       const pv = pVisibility(sim);
-      if ((R.pRhythm || R.pVisible) && pv.share > 0.2) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
+      const tachyHideP = rhythm === 'sinusTachy' && rec.abn.some((a) => ['avb1', 'wpw', 'lbbb', 'rbbb'].includes(a.k));
+      if ((R.pRhythm || R.pVisible) && pv.share > (tachyHideP ? 0.5 : 0.2)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
       if (R.noP) {
         // (sinus arrest: no atrial activation may precede a QRS by the time of a PR; retrograde P after it is expected)
         const pre = A.filter((a) => V.some((v) => v.on - a.on > 60 && v.on - a.on < 300)).length;
@@ -546,6 +556,14 @@
       if (R.block && !R.noP && pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.5)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
       const rr = readRhythm(rec12);   // (blind rhythm read: kept for the record and the audit, not the gate, except where the rhythm asks)
       if (R.gateRead && !R.read(rr.rhythm)) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm');
+      let rhythmAlt = tachyHideP ? ['sinus', 'svt'] : null;
+      if (R.foci) {
+        // WAP/MAT from the engine: at least three different atrial foci fired in the strip
+        const n = new Set(sim.foci.map((x) => x.cell)).size;
+        if (n < 3) return fail(`only ${n} atrial foci fired`, 'rhythm');
+        rhythm = rate < 100 ? 'wap' : 'mat';
+        if (rate >= 95 && rate <= 105) rhythmAlt = [rhythm === 'wap' ? 'mat' : 'wap'];
+      }
       // morphology on the median beat
       const med = R.tachy ? null : medianBeat(sim);
       if (!R.tachy && !med) return fail('too few beats for a median beat', 'rhythm');
@@ -568,6 +586,10 @@
           if (ks.includes('peri') && /^STEMI/.test(dx)) continue;   // (AF pericarditis: without a PR segment the reader cannot tell it from STEMI)   // (flutter waves on the ST segment; flutter carries no ischemia)
           if (dx === 'long QT' && (R.block || R.at || rec.abn.some((x) => ABN[x.k].ectopy || ABN[x.k].pause || ABN[x.k].sinusNode))) continue;   // (QT after a pause is longer: QTc is not read across pauses)
           if (dx === 'poor R progression') { optional.add('poorR'); continue; }
+          // (sinus tachycardia: the P rides on the previous T, which makes it look tall (RAE) and, with the P hidden, the PR long)
+          if (rhythm === 'sinusTachy' && (dx === 'RAE' || (dx === '1st-degree AVB' && !ks.includes('avb1')))) continue;
+          if (dx.startsWith('old MI') && ks.includes('wpw')) { optional.add('qwaves'); continue; }   // (WPW pseudo-infarct: negative delta waves look like Q waves)
+          if (dx.startsWith('STEMI') && ks.includes('lbbb') && !rec.abn.some((x) => ABN[x.k].isch)) continue;   // (LBBB: discordant ST elevation in V1–V3 is expected)
           if (dx === 'LVH' && ks.includes('lafb')) { optional.add('lvh'); continue; }
           if (dx === 'T inversion' && ks.length) { optional.add('twi'); continue; }
           if (dx === 'long QT' && ks.length) { optional.add('longqt'); continue; }
@@ -595,7 +617,13 @@
       const crits = new Map();
       for (const a of rec.abn) {
         const d = ABN[a.k]; if (d.sinusNode || d.pause || d.ectopy) continue;
-        const c = criteria(a.k, R.pRhythm ? a : { ...a, noP: true }, r.m, r.L);
+        // (sinus tachycardia: the P sits on the previous T and the reader's PR is unreliable; the PR is taken from the engine)
+        let mm = r.m;
+        if (tachyHideP && (a.k === 'avb1' || a.k === 'wpw')) {
+          const prs = V.map((v) => { const p = A.filter((x) => x.on < v.on - 30 && x.on > v.on - 400).pop(); return p ? v.on - p.on : null; }).filter((x) => x !== null).sort((x, y) => x - y);
+          if (prs.length) mm = { ...r.m, pr: Math.round(prs[prs.length >> 1]) };
+        }
+        const c = criteria(a.k, R.pRhythm ? a : { ...a, noP: true }, mm, r.L);
         if (!c.ok) return fail(`${a.k}${a.site ? ' ' + a.site : ''} criteria not met (${c.why})`, 'criteria');
         crits.set(a, c);
       }
@@ -610,10 +638,17 @@
           continue;
         }
         if (d.pause) {
-          const medRR = rrs.slice().sort((x, y) => x - y)[rrs.length >> 1], longest = Math.max(...rrs);
-          checks.push(`pause: longest RR ${Math.round(longest)} ms (${(longest / medRR).toFixed(1)}× the usual)`);
-          if (longest < 1.6 * medRR) return fail(`sinus pause not seen (longest RR ${Math.round(longest)} ms)`, 'criteria');
-          findings.push({ id: d.id, skill: d.skill }); mark(d.id, ['II']); lines[d.id] = d.line;
+          // from the sinus P waves (atrial activations a QRS follows 60–300 ms later), not the RR: a junctional escape
+          // beat may fall inside the pause (rec.pauseEscape), and then it must; without it, none may
+          const conducts = (x) => V.some((v) => v.on - x.on > 60 && v.on - x.on < 300);
+          const sp = A.filter(conducts), pp = sp.slice(1).map((x, i) => x.on - sp[i].on), medPP = pp.slice().sort((x, y) => x - y)[pp.length >> 1], longest = Math.max(...pp);
+          const esc = V.filter((v) => v.on > 350 && !A.some((x) => v.on - x.on > 60 && v.on - x.on < 300));   // (a QRS at the strip's start may have its P before it)
+          checks.push(`pause: longest P–P ${Math.round(longest)} ms (${(longest / medPP).toFixed(1)}× the usual), ${esc.length} escape beat(s)`);
+          if (!(longest >= 1.6 * medPP)) return fail(`sinus pause not seen (longest P–P ${Math.round(longest)} ms)`, 'criteria');
+          if (!!rec.pauseEscape !== esc.length > 0) return fail(`${esc.length} escape beats in a pause ${rec.pauseEscape ? 'with' : 'without'} escape`, 'criteria');
+          findings.push({ id: d.id, skill: d.skill }); mark(d.id, ['II']);
+          lines[d.id] = esc.length ? 'A sudden pause with no P wave, not a multiple of the P–P interval, ended by a narrow junctional escape beat (no P before it), then sinus beats resume: sinus pause with junctional escape.' : d.line;
+          if (esc.length) optional.add('escape');
           continue;
         }
         if (d.ectopy) {
@@ -695,7 +730,7 @@
       else if ((calK === 'pr' || rec.abn.some((a) => a.k === 'avb1')) && r.m.pr) { const [a] = within(1200, 4600); if (a) caliper = { lead: 'rhythm', t0: Math.round(a.on - r.m.pr), t1: Math.round(a.on), label: `PR ${r.m.pr} ms` }; }
       const nS = STRIP / (1000 / HZ), art = rec.art ? artifactLeads(rec.art, rec.seed, nS) : null;
       const leads = LEADS.map((_, k) => { const x = new Int16Array(nS); for (let i = 0; i < x.length; i++) x[i] = Math.max(-32000, Math.min(32000, Math.round((rec12[i * (1000 / HZ)][k] + (art ? art[k][i] : 0)) * 1000))); return b64(x); });
-      const key = { rhythm, alt: R.alt || (SINUS.includes(rhythm) && rhythm !== 'sinus' ? ['sinus'] : []), findings, optional: [...optional] };
+      const key = { rhythm, alt: rhythmAlt || R.alt || (SINUS.includes(rhythm) && rhythm !== 'sinus' ? ['sinus'] : []), findings, optional: [...optional] };
       const skills = { rhythm: true }; for (const a of rec.abn) skills[ABN[a.k].skill] = true;
       const title = [rhythm, ...rec.abn.map((a) => (ABN[a.k].isch ? `${a.k} (${a.site})` : a.k))].join(' + ');
       // difficulty: rhythm and abnormalities, harder when some P waves are hidden

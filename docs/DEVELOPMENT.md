@@ -1822,3 +1822,24 @@ The Android app is in closed testing, so the website now recruits testers instea
   ⋯ menu (last item, in place of Install app) and in the desktop header (in place of Install app).
 - The **Training** item is gone from the phone's ⋯ menu; ecgstudio.app/training stays online, unlinked.
 - No web-app manifest or install prompts any more; the service worker stays, so the website still works offline once visited.
+
+## Round 48: generator fixes (WAP/MAT, sinus pause, sinus tachycardia combinations)
+
+From the audit of discarded training ECGs (docs/GEN_EXCLUSIONS.md on app-1).
+
+- **WAP/MAT.** The rhythm is now "WAP/MAT" in the simulator (it starts at the current rate; the slider sets it; the
+  interpretation says wandering atrial pacemaker below 100/min). Training draws 70–130/min: the key is `wap` below 100,
+  `mat` above, both accepted at 95–105 (new vocabulary term "Wandering atrial pacemaker"). The gate is the engine's
+  own record, not the blind rhythm read (which took some MAT strips for AF or irregular sinus tachycardia): at least three
+  different atrial foci fired in the strip (the MAT driver now logs each firing in `fireLog`), P waves visible.
+- **Sinus pause.** Not a timing bug: the junctional escape (48/min, 1.25 s) fired inside the 2.6 s pause, so in slower
+  hearts the RR check failed, and the ECGs that passed had an unannounced escape beat. Now both kinds are generated
+  (`rec.pauseEscape`): with the escape (a narrow beat without a P inside the pause; "Junctional escape beat" is a new,
+  optional finding) or a pure pause (`setBlock('SAN', 'pause', { escape: false })` keeps the junctional pacemaker silent
+  too). Checked on the sinus P–P interval; a retrograde P inside an escape QRS no longer counts as a hidden P.
+- **Sinus tachycardia** may now carry first-degree AV block, WPW, LBBB or RBBB; SVT (and sinus rhythm) is accepted as the
+  rhythm, P waves may be half hidden, and the PR for those findings comes from the engine (the reader's PR is unreliable
+  with the P on the T). The blind read's RAE and long PR at sinus tachycardia, WPW's pseudo-infarct Q waves (optional) and
+  LBBB's discordant ST elevation are no longer counted as extra findings.
+- Audit (seeds 11–13, 60 each): 127/180 → 140/180 kept. WAP/MAT 6/8 (P hidden with infarcts the rest); sinus pause and
+  the new sinus tachycardia combinations pass. Reader 47/57 as before.

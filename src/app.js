@@ -1405,7 +1405,7 @@
   // applies to sinus and the atrial rhythms only.
   const RHYTHMS = [
     ['sinus', 'Sinus rhythm', ''],
-    ['af', 'Atrial fibrillation', 'Atrial'], ['flutter', 'Atrial flutter', 'Atrial'], ['ectopic', 'Ectopic atrial rhythm', 'Atrial'], ['mat', 'Multifocal atrial tachycardia', 'Atrial'],
+    ['af', 'Atrial fibrillation', 'Atrial'], ['flutter', 'Atrial flutter', 'Atrial'], ['ectopic', 'Ectopic atrial rhythm', 'Atrial'], ['mat', 'WAP/MAT', 'Atrial'],
     ['avnrt', 'AVNRT', 'Re-entry through the AV node'], ['avrt', 'Orthodromic AVRT', 'Re-entry through the AV node'],
     ['vt', 'Ventricular tachycardia', 'Ventricular'], ['vf', 'Ventricular fibrillation', 'Ventricular'],
   ];
@@ -1481,7 +1481,7 @@
     }
     if (type === 'af' && !ui.struct.fib) { setCondition('fib', true); toast('AF needs a substrate: atrial fibrosis added. It stays after a shock; remove it under Conditions.', 4200); }
     if (type === 'vt') { let best = -1; for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.epi[c] && A.zuvc[c] > 0.35 && A.zuvc[c] < 0.45 && A.phi[c] < -2.2) { best = c; break; } S.startArrhythmia('vt', { cell: best }); return; }
-    if (type === 'mat' && ui.rate < 110) { ui.preAtrRate = ui.preAtrRate || ui.rate; ui.rate = 120; S.setRate(120); ui.rateMode = ''; }   // MAT starts tachycardic; the slider then sets it
+    if (type === 'mat') { ui.preAtrRate = ui.preAtrRate || ui.rate; ui.rateMode = ''; }   // WAP/MAT starts at the current rate (below 100: wandering atrial pacemaker); the slider sets it
     S.startArrhythmia(type);
     syncRate();
   }
@@ -1703,7 +1703,7 @@
       const ar = flutterCl ? 60000 / flutterCl : 0, ratio = ar ? ar / rate : 0, fixed = rrSd < 25 && Math.abs(ratio - Math.round(ratio)) < 0.2;
       rhythm = `Atrial flutter (${S.arrhythmia.clockwise ? 'atypical, clockwise' : 'typical, counterclockwise'}), atrial ${Math.round(ar)}/min with ${fixed ? Math.round(ratio) + ':1' : 'variable'} AV conduction`;
     } else if (arr === 'ectopic') rhythm = `Ectopic atrial ${vr > 100 ? 'tachycardia' : 'rhythm'}: low right-atrial focus, ${vr} bpm, inverted P in II, III and aVF`;
-    else if (arr === 'mat') rhythm = vr > 100 ? `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes` : `Multifocal atrial rhythm (wandering atrial pacemaker): ${vr} bpm, irregular, three or more P-wave shapes`;
+    else if (arr === 'mat') rhythm = vr > 100 ? `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes` : `Wandering atrial pacemaker: ${vr} bpm, irregular, three or more P-wave shapes`;
     else if (arr === 'vt') rhythm = `Monomorphic ventricular tachycardia, ${vr} bpm, with AV dissociation`;
     else if (avnrt) rhythm = `AVNRT (typical slow–fast): ${vr} bpm, narrow QRS, retrograde P hidden at the end of the QRS`;
     else if (avrt) {
@@ -1776,7 +1776,7 @@
     af: { t: 'Atrial fibrillation', f: ['No P waves: a wavy or flat baseline of fibrillatory (f) waves, often clearest in V1 and II.', 'Irregularly irregular RR intervals with no repeating pattern.', 'Narrow QRS unless there is bundle branch block or pre-excitation.'], p: ['A fast AF can look regular at a glance: measure several RR intervals.', 'AF with WPW gives broad, bizarre, very fast beats (pre-excited AF): AV-nodal blockers are dangerous there.'] },
     flutter: { t: 'Atrial flutter', f: ['Sawtooth flutter (F) waves, about 300/min, best seen in II, III, aVF (negative in typical counterclockwise flutter) and V1.', 'Fixed AV conduction gives a regular rhythm: 2:1 (≈150 bpm), 3:1, 4:1; variable conduction gives an irregular one.'], p: ['2:1 flutter at 150 bpm hides every other F wave in the QRS or T: suspect it whenever a regular narrow tachycardia runs at ~150.', 'Adenosine slows the ventricular response and unmasks the F waves; it does not stop flutter.'] },
     ectopic: { t: 'Ectopic atrial rhythm', f: ['A P wave before each QRS but with an abnormal axis: here inverted in II, III and aVF (low right-atrial focus).', 'PR often short (the focus lies close to the AV node); P shape constant, unlike MAT.'], p: ['Inverted inferior P waves with a short PR can also be junctional rhythm with retrograde P: in junctional rhythm the PR is usually < 120 ms or the P falls after the QRS.'] },
-    mat: { t: 'Multifocal atrial tachycardia', f: ['At least three different P-wave shapes in one lead, each followed by a QRS.', 'Varying PR and RR intervals: irregular, rate > 100 (below 100: wandering atrial pacemaker).'], p: ['Easily mistaken for AF: look for a distinct P before every QRS. Classically seen in severe lung disease.'] },
+    mat: { t: 'Wandering atrial pacemaker / multifocal atrial tachycardia', f: ['At least three different P-wave shapes in one lead, each followed by a QRS.', 'Varying PR and RR intervals: irregular. Rate below 100: wandering atrial pacemaker (WAP); above 100: multifocal atrial tachycardia (MAT). Set the rate with the slider.'], p: ['Easily mistaken for AF: look for a distinct P before every QRS. Classically seen in severe lung disease.'] },
     avnrt: { t: 'AVNRT', f: ['Regular narrow-complex tachycardia, typically 140–180 bpm, starting abruptly (often after a PAC with a long PR).', 'No visible P before the QRS: the retrograde P is buried in the QRS or seen as a pseudo-r′ in V1 / pseudo-S in II.'], p: ['Adenosine (or vagal manoeuvres) terminates it, unlike atrial flutter or atrial tachycardia.'] },
     avrt: { t: 'Orthodromic AVRT', f: ['Regular narrow-complex tachycardia, typically faster than AVNRT (often above 200 bpm); retrograde P after the QRS with RP > 70 ms (the impulse returns up the accessory pathway).', 'In sinus rhythm the same patient may show pre-excitation (short PR, delta wave).'], p: ['A rate above 200 bpm and RP > 70 ms favour AVRT over typical AVNRT (140–180 bpm, the P hidden in the QRS).'] },
     vt: { t: 'Ventricular tachycardia', f: ['Regular broad-complex tachycardia (QRS ≥ 120 ms), rate > 100.', 'AV dissociation: P waves march through at their own slower rate; capture and fusion beats prove it.', 'Concordance (all chest leads positive or all negative) and extreme axis favour VT.'], p: ['A broad regular tachycardia is VT until proven otherwise, even if the patient looks well.'] },

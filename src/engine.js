@@ -1552,7 +1552,7 @@
       const anyBlocked = (ids) => ids.some((c) => this.blocked[c]);
       const M = model, cs = M.csSegments;
       this._addPacemaker(M.junctionalCell, 60000 / this.P.junctionalRate, 'junctional',
-        () => this.blocked[M.sanCell] || this.sinusArrest || this.t < this.sinusPauseUntil || anyBlocked(M.avn));
+        () => this.blocked[M.sanCell] || this.sinusArrest || (this.t < this.sinusPauseUntil && this.pauseEscape !== false) || anyBlocked(M.avn));
       // Conduction to the ventricles is lost with His block or block of every
       // ventricular route: RBB plus LBB, or RBB plus both left fascicles.
       const allDistal = () => anyBlocked(cs.RBB) && (anyBlocked(cs.LBB) || (anyBlocked(cs.LAF) && anyBlocked(cs.LPF)));
@@ -1671,7 +1671,7 @@
       const gate = (cell, mode, n) => this.gates.set(cell, { mode, n, count: 0, site });
       if (site === 'SAN') {
         if (type === 'sa-exit') this.saExit = { n: opts.n || 3, count: 0 };
-        else if (type === 'pause') { this.sinusPauseUntil = this.t + (opts.ms || 2800); }
+        else if (type === 'pause') { this.sinusPauseUntil = this.t + (opts.ms || 2800); this.pauseEscape = opts.escape !== false; }   // (escape: false: the junctional escape stays silent too, a pure pause)
         else if (type === 'arrest') this.sinusArrest = true;
       } else if (site === 'AVN') {
         if (type === 'first') this.avnBlockMul = P.avnFirstDegreeMul;
@@ -2352,6 +2352,7 @@
         }
         if (t >= d.next) {
           const c = d.kind === 'rotate' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.cell;
+          if (d.kind === 'rotate') { this.fireLog.push({ name: 'focus', t, cell: c }); if (this.fireLog.length > 40) this.fireLog.shift(); }   // (which MAT focus fired: read by the training generator)
           if (t >= this.refEnd[c] && !this.blocked[c]) this.schedule(c, t);
           d.next = t + d.cl();
         }

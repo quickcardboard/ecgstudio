@@ -26,7 +26,8 @@ mobitz1 | Mobitz I | Wenckebach, Wenck, second degree AV block type 1, 2nd degre
 mobitz2 | Mobitz II | second degree AV block type 2, 2nd degree AV block type 2, Mobitz type 2, Mobitz 2, 2AVB type 2, 2 AVB 2, 2AVB2, type 2 second degree, 2nd degree type II
 avb2to1 | 2:1 AV block | two to one AV block, 2 to 1 block, 21 block, 21 AVB, 2 1 AV block, second degree 2:1, 2nd degree 2 to 1, 2AVB 21
 vf | Ventricular fibrillation | VF, v fib, vfib, fibrillation ventricular
-mat | Multifocal atrial tachycardia | MAT, chaotic atrial tachycardia, multifocal, multifocal atrial rhythm
+mat | Multifocal atrial tachycardia | MAT, chaotic atrial tachycardia, multifocal
+wap | Wandering atrial pacemaker | WAP, wandering pacemaker, multifocal atrial rhythm, WAP/MAT
 junctional | Junctional rhythm | nodal rhythm, junctional escape, junctional escape rhythm, JR
 idioventricular | Idioventricular rhythm | ventricular escape rhythm, IVR, ventricular escape
 
@@ -46,6 +47,7 @@ rad | Right axis deviation | RAD, right axis, axis right
 pvc | Premature ventricular complexes | PVC, PVCs, VPC, VE, VEB, ventricular ectopic, ventricular ectopics, ventricular premature beats, ectopics
 pac | Premature atrial complexes | PAC, PACs, APC, atrial ectopic, atrial ectopics, atrial premature beats, SVE
 sinusPause | Sinus pause | sinus arrest, SA arrest, pause, sinus pauses
+escape | Junctional escape beat | escape beat, junctional escape beat, nodal escape beat, escape
 saBlock | SA exit block | sinoatrial block, SA block, sinoatrial exit block, SAB, sinus exit block
 longqt | Long QT | prolonged QT, QT prolongation, long QTc, LQT, LQTS, QTc prolonged
 lafb | Left anterior fascicular block | LAFB, left anterior hemiblock, LAHB, anterior hemiblock, anterior fascicular block
