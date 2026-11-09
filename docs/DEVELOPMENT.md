@@ -1870,3 +1870,32 @@ The V6 problem (V6 unrelated to V5) and the post-infarct T depth, with a solved-
   reworks the hyperacute T).
 - Still open: the tall upright T in V3–V5 after an inferior (RCA) infarct at 2–30 days (V4 11.6 mm) is unchanged by the
   torso field: it is in the repolarisation model, not the forward model.
+
+## Round 50: ischaemia engine (the author's exclusion list)
+
+- **Hyperacute T, single and broad (was biphasic).** The K-ATP effect of the first minutes is now a smaller APD shortening
+  (`ischApdShort` 0.45 → 0.35) plus a sloping plateau in the ischaemic zone (`ischPlateauDrop` 0.25: the T rises from the
+  ST), and the RCA's injury scale (0.33, Round 46, for ST height) no longer shrinks it below `ischKatpFloor` 0.7. At 15 min:
+  mid RCA II/III/aVF 8.0/9.9/8.7 mm, single-peaked (III was a small down-up wave); mid LAD V3/V4 11.0/9.2. With LAFB the
+  anterior T stays single (the "M"-shaped T that excluded fascicular blocks is gone). Inferior ST at 1 h: III 3.8 (proximal)
+  and 5.7 mm (mid RCA), within Round 46's target.
+- **V4 at half on the torso ST-T** (`chestTorsoTLead` [0, 0, 0, 0.5, 1, 1]): with V4 fully on the solved torso the hyperacute
+  T in V4 was no taller than normal (the solved field sees the anterior wall's regional change weakly).
+- **Narrowing (subendocardial ischaemia):** `stenosisGlobal` 0.3: the rest of the LV inner wall shares 0.3 of the culprit's
+  severity (demand). Proximal LAD narrowing raised III/aVF (the mirror of its deep I/aVL depression); now diffuse ST
+  depression with ST elevation in aVR (2.5–3.5 mm) and slightly V1, as taught ("ST depression does not localise"). Mid-LAD
+  narrowing now reaches ≥ 1 mm and is used in Training.
+- **Hypertrophy with acute ischaemia:** `ischHypComp` 1 divides the injury current by the hypertrophy source gain. LVH + mid
+  LAD STEMI ST V3 9.4 → 6.5 mm (normal heart 6.3); LVH + mid RCA III 9.3 → 7.1 mm at J+20 (normal 5.0).
+- **Inferior infarct T waves:** `occlusionLate` RCA 1 → 0.1. After an RCA infarct, III/aVF inverted by 17–23 mm and aVL/I
+  rose 13–18 mm from 12 h to 30 days (live site too): the late APD prolongation over a wall that faces the limb leads squarely.
+  Now III ≈ −10 (≈ −7 mm on paper), aVF −6. Still open: the dead region alone leaves aVL/I ≈ +9 mm and V3–V4 ≈ 10 mm (the
+  normal T is a small residue of large opposing sources; removing a large territory unbalances it).
+- **Training generator:** hyperacute T with fascicular blocks and at the proximal RCA; LVH/RVH with STEMI and narrowing
+  (not with hyperacute T: LVH's tall right-precordial T mimics it); RBBB with old/recent infarcts and narrowing (not with
+  hyperacute T or pericarditis); LAFB with acute STEMI anywhere and LPFB with LAD/circumflex infarcts (an old/recent inferior
+  infarct with LAFB or LPFB stays out: its Q waves mask the block, as in real ECGs); Q waves and T inversion count lead III
+  beside aVF or II (4th UDMI); new infarct sites LM, OM1, OM2, distal RCA, PDA (distal circumflex: old infarcts only).
+  Not used: distal LAD (inferior ST elevation only), acute marginal (inferior pattern), distal circumflex STEMI (V6 only).
+- Validation: reader 47/57 (unchanged per scenario except acute marginal 30 d reads differently, still pass), fullcheck iErr 4,
+  hypertrophy presets unchanged. Training audit (seeds 11–13): 138/180 with the wider mix.

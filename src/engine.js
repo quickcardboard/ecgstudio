@@ -240,9 +240,10 @@
     // muscle only (the RV keeps its V1 elevation). Necrosis, Q waves and the time course are unchanged.
     occlusionInj: { LAD: 1, LCx: 1, RCA: 0.33, LM: 1 },
     occlusionInjRV: 1.8,
+    ischHypComp: 1,        // hypertrophy: the injury current divided by (source gain)^ischHypComp (1: as in a normal heart)
     // BANDAGE, not a fix (with cavityWindowT): the late T inversion (APD prolongation in and around the infarct, from ~6 h)
     // per artery family; see cavityWindowT and docs/DEVELOPMENT.md Round 47
-    occlusionLate: { LAD: 1, LCx: 1, RCA: 1, LM: 1 },   // (× occlusionInj in RV muscle: ~0.6)
+    occlusionLate: { LAD: 1, LCx: 1, RCA: 0.1, LM: 1 },   // (Round 50: RCA 0.1, the inferior wall faces the limb leads squarely: III −17 to −23 mm)   // (× occlusionInj in RV muscle: ~0.6)
     // non-specific ST-T changes (Sim.setNonspecificSTT): the transmural repolarisation gradient that makes the
     // T wave upright is reduced in patches that follow no artery (a smooth pattern from the Sim's seed), by up
     // to nssttGrad of it, and the plateau sags a little (nssttSag): flat or slightly inverted T waves and
@@ -2078,7 +2079,8 @@
         // it as mid-wall (it dies through its thickness), subendocardial patches
         // take its inner layers (everything off the epicardial surface)
         const c = ins.cells[q], rv = A.label[c] === LAB.RV, tm = rv ? (ins.kind === 'subendo' ? (A.epi[c] ? 1 : 0.05) : 0.5) : A.tm[c] < 0 ? 0.5 : A.tm[c];
-        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale, ins.lateScale === undefined ? 1 : ins.lateScale);   // (RV muscle less reduced: the V1 elevation of RV involvement)
+        const hg = P.ischHypComp ? Math.pow(rv ? P.rvSourceGain : P.lvSourceGain, -P.ischHypComp) : 1;   // (hypertrophy: its source gain would multiply the injury current too)
+        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, (ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale) * hg, ins.lateScale === undefined ? 1 : ins.lateScale);   // (RV muscle less reduced: the V1 elevation of RV involvement)
         if (!st) continue;
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);

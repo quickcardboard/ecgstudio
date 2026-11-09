@@ -81,7 +81,17 @@
     pRCA: { f: (b) => b.RCA[0], name: 'proximal RCA', ste: { req: ['inferior'], ok: ['septal'] }, q: { req: ['inferior'], ok: ['septal'] } },
     mRCA: { f: (b) => b.RCA[Math.round(b.RCA.length * 0.45)], name: 'mid RCA', ste: { req: ['inferior'], ok: ['lateral'] }, q: { req: ['inferior'], ok: ['lateral'] } },
     pLCx: { f: (b) => b.LCx[0], name: 'proximal circumflex', ste: { req: ['lateral'], ok: [] }, q: { req: ['lateral'], ok: [] } },
+    // Round 50 (re-tested after the chest-lead and ischaemia rounds): kinds limits what a site is used for. Not used: the
+    // distal LAD (inferior ST elevation only, no anterior change or Q waves), the acute marginal (inferior instead of the
+    // right-ventricular pattern), and a distal circumflex STEMI (only V6 rises)
+    LM: { fam: 'LAD', f: (b) => b.LM[0], name: 'left main', kinds: ['stemi', 'oldmi', 'recent', 'narrow'], ste: { req: ['lateral'], ok: ['anterior', 'septal'] }, q: { req: ['anterior'], ok: ['lateral', 'septal'] } },
+    OM1: { fam: 'LCx', f: (b) => b.OM1[0], name: 'first obtuse marginal', kinds: ['stemi', 'oldmi', 'recent', 'narrow'], ste: { req: ['lateral'], ok: [] }, q: { req: ['lateral'], ok: [] } },
+    OM2: { fam: 'LCx', f: (b) => b.OM2[0], name: 'second obtuse marginal', kinds: ['stemi', 'oldmi', 'recent', 'narrow'], ste: { req: ['inferior'], ok: ['lateral'] }, q: { req: ['lateral'], ok: ['inferior'] } },
+    dLCx: { fam: 'LCx', f: (b) => b.LCx[Math.round(b.LCx.length * 0.6)], name: 'distal circumflex', kinds: ['oldmi'], ste: { req: ['lateral'], ok: ['inferior'] }, q: { req: ['lateral'], ok: ['inferior'] } },
+    dRCA: { fam: 'RCA', f: (b) => b.RCA[Math.round(b.RCA.length * 0.8)], name: 'distal RCA', kinds: ['stemi', 'oldmi', 'recent', 'narrow'], ste: { req: ['inferior'], ok: ['lateral'] }, q: { req: ['inferior'], ok: ['lateral'] } },
+    PDA: { fam: 'RCA', f: (b) => b.PDA[0], name: 'posterior descending artery', kinds: ['stemi', 'oldmi', 'recent', 'narrow'], ste: { req: ['inferior'], ok: [] }, q: { req: ['inferior'], ok: [] } },
   };
+  const famOf = (site) => MI_SITES[site].fam || site.replace(/^[pmd]/, '');
   const ABN = {
     avb1: { group: 'av', skill: 'conduction', needP: true, rating: 0, dx: '1st-degree AVB', block: ['AVN', 'first'], leads: [], line: 'PR over 200 ms with every P conducted: first-degree AV block.' },
     rae: { group: 'atria', skill: 'conditions', needP: true, rating: 40, dx: 'RAE', atria: { ra: true }, struct: 'rae', leads: ['II', 'V1'], line: 'P taller than 2.5 mm in II: right atrial enlargement.' },
@@ -94,10 +104,10 @@
     wpw: { group: 'wpw', skill: 'conduction', needP: true, rating: 40, dx: 'WPW pattern', ap: true, struct: 'ap', excl: ['av', 'fasc', 'bbb', 'hyp', 'peri', 'brugada', 'atria'], leads: ['I', 'II', 'V4', 'V5'], caliper: 'pr', line: 'Short PR, slurred delta wave and broad QRS: WPW pattern.' },
     lvh: { group: 'hyp', skill: 'conditions', rating: 0, dx: 'LVH', hyp: 'lvh', struct: 'lvh', leads: ['V1', 'V5', 'V6', 'aVL'], line: 'S in V1 plus R in V5/V6 ≥ 35 mm: left ventricular hypertrophy.' },
     rvh: { group: 'hyp', skill: 'conditions', rating: 60, dx: 'RVH', hyp: 'rvh', struct: 'rvh', leads: ['V1', 'I'], line: 'Right axis with a dominant R in V1: right ventricular hypertrophy.' },
-    stemi: { group: 'isch', skill: 'ischemia', rating: 0, isch: 1, excl: ['peri', 'brugada', 'hyp'], id: 'ste' },   // (hypertrophy amplifies the injury current: ST elevation far too tall)
+    stemi: { group: 'isch', skill: 'ischemia', rating: 0, isch: 1, excl: ['peri', 'brugada'], id: 'ste' },   // (Round 50: the injury current is compensated for hypertrophy's source gain, ischHypComp)
     oldmi: { group: 'isch', skill: 'ischemia', rating: 20, isch: 720, excl: ['peri', 'brugada'], id: 'qwaves' },
     // narrowing (partial flow, 1 h): subendocardial ischemia, ST depression (with ST elevation in aVR)
-    narrow: { group: 'isch', skill: 'ischemia', rating: 100, isch: 1, stenosis: true, excl: ['peri', 'brugada', 'hyp', 'wpw'], id: 'std' },
+    narrow: { group: 'isch', skill: 'ischemia', rating: 100, isch: 1, stenosis: true, excl: ['peri', 'brugada', 'wpw'], id: 'std' },
     // hyperacute phase (15 min): tall, broad T waves over the territory before the ST rises
     hyper: { group: 'isch', skill: 'ischemia', rating: 140, isch: 0.25, excl: ['peri', 'brugada', 'hyp', 'wpw'], id: 'hyperacute' },   // (Round 50: with the K-ATP plateau slope the T stays single with a fascicular block)
     // a recent infarct (2 days): Q waves with T inversion over the territory, ST elevation mostly resolved
@@ -144,7 +154,7 @@
 
   // Combination rules (the author's clinical calls; see docs/DEVELOPMENT.md training-1):
   // - at most one QRS-changing condition, except RBBB with LAFB or LPFB (bifascicular block)
-  // - LBBB: no ischemia, no pericarditis; RBBB: acute STEMI yes, old infarct and pericarditis no
+  // - LBBB: no ischemia, no pericarditis; RBBB: infarcts and narrowing yes, hyperacute T and pericarditis no
   // - pericarditis only with the rhythm, atrial enlargement or first-degree block
   // - WPW: with ischemia, not with atrial enlargement (the P runs into the delta wave) or 1st-degree block
   // - fascicular block and infarct: LAFB not with an inferior infarct, LPFB not with an LAD or circumflex one
@@ -170,16 +180,17 @@
     if (q.length > 2 || (q.length === 2 && !BIFASC.some(([x, y]) => q.includes(x) && q.includes(y)))) return false;
     const isch = has('stemi') || has('oldmi') || has('recent') || has('hyper') || has('narrow');
     if (has('lbbb') && (isch || has('peri'))) return false;
-    if (has('rbbb') && (has('oldmi') || has('recent') || has('hyper') || has('narrow') || has('peri'))) return false;   // (RBBB's own T waves)
+    if (has('rbbb') && (has('hyper') || has('peri'))) return false;   // (RBBB's own ST-T in V1–V3 hides them; Round 50: old/recent infarcts and narrowing allowed)
     if (has('peri') && all.some((x) => x !== 'peri' && !['rae', 'lae', 'bae', 'avb1'].includes(x))) return false;
     if (has('wpw') && all.some((x) => ['rae', 'lae', 'bae', 'avb1', 'peri'].includes(x))) return false;
     return true;
   }
   // (Round 50: LAFB with an old or recent inferior/circumflex infarct stays out: the inferior Q waves replace LAFB's rS, as
   // in real ECGs; LAFB with an acute STEMI anywhere, and LPFB with any infarct, are allowed and gated on their criteria)
-  const siteOk = (site, list, k) => !(list.includes('lafb') && /RCA|LCx/.test(site) && ['oldmi', 'recent'].includes(k)) && !(list.includes('lpfb') && /RCA/.test(site) && ['oldmi', 'recent'].includes(k))
-    && !(list.includes('avb1') && /RCA/.test(site))
-    && !(list.includes('wpw') && /LCx/.test(site));   // (the left-lateral pathway inserts in circumflex territory: an infarct there removes the pre-excitation)   // (a proximal RCA occlusion slows the AV node too: with first-degree block the P sinks into the T)
+  const siteOk = (site, list, k) => (!MI_SITES[site].kinds || MI_SITES[site].kinds.includes(k))
+    && !(list.includes('lafb') && /RCA|LCx/.test(famOf(site)) && ['oldmi', 'recent'].includes(k)) && !(list.includes('lpfb') && famOf(site) === 'RCA' && ['oldmi', 'recent'].includes(k))
+    && !(list.includes('avb1') && /^[pm]RCA$/.test(site))
+    && !(list.includes('wpw') && famOf(site) === 'LCx');   // (the left-lateral pathway inserts in circumflex territory: an infarct there removes the pre-excitation)   // (a proximal RCA occlusion slows the AV node too: with first-degree block the P sinks into the T)
   function itemRating(rec) {
     return Math.round(ITEM_BASE + ITEM_SCALE * (RHYTHMS[rec.rhythm].rating + rec.abn.reduce((s, a) => s + PER_ABN + ABN[a.k].rating, 0))) + artBonus(rec.art);
   }
@@ -221,7 +232,7 @@
     const abn = list.map((k) => {
       const a = { k };
       // (a mid-LAD narrowing stays under 1 mm: not asked)
-      if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list, k) && !(k === 'hyper' && /LCx/.test(x))); if (!sites.length) return null; a.site = sites[Math.floor(rand() * sites.length)]; }   // (no hyperacute T at a circumflex site: its T barely grows; nor at the proximal RCA, whose inferior T stays under 5 mm)
+      if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list, k) && !(k === 'hyper' && famOf(x) === 'LCx')); if (!sites.length) return null; a.site = sites[Math.floor(rand() * sites.length)]; }   // (no hyperacute T at a circumflex site: its T barely grows; nor at the proximal RCA, whose inferior T stays under 5 mm)
       return a;
     }).filter(Boolean);
     let rate = 72;
@@ -444,7 +455,8 @@
     // T inversion (4th UDMI): ≥ 1 mm in two contiguous leads with a prominent R wave (R/S > 1); aVR, III and
     // V1 not counted
     // (behind Q/QS waves the R is gone and inverted T still counts)
-    const twiLeads = (L) => contiguous(LEADS.filter((n) => !['aVR', 'III', 'V1'].includes(n) && L[n].T <= -0.1 && (L[n].R > L[n].S || L[n].qs || L[n].q.dur >= 30)));
+    // (lead III counts with aVF or II beside it, never alone: a lone inverted T in III is normal)
+    const twiLeads = (L) => contiguous(LEADS.filter((n) => !['aVR', 'V1'].includes(n) && L[n].T <= -0.1 && (L[n].R > L[n].S || L[n].qs || L[n].q.dur >= 30)));
     // (4th UDMI: lead III counts with aVF or II beside it (contiguous), never alone)
     const qLeads = (L) => contiguous(LEADS.filter((n) => (n === 'V2' || n === 'V3' ? L[n].q.dur >= 20 || L[n].qs : ['I', 'II', 'III', 'aVL', 'aVF', 'V4', 'V5', 'V6'].includes(n) && ((L[n].q.dur >= 30 && L[n].q.amp <= -0.1) || L[n].qs))));
     // criteria (ACC/AHA 2009 conduction, Sokolow-Lyon/Cornell, 4th UDMI, the reader's P-wave and Brugada
