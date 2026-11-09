@@ -1843,3 +1843,30 @@ From the audit of discarded training ECGs (docs/GEN_EXCLUSIONS.md on app-1).
   LBBB's discordant ST elevation are no longer counted as extra findings.
 - Audit (seeds 11–13, 60 each): 127/180 → 140/180 kept. WAP/MAT 6/8 (P hidden with infarcts the rest); sinus pause and
   the new sinus tachycardia combinations pass. Reader 47/57 as before.
+
+## Round 49: chest-lead ST-T from the solved torso (V4–V6); Round 47's LAD bandage removed
+
+The V6 problem (V6 unrelated to V5) and the post-infarct T depth, with a solved-torso chest field.
+
+- **Solve.** `node tools/export_heart_torso.js heart.json` + `ANISO=1 python3 tools/torso_v2.py heart.json tv17.json 3` (needs
+  `pip install scipy pyamg`; 61 s). Its LA/LL fields are identical to the bundled `src/torso_limb.json`; the V3–V6 fields are
+  now bundled with them (plus `chestScale`, the V2-normalised chest scale of that solve, since V2 is not shipped).
+  `torso_limb.json` 0.93 → 2.8 MB.
+- **Every lead from the torso (`fullTorso`) was tried and not adopted:** V5–V6 alike (correlation 0.99) and a natural T
+  progression, but a poor R progression (small R in V4, then a tall R in V5), small QRS, and the anterior and lateral infarct
+  Q waves lost (the cavity-window electrode is skipped on that path). `chestTorso` (torso near field for the whole beat):
+  iErr 4 → 11 for the same reason.
+- **Adopted: `chestTorsoT`.** The QRS of every chest lead stays as it was (blend + cavity window: R progression and Q waves
+  unchanged); the ST-T of **V4–V6** comes from the solved torso (electrode − Wilson terminal, without the cavity window),
+  ramped in from 40 ms after the last ventricular activation over 80 ms. Separate torso electrodes (`torsoTE`), so the QRS
+  path is untouched. V1–V3 keep the blend: with the torso T, Brugada's coved ST read as STEMI (V1–V2), and V3 turned
+  upright after an LAD infarct (the solved field's V3 sits on that boundary).
+- **Bandage removed:** `occlusionLate` LAD 0.5 → 1. (`cavityWindowT` 0.25 stays for the blend part, so V1–V3 only.)
+- Results (normal; T V4/V5/V6, mm): 6.9/3.8/1.2 → 4.9/3.6/2.0; V5–V6 correlation 0.79 → 0.90. Mid LAD 48 h: T V4 −6.0 → −5.9
+  with the bandage gone, V5 −2.2 → −2.1, now inverted V2–V5 in the ischaemia audit. Proximal LCx 48 h V6 T −6.2 → −3.0.
+  Acute STE smaller in V4 (mid LAD 7.6 → 6.0 mm).
+- Validation: reader 47/57 (pLCx 1 h partial → pass, acute marginal 1 h pass → partial), fullcheck iErr 4 (unchanged),
+  Brugada passes. Training audit (seeds 11–13): 140 → 134/180, almost all hyperacute T now under 10 mm in V4 (Round 50
+  reworks the hyperacute T).
+- Still open: the tall upright T in V3–V5 after an inferior (RCA) infarct at 2–30 days (V4 11.6 mm) is unchanged by the
+  torso field: it is in the repolarisation model, not the forward model.

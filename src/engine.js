@@ -239,7 +239,7 @@
     occlusionInjRV: 1.8,
     // BANDAGE, not a fix (with cavityWindowT): the late T inversion (APD prolongation in and around the infarct, from ~6 h)
     // per artery family; see cavityWindowT and docs/DEVELOPMENT.md Round 47
-    occlusionLate: { LAD: 0.5, LCx: 1, RCA: 1, LM: 1 },   // (× occlusionInj in RV muscle: ~0.6)
+    occlusionLate: { LAD: 1, LCx: 1, RCA: 1, LM: 1 },   // (× occlusionInj in RV muscle: ~0.6)
     // non-specific ST-T changes (Sim.setNonspecificSTT): the transmural repolarisation gradient that makes the
     // T wave upright is reduced in patches that follow no artery (a smooth pattern from the Sim's seed), by up
     // to nssttGrad of it, and the plateau sags a little (nssttSag): flat or slightly inverted T waves and
@@ -281,6 +281,7 @@
     atrialLimbGain: 1.85,      // atrial sources in the solved-torso limb leads: keeps the P-wave calibration made with the cylinder field (P in II 0.23 mV)
     limbTorso2: true,          // limb leads I, II from the solved torso (src/torso_limb.json: shoulder/axilla and hip contact patches) instead of the cylinder field
     fullTorso: false,          // with chestTorso: every lead from the solved torso's electrode potentials (limb LA−RA, LL−RA; chest V − WCT), no heart-vector blend
+    chestTorsoT: 1, chestTorsoT0: 40, chestTorsoTRamp: 80, chestTorsoTGain: 1, chestTorsoTCav: 0, chestTorsoTLead: [0, 0, 0, 1, 1, 1],   // ST-T of the chest leads from the solved torso (see the chest leads in Sim)
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
@@ -1263,7 +1264,8 @@
       // + three uniform-field "leads" giving the heart dipole vector (VCG X,Y,Z)
       // + optionally limb leads I and II from a bounded-torso lead field
       const TF = this.P.torsoField !== undefined ? this.P.torsoField : DEFAULT_TORSO;
-      const NE = names.length + 3 + (TF || this.P.limbTorso2 ? 2 : 0) + (this.P.cavityWindow > 0 ? 1 : 0);   // (+ a virtual electrode in the LV cavity)
+      const tE = names.length + 3 + (TF || this.P.limbTorso2 ? 2 : 0), nT = this.P.chestTorsoT > 0 && !this.P.chestTorso ? 9 : 0;   // (chestTorsoT: the 9 electrodes again, from the solved torso)
+      const NE = tE + nT + (this.P.cavityWindow > 0 ? 1 : 0);   // (+ a virtual electrode in the LV cavity)
       let tfSample = null, tfScale = 1, tfMean = null;
       if (TF) {
         if (!TF._I) { TF._I = decode(TF.I, Float32Array); TF._II = decode(TF.II, Float32Array); }
@@ -1336,7 +1338,7 @@
       // psi_e, lead field grad psi_e) instead of the point-source 1/r formula. The
       // heart-vector part of the chest leads and the limb leads are unchanged.
       let tv2 = null;
-      const T2 = this.P.chestTorso || this.P.limbTorso2 ? (this.P.torsoV2 || DEFAULT_TORSO2) : null;
+      const T2 = this.P.chestTorso || this.P.limbTorso2 || this.P.chestTorsoT > 0 ? (this.P.torsoV2 || DEFAULT_TORSO2) : null;
       if (T2) {
         const [nx, ny, nz] = T2.dims, o = T2.origin, th = T2.h;
         const psi = names.map((k) => { if (k === T2.ref || !T2.psi[k]) return null; const a = decode(T2.psi[k], Int16Array), f = new Float32Array(a.length), s = T2.scale[k]; for (let i = 0; i < a.length; i++) f[i] = a[i] * s; return f; });
@@ -1353,9 +1355,11 @@
           return [gx / th, gy / th, gz / th];
         };
         // scale: mean |grad psi_V2| over the ventricles matches the point-source 1/r² near field (keeps the chest gains meaningful)
-        let gs = 0, rs = 0; const eV2 = names.indexOf('V2');
+        let gs = 0, rs = 0; const eV2 = names.indexOf('V2'), hasV2 = !!(T2.psi.V2);
         for (let c = 0; c < n; c += 5) { if (this.kind[c] !== KIND.VENT) continue; const m = this.toTorso(A.p(c)); const gv = grad(eV2, m); gs += Math.hypot(gv[0], gv[1], gv[2]); const r = sub(E[eV2], m); rs += 1 / dot(r, r); }
-        tv2 = { grad, scale: gs ? rs / gs : 0, chest: !!this.P.chestTorso && gs > 0 };
+        if (!hasV2 && T2.chestScale) { gs = 1; rs = T2.chestScale; }   // (the bundled field has no V2: the scale of its solve is stored)
+        tv2 = { grad, scale: gs ? rs / gs : 0, chest: !!this.P.chestTorso && gs > 0, chestT: nT && gs > 0 ? tE : 0 };
+        this.torsoTE = tv2.chestT;
         if (this.P.limbTorso2) {   // limb leads from the solved torso: same normalisation as the cylinder field (mean |lead I| over the heart = 1e-4)
           const eLA = names.indexOf('LA'), eLL = names.indexOf('LL'); let sl = 0, cl = 0;
           for (let c = 0; c < n; c += 7) { if (!this.kind[c]) continue; const gv = grad(eLA, this.toTorso(A.p(c))); sl += Math.hypot(gv[0], gv[1], gv[2]); cl++; }
@@ -1447,6 +1451,10 @@
         if (q && kc !== KIND.VENT) Lv = Lv.map((x) => x * this.P.atrialTorsoII / this.P.torsoIIGain);   // torsoIIGain shortens lead II for ventricular sources only
         const cc = tfScale * h * h * sc * ((Lv[0] * lex[0] + Lv[1] * lex[1] + Lv[2] * lex[2]) + re * (Lv[0] * lrr[0] + Lv[1] * lrr[1] + Lv[2] * lrr[2]) + fe * (Lv[0] * lff[0] + Lv[1] * lff[1] + Lv[2] * lff[2]));
         out[12 + q] = cc;
+      }
+      if (tv2 && tv2.chestT) for (let e = 0; e < 9; e++) {     // chestTorsoT: the electrodes again, from the solved torso (ST-T of the chest leads)
+        const G = tv2.grad(e, m);
+        out[tv2.chestT + e] = tv2.scale * h * h * sc * ((G[0] * ex[0] + G[1] * ex[1] + G[2] * ex[2]) + re * (G[0] * rr[0] + G[1] * rr[1] + G[2] * rr[2]) + fe * (G[0] * ff[0] + G[1] * ff[1] + G[2] * ff[2]));
       }
       if (tv2 && tv2.chest) {                                 // torso lead fields for the electrode potentials
         for (let e = 0; e < 9; e++) {
@@ -2742,10 +2750,23 @@
       // model (a solved-torso chest field with the infarct patterns re-tuned).
       let cavF = 1;
       if (this._cavOmega && P.cavityWindowT < 1 && this._curV) { const end = this._curV.last + 15; if (t > end) cavF = 1 - Math.min(1, (t - end) / 40) * (1 - P.cavityWindowT); }
+      // chestTorsoT (with chestTorso): the ST-T of the chest leads from the solved torso (electrode potential − WCT,
+      // cavity window at full strength), the QRS from the blend above: share chestTorsoT, ramped in from chestTorsoT0 ms
+      // after the last ventricular activation over chestTorsoTRamp ms
+      let wT = 0;
+      const tE = this.M.torsoTE;
+      if (P.chestTorsoT > 0 && tE && this._curV) { const end = this._curV.last + P.chestTorsoT0; if (t > end) wT = Math.min(1, (t - end) / P.chestTorsoTRamp) * P.chestTorsoT; }
       for (let k = 0; k < 6; k++) {
         const u = dir[k], proj = D[0] * u[0] + D[1] * u[1] + D[2] * u[2];
         L[6 + k] = P.precordialGain * (P.precordialDipoleW * P.precordialDipoleGain * proj + (1 - P.precordialDipoleW) * (v(3 + k) - wct));
         if (this._cavOmega) { const om = this._cavOmega[k] * cavF; L[6 + k] = (1 - om) * L[6 + k] + om * P.precordialGain * (v(this.M.cavityE) - wct); }
+        if (wT > 0) {
+          const wctT = (v(tE) + v(tE + 1) + v(tE + 2)) / 3;
+          let f = v(tE + 3 + k) - wctT;
+          if (this._cavOmega && P.chestTorsoTCav > 0) { const om = this._cavOmega[k] * P.chestTorsoTCav; f = (1 - om) * f + om * (v(this.M.cavityE) - wct); }
+          const wk = wT * (P.chestTorsoTLead ? P.chestTorsoTLead[k] : 1);
+          L[6 + k] = (1 - wk) * L[6 + k] + wk * P.chestTorsoTGain * f;
+        }
       }
       }
       // recording chain: 2nd-order Butterworth low-pass per lead (ECG machine filter)
