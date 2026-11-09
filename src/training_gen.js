@@ -28,7 +28,7 @@
     sinusTachy: { w: 2, rate: [106, 125], pRhythm: true, open: true, rating: 20, notWith: ['peri', 'bae'], read: (r) => /^sinus (rhythm|tachycardia)$/.test(r) },
     af: { w: 3, open: true, rating: 60, rate: [60, 150], vLink: true, link: 'a=af', struct: 'fib', start: (S, rec) => { S.setAtrialFibrosis(true); S.run(2000); S.startArrhythmia('af'); S.setVentricularResponse(rec.rate); },   // (AF on its substrate, as in the app)
     read: (r) => r === 'atrial fibrillation' },
-    flutter: { w: 2.5, open: true, notWith: ['stemi', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt'],   // (flutter waves sit on the ST segment)
+    flutter: { w: 2.5, open: true, notWith: ['stemi', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt', 'wellensA', 'wellensB'],   // (flutter waves sit on the ST segment)
       rating: 150, rate: [60, 100], vLink: true, link: 'a=flutter', start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate); }, read: (r) => r === 'atrial flutter' },
     // multifocal atrial tachycardia: four atrial foci taking turns (±25% cycle), so ≥ 3 P shapes with varying PR and RR;
     // the blind rhythm read must see it (gateRead), and the P waves must be visible
@@ -99,7 +99,7 @@
     bae: { group: 'atria', skill: 'conditions', needP: true, rating: 80, dx: 'biatrial enlargement', atria: { ra: true, la: true }, struct: 'rae,lae', leads: ['II', 'V1'], line: 'Tall and broad notched P: biatrial enlargement.' },
     lafb: { group: 'fasc', skill: 'conduction', rating: 40, dx: 'LAFB', block: ['LAF', 'complete'], leads: ['I', 'aVL', 'II', 'III', 'aVF'], line: 'Axis beyond −45° with qR in aVL and rS in II, III, aVF: left anterior fascicular block.' },
     lpfb: { group: 'fasc', skill: 'conduction', rating: 100, dx: 'LPFB', block: ['LPF', 'complete'], leads: ['I', 'aVL', 'III', 'aVF'], line: 'Right axis with rS in I and qR in III, no RVH: left posterior fascicular block.' },
-    lbbb: { group: 'bbb', skill: 'conduction', rating: 0, dx: 'LBBB', block: ['LBB', 'complete'], excl: ['fasc', 'hyp', 'isch', 'wpw', 'brugada'], leads: ['I', 'V1', 'V6'], caliper: 'qrs', line: 'QRS ≥ 120 ms, broad notched R in I and V6, deep QS in V1: LBBB.' },
+    lbbb: { group: 'bbb', skill: 'conduction', rating: 0, dx: 'LBBB', block: ['LBB', 'complete'], excl: ['fasc', 'hyp', 'wpw', 'brugada'], leads: ['I', 'V1', 'V6'], caliper: 'qrs', line: 'QRS ≥ 120 ms, broad notched R in I and V6, deep QS in V1: LBBB.' },
     rbbb: { group: 'bbb', skill: 'conduction', rating: 0, dx: 'RBBB', block: ['RBB', 'complete'], excl: ['hyp', 'wpw', 'brugada'], leads: ['V1', 'V2', 'I', 'V6'], caliper: 'qrs', line: 'QRS ≥ 120 ms, rsR′ in V1 and a broad S in I and V6: RBBB.' },
     wpw: { group: 'wpw', skill: 'conduction', needP: true, rating: 40, dx: 'WPW pattern', ap: true, struct: 'ap', excl: ['av', 'fasc', 'bbb', 'hyp', 'peri', 'brugada', 'atria'], leads: ['I', 'II', 'V4', 'V5'], caliper: 'pr', line: 'Short PR, slurred delta wave and broad QRS: WPW pattern.' },
     lvh: { group: 'hyp', skill: 'conditions', rating: 0, dx: 'LVH', hyp: 'lvh', struct: 'lvh', leads: ['V1', 'V5', 'V6', 'aVL'], line: 'S in V1 plus R in V5/V6 ≥ 35 mm: left ventricular hypertrophy.' },
@@ -127,6 +127,9 @@
     // (rec.pauseEscape: the junctional escape fires during the pause (true), or stays silent too: a pure pause)
     sinusPause: { group: 'ectopy', skill: 'rhythm', rating: 60, id: 'sinusPause', pause: true, linkBlock: 'SAN.pause', at: [[3000, (S, rec) => S.setBlock('SAN', 'pause', { ms: 2600, escape: !!rec.pauseEscape })]], leads: ['II'], line: 'A sudden pause with no P wave, not a multiple of the P–P interval, then sinus beats resume: sinus pause.' },
     couplet: { group: 'ectopy', skill: 'rhythm', rating: 60, ectopy: 'couplet', id: 'couplet', leads: ['II'], line: 'Two premature wide complexes in a row: a ventricular couplet (three or more would be non-sustained VT).' },
+    // Wellens (Round 52; Sim.setWellens): a reperfused critical proximal LAD lesion, T changes over V2–V3, no Q waves
+    wellensA: { group: 'isch', skill: 'ischemia', rating: 180, id: 'wellens', wellens: 'A', link: 'wellens=A', optional: ['twi'], excl: ['peri', 'brugada', 'repol', 'bbb', 'hyp', 'wpw', 'electro', 'fasc'], leads: ['V2', 'V3'], line: 'Biphasic T waves (up, then down) in V2–V3 with no Q waves and the ST near baseline: Wellens type A, a critical proximal LAD stenosis.' },
+    wellensB: { group: 'isch', skill: 'ischemia', rating: 140, id: 'wellens', wellens: 'B', link: 'wellens=B', optional: ['twi'], excl: ['peri', 'brugada', 'repol', 'bbb', 'hyp', 'wpw', 'electro', 'fasc'], leads: ['V2', 'V3', 'V4'], line: 'Deep, symmetric T inversion in V2–V4 with no Q waves and the ST near baseline: Wellens type B, a critical proximal LAD stenosis.' },
     // electrolytes and hypothermia (Round 51; Sim.setElectrolyte): one per ECG, not with ST-T disease or a wide QRS
     hyperK: { group: 'electro', skill: 'conditions', rating: 80, id: 'hyperK', elec: ['hyperK', 1], link: 'hyperK=mild', excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['V2', 'V3', 'V4', 'II'], line: 'Tall, narrow-based, peaked T waves: hyperkalemia (K about 6–7).' },
     hyperK2: { group: 'electro', skill: 'conditions', rating: 160, id: 'hyperK', elec: ['hyperK', 2], link: 'hyperK=severe', optional: ['avb1', 'ivcd'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V1', 'V3'], line: 'Peaked T waves with flattened P waves, a long PR and a wide QRS: severe hyperkalemia (K above 7). Treat now.' },
@@ -138,7 +141,7 @@
   };
   // (testers' round 1: fewer hypertrophy, Brugada and atrial enlargement; more ST depression, T changes,
   // WPW and ectopy)
-  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, hyperK: 0.8, hyperK2: 0.4, hypoK: 0.8, hypoCa: 0.5, hyperCa: 0.4, hypothermia: 0.4 };
+  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, hyperK: 0.8, hyperK2: 0.4, hypoK: 0.8, hypoCa: 0.5, hyperCa: 0.4, hypothermia: 0.4, wellensA: 0.5, wellensB: 0.7 };
   const ITEM_BASE = 1200, PER_ABN = 180;
   // (difficulty above the base is stretched ×1.32: the hardest ECGs, four findings on a hard rhythm, reach ~2700
   // instead of ~2340, leaving headroom above the top title; the generator works on the unstretched scale)
@@ -187,7 +190,7 @@
     const q = all.filter((x) => QRS.includes(x));
     if (q.length > 2 || (q.length === 2 && !BIFASC.some(([x, y]) => q.includes(x) && q.includes(y)))) return false;
     const isch = has('stemi') || has('oldmi') || has('recent') || has('hyper') || has('narrow');
-    if (has('lbbb') && (isch || has('peri'))) return false;
+    if (has('lbbb') && ((isch && !has('stemi')) || has('peri') || all.some((x) => ['wellensA', 'wellensB'].includes(x)))) return false;   // (Round 52: LBBB with an acute STEMI, read by the Sgarbossa criteria)
     if (has('rbbb') && (has('hyper') || has('peri'))) return false;   // (RBBB's own ST-T in V1–V3 hides them; Round 50: old/recent infarcts and narrowing allowed)
     if (has('peri') && all.some((x) => x !== 'peri' && !['rae', 'lae', 'bae', 'avb1'].includes(x))) return false;
     if (has('wpw') && all.some((x) => ['rae', 'lae', 'bae', 'avb1', 'peri'].includes(x))) return false;
@@ -330,6 +333,7 @@
         if (d.peri) S.setPericarditis(true);
         if (d.brugada) S.setBrugada(true);
         if (d.elec) S.setElectrolyte(d.elec[0], d.elec[1]);
+        if (d.wellens) S.setWellens(d.wellens);
         if (d.nsstt) S.setNonspecificSTT(true);
       }
       if (atria.ra || atria.la) S.setAtrialEnlargement(atria);
@@ -526,6 +530,8 @@
         }
         // electrolytes (Round 51): the change itself is checked on the twin (visible); here the textbook measure
         case 'hyperK': case 'hyperK2': { const tall = ['V2', 'V3', 'V4', 'II'].filter((n) => L[n].T >= (n === 'II' ? 0.7 : 0.9)); return yes(tall.length, `T ${tall.map((n) => `${n} ${(L[n].T * 10).toFixed(0)} mm`).join(', ') || 'not tall'}${k === 'hyperK2' ? `, QRS ${m.qrs} ms` : ''}`, tall); }
+        case 'wellensB': { const inv = ['V2', 'V3', 'V4'].filter((n) => L[n].T <= -0.15); return yes(inv.length >= 2 && !qLeads(L).length && !steLeads(L).length, `T ${['V2', 'V3', 'V4'].map((n) => `${n} ${(L[n].T * 10).toFixed(1)}`).join(', ')} mm${qLeads(L).length ? ', Q waves' : ''}`, inv); }
+        case 'wellensA': { const bi = ['V2', 'V3'].filter((n) => L[n].tTerm < -0.03); return yes(bi.length >= 1 && !qLeads(L).length && !steLeads(L).length, `terminal T ${['V2', 'V3'].map((n) => `${n} ${(L[n].tTerm * 10).toFixed(1)}`).join(', ')} mm`, ['V2', 'V3']); }
         case 'hypoK': return yes(true, 'U waves (engine: slow terminal repolarisation)', ['V2', 'V3']);
         case 'hypoCa': return yes(m.qtc !== null && m.qtc >= 460, `QTc ${m.qtc}`);
         case 'hyperCa': return yes(m.qtc !== null && m.qtc <= 370, `QTc ${m.qtc}`);
@@ -533,6 +539,14 @@
         case 'brugada': { const b = ['V1', 'V2'].filter((n) => L[n].stJ >= 0.2 && L[n].stJ > L[n].st40 && L[n].st40 > L[n].st80 && L[n].tTerm < -0.03); return yes(b.length, `coved ST in ${b.join(' ') || 'neither V1 nor V2'}`, b); }
       }
       return yes(false, 'no criteria');
+    }
+    // Sgarbossa criteria, Smith-modified (Round 52): a STEMI in LBBB. Concordant ST elevation ≥ 1 mm (positive QRS),
+    // concordant ST depression ≥ 1 mm in V1–V3 (negative QRS), or discordant ST elevation ≥ 1 mm and ≥ 25% of the S wave
+    function sgarbossa(L) {
+      const conc = LEADS.filter((n) => L[n].net > 0 && L[n].stJ >= 0.1), dep = ['V1', 'V2', 'V3'].filter((n) => L[n].net < 0 && L[n].stJ <= -0.1);
+      const exc = LEADS.filter((n) => n !== 'aVR' && L[n].net < 0 && L[n].stJ >= 0.1 && L[n].stJ >= 0.25 * L[n].neg);
+      const why = [conc.length ? `concordant ST elevation in ${conc.join(', ')}` : '', dep.length ? `concordant ST depression in ${dep.join(', ')}` : '', exc.length ? `discordant ST elevation ≥ 25% of the S in ${exc.join(', ')}` : ''].filter(Boolean).join('; ');
+      return { ok: !!(conc.length || dep.length || exc.length), why: why || 'no Sgarbossa criterion', leads: [...new Set([...conc, ...dep, ...exc])] };
     }
     function twinDiff(med, twin, k) {
       const n = Math.min(med.rec.length - med.hint, twin.rec.length - twin.hint), pre = Math.min(med.hint, twin.hint), per = {};
@@ -658,7 +672,7 @@
           const prs = V.map((v) => { const p = A.filter((x) => x.on < v.on - 30 && x.on > v.on - 400).pop(); return p ? v.on - p.on : null; }).filter((x) => x !== null).sort((x, y) => x - y);
           if (prs.length) mm = { ...r.m, pr: Math.round(prs[prs.length >> 1]) };
         }
-        const c = criteria(a.k, R.pRhythm ? a : { ...a, noP: true }, mm, r.L);
+        const c = a.k === 'stemi' && rec.abn.some((x) => x.k === 'lbbb') ? sgarbossa(r.L) : criteria(a.k, R.pRhythm ? a : { ...a, noP: true }, mm, r.L);
         if (!c.ok) return fail(`${a.k}${a.site ? ' ' + a.site : ''} criteria not met (${c.why})`, 'criteria');
         crits.set(a, c);
       }
@@ -736,6 +750,11 @@
           mark('qwaves', c.leads); mark('twi', c.leads2);
           lines.qwaves = lines.twi = `Q waves in ${c.leads.join(', ')}, T inversion in ${c.leads2.join(', ')}: recent ${ex.req.join('/')} infarct (days old).`;
           ['ste', 'poorR', 'longqt'].forEach((x) => optional.add(x));
+        } else if (a.k === 'stemi' && rec.abn.some((x) => x.k === 'lbbb')) {
+          findings.push({ id: 'sgarbossa', skill: d.skill });
+          mark('sgarbossa', c.leads);
+          lines.sgarbossa = `Sgarbossa criteria (modified) positive: ${c.why}: an acute STEMI despite the LBBB.`;
+          ['ste', 'std', 'reciprocal', 'hyperacute', 'twi', 'qwaves', 'posteriorMI'].forEach((x) => optional.add(x));
         } else if (d.isch) {
           const site = MI_SITES[a.site], acute = d.isch < 24, ex = acute ? site.ste : site.q, terr = terrOf(c.leads);
           findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });

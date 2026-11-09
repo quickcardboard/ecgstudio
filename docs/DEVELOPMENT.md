@@ -1926,3 +1926,20 @@ its cellular effect:
   WPW, bundle branch block or hypertrophy. The blind read's LBBB/IVCD in severe hyperkalemia (optional IVCD) and STEMI in
   hypothermia (J waves) are not counted as extra findings. Audit: 8 of 10 electrolyte ECGs kept in a random mix.
 - Validation: reader 47/57 and fullcheck iErr 4, unchanged.
+
+## Round 52: Wellens and STEMI in LBBB (Sgarbossa); de Winter dropped (too rare, the author)
+
+- **Wellens** (`Sim.setWellens('A'|'B')`; Conditions → **Ischemia patterns**). A critical proximal LAD lesion that reperfused
+  before the muscle died: no necrosis, no Q waves, ST at baseline. The anterior wall (the mid-LAD territory; with the proximal
+  LAD's territory the high lateral wall also inverted I/aVL and made II/aVF tall) keeps prolonged action potentials, most in
+  the outer wall (`wellensEndo` 0.1 inner share): type A × (1 + 0.65·severity) gives the biphasic T (up, then down) in V2–V3;
+  type B × (1 + 1.2·severity) deep symmetric T inversion V2–V5 with normal limb leads. A heart condition rather than an
+  insult, so the occlusion tools (time slider, ischemia list) are untouched. Interpretation line, Learn text, link `wellens=A|B`.
+- **STEMI in LBBB.** Training allows LBBB with an acute STEMI; its finding is "STEMI in LBBB (Sgarbossa)", checked by the
+  Smith-modified criteria on the median beat: concordant ST elevation ≥ 1 mm, concordant ST depression ≥ 1 mm in V1–V3, or
+  discordant ST elevation ≥ 1 mm and ≥ 25% of the S. LBBB alone meets none (largest discordant ratio 4%, V3); proximal and
+  mid LAD meet the discordant criterion (27–65%), RCA the concordant elevation in II/III/aVF, circumflex the concordant
+  V1–V3 depression. The simulator reads the same criteria when LBBB and an occlusion are both present (and no longer lists
+  Q/QS waves, lost R waves or T inversion in LBBB). Learn text "STEMI in LBBB: Sgarbossa criteria".
+- Training: Wellens types A and B (not with flutter, fascicular blocks, bundle branch blocks, hypertrophy, WPW, electrolytes).
+- Validation: reader 47/57, fullcheck iErr 4. Audit (seeds 13–14): 91/120 kept, including LBBB + STEMI at the proximal LAD and OM1.

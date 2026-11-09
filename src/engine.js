@@ -237,6 +237,7 @@
     elecHypoKRepW: 1.2, elecHypoKSag: 0.05, elecHypoKMid: 0, elecHypoKLayer: 0.5, elecHypoKLayerW: 0.25, elecHypoKTail: 0.18, elecHypoKTailMs: 230, elecHypoKTailW: 90,
     elecHypoCaApd: 1.45, elecHyperCaApd: 0.75,
     elecHypothermiaApd: 1.3, elecHypothermiaCv: 1.25, elecOsbornNotch: 0.5,
+    wellensA: 0.65, wellensB: 1.2, wellensEndo: 0.1, wellensAt: 0.22,   // Wellens (Sim.setWellens): APD prolongation of type A / B, inner-wall share, LAD node (fraction along it)
     stenosisGlobal: 0.3,   // narrowing: share of its severity in the rest of the LV inner wall
     stenosisBaseGain: 1, stenosisBaseZ: 0.6,   // narrowing: severity in the basal inner wall (apicobasal UVC above stenosisBaseZ)
     // occlusion: the injury current (resting depolarisation, the ST shift) per artery family. The inferior wall faces
@@ -1890,6 +1891,19 @@
     setPericarditis(on) { this.pericarditis = !!on; this._applyMyocardialDisease(); }
     setNonspecificSTT(on) { this.nsstt = !!on; this._applyMyocardialDisease(); }
     setBrugada(on) { this.brugada = !!on; this._applyMyocardialDisease(); }
+    // Wellens syndrome (Round 52): a critical proximal LAD lesion that reperfused before the muscle died: no necrosis, no Q
+    // waves, ST back to baseline; the anterior wall (the mid-LAD territory) keeps prolonged action potentials, most in the
+    // outer wall (the transmural gradient reverses): type 'A' biphasic T, type 'B' deep symmetric T inversion in V2–V4
+    setWellens(type) {
+      this.wellens = type === 'A' || type === 'B' ? type : null;
+      if (this.wellens && !this._wellensMap) {
+        const M = this.M, A = M.A, vn = M.coronary.voxNode, lad = M.coronary.branches.LAD, node = lad[Math.round(lad.length * this.P.wellensAt)], aff = new Uint8Array(A.n);
+        for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
+        const ins = this._makeInsult('wellens', aff, this.P.ischBorderMm);
+        this._wellensMap = new Map(); for (let q = 0; q < ins.cells.length; q++) this._wellensMap.set(ins.cells[q], ins.sev[q]);
+      }
+      this._applyMyocardialDisease();
+    }
     // Electrolytes and temperature (Round 51), each from its cellular effect:
     //   hyperK 1 (K ≈ 6–7): faster phase-3 repolarisation (repW × elecHyperKRepW) and a shorter APD: tall, narrow, peaked T, short QT
     //   hyperK 2 (K > 7): also slower conduction (wide QRS, long PR) and flattened atrial action potentials (flat, broad P)
@@ -1942,6 +1956,7 @@
           if (E.hypoCa) apd *= P.elecHypoCaApd;
           if (E.hyperCa) apd *= P.elecHyperCaApd;
           if (E.hypothermia) { apd *= P.elecHypothermiaApd; cvE *= P.elecHypothermiaCv; const epi = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (tmE - 0.6) / 0.3)); if (epi > 0) amp *= 1 - P.elecOsbornNotch * epi; }
+          if (this.wellens && this._wellensMap.has(c)) apd *= 1 + (this.wellens === 'A' ? P.wellensA : P.wellensB) * this._wellensMap.get(c) * (P.wellensEndo + (1 - P.wellensEndo) * tmE);
           this.cvElec[c] = cvE; this.repW[c] = (this._repWBase || (this._repWBase = this.repW.slice()))[c] * repWE;
           if (this.brugada && A.label[c] === LAB.RV && A.epi[c]) {
             const d = Math.hypot(A.pos[3 * c] - puv[0], A.pos[3 * c + 1] - puv[1], A.pos[3 * c + 2] - puv[2]);

@@ -1802,6 +1802,8 @@
     wpw: { t: 'Wolff–Parkinson–White pattern', f: ['Short PR (< 120 ms), delta wave (slurred QRS upstroke), QRS > 110 ms.', 'Secondary ST/T changes opposite to the delta wave.', 'Delta-wave polarity localises the pathway (e.g. negative delta in I/aVL: left lateral).'], p: ['Delta waves can mimic Q waves (pseudo-infarction) and hide in some leads: look in all twelve.'] },
     nsstt: { t: 'Non-specific ST-T changes', f: ['Flat T waves (between −1 and +1 mm) or minimal T inversion, with at most slight ST sagging, in leads where T is normally upright.', 'They follow no coronary territory, and there is no ST depression of 1 mm or more and no Q waves.'], p: ['Common and usually benign: electrolytes (low potassium or magnesium), drugs (digoxin, antiarrhythmics), fast heart rate, hyperventilation, posture, or a meal. Report them as non-specific and compare with an earlier ECG; they are not a diagnosis of ischemia.', 'Here: the gradient that makes the T wave upright (endocardium repolarising after epicardium) is reduced in patches across the ventricles.'] },
     peri: { t: 'Acute pericarditis', f: ['Diffuse concave ST elevation across many territories (I, II, aVL, aVF, V2–V6), with ST depression in aVR (and often V1).', 'PR-segment depression (PR elevation in aVR) from the inflamed atria.', 'No Q waves, no reciprocal depression outside aVR/V1; ST elevation often larger in II than in III. Sinus tachycardia is common.'], p: ['STEMI has territorial ST elevation with reciprocal depression and often convex ST: compare the distribution.', 'Early repolarisation can look similar; the ST/T ratio in V6 > 0.25 favours pericarditis.'] },
+    sgarbossa: { t: 'STEMI in LBBB: Sgarbossa criteria', f: ['LBBB normally has discordant ST-T: ST elevation where the QRS is negative (V1–V3) and depression where it is positive (I, aVL, V5–V6).', 'Smith-modified Sgarbossa, any one positive: concordant ST elevation ≥ 1 mm in a lead with a positive QRS; concordant ST depression ≥ 1 mm in V1–V3; discordant ST elevation ≥ 1 mm and ≥ 25% of the depth of the preceding S wave.', 'Here: the injury current adds to the block\'s secondary ST-T, so it shows where the two point the same way, or where the elevation is out of proportion to the QRS.'], p: ['A new or presumed-new LBBB alone is no longer treated as a STEMI equivalent: use the criteria and the clinical picture.', 'Q waves and T inversion cannot be read for infarction in LBBB.'] },
+    wellens: { t: 'Wellens syndrome', f: ['T-wave changes in V2–V3 (often V1–V4) in a patient whose chest pain has settled: type A biphasic T (up, then down), type B deep symmetric T inversion.', 'No Q waves, R waves preserved, ST at or near baseline (under 1 mm), normal or slightly raised troponin.', 'Here: the anterior wall reperfused before it died; its action potentials stay long, most in the outer wall, so the T reverses over it.'], p: ['It marks a critical proximal LAD stenosis about to occlude: angiography, not a stress test.', 'Type A evolves into type B; both can be missed because the patient is pain-free when the ECG is taken.'] },
     hyperK: { t: 'Hyperkalemia', f: ['Tall, narrow-based, peaked ("tented") T waves, symmetric, best seen in V2–V4 and II: the earliest sign (K about 6–7 mmol/L).', 'Higher: the P wave flattens and widens, the PR lengthens, and the QRS widens; at the extreme the QRS merges with the T into a sine wave.', 'Here: faster repolarisation (more potassium current) makes every cell repolarise steeply and the T narrow; at higher levels conduction slows in the atria and ventricles.'], p: ['The ECG can be normal even at dangerous potassium levels: treat the number, not only the ECG.', 'Tall T waves of early repolarisation and hyperacute T waves of ischemia are broader-based; the hyperkalemic T is narrow and pointed.'] },
     hypoK: { t: 'Hypokalemia', f: ['Flattened T waves with prominent U waves (a second hump after the T), best seen in V2–V3; the U can exceed the T.', 'Slight ST depression; the T and U merge into a long "QU" interval.', 'Here: less potassium current slows the last part of repolarisation: a share of it is left to a slow tail, which writes the U wave.'], p: ['Measure the QT to the end of the T, not the U: hypokalemia mimics long QT.', 'A U wave is normal in V2–V3 at slow heart rates if small (under ~1.5 mm and much smaller than the T).'] },
     hypoCa: { t: 'Hypocalcemia', f: ['Long QTc from a long, flat ST segment; the T wave itself keeps its normal shape and width.', 'Here: a longer plateau (phase 2) of the action potential, so repolarisation starts later everywhere.'], p: ['Distinguish from congenital long QT and drugs, which mostly broaden or change the T wave itself.'] },
@@ -1835,7 +1837,7 @@
     if (s.nPAC || s.nBlockedPAC) keys.push('pac'); if (s.nPVC) keys.push('pvc');
     if (S.adenosine) keys.push('adenosine');
     const st = ui.struct || {};
-    if (S.ap) keys.push('wpw'); if (st.peri) keys.push('peri'); if (st.nsstt) keys.push('nsstt'); if (st.brugada) keys.push('brugada'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae'); for (const k of ['hyperK', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia']) if (st[k]) keys.push(k);
+    if (S.ap) keys.push('wpw'); if (st.peri) keys.push('peri'); if (st.nsstt) keys.push('nsstt'); if (st.brugada) keys.push('brugada'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae'); for (const k of ['hyperK', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia', 'wellens']) if (st[k]) keys.push(k); if (S.blocks.LBB && S.insults.length) keys.push('sgarbossa');
     if (S.insults.length) {
       const sub = S.insults.every((x) => x.kind === 'subendo'), h = ui.ischH;
       if (sub) ischK.push('subendo');
@@ -1936,7 +1938,15 @@
     if (st.hypoCa) out.push(`Long QTc${QTc ? ` (${Math.round(QTc)} ms)` : ''} from a long, flat ST segment with a normal T wave: hypocalcemia pattern`);
     if (st.hyperCa) out.push(`Short QTc${QTc ? ` (${Math.round(QTc)} ms)` : ''}: the T wave starts almost at the end of the QRS (short ST segment): hypercalcemia pattern`);
     if (st.hypothermia) out.push('J (Osborn) waves at the end of the QRS, long QT and bradycardia: hypothermia pattern');
-    if (!S.insults.length && !S.ap && !st.lvh && !st.rvh && !st.peri && !st.brugada && !st.hypoK && !st.hyperK && !st.hypothermia && !Object.keys(S.blocks).some((b) => ['LBB', 'RBB'].includes(b))) {
+    // STEMI in LBBB: Smith-modified Sgarbossa criteria (Round 52)
+    if (S.blocks.LBB && S.insults.some((x) => x.kind === 'occlusion')) {
+      const L = Object.keys(m), net = (n) => m[n].rMax - m[n].s;
+      const conc = L.filter((n) => net(n) > 0 && m[n].stJ >= 0.1), dep = ['V1', 'V2', 'V3'].filter((n) => net(n) < 0 && m[n].stJ <= -0.1), exc = L.filter((n) => n !== 'aVR' && net(n) < 0 && m[n].stJ >= 0.1 && m[n].stJ >= 0.25 * m[n].s);
+      const parts = [conc.length ? `concordant ST elevation in ${conc.join(', ')}` : '', dep.length ? `concordant ST depression in ${dep.join(', ')}` : '', exc.length ? `discordant ST elevation ≥ 25% of the S wave in ${exc.join(', ')}` : ''].filter(Boolean);
+      out.push(parts.length ? `LBBB with ${parts.join('; ')}: Sgarbossa criteria (modified) positive, acute STEMI` : 'LBBB: ST changes within the expected discordance (Sgarbossa criteria negative)');
+    }
+    if (st.wellens) out.push(st.wellens === 'A' ? 'Biphasic T waves (up, then down) in V2–V3, no Q waves, ST near baseline, R waves preserved: Wellens pattern type A' : 'Deep, symmetric T-wave inversion in V2–V4, no Q waves, ST near baseline, R waves preserved: Wellens pattern type B');
+    if (!S.insults.length && !S.ap && !st.lvh && !st.rvh && !st.peri && !st.brugada && !st.hypoK && !st.hyperK && !st.hypothermia && !st.wellens && !Object.keys(S.blocks).some((b) => ['LBB', 'RBB'].includes(b))) {
       const flat = ['I', 'II', 'aVF', 'V3', 'V4', 'V5', 'V6'].filter((n) => Math.abs(m[n].t) <= 0.05);   // (flat: within ±0.5 mm)
       const nb = { I: [], II: ['aVF'], aVF: ['II'], V3: ['V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5'] }, fc = flat.filter((n) => nb[n].some((x) => flat.includes(x)));
       if (fc.length >= 2) out.push(`Flat T waves in ${fc.join(', ')}: non-specific ST-T changes`);
@@ -2060,9 +2070,11 @@
     }
     const hyperE = hyper.filter((n) => E.has(n));
     if (hyperE.length >= 2 && out.length && !out[0].text.startsWith('Hyperacute')) out.push(`Hyperacute T waves in ${span(hyperE)}`);
-    if (Q.length) out.push(`Pathological Q/QS waves in ${span(Q)}`);
-    if (rLossC.length) out.push(`R waves lost in ${span(rLossC)}`);
-    if (twi.length) out.push(`T-wave inversion in ${span(twi)}`);
+    if (!S.blocks.LBB) {   // (in LBBB, Q/QS waves, R progression and T inversion cannot be read for infarction)
+      if (Q.length) out.push(`Pathological Q/QS waves in ${span(Q)}`);
+      if (rLossC.length) out.push(`R waves lost in ${span(rLossC)}`);
+      if (twi.length) out.push(`T-wave inversion in ${span(twi)}`);
+    }
     return out.concat(nodalNote());
   }
   function nodalNote() {
@@ -2104,6 +2116,9 @@
       apply: (v) => S.setNonspecificSTT(!!v) },
     { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
     { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
+    // Wellens (Sim.setWellens; Round 52): a reperfused critical proximal LAD lesion
+    { id: 'wellens', cat: 'Ischemia patterns', label: 'Wellens', name: 'Wellens syndrome', also: 'critical proximal LAD stenosis reperfused biphasic T deep T inversion V2 V3 pain free',
+      options: [['A', 'Type A: biphasic T'], ['B', 'Type B: deep T inversion']], apply: (v) => S.setWellens(v || null) },
     // electrolytes and temperature (Sim.setElectrolyte; Round 51)
     { id: 'hyperK', cat: 'Electrolytes', label: 'Hyperkalemia', name: 'Hyperkalemia', also: 'high potassium K peaked T tented T wide QRS flat P sine wave',
       options: [['mild', 'Peaked T (K 6–7)'], ['severe', 'Wide QRS, flat P (K > 7)']], apply: (v) => S.setElectrolyte('hyperK', v === 'severe' ? 2 : v ? 1 : 0) },
