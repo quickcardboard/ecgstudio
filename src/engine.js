@@ -232,6 +232,11 @@
     // artery family (the injury of a territory saturates: these give 1.5–2 mm of horizontal ST depression at
     // J+80 in two contiguous leads at 1 h for the proximal artery; a mid-LAD territory reaches ~1 mm at most)
     stenosisSev: { LAD: 0.65, LCx: 0.55, RCA: 0.17, LM: 0.5 },
+    // electrolytes and hypothermia (Sim.setElectrolyte): factors on the healthy values
+    elecHyperKRepW: 0.5, elecHyperKApd: 0.85, elecHyperKGrad: 0.3, elecHyperKSync: 0, elecHyperKCv: 2.6, elecHyperKCvAtrial: 1.8, elecHyperKPAmp: 0.4,
+    elecHypoKRepW: 1.2, elecHypoKSag: 0.05, elecHypoKMid: 0, elecHypoKLayer: 0.5, elecHypoKLayerW: 0.25, elecHypoKTail: 0.32, elecHypoKTailMs: 230, elecHypoKTailW: 90,
+    elecHypoCaApd: 1.45, elecHyperCaApd: 0.75,
+    elecHypothermiaApd: 1.3, elecHypothermiaCv: 1.25, elecOsbornNotch: 0.5,
     stenosisGlobal: 0.3,   // narrowing: share of its severity in the rest of the LV inner wall
     stenosisBaseGain: 1, stenosisBaseZ: 0.6,   // narrowing: severity in the basal inner wall (apicobasal UVC above stenosisBaseZ)
     // occlusion: the injury current (resting depolarisation, the ST shift) per artery family. The inferior wall faces
@@ -1527,6 +1532,7 @@
       this.arrive = new Float64Array(N).fill(Infinity);
       this.blocked = new Uint8Array(N);
       this.cvMul = new Float32Array(N).fill(1);       // >1 slows conduction (ischaemia)
+      this.cvElec = new Float32Array(N).fill(1);      // >1 slows conduction (electrolytes, hypothermia: setElectrolyte)
       this.buckets = Array.from({ length: RING }, () => []);
       this._assignParams();
       if (!opts.noMemory && this.P.electrotonicK > 0) this._electrotonicMemory();
@@ -1549,6 +1555,7 @@
       this.H = [new Float64Array(HRING * model.NE), new Float64Array(HRING * model.NE)];   // [ventricular, atrial]
       const ker = (w) => Float64Array.from({ length: w }, (_, x) => { const u = x / w; return u * u * (3 - 2 * u); });
       this.K = [ker(Math.round(this.P.repWVent)), ker(Math.round(this.P.repWAtrial))];
+      this._kerVent0 = this.K[0];
       this.tbuckets = Array.from({ length: RING }, () => []);
       this.W = model.W;                                  // lead weights (copied when necrosis uncouples tissue)
       this.S0 = new Float64Array(model.NE); this.S1 = new Float64Array(model.NE);
@@ -1883,6 +1890,14 @@
     setPericarditis(on) { this.pericarditis = !!on; this._applyMyocardialDisease(); }
     setNonspecificSTT(on) { this.nsstt = !!on; this._applyMyocardialDisease(); }
     setBrugada(on) { this.brugada = !!on; this._applyMyocardialDisease(); }
+    // Electrolytes and temperature (Round 51), each from its cellular effect:
+    //   hyperK 1 (K ≈ 6–7): faster phase-3 repolarisation (repW × elecHyperKRepW) and a shorter APD: tall, narrow, peaked T, short QT
+    //   hyperK 2 (K > 7): also slower conduction (wide QRS, long PR) and flattened atrial action potentials (flat, broad P)
+    //   hypoK: slower repolarisation (wider repW: flat T), a sagging plateau (ST depression) and the mid-wall layer repolarising
+    //          late (U wave, best seen in V2–V3)
+    //   hypoCa: a longer plateau (long ST segment, normal T: long QTc); hyperCa: a shorter one (short ST, short QT)
+    //   hypothermia: an epicardial notch with a delayed dome (Ito; the J (Osborn) wave), longer APD, slower conduction
+    setElectrolyte(key, level) { this.elec = { ...(this.elec || {}), [key]: level ? (level === true ? 1 : +level) : 0 }; this._applyMyocardialDisease(); }
     _applyMyocardialDisease() {
       const M = this.M, A = M.A, P = this.P;
       // Brugada substrate: the anterior RV outflow epicardium under V1–V2
@@ -1914,6 +1929,20 @@
             apd *= 1 - P.nssttGrad * f * P.apdVentEndoExtra * (0.5 - tm) / this._apdBase[c];
             nsSag = P.nssttSag * f;
           }
+          const E = this.elec || {}, tmE = A.tm[c] < 0 ? 0.5 : A.tm[c];
+          let declE = 0, repWE = 1, cvE = 1;
+          if (E.hyperK) {
+            // (the repolarisation gradient across the ventricles grows too: each cell's APD moves further from the mean)
+            const mean = this._apdMeanV || (this._apdMeanV = (() => { let sm = 0, n = 0; for (let q = 0; q < M.nVox; q++) if (M.kind[q] === KIND.VENT) { sm += this._apdBase[q]; n++; } return sm / n; })());
+            apd *= P.elecHyperKApd * (1 + P.elecHyperKGrad * (this._apdBase[c] / mean - 1)); repWE *= P.elecHyperKRepW; if (E.hyperK > 1) cvE *= P.elecHyperKCv;
+            // (and repolarisation more synchronous: more of the electrotonic APD-activation coupling; a narrow, peaked T)
+            const mem = M._memory; if (mem && mem.delta[c]) apd *= 1 - P.elecHyperKSync * mem.delta[c] / this._apdBase[c];
+          }
+          if (E.hypoK) { repWE *= P.elecHypoKRepW; declE += P.elecHypoKSag; const mid = Math.max(0, 1 - Math.abs(tmE - P.elecHypoKLayer) / P.elecHypoKLayerW); apd *= 1 + P.elecHypoKMid * mid; }
+          if (E.hypoCa) apd *= P.elecHypoCaApd;
+          if (E.hyperCa) apd *= P.elecHyperCaApd;
+          if (E.hypothermia) { apd *= P.elecHypothermiaApd; cvE *= P.elecHypothermiaCv; const epi = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (tmE - 0.6) / 0.3)); if (epi > 0) amp *= 1 - P.elecOsbornNotch * epi; }
+          this.cvElec[c] = cvE; this.repW[c] = (this._repWBase || (this._repWBase = this.repW.slice()))[c] * repWE;
           if (this.brugada && A.label[c] === LAB.RV && A.epi[c]) {
             const d = Math.hypot(A.pos[3 * c] - puv[0], A.pos[3 * c + 1] - puv[1], A.pos[3 * c + 2] - puv[2]);
             const w = Math.max(0, Math.min(1, (P.brugadaMm - d) / 8));
@@ -1924,8 +1953,8 @@
           // (pericarditis: the inflamed epicardial plateau starts low and partly recovers
           // (negative slope), so ST elevation is highest at the J point, sags mid-ST and
           // rises again into the T wave: the concave-upward "saddle")
-          this.pDecl[c] = amp < 1 && this.brugada && A.label[c] === LAB.RV ? 1 - (1 - P.plateauDecline) / amp
-            : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline + nsSag;
+          this.pDecl[c] = (amp < 1 && ((this.brugada && A.label[c] === LAB.RV) || (this.elec && this.elec.hypothermia)) ? 1 - (1 - P.plateauDecline) / amp
+            : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline + nsSag) + declE;
           this.vAmp0[c] = this._vAmpBase[c] * amp; this.apdMax0[c] = this._apdBase[c] * apd;
           if (!this._ischCells.has(c)) { this.vAmp[c] = this.vAmp0[c]; this.apdMax[c] = this.apdMax0[c]; }
         } else if (k === KIND.ATRIAL) {
@@ -1933,10 +1962,23 @@
           const on = this.pericarditis && A.epi[c];
           if (on) dv += P.pericardAtrialDv;
           this.pDecl[c] = on ? P.pericardAtrialDecline : P.plateauDecline;
+          const E = this.elec || {}, sev = E.hyperK > 1;
+          this.cvElec[c] = sev ? P.elecHyperKCvAtrial : E.hypothermia ? P.elecHypothermiaCv : 1;
+          this.vAmp0[c] = this._vAmpBase[c] * (sev ? P.elecHyperKPAmp : 1); this.vAmp[c] = this.vAmp0[c];
         }
         this.vRest0[c] = P.vRest + dv;
         if (!this._ischCells.has(c)) this.vRest[c] = this.vRest0[c];
       }
+      // the ventricular repolarisation shape shared by most cells (the convolution kernel): its width follows the
+      // electrolytes (hyperK steeper, hypoK slower), and in hypokalaemia a share elecHypoKTail of the repolarisation
+      // is left to a late, slow terminal phase (reduced IK1/IKr): the U wave
+      const E = this.elec || {};
+      if (E.hyperK || E.hypoK) {
+        const ss = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
+        const w1 = Math.round(P.repWVent * (E.hyperK ? P.elecHyperKRepW : 1) * (E.hypoK ? P.elecHypoKRepW : 1));
+        const f = E.hypoK ? P.elecHypoKTail : 0, d = P.elecHypoKTailMs, w2 = P.elecHypoKTailW, n = f ? Math.max(w1, d + w2) : w1;
+        this.K[0] = Float64Array.from({ length: n }, (_, x) => (1 - f) * ss(x / w1) + f * ss((x - d) / w2));
+      } else this.K[0] = this._kerVent0;
       this._applyIschemia();
     }
 
@@ -2447,12 +2489,12 @@
       this._logActivation(c, ta);
       // propagate
       const M = this.M, st = M.start, nb = M.nbr, w0 = M.w0, nVox = M.nVox;
-      const blocked = this.blocked, cvMul = this.cvMul, refEnd = this.refEnd, repEnd = this.repEnd, cvK = this.cvK, cvTau = this.cvTau, arrive = this.arrive, tAct = this.tAct;
+      const cvE = this.cvElec, blocked = this.blocked, cvMul = this.cvMul, refEnd = this.refEnd, repEnd = this.repEnd, cvK = this.cvK, cvTau = this.cvTau, arrive = this.arrive, tAct = this.tAct;
       const fg = this._flutterGate, iaSlow = this._iaSlow;
       for (let e = st[c]; e < st[c + 1]; e++) {
         const j = nb[e];
         if (blocked[j]) { if (this._pOn && this.phantom[j] && ta + w0[e] * cvMul[j] - this._pAct[j] >= P.scarRefractory) this.schedule(j, ta + w0[e] * cvMul[j]); continue; }
-        let tau = w0[e] * cvMul[j];
+        let tau = w0[e] * cvMul[j] * cvE[j];
         if (fg && j < nVox && c < nVox) {          // one-way conduction around the annulus (flutter circuit)
           const a = fg.ang[c], b = fg.ang[j];
           if (a === a && b === b) { let d = b - a; if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI; if (d * fg.dir < -fg.tol) continue; }
@@ -2605,7 +2647,7 @@
       this._dynRemove(c);
       this._setPiece(c, 1);
       const p = this.pDecl[c];
-      if (Math.abs(p) > 0.1) {                                  // unusual plateau (Brugada dome, inflamed atria): exact segments
+      if (Math.abs(p) > 0.1 + 1e-6) {                           // unusual plateau (Brugada dome, inflamed atria): exact segments
         this.tbuckets[Math.max(this._segT(c, 0), this.t + 1) % RING].push(c, g, 2);
         return;
       }

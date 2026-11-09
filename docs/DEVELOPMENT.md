@@ -1899,3 +1899,30 @@ The V6 problem (V6 unrelated to V5) and the post-infarct T depth, with a solved-
   Not used: distal LAD (inferior ST elevation only), acute marginal (inferior pattern), distal circumflex STEMI (V6 only).
 - Validation: reader 47/57 (unchanged per scenario except acute marginal 30 d reads differently, still pass), fullcheck iErr 4,
   hypertrophy presets unchanged. Training audit (seeds 11–13): 138/180 with the wider mix.
+
+## Round 51: electrolytes and hypothermia
+
+`Sim.setElectrolyte(key, level)`; Conditions panel: **Electrolytes** (Hyperkalemia mild/severe, Hypokalemia, Hypocalcemia,
+Hypercalcemia) and **Temperature** (Hypothermia: the sinus rate drops to 45/min when it is turned on above 50). Each comes from
+its cellular effect:
+
+| Condition | Model | Result (normal: QRS 77, QT 313, PR 140, T II/V3 5.9/5.4 mm, 127 ms wide) |
+|---|---|---|
+| Hyperkalemia, mild | repolarisation width × 0.5, APD × 0.85, APD gradient × 1.3 | T II/V3 11.9/10.8 mm, 70 ms wide (peaked), QT 289 |
+| Hyperkalemia, severe | + ventricular conduction / 2.6, atrial / 1.8, atrial AP amplitude 0.4 | QRS 127, PR 176, P in II 2.5 → 0.9 mm |
+| Hypokalemia | repolarisation width × 1.2, 32% of it left to a slow terminal tail 230 ms later (reduced IK1/IKr), plateau sag +0.05 | flat T (V3 3.1 mm), U wave as tall as the T in V2–V3 and II |
+| Hypocalcemia | APD × 1.45 (plateau) | QT 427, T unchanged |
+| Hypercalcemia | APD × 0.75 | QT 250, short ST |
+| Hypothermia | epicardial notch-and-dome (amplitude 0.5, delayed dome, as Brugada's but over the whole epicardium), APD × 1.3, conduction / 1.25 | J (Osborn) waves, QT 454 at 45/min, PR 165, QRS 83 |
+
+- **The repolarisation kernel.** Most cells repolarise through one shared shape (the convolution kernel built from `repWVent`);
+  per-cell `repW` only reached cells on the exact path. Electrolytes now rebuild the ventricular kernel (width, and the
+  hypokalaemic tail). Fixed on the way: a plateau slope of 0.05 + 0.05 rounded to 0.1000000015 in Float32 and sent every cell
+  down the exact path (threshold now 0.1 + 1e-6).
+- **Simulator:** interpretation lines for each pattern, Learn text (features and pitfalls), links (`hyperK=mild|severe`,
+  `s=hypoK,hypoCa,hyperCa,hypothermia`).
+- **Training:** findings Hyperkalemia (mild and severe, one answer), Hypokalemia, Hypocalcemia (QTc ≥ 460), Hypercalcemia
+  (QTc ≤ 370), Hypothermia (sinus bradycardia only); one per ECG, not with ischaemia, pericarditis, Brugada, non-specific ST-T,
+  WPW, bundle branch block or hypertrophy. The blind read's LBBB/IVCD in severe hyperkalemia (optional IVCD) and STEMI in
+  hypothermia (J waves) are not counted as extra findings. Audit: 8 of 10 electrolyte ECGs kept in a random mix.
+- Validation: reader 47/57 and fullcheck iErr 4, unchanged.

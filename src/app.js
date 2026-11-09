@@ -1759,7 +1759,7 @@
       chip('QT/QTcF', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 450),
       chip(rbbOnly && ui.normalAxis !== undefined ? 'Axis (LV forces)' : axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
-    const f = tachy ? [] : structFindings(vb).concat(ischFindings(vb));
+    const f = tachy ? [] : structFindings(vb, QTc).concat(ischFindings(vb));
     $('findings').innerHTML = f.map((x, i) => `<li${i === 0 && x.head ? ' class="head"' : ''}>${x.text || x}</li>`).join('');
     ui.snap = { rhythm, arr, rate, aRate, PR, PRs, prVar, QRS, QT, QTc, axis, axisTxt, axisWin, rbbOnly, rrSd, RR, tachy, avComplete, distal, avnrt, avrt,
       B, nPAC, nPVC, nBlockedPAC, flutterCl, dissociated, escape: fired('junctional') ? 'junctional' : fired('ventricular') || fired('idioventricular') ? 'ventricular' : '',
@@ -1802,6 +1802,11 @@
     wpw: { t: 'Wolff–Parkinson–White pattern', f: ['Short PR (< 120 ms), delta wave (slurred QRS upstroke), QRS > 110 ms.', 'Secondary ST/T changes opposite to the delta wave.', 'Delta-wave polarity localises the pathway (e.g. negative delta in I/aVL: left lateral).'], p: ['Delta waves can mimic Q waves (pseudo-infarction) and hide in some leads: look in all twelve.'] },
     nsstt: { t: 'Non-specific ST-T changes', f: ['Flat T waves (between −1 and +1 mm) or minimal T inversion, with at most slight ST sagging, in leads where T is normally upright.', 'They follow no coronary territory, and there is no ST depression of 1 mm or more and no Q waves.'], p: ['Common and usually benign: electrolytes (low potassium or magnesium), drugs (digoxin, antiarrhythmics), fast heart rate, hyperventilation, posture, or a meal. Report them as non-specific and compare with an earlier ECG; they are not a diagnosis of ischemia.', 'Here: the gradient that makes the T wave upright (endocardium repolarising after epicardium) is reduced in patches across the ventricles.'] },
     peri: { t: 'Acute pericarditis', f: ['Diffuse concave ST elevation across many territories (I, II, aVL, aVF, V2–V6), with ST depression in aVR (and often V1).', 'PR-segment depression (PR elevation in aVR) from the inflamed atria.', 'No Q waves, no reciprocal depression outside aVR/V1; ST elevation often larger in II than in III. Sinus tachycardia is common.'], p: ['STEMI has territorial ST elevation with reciprocal depression and often convex ST: compare the distribution.', 'Early repolarisation can look similar; the ST/T ratio in V6 > 0.25 favours pericarditis.'] },
+    hyperK: { t: 'Hyperkalemia', f: ['Tall, narrow-based, peaked ("tented") T waves, symmetric, best seen in V2–V4 and II: the earliest sign (K about 6–7 mmol/L).', 'Higher: the P wave flattens and widens, the PR lengthens, and the QRS widens; at the extreme the QRS merges with the T into a sine wave.', 'Here: faster repolarisation (more potassium current) makes every cell repolarise steeply and the T narrow; at higher levels conduction slows in the atria and ventricles.'], p: ['The ECG can be normal even at dangerous potassium levels: treat the number, not only the ECG.', 'Tall T waves of early repolarisation and hyperacute T waves of ischemia are broader-based; the hyperkalemic T is narrow and pointed.'] },
+    hypoK: { t: 'Hypokalemia', f: ['Flattened T waves with prominent U waves (a second hump after the T), best seen in V2–V3; the U can exceed the T.', 'Slight ST depression; the T and U merge into a long "QU" interval.', 'Here: less potassium current slows the last part of repolarisation: a share of it is left to a slow tail, which writes the U wave.'], p: ['Measure the QT to the end of the T, not the U: hypokalemia mimics long QT.', 'A U wave is normal in V2–V3 at slow heart rates if small (under ~1.5 mm and much smaller than the T).'] },
+    hypoCa: { t: 'Hypocalcemia', f: ['Long QTc from a long, flat ST segment; the T wave itself keeps its normal shape and width.', 'Here: a longer plateau (phase 2) of the action potential, so repolarisation starts later everywhere.'], p: ['Distinguish from congenital long QT and drugs, which mostly broaden or change the T wave itself.'] },
+    hyperCa: { t: 'Hypercalcemia', f: ['Short QTc with a short or absent ST segment: the T wave starts almost right after the QRS.', 'Here: a shorter plateau (phase 2) of the action potential.'], p: ['Severe hypercalcemia can show J waves (like hypothermia) and bradyarrhythmias.'] },
+    hypothermia: { t: 'Hypothermia', f: ['J (Osborn) waves: a positive hump at the junction of the QRS and ST, best seen in the inferior and lateral leads; it grows as the temperature falls.', 'Sinus bradycardia, long PR, long QT, slightly wide QRS; shivering artefact is common; atrial fibrillation and ventricular arrhythmias at lower temperatures.', 'Here: a notch-and-dome of the epicardial action potential (transient outward current), a longer action potential and slower conduction.'], p: ['J waves also appear in hypercalcemia, brain injury and early repolarisation; the clinical context decides.'] },
     brugada: { t: 'Brugada syndrome (type 1)', f: ['Coved ST elevation ≥ 2 mm (J point) in V1–V2, descending into a negative T wave.', 'Often an rSR′ or a terminal r′ in V1; limb leads usually normal.', 'Only type 1 is diagnostic; higher V1–V2 placement (2nd–3rd intercostal space) can unmask it.'], p: ['Fever and sodium-channel blockers accentuate the pattern; RBBB, pectus excavatum and high-K can mimic it.'] },
     adenosine: { t: 'Adenosine', f: ['Transient AV-nodal block for seconds: P or flutter waves continue without QRS complexes.'], p: [] },
   };
@@ -1830,7 +1835,7 @@
     if (s.nPAC || s.nBlockedPAC) keys.push('pac'); if (s.nPVC) keys.push('pvc');
     if (S.adenosine) keys.push('adenosine');
     const st = ui.struct || {};
-    if (S.ap) keys.push('wpw'); if (st.peri) keys.push('peri'); if (st.nsstt) keys.push('nsstt'); if (st.brugada) keys.push('brugada'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae');
+    if (S.ap) keys.push('wpw'); if (st.peri) keys.push('peri'); if (st.nsstt) keys.push('nsstt'); if (st.brugada) keys.push('brugada'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae'); for (const k of ['hyperK', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia']) if (st[k]) keys.push(k);
     if (S.insults.length) {
       const sub = S.insults.every((x) => x.kind === 'subendo'), h = ui.ischH;
       if (sub) ischK.push('subendo');
@@ -1879,7 +1884,7 @@
   }
   // Structural findings read off the ECG: P-wave size and duration, voltage
   // criteria, dominant R in V1, pre-excitation (short PR + delta wave).
-  function structFindings(vb) {
+  function structFindings(vb, QTc) {
     if (!vb || !isFinite(vb.repEnd)) return [];
     const out = [], m = measureBeat(vb);
     const at = (k, t) => ecg.buf[k][bufIdx(t)];
@@ -1925,7 +1930,13 @@
     // non-specific ST-T changes: flat T waves (within ±0.5 mm) in two contiguous leads where T is normally
     // upright, without ischemia or a cause read elsewhere (the normal heart's flattest such T, V6, is 1.2 mm)
     const st = ui.struct;
-    if (!S.insults.length && !S.ap && !st.lvh && !st.rvh && !st.peri && !st.brugada && !Object.keys(S.blocks).some((b) => ['LBB', 'RBB'].includes(b))) {
+    // electrolytes and temperature: the patterns they set (Round 51)
+    if (st.hyperK) { const n = ['V2', 'V3', 'V4', 'II'].reduce((a, b) => (m[b].t > m[a].t ? b : a)); out.push(`Tall, narrow, peaked T waves (${n} ${(m[n].t * 10).toFixed(0)} mm)${st.hyperK === 'severe' ? ', flattened P waves, long PR and a wide QRS' : ''}: hyperkalemia pattern`); }
+    if (st.hypoK) out.push('Flat T waves followed by U waves (best seen in V2–V3), slight ST sagging: hypokalemia pattern');
+    if (st.hypoCa) out.push(`Long QTc${QTc ? ` (${Math.round(QTc)} ms)` : ''} from a long, flat ST segment with a normal T wave: hypocalcemia pattern`);
+    if (st.hyperCa) out.push(`Short QTc${QTc ? ` (${Math.round(QTc)} ms)` : ''}: the T wave starts almost at the end of the QRS (short ST segment): hypercalcemia pattern`);
+    if (st.hypothermia) out.push('J (Osborn) waves at the end of the QRS, long QT and bradycardia: hypothermia pattern');
+    if (!S.insults.length && !S.ap && !st.lvh && !st.rvh && !st.peri && !st.brugada && !st.hypoK && !st.hyperK && !st.hypothermia && !Object.keys(S.blocks).some((b) => ['LBB', 'RBB'].includes(b))) {
       const flat = ['I', 'II', 'aVF', 'V3', 'V4', 'V5', 'V6'].filter((n) => Math.abs(m[n].t) <= 0.05);   // (flat: within ±0.5 mm)
       const nb = { I: [], II: ['aVF'], aVF: ['II'], V3: ['V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5'] }, fc = flat.filter((n) => nb[n].some((x) => flat.includes(x)));
       if (fc.length >= 2) out.push(`Flat T waves in ${fc.join(', ')}: non-specific ST-T changes`);
@@ -2093,6 +2104,14 @@
       apply: (v) => S.setNonspecificSTT(!!v) },
     { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
     { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
+    // electrolytes and temperature (Sim.setElectrolyte; Round 51)
+    { id: 'hyperK', cat: 'Electrolytes', label: 'Hyperkalemia', name: 'Hyperkalemia', also: 'high potassium K peaked T tented T wide QRS flat P sine wave',
+      options: [['mild', 'Peaked T (K 6–7)'], ['severe', 'Wide QRS, flat P (K > 7)']], apply: (v) => S.setElectrolyte('hyperK', v === 'severe' ? 2 : v ? 1 : 0) },
+    { id: 'hypoK', cat: 'Electrolytes', label: 'Hypokalemia', name: 'Hypokalemia', also: 'low potassium K U wave flat T ST depression long QU', apply: (v) => S.setElectrolyte('hypoK', v) },
+    { id: 'hypoCa', cat: 'Electrolytes', label: 'Hypocalcemia', name: 'Hypocalcemia', also: 'low calcium Ca long QT long ST segment', apply: (v) => S.setElectrolyte('hypoCa', v) },
+    { id: 'hyperCa', cat: 'Electrolytes', label: 'Hypercalcemia', name: 'Hypercalcemia', also: 'high calcium Ca short QT short ST segment', apply: (v) => S.setElectrolyte('hyperCa', v) },
+    { id: 'hypothermia', cat: 'Temperature', label: 'Hypothermia', name: 'Hypothermia', also: 'cold Osborn J wave camel hump bradycardia long QT',
+      apply: (v) => { S.setElectrolyte('hypothermia', v); if (v && !S.arrhythmia && ui.rate > 50) { ui.rate = 45; S.setRate(45); if (ui.rateMode === 'sinus') { $('rate').value = 45; $('rateVal').textContent = '45 bpm'; } } } },   // (hypothermia slows the sinus node: 45/min)
   ];
   const COND = Object.fromEntries(CONDITIONS.map((c) => [c.id, c]));
   const RECENT_KEY = 'ecgstudio.recentConditions';

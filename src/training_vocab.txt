@@ -66,6 +66,11 @@ bifascicular | Bifascicular block | RBBB with LAFB, RBBB LAFB, bifasicular
 lpfb | Left posterior fascicular block | LPFB, left posterior hemiblock, LPHB, posterior hemiblock, posterior fascicular block
 bae | Biatrial enlargement | biatrial abnormality, BAE, both atria enlarged
 brugada | Brugada pattern | Brugada type 1, Brugada syndrome, coved ST elevation, Brugada
+hyperK | Hyperkalemia | hyperkalaemia, high potassium, high K, peaked T waves, tented T waves, peaked T, tall peaked T
+hypoK | Hypokalemia | hypokalaemia, low potassium, low K, U waves, prominent U waves, U wave
+hypoCa | Hypocalcemia | hypocalcaemia, low calcium, low Ca, long ST segment, prolonged ST
+hyperCa | Hypercalcemia | hypercalcaemia, high calcium, high Ca, short QT, short ST segment, short QTc
+hypothermia | Hypothermia | Osborn waves, J waves, Osborn, J wave, camel hump, cold
 dominantRV1 | Dominant R in V1 | tall R in V1, prominent R V1, tall R V1, R V1
 couplet | Ventricular couplet | couplets, paired PVCs, pair
 acouplet | Atrial couplet | paired PACs, PAC couplet, atrial pair, couplet of PACs

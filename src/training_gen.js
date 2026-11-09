@@ -127,11 +127,18 @@
     // (rec.pauseEscape: the junctional escape fires during the pause (true), or stays silent too: a pure pause)
     sinusPause: { group: 'ectopy', skill: 'rhythm', rating: 60, id: 'sinusPause', pause: true, linkBlock: 'SAN.pause', at: [[3000, (S, rec) => S.setBlock('SAN', 'pause', { ms: 2600, escape: !!rec.pauseEscape })]], leads: ['II'], line: 'A sudden pause with no P wave, not a multiple of the P–P interval, then sinus beats resume: sinus pause.' },
     couplet: { group: 'ectopy', skill: 'rhythm', rating: 60, ectopy: 'couplet', id: 'couplet', leads: ['II'], line: 'Two premature wide complexes in a row: a ventricular couplet (three or more would be non-sustained VT).' },
+    // electrolytes and hypothermia (Round 51; Sim.setElectrolyte): one per ECG, not with ST-T disease or a wide QRS
+    hyperK: { group: 'electro', skill: 'conditions', rating: 80, id: 'hyperK', elec: ['hyperK', 1], link: 'hyperK=mild', excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['V2', 'V3', 'V4', 'II'], line: 'Tall, narrow-based, peaked T waves: hyperkalemia (K about 6–7).' },
+    hyperK2: { group: 'electro', skill: 'conditions', rating: 160, id: 'hyperK', elec: ['hyperK', 2], link: 'hyperK=severe', optional: ['avb1', 'ivcd'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V1', 'V3'], line: 'Peaked T waves with flattened P waves, a long PR and a wide QRS: severe hyperkalemia (K above 7). Treat now.' },
+    hypoK: { group: 'electro', skill: 'conditions', rating: 120, id: 'hypoK', elec: ['hypoK', 1], struct: 'hypoK', optional: ['nsstt', 'longqt'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['V2', 'V3'], line: 'Flat T waves followed by prominent U waves in V2–V3: hypokalemia.' },
+    hypoCa: { group: 'electro', skill: 'conditions', rating: 120, id: 'hypoCa', elec: ['hypoCa', 1], struct: 'hypoCa', optional: ['longqt'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V3'], caliper: 'qt', line: 'Long QTc from a long, flat ST segment with a normal T wave: hypocalcemia.' },
+    hyperCa: { group: 'electro', skill: 'conditions', rating: 140, id: 'hyperCa', elec: ['hyperCa', 1], struct: 'hyperCa', excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V3'], caliper: 'qt', line: 'Short QTc: the T wave starts almost at the end of the QRS (short ST segment): hypercalcemia.' },
+    hypothermia: { group: 'electro', skill: 'conditions', rating: 140, id: 'hypothermia', elec: ['hypothermia', 1], struct: 'hypothermia', cold: true, optional: ['longqt', 'avb1'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V4', 'V5'], line: 'J (Osborn) waves at the end of the QRS with bradycardia and a long QT: hypothermia.' },
     brugada: { group: 'brugada', skill: 'conditions', rating: 80, dx: 'Brugada type 1', brugada: true, struct: 'brugada', excl: ['isch', 'peri'], leads: ['V1', 'V2'], line: 'Coved ST elevation ≥ 2 mm in V1–V2 into a negative T: Brugada pattern.' },
   };
   // (testers' round 1: fewer hypertrophy, Brugada and atrial enlargement; more ST depression, T changes,
   // WPW and ectopy)
-  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8 };
+  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, hyperK: 0.8, hyperK2: 0.4, hypoK: 0.8, hypoCa: 0.5, hyperCa: 0.4, hypothermia: 0.4 };
   const ITEM_BASE = 1200, PER_ABN = 180;
   // (difficulty above the base is stretched ×1.32: the hardest ECGs, four findings on a hard rhythm, reach ~2700
   // instead of ~2340, leaving headroom above the top title; the generator works on the unstretched scale)
@@ -167,6 +174,7 @@
     if (a.needP && !R.pRhythm) return false;
     if (a.group === 'av' && R.block) return false;
     if ((R.notWith || []).includes(k)) return false;
+    if (a.cold && rh !== 'sinusBrady') return false;   // (hypothermia slows the sinus node)
     if ((a.ectopy || a.pause || a.sinusNode) && !['sinus', 'sinusBrady'].includes(rh)) return false;   // (ectopy and pauses are timed from sinus beats)
     // (pericarditis: with P waves (PR depression read), or in AF (diffuse concave ST elevation alone))
     if (k === 'peri' && !(R.pRhythm || rh === 'af' || rh === 'junctional')) return false;
@@ -321,6 +329,7 @@
         if (d.ap) S.setAccessoryPathway('left-lateral');
         if (d.peri) S.setPericarditis(true);
         if (d.brugada) S.setBrugada(true);
+        if (d.elec) S.setElectrolyte(d.elec[0], d.elec[1]);
         if (d.nsstt) S.setNonspecificSTT(true);
       }
       if (atria.ra || atria.la) S.setAtrialEnlargement(atria);
@@ -515,6 +524,12 @@
           }
           return yes(diffuse && m.prSeg && (m.prSeg.II <= -0.08 || m.prSeg.aVR >= 0.08), `ST up in ${ste.join(' ')}, aVR ${L.aVR.stJ}`, ste);
         }
+        // electrolytes (Round 51): the change itself is checked on the twin (visible); here the textbook measure
+        case 'hyperK': case 'hyperK2': { const tall = ['V2', 'V3', 'V4', 'II'].filter((n) => L[n].T >= (n === 'II' ? 0.7 : 0.9)); return yes(tall.length, `T ${tall.map((n) => `${n} ${(L[n].T * 10).toFixed(0)} mm`).join(', ') || 'not tall'}${k === 'hyperK2' ? `, QRS ${m.qrs} ms` : ''}`, tall); }
+        case 'hypoK': return yes(true, 'U waves (engine: slow terminal repolarisation)', ['V2', 'V3']);
+        case 'hypoCa': return yes(m.qtc !== null && m.qtc >= 460, `QTc ${m.qtc}`);
+        case 'hyperCa': return yes(m.qtc !== null && m.qtc <= 370, `QTc ${m.qtc}`);
+        case 'hypothermia': return yes(true, 'J (Osborn) waves (engine: epicardial notch)', ['II', 'V4', 'V5']);
         case 'brugada': { const b = ['V1', 'V2'].filter((n) => L[n].stJ >= 0.2 && L[n].stJ > L[n].st40 && L[n].st40 > L[n].st80 && L[n].tTerm < -0.03); return yes(b.length, `coved ST in ${b.join(' ') || 'neither V1 nor V2'}`, b); }
       }
       return yes(false, 'no criteria');
@@ -540,7 +555,7 @@
       for (const a of rec.abn) if (ABN[a.k].linkBlock) blocks.push(ABN[a.k].linkBlock);
       if (R.vLink) q.push(`v=${rec.rate}`);
       let isch = null;
-      for (const a of rec.abn) { const d = ABN[a.k]; if (d.block) blocks.push(`${d.block[0]}.${d.block[1]}`); if (d.struct) struct.push(d.struct); if (d.isch) isch = a; }
+      for (const a of rec.abn) { const d = ABN[a.k]; if (d.block) blocks.push(`${d.block[0]}.${d.block[1]}`); if (d.struct) struct.push(d.struct); if (d.link) q.push(d.link); if (d.isch) isch = a; }
       if (blocks.length) q.push(`b=${blocks.join(',')}`);
       if (struct.length) q.push(`s=${struct.join(',')}`);
       if (isch) { const M = model(rec.abn.some((a) => ABN[a.k].hyp) ? ABN[rec.abn.find((a) => ABN[a.k].hyp).k].hyp : null); q.push(`${ABN[isch.k].stenosis ? 'n' : 'o'}=${MI_SITES[isch.site].f(M.coronary.branches)}&c=2&h=${ABN[isch.k].isch}`); }
@@ -590,6 +605,7 @@
       // blind read of the median beat: a finding we did not put in must not show (it would be marked
       // "not present" for a student who names it); true consequences become optional
       (R.optional || []).forEach((x) => optional.add(x));   // (naming the sinus arrest behind an escape rhythm is true)
+      for (const a of rec.abn) (ABN[a.k].optional || []).forEach((x) => optional.add(x));   // (true consequences named by the abnormality itself)
       if (r && !R.vt && !R.wide) {   // (a ventricular escape beat is wide and abnormal by nature: its shape is not a finding)
         const ks = rec.abn.map((a) => a.k), words = rec.abn.flatMap((a) => (a.k === 'recent' ? ['old MI', 'T inversion'] : ABN[a.k].isch ? [ABN[a.k].isch < 24 ? 'STEMI' : 'old MI'] : [ABN[a.k].dx]));
         const rca = rec.abn.some((a) => /RCA/.test(a.site || ''));
@@ -601,6 +617,10 @@
           if (ks.includes('peri') && /^STEMI/.test(dx)) continue;   // (AF pericarditis: without a PR segment the reader cannot tell it from STEMI)   // (flutter waves on the ST segment; flutter carries no ischemia)
           if (dx === 'long QT' && (R.block || R.at || rec.abn.some((x) => ABN[x.k].ectopy || ABN[x.k].pause || ABN[x.k].sinusNode))) continue;   // (QT after a pause is longer: QTc is not read across pauses)
           if (dx === 'poor R progression') { optional.add('poorR'); continue; }
+          // (electrolytes, Round 51: severe hyperkalemia widens the QRS everywhere, which the reader's block rules take for a
+          // bundle branch block; hypothermia's J (Osborn) waves raise the J point in many leads, read as ST elevation)
+          if (ks.includes('hyperK2') && ['LBBB', 'RBBB', 'IVCD', 'LAFB', 'LPFB'].includes(dx)) { optional.add('ivcd'); continue; }
+          if (ks.includes('hypothermia') && /^STEMI/.test(dx)) continue;
           // (sinus tachycardia: the P rides on the previous T, which makes it look tall (RAE) and, with the P hidden, the PR long)
           if (rhythm === 'sinusTachy' && (dx === 'RAE' || (dx === '1st-degree AVB' && !ks.includes('avb1')))) continue;
           if (dx.startsWith('old MI') && ks.includes('wpw')) { optional.add('qwaves'); continue; }   // (WPW pseudo-infarct: negative delta waves look like Q waves)
