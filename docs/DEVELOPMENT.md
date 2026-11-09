@@ -1886,7 +1886,7 @@ The V6 problem (V6 unrelated to V5) and the post-infarct T depth, with a solved-
   depression with ST elevation in aVR (2.5–3.5 mm) and slightly V1, as taught ("ST depression does not localise"). Mid-LAD
   narrowing now reaches ≥ 1 mm and is used in Training.
 - **Hypertrophy with acute ischaemia:** `ischHypComp` 1 divides the injury current by the hypertrophy source gain. LVH + mid
-  LAD STEMI ST V3 9.4 → 6.5 mm (normal heart 6.3); LVH + mid RCA III 9.3 → 7.1 mm at J+20 (normal 5.0).
+  LAD STEMI ST V3 9.4 → 6.5 mm (normal heart 6.3); LVH + mid RCA III 9.3 → 6.7 mm at J+20 (normal 5.0); the hyperacute floor is compensated too.
 - **Inferior infarct T waves:** `occlusionLate` RCA 1 → 0.1. After an RCA infarct, III/aVF inverted by 17–23 mm and aVL/I
   rose 13–18 mm from 12 h to 30 days (live site too): the late APD prolongation over a wall that faces the limb leads squarely.
   Now III ≈ −10 (≈ −7 mm on paper), aVF −6. Still open: the dead region alone leaves aVL/I ≈ +9 mm and V3–V4 ≈ 10 mm (the
