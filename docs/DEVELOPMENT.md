@@ -1910,7 +1910,7 @@ its cellular effect:
 |---|---|---|
 | Hyperkalemia, mild | repolarisation width × 0.5, APD × 0.85, APD gradient × 1.3 | T II/V3 11.9/10.8 mm, 70 ms wide (peaked), QT 289 |
 | Hyperkalemia, severe | + ventricular conduction / 2.6, atrial / 1.8, atrial AP amplitude 0.4 | QRS 127, PR 176, P in II 2.5 → 0.9 mm |
-| Hypokalemia | repolarisation width × 1.2, 32% of it left to a slow terminal tail 230 ms later (reduced IK1/IKr), plateau sag +0.05 | flat T (V3 3.1 mm), U wave as tall as the T in V2–V3 and II |
+| Hypokalemia | repolarisation width × 1.2, 18% of it left to a slow terminal tail 230 ms later (reduced IK1/IKr), plateau sag +0.05 | flat T (V3 3.7 mm), U wave V3 1.6 mm (about 40% of the T; 32% made it as tall as the T: too tall, the author) |
 | Hypocalcemia | APD × 1.45 (plateau) | QT 427, T unchanged |
 | Hypercalcemia | APD × 0.75 | QT 250, short ST |
 | Hypothermia | epicardial notch-and-dome (amplitude 0.5, delayed dome, as Brugada's but over the whole epicardium), APD × 1.3, conduction / 1.25 | J (Osborn) waves, QT 454 at 45/min, PR 165, QRS 83 |

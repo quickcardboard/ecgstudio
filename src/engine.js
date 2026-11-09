@@ -234,7 +234,7 @@
     stenosisSev: { LAD: 0.65, LCx: 0.55, RCA: 0.17, LM: 0.5 },
     // electrolytes and hypothermia (Sim.setElectrolyte): factors on the healthy values
     elecHyperKRepW: 0.5, elecHyperKApd: 0.85, elecHyperKGrad: 0.3, elecHyperKSync: 0, elecHyperKCv: 2.6, elecHyperKCvAtrial: 1.8, elecHyperKPAmp: 0.4,
-    elecHypoKRepW: 1.2, elecHypoKSag: 0.05, elecHypoKMid: 0, elecHypoKLayer: 0.5, elecHypoKLayerW: 0.25, elecHypoKTail: 0.32, elecHypoKTailMs: 230, elecHypoKTailW: 90,
+    elecHypoKRepW: 1.2, elecHypoKSag: 0.05, elecHypoKMid: 0, elecHypoKLayer: 0.5, elecHypoKLayerW: 0.25, elecHypoKTail: 0.18, elecHypoKTailMs: 230, elecHypoKTailW: 90,
     elecHypoCaApd: 1.45, elecHyperCaApd: 0.75,
     elecHypothermiaApd: 1.3, elecHypothermiaCv: 1.25, elecOsbornNotch: 0.5,
     stenosisGlobal: 0.3,   // narrowing: share of its severity in the rest of the LV inner wall
