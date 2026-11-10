@@ -9,10 +9,44 @@
   'use strict';
   const INAPP = !!(window.ECGInApp && window.ECGInApp.active);
   const KEY = 'ecgstudio.tour';                       // (set once the tutorial has been offered)
-  const NEXT_MS = 6000;                               // Next appears after this long on a step
+  const NEXT_MS = 6000;
+  const TOTAL = 12;                                   // cards counted in the app: 1–6 simulator, 7 the Training tab, 8–12 Training                               // Next appears after this long on a step
   const $ = (id) => document.getElementById(id);
   const seen = () => { try { return !!localStorage.getItem(KEY); } catch (e) { return true; } };
   const markSeen = () => { try { localStorage.setItem(KEY, '1'); } catch (e) { /* no storage */ } };
+
+  // ------------------------------------------------------------------ all the text (edit here)
+  const TEXT = {
+    welcomeTitle: 'Welcome to ECG Studio',
+    welcome: 'A beating heart that writes its own 12-lead ECG. A one-minute tour: try each step yourself.',
+    rotate: 'Drag the heart to turn it. Two fingers zoom, pan and twist.',
+    pac: 'The early beat on the ECG is a PAC: it started in the atrium, not in the sinus node.',
+    pvc: 'The early, wide beat on the ECG is a PVC: it started in the muscle, not in the sinus node.',
+    tapMuscle: 'Tap the heart muscle at the ring: an extra beat starts there.',
+    tapMuscleNoRing: 'Tap the heart muscle: an extra beat starts there.',
+    stemi: 'Its territory turns purple, and the ST rises in V1–V4: an acute anterior STEMI. In the Ischemia tab, the time bar plays the hours and days that follow.',
+    narrowed: 'That narrowed it (partial flow). Double tap quickly to block it.',
+    tapLad: 'Double tap the ringed artery, the LAD, to block it.',
+    tapLadNoRing: 'Turn the heart to its front, then double tap the LAD to block it.',
+    lbbb: 'The left ventricle now activates late, from the right: a wide QRS with a broad, notched R in V5–V6. Left bundle branch block.',
+    tapLbb: 'Inside the heart, the gold lines carry the impulse. Tap the ringed left bundle branch to block it.',
+    fullEcgOpen: 'All 12 leads, with the reading above them. Double tap again to go back.',
+    fullEcg: 'Double tap the ECG to see all 12 leads.',
+    trainingTab: 'Training: a new ECG every time, at your level. Tap Training to read one.',
+    preparing: 'Training builds a new ECG each time, at your level. Preparing one…',
+    anterior: 'Where? Tap Anterior (V3–V4), or tap those leads on the ECG.',
+    regionDone: 'Then tap Done.',
+    tapSinus: 'Tap Sinus rhythm.',
+    typeSinus: 'Read the ECG, then name the rhythm first: type S, I.',
+    tapSte: 'Tap ST elevation.',
+    typeSte: 'Now each abnormality you see. Type S, T.',
+    submit: 'Submit your answer.',
+    result: 'Your score, finding by finding: tap one to see its leads. Outside the tutorial, every answer moves your rating in that skill, and the next ECGs follow it.',
+    endTitle: 'That’s the tour',
+    otherBlock: (name) => `That blocked the ${name}. Tap the ringed left bundle branch.`,
+    end: 'Replay it any time: Simulator → Help → Tutorial.',
+    endSim: 'Replay it any time: Help → Tutorial.',   // (without the app's Training step; not used yet)
+  };
 
   // ------------------------------------------------------------------ overlay: dim with a ringed hole, and a card
   const CSS = `
@@ -131,7 +165,7 @@
 
   // ------------------------------------------------------------------ simulator (steps 1–7)
   function simTour() {
-    const app = window.ECGStudioApp, T = app.tour, sim = () => app.sim, total = INAPP ? 7 : 6;
+    const app = window.ECGStudioApp, T = app.tour, sim = () => app.sim, total = INAPP ? TOTAL : 6;
     const n = (k) => `${k} / ${total}`;
     const heart = () => $('pane3d').getBoundingClientRect(), ecg = () => $('paneEcg').getBoundingClientRect();
     const near = (a, b) => a.dot(b) > 0.9985;   // (the camera has not moved: about 3°)
@@ -139,7 +173,7 @@
     let rect = null;   // (the Training tab, from the shell)
     if (INAPP) window.ECGInApp.listen('tour', (d) => { if (d.step === 'rect') rect = { left: d.x, top: d.y, width: d.w, height: d.h }; });
     const steps = [
-      { n: n(1), view: () => ({ modal: true, title: 'Welcome to ECG Studio', text: 'A beating heart that writes its own 12-lead ECG. A one-minute tour: try each step yourself.',
+      { n: n(1), view: () => ({ modal: true, title: TEXT.welcomeTitle, text: TEXT.welcome,
         buttons: [{ label: 'Start', primary: true, fn: () => run.next() }] }) },
       (() => {
         let d0 = null;
@@ -147,7 +181,7 @@
           view() {
             if (T.camDir().dot(d0) < Math.cos(0.45)) { setTimeout(() => run && run.steps[run.i] === this && run.next(), 400); }
             const h = heart();
-            return { target: { x: h.left + h.width / 2, y: h.top + h.height / 2, r: Math.min(h.width, h.height) * 0.36 }, text: 'Drag the heart to turn it. Two fingers zoom, pan and twist.', next: () => run.next() };
+            return { target: { x: h.left + h.width / 2, y: h.top + h.height / 2, r: Math.min(h.width, h.height) * 0.36 }, text: TEXT.rotate, next: () => run.next() };
           } };
       })(),
       (() => {
@@ -156,10 +190,10 @@
         T.on('ectopic', on);
         const step = { n: n(3), enter() { beat = null; },
           view() {
-            if (beat) return { target: { rect: ecg() }, text: beat === 'atrial' ? 'The early beat on the ECG is a PAC: it started in the atrium, not in the sinus node.' : 'The early, wide beat on the ECG is a PVC: it started in the muscle, not in the sinus node.',
+            if (beat) return { target: { rect: ecg() }, text: beat === 'atrial' ? TEXT.pac : TEXT.pvc,
               buttons: [{ label: 'Next', primary: true, fn: () => run.next() }] };
             const s = spot();
-            return { target: s && { x: s.x, y: s.y, r: 24 }, text: s ? 'Tap the heart muscle at the ring: an extra beat starts there.' : 'Tap the heart muscle: an extra beat starts there.', next: () => { if (s) T.stimulate(s); else run.next(); } };
+            return { target: s && { x: s.x, y: s.y, r: 24 }, text: s ? TEXT.tapMuscle : TEXT.tapMuscleNoRing, next: () => { if (s) T.stimulate(s); else run.next(); } };
           } };
         return step;
       })(),
@@ -170,12 +204,12 @@
             const ins = sim().insults, occ = ins.some((v) => v.kind === 'occlusion'), narrow = ins.some((v) => v.stenosis);
             if (occ) {
               if (!shown) { shown = true; T.group(2); }
-              return { target: { rect: ecg() }, text: 'Its territory turns purple, and the ST rises in V1–V4: an acute anterior STEMI. In the Ischemia tab, the time bar plays the hours and days that follow.',
+              return { target: { rect: ecg() }, text: TEXT.stemi,
                 buttons: [{ label: 'Next', primary: true, fn: () => run.next() }] };
             }
             const s = spot(), lad = app.model.coronary.branches.LAD;
             return { target: s && { x: s.x, y: s.y, r: 24 },
-              text: narrow ? 'That narrowed it (partial flow). Double tap quickly to block it.' : s ? 'Double tap the ringed artery, the LAD, to block it.' : 'Turn the heart to its front, then double tap the LAD to block it.',
+              text: narrow ? TEXT.narrowed : s ? TEXT.tapLad : TEXT.tapLadNoRing,
               next: () => T.occlude(s ? s.node : lad[Math.round(lad.length * 0.3)]) };
           } };
       })(),
@@ -186,12 +220,12 @@
             const b = sim().blocks;
             if (b.LBB) {
               if (!shown) { shown = true; T.group(3); }
-              return { target: { rect: ecg() }, text: 'The left ventricle now activates late, from the right: a wide QRS with a broad, notched R in V5–V6. Left bundle branch block.',
+              return { target: { rect: ecg() }, text: TEXT.lbbb,
                 buttons: [{ label: 'Next', primary: true, fn: () => run.next() }] };
             }
             const other = Object.keys(b)[0], s = spot();
             return { target: s && { x: s.x, y: s.y, r: 22 },
-              text: other ? `That blocked the ${T.siteName(other).toLowerCase()}. Tap the ringed left bundle branch.` : 'Inside the heart, the gold lines carry the impulse. Tap the ringed left bundle branch to block it.',
+              text: other ? TEXT.otherBlock(T.siteName(other).toLowerCase()) : TEXT.tapLbb,
               next: () => T.block('LBB') };
           } };
       })(),
@@ -199,17 +233,17 @@
         let opened = false;
         return { n: n(6), enter() { opened = false; T.closeAll(); },
           view() {
-            if (T.fsEcg) { opened = true; return { where: 'top', text: 'All 12 leads, with the reading above them. Double tap again to go back.', next: () => T.setFsEcg(false) }; }
+            if (T.fsEcg) { opened = true; return { where: 'top', text: TEXT.fullEcgOpen, next: () => T.setFsEcg(false) }; }
             if (opened) { run.next(); return {}; }
-            return { target: { rect: ecg() }, text: 'Double tap the ECG to see all 12 leads.', next: () => T.setFsEcg(true) };
+            return { target: { rect: ecg() }, text: TEXT.fullEcg, next: () => T.setFsEcg(true) };
           } };
       })(),
     ];
     if (INAPP) steps.push({ n: n(7),
       enter() { rect = null; T.closeAll(); window.ECGInApp.post('tour', { step: 'ring', module: 'training' }); },
-      view: () => ({ target: rect && { rect, pad: 3, bare: true }, where: 'center', text: 'Training: a new ECG every time, at your level. Tap Training to read one.',
+      view: () => ({ target: rect && { rect, pad: 3, bare: true }, where: 'center', text: TEXT.trainingTab,
         next: () => window.ECGInApp.go('training') }) });
-    else steps.push({ view: () => ({ modal: true, title: 'That’s the tour', text: 'Replay it any time: Help → Tutorial.', noSkip: true, buttons: [{ label: 'Done', primary: true, fn: () => run.next() }] }) });
+    else steps.push({ view: () => ({ modal: true, title: TEXT.endTitle, text: TEXT.endSim, noSkip: true, buttons: [{ label: 'Done', primary: true, fn: () => run.next() }] }) });
     return steps;
   }
   function startSim() {
@@ -234,39 +268,39 @@
     const vis = (el) => el && el.offsetParent !== null && el.getBoundingClientRect().width > 0;
     const R = (el, pad) => ({ rect: el.getBoundingClientRect(), pad });
     let answered = false;
-    const n = '7 / 7';
+    const n = (k) => `${k} / ${TOTAL}`;
     return [
-      { n, view() {
+      { view() {
         if (st.mode !== 'tutorial') { run.skip(); return {}; }   // (left for Training home or another mode)
         const ph = st.phase;
         if (ph === 'result') { answered = true; run.next(); return {}; }
-        if (!st.item) return { text: 'Training builds a new ECG each time, at your level. Preparing one…' };
+        if (!st.item) return { n: n(8), text: TEXT.preparing };
         if (ph === 'region') {
           const b = document.querySelector('#regionGrid button[data-r="anterior"]');
-          if (!st.region.regions.includes('anterior')) return { target: vis(b) && R(b, 3), text: 'Where? Tap Anterior (V3–V4), or tap those leads on the ECG.', next: () => TR.toggleRegion('anterior') };
-          return { target: vis($('regionDone')) && R($('regionDone'), 3), text: 'Then tap Done.', next: () => TR.endRegion(true) };
+          if (!st.region.regions.includes('anterior')) return { target: vis(b) && R(b, 3), n: n(10), text: TEXT.anterior, next: () => TR.toggleRegion('anterior') };
+          return { target: vis($('regionDone')) && R($('regionDone'), 3), n: n(10), text: TEXT.regionDone, next: () => TR.endRegion(true) };
         }
         const rhythm = st.picked.find((p) => kind(p) === 'rhythm'), finding = st.picked.find((p) => kind(p) === 'finding');
         const kbd = $('kbd');
         if (!rhythm) {
           const b = document.querySelector('#suggest button[data-id="sinus"]');
-          if (vis(b)) return { target: R(b, 3), text: 'Tap Sinus rhythm.', next: () => TR.pick('sinus') };
-          return { target: vis(kbd) && R(kbd, 2), text: 'Read the ECG, then name the rhythm first: type S, I.', next: () => TR.pick('sinus') };
+          if (vis(b)) return { target: R(b, 3), n: n(8), text: TEXT.tapSinus, next: () => TR.pick('sinus') };
+          return { target: vis(kbd) && R(kbd, 2), n: n(8), text: TEXT.typeSinus, next: () => TR.pick('sinus') };
         }
         if (!finding) {
           const b = document.querySelector('#suggest button[data-id="ste"]');
-          if (vis(b)) return { target: R(b, 3), text: 'Tap ST elevation.', next: () => TR.pick('ste') };
-          return { target: vis(kbd) && R(kbd, 2), text: 'Now each abnormality you see. Type S, T.', next: () => TR.pick('ste') };
+          if (vis(b)) return { target: R(b, 3), n: n(9), text: TEXT.tapSte, next: () => TR.pick('ste') };
+          return { target: vis(kbd) && R(kbd, 2), n: n(9), text: TEXT.typeSte, next: () => TR.pick('ste') };
         }
-        return { target: vis($('submit')) && R($('submit'), 3), text: 'Submit your answer.', next: () => TR.submit() };
+        return { target: vis($('submit')) && R($('submit'), 3), n: n(11), text: TEXT.submit, next: () => TR.submit() };
       } },
-      { n, view() {
+      { view() {
         if (st.mode !== 'tutorial' || st.phase !== 'result') { run.skip(); return {}; }
         const res = $('result');
-        return { target: vis(res) && R(res, 4), where: 'top', text: 'Your score, finding by finding: tap one to see its leads. Outside the tutorial, every answer moves your rating in that skill, and the next ECGs follow it.',
+        return { target: vis(res) && R(res, 4), where: 'top', n: n(12), text: TEXT.result,
           buttons: [{ label: 'Next', primary: true, fn: () => run.next() }] };
       } },
-      { view: () => ({ modal: true, title: 'That’s the tour', text: 'Replay it any time: Simulator → Help → Tutorial.', noSkip: true, buttons: [{ label: 'Done', primary: true, fn: () => run.next() }] }) },
+      { view: () => ({ modal: true, title: TEXT.endTitle, text: TEXT.end, noSkip: true, buttons: [{ label: 'Done', primary: true, fn: () => run.next() }] }) },
     ].map((s) => Object.assign(s, { answered: () => answered }));
   }
   function startTraining() {

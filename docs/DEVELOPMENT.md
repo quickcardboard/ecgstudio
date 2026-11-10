@@ -2134,3 +2134,12 @@ the app only for now (tried at ecgstudio.app/app/); keep both the artery and the
   `muscleSpot`, `arterySpot`, `conductionSpot`; view, reset and the same actions as the gestures).
 - Checked (Playwright, Pixel 7, `app/index.html` over http): the whole tour by touch, by Next alone, Skip mid-way (the heart
   resets), the Help replay, and the website on a phone (no tutorial; the tip still shows). Training history stays empty.
+- Follow-up (the author): every card is numbered, 1–12 in the app (1–6 simulator, 7 the Training tab, 8 rhythm,
+  9 finding, 10 leads, 11 submit, 12 result), instead of Training staying on "7 / 7". All the text is in `TEXT` at the top
+  of `src/tutorial.js`.
+- Follow-up (the author): left bundle taps often stepped the AV block instead (phones; also a mouse in the phone layout).
+  The model's left bundle trunk is 3 points just below the AV node, and its tap area was a sliver under the AV node's.
+  Now the AV node and His are one tap target (they already shared one AV-block cycle), with a smaller reach (×0.75 of the
+  22 px fingertip), and the left bundle reaches ×1.7 (`CS_REACH` in `conductionAt`). In the four-chamber cut on a Pixel 7:
+  left bundle area 57 → 182 grid cells, AV node + His 201 → 113; taps up to 12 px off the tutorial's ring never reach the
+  AV node. Desktop (the block menu on the tube that is hit) is unchanged.
