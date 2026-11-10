@@ -18,33 +18,33 @@
   // ------------------------------------------------------------------ all the text (edit here)
   const TEXT = {
     welcomeTitle: 'Welcome to ECG Studio',
-    welcome: 'A beating heart that writes its own 12-lead ECG. A one-minute tour: try each step yourself.',
+    welcome: 'Your 3D heart simulator and ECG playground',
     rotate: 'Drag the heart to turn it. Two fingers zoom, pan and twist.',
-    pac: 'The early beat on the ECG is a PAC: it started in the atrium, not in the sinus node.',
-    pvc: 'The early, wide beat on the ECG is a PVC: it started in the muscle, not in the sinus node.',
-    tapMuscle: 'Tap the heart muscle at the ring: an extra beat starts there.',
-    tapMuscleNoRing: 'Tap the heart muscle: an extra beat starts there.',
-    stemi: 'Its territory turns purple, and the ST rises in V1–V4: an acute anterior STEMI. In the Ischemia tab, the time bar plays the hours and days that follow.',
-    narrowed: 'That narrowed it (partial flow). Double tap quickly to block it.',
-    tapLad: 'Double tap the ringed artery, the LAD, to block it.',
-    tapLadNoRing: 'Turn the heart to its front, then double tap the LAD to block it.',
-    lbbb: 'The left ventricle now activates late, from the right: a wide QRS with a broad, notched R in V5–V6. Left bundle branch block.',
-    tapLbb: 'Inside the heart, the gold lines carry the impulse. Tap the ringed left bundle branch to block it.',
-    fullEcgOpen: 'All 12 leads, with the reading above them. Double tap again to go back.',
+    pac: 'The early beat on the ECG is a PAC because the atrium was tapped.',
+    pvc: 'The early, wide beat on the ECG is a PVC because the ventricle was tapped.',
+    tapMuscle: 'Tap the myocardium here to trigger an ectopic beat.',
+    tapMuscleNoRing: 'Tap the heart muscle to trigger an ectopic beat.',
+    stemi: 'Its territory turns purple, and the ST rises in V1–V4: an acute anterior STEMI. In the Ischemia tab, you can progress the time since onset.',
+    narrowed: 'A single tap narrows it. Double tap quickly to block it.',
+    tapLad: 'Double tap the ringed LAD to occlude it.',
+    tapLadNoRing: 'Turn the heart to its front, then double tap the LAD to occlude it.',
+    lbbb: 'The left ventricle now activates late, from the right.',
+    tapLbb: 'Inside the heart, the conduction system is in gold. Tap the ringed left bundle branch to block it.',
+    fullEcgOpen: 'All 12 leads are shown. Double tap again to go back.',
     fullEcg: 'Double tap the ECG to see all 12 leads.',
-    trainingTab: 'Training: a new ECG every time, at your level. Tap Training to read one.',
-    preparing: 'Training builds a new ECG each time, at your level. Preparing one…',
-    anterior: 'Where? Tap Anterior (V3–V4), or tap those leads on the ECG.',
+    trainingTab: 'Tap the training icon on the top to enter training mode.',
+    preparing: 'Training mode builds a new ECG each time at your level. Preparing one right now...',
+    anterior: 'Where is the elevation? Tap Anterior in the list, or tap those leads on the ECG (swipe the ECG to show those leads)',
     regionDone: 'Then tap Done.',
     tapSinus: 'Tap Sinus rhythm.',
-    typeSinus: 'Read the ECG, then name the rhythm first: type S, I.',
+    typeSinus: 'Read the ECG. You can swipe the ECG to show different leads. Name the rhythm first: type S, I.',
     tapSte: 'Tap ST elevation.',
-    typeSte: 'Now each abnormality you see. Type S, T.',
+    typeSte: 'Now type each abnormality you see. Type S, T.',
     submit: 'Submit your answer.',
-    result: 'Your score, finding by finding: tap one to see its leads. Outside the tutorial, every answer moves your rating in that skill, and the next ECGs follow it.',
+    result: 'Your score, finding by finding: tap one to see its leads. Click on a finding to see an explanation. You\'ll be rated on each ECG in training.',
     endTitle: 'That’s the tour',
     otherBlock: (name) => `That blocked the ${name}. Tap the ringed left bundle branch.`,
-    end: 'Replay it any time: Simulator → Help → Tutorial.',
+    end: 'Replay it any time: Simulator → Help → Tutorial. Have fun and explore!',
     endSim: 'Replay it any time: Help → Tutorial.',   // (without the app's Training step; not used yet)
   };
 
@@ -57,6 +57,11 @@
 #tour .t-ring.rect { border-radius: 12px; }
 #tour .t-ring.bare { border-color: transparent; }
 #tour .t-ring.bare::after { display: none; }
+#tour .t-ring.nodim { box-shadow: none; }
+#tour .t-card.compact { padding: 8px 12px 10px; font-size: 14px; }
+#tour .t-card.compact .t-head { margin-bottom: 2px; }
+#tour .t-hbtns { display: flex; gap: 6px; margin-left: auto; }
+#tour .t-hbtns button { padding: 6px 11px; font-size: 13px; }
 #tour .t-ring::after { content: ""; position: absolute; inset: -2px; border-radius: inherit; border: 2px solid var(--accent, #ef5b7a); animation: tPulse 1.4s ease-out infinite; }
 @keyframes tPulse { from { transform: scale(1); opacity: 0.9; } to { transform: scale(1.35); opacity: 0; } }
 #tour .t-ring.rect::after { animation-name: tPulseR; }
@@ -84,10 +89,10 @@
     if (root) return;
     const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
     root = document.createElement('div'); root.id = 'tour';
-    root.innerHTML = '<div class="t-dim" hidden></div><div class="t-ring" hidden></div><div class="t-card" role="dialog" aria-live="polite"><div class="t-head"><span class="t-n"></span><button type="button" class="t-skip">Skip</button></div><h2 hidden></h2><p></p><div class="t-btns"></div></div>';
+    root.innerHTML = '<div class="t-dim" hidden></div><div class="t-ring" hidden></div><div class="t-card" role="dialog" aria-live="polite"><div class="t-head"><span class="t-n"></span><span class="t-hbtns"></span><button type="button" class="t-skip">Skip</button></div><h2 hidden></h2><p></p><div class="t-btns"></div></div>';
     document.body.appendChild(root);
     els = { dim: root.querySelector('.t-dim'), ring: root.querySelector('.t-ring'), card: root.querySelector('.t-card'), n: root.querySelector('.t-n'),
-      skip: root.querySelector('.t-skip'), title: root.querySelector('h2'), text: root.querySelector('p'), btns: root.querySelector('.t-btns') };
+      skip: root.querySelector('.t-skip'), hbtns: root.querySelector('.t-hbtns'), title: root.querySelector('h2'), text: root.querySelector('p'), btns: root.querySelector('.t-btns') };
     els.skip.addEventListener('click', () => run && run.skip());
   }
   function unmount() { if (root) { root.remove(); root = null; els = null; } }
@@ -97,7 +102,8 @@
     const t = view.target, ring = els.ring, H = innerHeight;
     els.dim.hidden = !view.modal;
     ring.hidden = !t;
-    ring.classList.toggle('bare', !!(t && t.bare));   // (a hole only: the shell rings its own tab)
+    ring.classList.toggle('bare', !!(t && t.bare));
+    ring.classList.toggle('nodim', !!(t && t.noDim));   // (the rest stays bright and usable, e.g. the ECG to swipe)   // (a hole only: the shell rings its own tab)
     let ty = null;
     if (t && t.rect) {
       const p = t.pad === undefined ? 4 : t.pad, r = t.rect;
@@ -118,15 +124,17 @@
     mount();
     els.n.textContent = view.n || '';
     els.title.hidden = !view.title; els.title.textContent = view.title || '';
-    const key = JSON.stringify([view.title, view.text, (view.buttons || []).map((b) => b.label)]);
+    const key = JSON.stringify([view.title, view.text, !!view.compact, (view.buttons || []).map((b) => b.label)]);
+    els.card.classList.toggle('compact', !!view.compact);
     if (els.card.dataset.key !== key) {
       els.card.dataset.key = key;
       els.text.textContent = view.text || '';
-      els.btns.innerHTML = '';
+      els.btns.innerHTML = ''; els.hbtns.innerHTML = '';
+      const box = view.compact ? els.hbtns : els.btns;   // (a compact card: its buttons on the header line)
       for (const b of view.buttons || []) {
         const e = document.createElement('button'); e.type = 'button'; e.textContent = b.label;
         if (b.primary) e.className = 'primary'; if (b.next) e.classList.add('t-next');
-        e.addEventListener('click', b.fn); els.btns.appendChild(e);
+        e.addEventListener('click', b.fn); box.appendChild(e);
       }
     }
     els.skip.hidden = !!view.noSkip;
@@ -277,8 +285,10 @@
         if (!st.item) return { n: n(8), text: TEXT.preparing };
         if (ph === 'region') {
           const b = document.querySelector('#regionGrid button[data-r="anterior"]');
-          if (!st.region.regions.includes('anterior')) return { target: vis(b) && R(b, 3), n: n(10), text: TEXT.anterior, next: () => TR.toggleRegion('anterior') };
-          return { target: vis($('regionDone')) && R($('regionDone'), 3), n: n(10), text: TEXT.regionDone, next: () => TR.endRegion(true) };
+          // (the card at the bottom, below the list, and no dim: the ECG stays clear to swipe and tap)
+          const lone = (el) => vis(el) && Object.assign(R(el, 3), { noDim: true });
+          if (!st.region.regions.includes('anterior')) return { target: lone(b), n: n(10), where: 'bottom', compact: true, text: TEXT.anterior, next: () => TR.toggleRegion('anterior') };
+          return { target: lone($('regionDone')), n: n(10), where: 'bottom', compact: true, text: TEXT.regionDone, next: () => TR.endRegion(true) };
         }
         const rhythm = st.picked.find((p) => kind(p) === 'rhythm'), finding = st.picked.find((p) => kind(p) === 'finding');
         const kbd = $('kbd');

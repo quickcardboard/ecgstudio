@@ -2143,3 +2143,6 @@ the app only for now (tried at ecgstudio.app/app/); keep both the artery and the
   22 px fingertip), and the left bundle reaches ×1.7 (`CS_REACH` in `conductionAt`). In the four-chamber cut on a Pixel 7:
   left bundle area 57 → 182 grid cells, AV node + His 201 → 113; taps up to 12 px off the tutorial's ring never reach the
   AV node. Desktop (the block menu on the tube that is hit) is unchanged.
+- Follow-up (the author): the tutorial text is the author's own (`TEXT`). Step 10 (lead groups): the card sits at the
+  bottom, below the list (compact, its buttons on its header line), and the page is not dimmed, so the ECG stays clear to
+  swipe and tap. Help (app): more room between the Tutorial and Close buttons and the page tabs.
