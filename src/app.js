@@ -1152,7 +1152,7 @@
   }
 
   function updateActionNote() {
-    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click a coronary artery to narrow it (partial flow), double-click to occlude it. Click a marker again to remove it.' }[ui.action];
+    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click a coronary artery to narrow it (partial flow), double-click to occlude it. Click a marker again to remove it. Clicks elsewhere on the heart still stimulate.' }[ui.action];
     $('actionNote').hidden = !note || ui.tab === 'learn';
     $('actionNote').textContent = note || '';
   }
@@ -1174,13 +1174,16 @@
       const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
       hideBlockMenu();
-      if (ui.action === 'ischemia') {
+      // what a click does depends only on where it lands, whatever tab is open (as on phones): the conduction system
+      // (sinus node; the rest in the cut view) blocks, a coronary artery or its marker narrows/occludes, muscle stimulates
+      if (ray.intersectObject(g3.sanPick, false).length || (ui.view === 'cutaway' && ray.intersectObjects(g3.pickTubes, false).length)) { pickBlock(ray, x, y); return; }
+      if (onArtery(ray, x, y)) {
         // a click narrows the artery (after a moment, so a double-click can occlude it instead)
         const r0 = new THREE.Raycaster(); r0.ray.copy(ray.ray);
         ischPress(ischClick, x, y, e.timeStamp, (mode) => pickIschemia(r0, x, y, mode), 12);
         return;
       }
-      if (ui.action === 'block') pickBlock(ray, x, y); else if (ui.action === 'stimulate') pickStimulus(ray, x, y);
+      pickStimulus(ray, x, y);
     });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideBlockMenu(); });
     $('blockMenuCancel').addEventListener('click', hideBlockMenu);
@@ -1270,6 +1273,7 @@
     });
     return node;
   }
+  const onArtery = (ray, x, y) => arteryAt(ray, x, y) >= 0 || ray.intersectObjects(g3.clots.children, false).length > 0;   // (a marker counts too)
   function pickIschemia(ray, x, y, mode = 'occlude') {
     const cut = ui.view !== 'external';
     let added = null;
@@ -2758,7 +2762,7 @@
     if (pathwayAt(x, y)) { lastEmpty = null; pathwayTap(x, y, now); return; }
     // a tap on (or within a fingertip of) a coronary artery acts on it, whatever tab is open: one tap narrows it (after a
     // moment, so a second tap can occlude it instead); elsewhere on the muscle, taps stimulate
-    if (arteryAt(ray, x, y) >= 0) {
+    if (onArtery(ray, x, y)) {
       lastEmpty = null;
       ischPress(ischTap, x, y, now, (mode) => { buzz(mode === 'narrow' ? 15 : 35); return mobileIsch(x, y, mode); }, 40);
       return;

@@ -2008,7 +2008,9 @@ Training (`src/training_gen.js`, `src/training.js`):
   on screen within 30 px on phones / 20 px with a mouse, among those within 30 mm of the tapped surface) acts on the
   artery: one tap narrows, a double tap occludes. Elsewhere on the muscle, taps stimulate (bursts as before). An artery
   tap no longer opens the Ischemia sheet (the time scrubber shows on the heart; opening the tab would move the view).
-  Desktop keeps the tab's click action (Rhythm stimulates, Ischemia acts on arteries), with the same artery matching.
+  Desktop works the same way (the author): a click on the sinus node (any view) or the conduction system (cut view) opens
+  the block choice, on or near an artery narrows/occludes, elsewhere on the muscle stimulates, whatever tab is open; the
+  Help sentence "The open tab also decides what a click on the heart does" is corrected to say so.
 - A marker in the region: **one tap removes it**, narrowing or occlusion; a double tap turns a narrowing into an
   occlusion (and removes an occlusion).
 - The Help dialog's Close button matches Training's (14 px, 8 px radius, raised background `--raised`); the control

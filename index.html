@@ -693,7 +693,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
     </section>
     <section class="hpage" data-page="tabs" hidden>
       <h3>Control tabs</h3>
-      <p>Clicking a tab toggles its panel. The open tab also decides what a click on the heart does.</p>
+      <p>Clicking a tab toggles its panel. A click on the heart acts on what it lands on, whichever tab is open: a coronary artery, the conduction system (in the cut view; the sinus node in any view) or the muscle.</p>
       <ul>
         <li><b>Rhythm:</b> adjust the heart rate and toggle persistent arrhythmias. Click on the heart to stimulate an ectopic beat.</li>
         <li><b>Blocks:</b> only useful during a cutaway view. Click on the conduction system to start a block.</li>
@@ -712,7 +712,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (bace00e).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (635ef0f).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -756,7 +756,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (bace00e).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (635ef0f).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -5984,7 +5984,7 @@ THE SOFTWARE.
   }
 
   function updateActionNote() {
-    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click a coronary artery to narrow it (partial flow), double-click to occlude it. Click a marker again to remove it.' }[ui.action];
+    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click a coronary artery to narrow it (partial flow), double-click to occlude it. Click a marker again to remove it. Clicks elsewhere on the heart still stimulate.' }[ui.action];
     $('actionNote').hidden = !note || ui.tab === 'learn';
     $('actionNote').textContent = note || '';
   }
@@ -6006,13 +6006,16 @@ THE SOFTWARE.
       const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
       hideBlockMenu();
-      if (ui.action === 'ischemia') {
+      // what a click does depends only on where it lands, whatever tab is open (as on phones): the conduction system
+      // (sinus node; the rest in the cut view) blocks, a coronary artery or its marker narrows/occludes, muscle stimulates
+      if (ray.intersectObject(g3.sanPick, false).length || (ui.view === 'cutaway' && ray.intersectObjects(g3.pickTubes, false).length)) { pickBlock(ray, x, y); return; }
+      if (onArtery(ray, x, y)) {
         // a click narrows the artery (after a moment, so a double-click can occlude it instead)
         const r0 = new THREE.Raycaster(); r0.ray.copy(ray.ray);
         ischPress(ischClick, x, y, e.timeStamp, (mode) => pickIschemia(r0, x, y, mode), 12);
         return;
       }
-      if (ui.action === 'block') pickBlock(ray, x, y); else if (ui.action === 'stimulate') pickStimulus(ray, x, y);
+      pickStimulus(ray, x, y);
     });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideBlockMenu(); });
     $('blockMenuCancel').addEventListener('click', hideBlockMenu);
@@ -6102,6 +6105,7 @@ THE SOFTWARE.
     });
     return node;
   }
+  const onArtery = (ray, x, y) => arteryAt(ray, x, y) >= 0 || ray.intersectObjects(g3.clots.children, false).length > 0;   // (a marker counts too)
   function pickIschemia(ray, x, y, mode = 'occlude') {
     const cut = ui.view !== 'external';
     let added = null;
@@ -7590,7 +7594,7 @@ THE SOFTWARE.
     if (pathwayAt(x, y)) { lastEmpty = null; pathwayTap(x, y, now); return; }
     // a tap on (or within a fingertip of) a coronary artery acts on it, whatever tab is open: one tap narrows it (after a
     // moment, so a second tap can occlude it instead); elsewhere on the muscle, taps stimulate
-    if (arteryAt(ray, x, y) >= 0) {
+    if (onArtery(ray, x, y)) {
       lastEmpty = null;
       ischPress(ischTap, x, y, now, (mode) => { buzz(mode === 'narrow' ? 15 : 35); return mobileIsch(x, y, mode); }, 40);
       return;
