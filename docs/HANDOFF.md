@@ -1,64 +1,104 @@
-# Handoff: state on 2026-11-07, for the next chat
+# Handoff: state on 2026-11-10, for the next chat (the interactive tutorial)
 
-Read first: `CLAUDE.md` (build, validation, conventions), then `docs/APP_PLAN.md` (the next two weeks: the Android app).
-The history of every change is in `docs/DEVELOPMENT.md`: engine "Round N", training "training-1 round N".
+Read first, in this order:
+1. `CLAUDE.md`: build, validation and conventions.
+2. `docs/TUTORIAL_PLAN.md`: the next project, with three open questions for the author.
+3. `docs/APP_PLAN.md`: the Android app, releases and signing.
+
+The history of every change is in `docs/DEVELOPMENT.md` ("Round N"; the latest are Rounds 48–57).
 
 ## Where things are
 
-- **`milestone-1`** (the live site, ecgstudio.app) and **`training-1`** are the same commit: the newest commit on `milestone-1`.
-  Training is live at ecgstudio.app/training and linked from the simulator's phone ⋯ menu. Everything is unlocked for the testers.
-- **App work** is on **`app-1`** (see `docs/APP_PLAN.md`): phase 0 answered, phase 1 done (the app shell `src/shell.html` and
-  module tabs; `src/inapp.js` in both pages; preview `app/index.html`). Next: phase 2 (menu, polish of the tabs) or phase 7 early
-  (Capacitor, so the closed test's 14 days can start).
-- **Training's parts:**
-  - Page: `src/training.html`, `src/training.js`
-  - Generator and checker: `src/training_gen.js`, shared by Node and the browser workers
-  - Vocabulary: `src/training_vocab.txt`
-  - `tools/build.py` writes `training/index.html`, with the engine, the readers and the generator inlined as a worker.
+- **`milestone-1`** is the live site (ecgstudio.app) and now holds everything.
+  - **`app-1` was merged into it** (Round 56, at the author's request), so the website and the app run the same pages.
+  - `app-1` is kept equal to `milestone-1`: merge `origin/milestone-1` into it. Its pushes build a debug APK, and release
+    builds run from it.
+  - The other branches (`training-1`, `mobile-1`, `claude/*`) are history.
+- **Website:**
+  - Desktop follows the system light/dark setting; **phones are dark only**, like the app.
+  - Training is live but **unlinked**: ecgstudio.app/training, unlocked for testers until the app is published.
+  - **ecgstudio.app/app/** is the app shell as a web page (module tabs; `noindex`, unlinked): the app's exact look in a phone
+    browser.
+- **Previews before merging:** `https://raw.githack.com/quickcardboard/ecgstudio/<branch>/app/index.html` (and
+  `.../index.html`, `.../training/index.html`). Use these for every tutorial iteration; the author tries them on a phone.
+- **Android app:**
+  - Capacitor 8, package `com.ecgstudio.app`, project in `app/`; `versionName` 0.1.0.
+  - Workflow `.github/workflows/android.yml`: run it by hand with "release" ticked for a signed AAB. The version code is
+    the run number.
+  - The upload key is in the repository secrets only.
+  - **Closed test:** 12+ testers in the Google Group https://groups.google.com/g/ecgstudio; the 14-day period started
+    about 2026-11-03.
+  - Testers stay on **version 6**. The author tests **version 12** (artifact of run 12) privately.
+  - Store listing drafts: `docs/PLAY_LISTING.md`. Public contact: tlioudevelop@gmail.com. Privacy page: ecgstudio.app/privacy/.
+- **Problem reports** (Training ⋯ → Report a problem) open a prefilled Google Form (`site.json` `reportForm`), so no email
+  address is shown.
+
+## The tap rules (recent and important for the tutorial)
+
+What a tap or click does depends only on what is drawn where it lands, in any tab and either view (Rounds 55–57):
+1. **Conduction system:** shown in the cut view, drawn see-through over the tissue; the sinus node dot counts in both views.
+   It opens the block choice; on phones, taps cycle through the blocks.
+2. **A coronary artery or its marker, if in sight** (`inSight`, `arteryAt` in `src/app.js`): one tap narrows, a double tap
+   occludes, and one tap on a marker removes it. There is one marker per region (proximal/mid/distal LAD, LCx, RCA, left
+   main, each side branch).
+3. **Muscle:** an ectopic beat. On phones, three or four quick taps start flutter/VT or AF/VF.
+
+Other recent UI:
+- Two-finger pinch, pan and twist; view presets undo them.
+- The Ischemia tab opens the outside view; the Blocks tab opens the four-chamber cut.
+- Phones show count badges on the Blocks, Ischemia and Conditions tabs; desktop shows a "Conditions" summary line under
+  the view name.
+- The Help dialog's Close button matches Training's.
+- The phone tip on first open reads "Double tap the ECG to expand it, or double tap the empty space beside the model to
+  expand the 3D view."
+
+## Training (recent)
+
+- New findings (Rounds 48–53): WAP/MAT, sinus pauses, electrolytes, hypothermia, Wellens, Sgarbossa (LBBB + STEMI as two
+  answers), torsades. They are rare.
+- **Advanced findings** (`adv`, `ADV = 1700` in `src/training_gen.js`): Wellens, hypothermia, STEMI in LBBB, and hypo- and
+  hypercalcemia. Below 1700 in the finding's skill they are shown as "advanced" and not required.
+- The author agreed this difficulty scale:
+
+  | Level | Rating |
+  |---|---|
+  | Foundation | below 1400 |
+  | Core | 1400–1700 |
+  | Advanced | 1700–1900 |
+  | Expert | 1900 and above |
+
+  Combinations of findings start around 1700.
+- VT, torsades and VF never have other abnormalities, but can have artifacts. Tremor varies in length and strength.
 
 ## Working with the author
 
-- The author is a UI designer, not a coder. Explain choices in plain clinical/visual terms; give recommendations, not surveys.
-- **Ask before large computational steps** (long searches and refits). Save compute for tester bug fixes.
-- **Show before/after diagrams** (ECG traces on paper grid) for engine changes before publishing them.
-- Engine work goes on `milestone-1` and is merged into the feature branch, never cherry-picked. After any merge, rebuild
-  `index.html` with `python3 tools/build.py`. Before every push, parse-check the built scripts: each `<script>` and the
-  training worker (`#worker-src`) through `new Function`. A syntax error once reached the live site.
-- Keep the author's own Help and How-it-works text unless asked.
-- Don't bundle ready-made ECGs in the page (rejected). Speed came from the checker and two workers instead.
+- The author is a UI designer, not a coder: explain choices in plain clinical and visual terms, and give recommendations, not
+  surveys.
+- They answer quickly and change direction when something feels wrong in use. Keep each change small, with a preview link.
+- **Ask before large computational steps** (searches, refits).
+- **Show before/after ECG diagrams** for engine changes.
+- Feature work goes on a branch cut from `milestone-1`, reaching the site through a pull request. Merge, never cherry-pick.
+  After any merge, rebuild with `python3 tools/build.py` (the built pages conflict on every merge; rebuilding resolves them).
+- Before every push, parse-check the built scripts of `index.html`, `training/index.html` and `app/index.html` through
+  `new Function`.
+- Keep the author's own Help text unless asked. When a feature makes a sentence untrue, change only that sentence and say so.
 - No model identifiers in commits, code or docs.
+- Screenshots for the author: phone (Pixel 7 profile) in app mode, i.e. `app/index.html`, which is dark like the app.
 
-## Recent work (this chat)
+## Open items (besides the tutorial)
 
-- **Engine:**
-  - Round 45: ventricular escape at 32/min.
-  - Round 46: RAE without a standing atrial offset; inferior STEMI height scaled (`occlusionInj` RCA 0.33, RV ×1.8).
-  - Round 47: post-infarct T inversion trimmed (`cavityWindowT` 0.25, `occlusionLate` LAD 0.5). **A bandage, not a fix.**
-- **Training rounds 13–17:**
-  - Rhythms and findings: junctional and ventricular escape rhythms (sinus arrest), atrial couplet, SA exit block as a finding,
-    pericarditis in AF and junctional rhythm, MAT (foci placed in four atrial regions).
-  - Generator: weights; vocabulary trimmed to the 52 terms any ECG uses; faster generation (cheap checks before twins, 6 s twins, two workers).
-  - Ratings: item difficulty stretched (`ITEM_SCALE` 1.1); artifacts above rating 1650 (tremor, wander, 50 Hz, per electrode, not answerable)
-    add up to 250, so the hardest ECGs are rated ~2700. Titles: Professor at 2100. Glicko RD floor 60.
-  - Testers' round 3: the app pinned to the screen edges (iOS home bar), the complete AV block atrial rate never a simple multiple
-    of the escape, no repeated combination in a row.
-
-## Open items
-
-- **V6 / chest leads (planned after the app work).** V3–V5 are dominated by the near field (and the cavity window), V6 by the
-  heart vector, so V6 can look unrelated to V5. Also open: the upright giant T in V4–V5 of a mid-RCA infarct at 2–30 days.
-  - The fix: a solved-torso chest field (`node tools/export_heart_torso.js heart.json` + `ANISO=1 python3 tools/torso_v2.py heart.json out.json 3`,
-    ~1 min; needs `pip install scipy pyamg`), then the infarct Q/T patterns re-tuned and revalidated.
-  - Round 47 has the test results; `tools/chestsim.js` measures V4/V5/V6.
-  - **The reminder for this is scheduled for 2026-11-14 in the old chat**, not the new one. Raise it then if the author doesn't.
-- **Distal LCx** (V6 weak): waiting for more tester feedback.
-- **Atrial model:** lead I P wave is a small double hump even in the normal heart.
-- **Not modelled:** isolated Wellens T, hypokalaemia/U waves.
-- **Known limitations** list: `CLAUDE.md`.
+- **V6 / chest leads:** a solved-torso chest field is the planned fix (see `CLAUDE.md` known limitations). A reminder for
+  it was scheduled for 2026-11-14 in an older chat; raise it if the author doesn't.
+- Distal LCx (V6 weak); the lead I P wave is a small double hump; after an infarct, the V3–V5 T can be too deep.
+- Desktop help text and the store listing do not mention the newest findings yet.
 
 ## Quick checks
 
-- Engine: `node tools/reader.js` (47/57 expected), `ISCH_MS=3600 node tools/fullcheck.js '{}'` (iErr 4), `node tools/evalecg.js`.
-- Training generator: `node tools/trainlive.js 30 <seed>` (an audit of random ECGs: pass rate and rejection reasons).
-- Browser: Playwright Chromium on `file://.../training/index.html`; `window.ECGTraining` (`startMode('train')`, `nextItem()`, `st`)
-  and `window.ECGStudioApp` (the simulator: `sim`, `model`, `ischemia`).
+- Engine: `node tools/reader.js` (47/57), `ISCH_MS=3600 node tools/fullcheck.js '{}'` (iErr 4).
+- Training generator: `node tools/trainlive.js 30 <seed>`.
+- Browser: Playwright Chromium with `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`.
+  - Test hooks:
+    - `window.ECGStudioApp`: `sim`, `model`, `ischemia`, `screenOf`, `coronaryScreen`.
+    - `window.ECGTraining`: `st`, `score`, `startMode`.
+    - `window.ECGAppShell` in `app/index.html`: `open('training')`.
+  - Synthetic touch: `new PointerEvent('pointerdown'|'pointerup', { pointerType: 'touch', clientX, clientY, bubbles: true })` on `#c3d`.
