@@ -1159,7 +1159,7 @@
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
     blocks: 'Tap the conduction system to cycle through blocks.',
-    ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marked region again to remove it.',
+    ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marked region again to remove it. While Ischemia stays lit below, taps act on the arteries; open Rhythm for ectopic beats.',
   };
 
   // pointer handling on the 3D canvas: a click (not a drag) acts
@@ -1276,13 +1276,20 @@
       let node = -1;
       if (clotOf) node = clotOf.node;
       else if (corHit) node = corHit.object.userData.map[corHit.face.a];
-      else if (front) {                                         // a click on the surface near an artery counts
-        let bd = 100;
-        const cor = M.coronary;                                   // (only the vessels offered: side-branch nodes are not)
-        g3.corPos.forEach((q, i) => { if (!cor.branches[cor.nodes[i].branch]) return; const d = q.distanceToSquared(p); if (d < bd) { bd = d; node = i; } });
+      else if (front) {
+        // a tap on the surface near an artery counts: the nearest on screen within a fingertip (phones) or a few
+        // pixels (mouse), among the vessels on the near side (within 30 mm of the tapped surface)
+        const cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld;   // (only the vessels offered: side-branch nodes are not)
+        let bd = (isM() ? 36 : 20) ** 2;
+        g3.corPos.forEach((q, i) => {
+          if (!cor.branches[cor.nodes[i].branch] || q.distanceToSquared(p) > 900) return;
+          v.copy(q).applyMatrix4(mw).project(g3.camera);
+          const d = ((v.x + 1) / 2 * rect.width - x) ** 2 + ((1 - v.y) / 2 * rect.height - y) ** 2;
+          if (d < bd) { bd = d; node = i; }
+        });
       }
       const verb = isM() ? 'Tap' : 'Click';
-      if (node < 0) { flash(x, y, SUBENDO_ON && cut ? `${verb} an artery, the cut face or the inner wall` : `${verb} a coronary artery`); return; }
+      if (node < 0) { flash(x, y, SUBENDO_ON && cut ? `${verb} an artery, the cut face or the inner wall` : isM() ? 'Ischemia tab: tap an artery. For ectopic beats, open Rhythm' : `${verb} a coronary artery`); return; }
       // the same region again (one marker per region): the same action removes it, the other one replaces it
       // (narrowing ↔ occlusion)
       const region = segmentName(node);
@@ -1380,6 +1387,8 @@
   function toggleControls(show) {
     const c = $('controls').classList.toggle('collapsed', show === undefined ? undefined : !show);
     for (const b of document.querySelectorAll('#tabs button, #mTabs button')) b.setAttribute('aria-selected', String(!c && b.dataset.tab === ui.tab));
+    // (phones: taps on the heart act on the arteries while Ischemia is the chosen tab, so it stays lit with the sheet closed)
+    for (const b of document.querySelectorAll('#mTabs button')) b.classList.toggle('tool', c && b.dataset.tab === 'ischemia' && ui.tab === 'ischemia');
     const tb = document.querySelector(`#mTabs [data-tab="${ui.tab}"] span`); $('stitle').textContent = tb ? tb.textContent : ui.tab === 'learn' ? 'Learn' : '';
     $('mLearn').setAttribute('aria-pressed', String(!c && ui.tab === 'learn'));
     resize3D();

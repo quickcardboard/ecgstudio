@@ -407,7 +407,7 @@ body.m .crow { padding: 11px 12px; }
 body.m .mtabs { display: flex; flex: none; background: var(--surface); border-top: 1px solid var(--line); padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
 .mtabs button { flex: 1; height: var(--tabh); padding: 0; border: 0; border-radius: 0; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; color: var(--muted); }
 .mtabs svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.mtabs button[aria-selected="true"] { color: var(--accent); }
+.mtabs button[aria-selected="true"], .mtabs button.tool { color: var(--accent); }
 
 /* full-screen heart with one live lead */
 body.m.fs-heart #paneEcg { display: none; }
@@ -711,7 +711,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (6b30307).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (4ef190a).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -755,7 +755,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (6b30307).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (4ef190a).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -5990,7 +5990,7 @@ THE SOFTWARE.
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
     blocks: 'Tap the conduction system to cycle through blocks.',
-    ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marked region again to remove it.',
+    ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marked region again to remove it. While Ischemia stays lit below, taps act on the arteries; open Rhythm for ectopic beats.',
   };
 
   // pointer handling on the 3D canvas: a click (not a drag) acts
@@ -6107,13 +6107,20 @@ THE SOFTWARE.
       let node = -1;
       if (clotOf) node = clotOf.node;
       else if (corHit) node = corHit.object.userData.map[corHit.face.a];
-      else if (front) {                                         // a click on the surface near an artery counts
-        let bd = 100;
-        const cor = M.coronary;                                   // (only the vessels offered: side-branch nodes are not)
-        g3.corPos.forEach((q, i) => { if (!cor.branches[cor.nodes[i].branch]) return; const d = q.distanceToSquared(p); if (d < bd) { bd = d; node = i; } });
+      else if (front) {
+        // a tap on the surface near an artery counts: the nearest on screen within a fingertip (phones) or a few
+        // pixels (mouse), among the vessels on the near side (within 30 mm of the tapped surface)
+        const cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld;   // (only the vessels offered: side-branch nodes are not)
+        let bd = (isM() ? 36 : 20) ** 2;
+        g3.corPos.forEach((q, i) => {
+          if (!cor.branches[cor.nodes[i].branch] || q.distanceToSquared(p) > 900) return;
+          v.copy(q).applyMatrix4(mw).project(g3.camera);
+          const d = ((v.x + 1) / 2 * rect.width - x) ** 2 + ((1 - v.y) / 2 * rect.height - y) ** 2;
+          if (d < bd) { bd = d; node = i; }
+        });
       }
       const verb = isM() ? 'Tap' : 'Click';
-      if (node < 0) { flash(x, y, SUBENDO_ON && cut ? `${verb} an artery, the cut face or the inner wall` : `${verb} a coronary artery`); return; }
+      if (node < 0) { flash(x, y, SUBENDO_ON && cut ? `${verb} an artery, the cut face or the inner wall` : isM() ? 'Ischemia tab: tap an artery. For ectopic beats, open Rhythm' : `${verb} a coronary artery`); return; }
       // the same region again (one marker per region): the same action removes it, the other one replaces it
       // (narrowing ↔ occlusion)
       const region = segmentName(node);
@@ -6211,6 +6218,8 @@ THE SOFTWARE.
   function toggleControls(show) {
     const c = $('controls').classList.toggle('collapsed', show === undefined ? undefined : !show);
     for (const b of document.querySelectorAll('#tabs button, #mTabs button')) b.setAttribute('aria-selected', String(!c && b.dataset.tab === ui.tab));
+    // (phones: taps on the heart act on the arteries while Ischemia is the chosen tab, so it stays lit with the sheet closed)
+    for (const b of document.querySelectorAll('#mTabs button')) b.classList.toggle('tool', c && b.dataset.tab === 'ischemia' && ui.tab === 'ischemia');
     const tb = document.querySelector(`#mTabs [data-tab="${ui.tab}"] span`); $('stitle').textContent = tb ? tb.textContent : ui.tab === 'learn' ? 'Learn' : '';
     $('mLearn').setAttribute('aria-pressed', String(!c && ui.tab === 'learn'));
     resize3D();
