@@ -30,6 +30,8 @@
   const bufIdx = (t) => (((Math.round(t) + ecg.t0) % PAGE) + PAGE) % PAGE;   // sim time → paper sample
   const ecg = { t0: 0, buf: LH.LEADS.map(() => new Float32Array(PAGE).fill(NaN)) };
   const g3 = {};
+  // what happens on the page, for the interactive tutorial (src/tutorial.js): 'ectopic', 'ischemia', 'blocks', 'layout'
+  const hub = {}, emit = (type, d) => { for (const fn of hub[type] || []) try { fn(d); } catch (e) { console.error(e); } };
 
   // ---------------------------------------------------------------------------
   // Boot
@@ -71,6 +73,7 @@
       },
       // what a tap at page point (x, y) on the heart would act on: a block site
       // (cut view), 'RA', 'LA', 'V', or null for empty space
+      tour: tourApi(),
       touchTarget(x, y) {
         const r = $('c3d').getBoundingClientRect(), lx = x - r.left, ly = y - r.top, ray = rayAt(lx, ly);
         if (pathwayAt(lx, ly)) return 'AP';
@@ -1114,7 +1117,7 @@
   }
 
   function renderBlockList() {
-    markChange(); updateBadges();
+    markChange(); updateBadges(); emit('blocks');
     const sites = Object.keys(S.blocks);
     $('noBlocks').hidden = !!sites.length;
     $('legendBlock').hidden = !sites.length || ui.view === 'external';
@@ -1228,6 +1231,7 @@
     const rec = S.stimulate(c);
     const refractory = S.t < S.refEnd[c];
     flash(x, y, refractory ? 'No capture (refractory)' : rec.ronT ? 'R-on-T!' : rec.kind === 'atrial' ? 'PAC' : 'PVC');
+    if (!refractory) emit('ectopic', { kind: rec.kind });
   }
   function pickStimulus(ray, x, y) {
     const c = tissueAt(ray);
@@ -1374,7 +1378,7 @@
   }
   function renderIschList() {
     const list = S.insults;
-    $('ischWrap').hidden = !list.length; updateBadges();
+    $('ischWrap').hidden = !list.length; updateBadges(); emit('ischemia');
     $('ischList').innerHTML = list.map((v) => `<div class="bchip isch"><span>${insultLabel(v)}</span><button type="button" data-id="${v.id}" aria-label="Remove">×</button></div>`).join('');
     for (const b of $('ischList').querySelectorAll('button')) b.addEventListener('click', () => {
       removeIschemia(+b.dataset.id);
@@ -2508,7 +2512,7 @@
     b.classList.toggle('fs-ecg', m && (ph.fsEcg || ml));
     b.classList.toggle('fs-heart', m && ph.fsHeart && !ml);
     b.classList.toggle('flip', m && ph.flip && !ml);
-    sizeSheet();
+    sizeSheet(); emit('layout');
   }
 
   // back button: each open sheet, menu or full-screen view is a history entry
@@ -2545,6 +2549,86 @@
     if (!cur || getComputedStyle(cur).display === 'none') guidePage(isM() ? 'mstart' : 'start');   // (layout changed since last opened)
   }
   function hideGuide() { if (hasLayer('help')) closeLayer('help'); else $('guide').hidden = true; }
+  // the interactive tutorial (src/tutorial.js): what it needs from the page
+  function tourApi() {
+    const cv = () => $('c3d').getBoundingClientRect();
+    const page = (v) => { const r = cv(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height }; };
+    const onCanvas = (q, pad = 30) => { const r = cv(); return q.x > r.left + pad && q.x < r.right - pad && q.y > r.top + pad && q.y < r.bottom - pad; };
+    let saved = null;
+    return {
+      on(type, fn) { (hub[type] = hub[type] || []).push(fn); },
+      get phone() { return isM(); },
+      get fsEcg() { return document.body.classList.contains('fs-ecg'); },
+      // the camera's direction from the target (a drag that turns the heart changes it)
+      camDir() { return g3.camera.position.clone().sub(g3.controls.target).normalize().applyQuaternion(g3.world.quaternion.clone().invert()); },
+      controls: () => g3.controls,
+      // close sheets, menus, help and full-screen views
+      closeAll() {
+        while (layers.length) layers.pop().close();   // (their history entries stay; going back over them does nothing)
+        if (!$('guide').hidden) $('guide').hidden = true;
+        if (sheetOpen()) toggleControls(false);
+        hideBlockMenu();
+      },
+      saveView() { saved = { pos: g3.camera.position.clone(), up: g3.camera.up.clone(), tgt: g3.controls.target.clone(), wp: g3.world.position.clone(), wq: g3.world.quaternion.clone(), cut: ui.cutFrac }; },
+      restoreView() {
+        if (!saved) return;
+        setCut(saved.cut);
+        g3.world.position.copy(saved.wp); g3.world.quaternion.copy(saved.wq);
+        g3.controls.target.copy(saved.tgt); g3.camera.position.copy(saved.pos); g3.camera.up.copy(saved.up); g3.camera.lookAt(saved.tgt); g3.controls.update();
+        g3.planeDirty = true;
+      },
+      outside() { setCut(0); cameraPreset('chest'); },
+      cut4() { setCut(100); cameraPreset('front'); },
+      group(i) { if (isM()) { setGroup(i); drawPhone(); } },
+      reset() { $('btnReset').click(); setPaused(false); if (isM()) { setGroup(0); drawPhone(); } },
+      // a spot on the ventricular muscle, in sight, away from the arteries and the sinus node (a tap there stimulates)
+      muscleSpot() {
+        const r = cv(), c = g3.lvCenter.clone().applyMatrix4(g3.inner.matrixWorld).project(g3.camera), o = page(c), cand = [];
+        for (let dy = -0.3; dy <= 0.3001; dy += 0.05) for (let dx = -0.3; dx <= 0.3001; dx += 0.05) cand.push({ x: o.x + dx * r.width, y: o.y + dy * r.height });
+        cand.sort((a, b) => Math.hypot(a.x - o.x, a.y - o.y) - Math.hypot(b.x - o.x, b.y - o.y));
+        for (const q of cand) {
+          if (!onCanvas(q, 40)) continue;
+          const lx = q.x - r.left, ly = q.y - r.top, ok = [[0, 0], [24, 0], [-24, 0], [0, 24], [0, -24]].every(([a, b]) => {
+            const ray = rayAt(lx + a, ly + b), cell = tissueAt(ray);
+            return cell >= 0 && (A.label[cell] === 1 || A.label[cell] === 2) && !onArtery(ray, lx + a, ly + b) && !ray.intersectObject(g3.sanPick, false).length;
+          });
+          if (ok) return q;
+        }
+        return null;
+      },
+      // a node of the mid LAD in sight (a double tap there occludes it)
+      arterySpot() {
+        const lad = M.coronary.branches.LAD, mw = g3.inner.matrixWorld, r = cv();
+        const order = []; for (let k = 0; k < lad.length; k++) order.push(k);
+        order.sort((a, b) => Math.abs(a / lad.length - 0.3) - Math.abs(b / lad.length - 0.3));
+        for (const k of order) {
+          const i = lad[k], w = g3.corPos[i].clone().applyMatrix4(mw), q = page(w.clone().project(g3.camera));
+          if (!onCanvas(q) || !inSight(w)) continue;
+          const at = arteryAt(rayAt(q.x - r.left, q.y - r.top), q.x - r.left, q.y - r.top);
+          if (at >= 0 && /LAD/.test(segmentName(at)) && !/proximal|distal/i.test(segmentName(at))) return Object.assign(q, { node: i });
+        }
+        return null;
+      },
+      // a point of the conduction system that a tap would pick for this site (cut view)
+      conductionSpot(site) {
+        if (ui.view !== 'cutaway') return null;
+        const r = cv(), mw = g3.inner.matrixWorld, pts = g3.csPts.filter((q) => q.site === site), ok = [];
+        for (const q of pts) {
+          const s = page(q.p.clone().applyMatrix4(mw).project(g3.camera));
+          if (onCanvas(s) && conductionAt(rayAt(s.x - r.left, s.y - r.top), s.x - r.left, s.y - r.top) === site) ok.push(s);
+        }
+        return ok.length ? ok[Math.floor(ok.length * 0.4)] : null;
+      },
+      // the same actions as the gestures (the tutorial's Next when the user is stuck)
+      stimulate(q) { const r = cv(), c = tissueAt(rayAt(q.x - r.left, q.y - r.top)); if (c >= 0) stimulateAt(c, q.x - r.left, q.y - r.top); },
+      occlude(node) { captureRef(); S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); interpret(true); },
+      clearIschemia() { S.clearIschemia(); setIschTime(0); recolorIschemia(); renderIschList(); interpret(true); },
+      block(site) { setBlockFrom(site, 'complete'); renderBlockList(); interpret(true); },
+      setFsEcg(on) { setFsEcg(on); },
+      siteName: (s) => SITE_NAME[s] || s,
+      segmentName: (n) => segmentName(n),
+    };
+  }
 
   // the controls sheet
   const sheetOpen = () => !$('controls').classList.contains('collapsed');
@@ -3014,7 +3098,7 @@
     $('fsFlip').addEventListener('click', () => { ph.flip = !ph.flip; fsClass(); });
     $('fsInterp').addEventListener('click', () => { const off = document.body.classList.toggle('fs-nointerp'); $('fsInterp').setAttribute('aria-pressed', String(!off)); });
     try { if (localStorage.getItem('ecgstudio.tipFsEcg')) $('ghint').hidden = true; } catch (e) { /* no storage */ }
-    if (isM() && MQ_PORT.matches && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
+    if (isM() && MQ_PORT.matches && !(window.ECGTour && window.ECGTour.pending()) && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
   }
 
   function initUI() {
@@ -3083,6 +3167,7 @@
     }
     $('btnSavePng').addEventListener('click', saveEcgPng);
     $('guideClose').addEventListener('click', hideGuide);
+    $('guideTour').addEventListener('click', () => { hideGuide(); setTimeout(() => window.ECGTour && window.ECGTour.start(), 350); });
     for (const b of document.querySelectorAll('#guide .toc button')) b.addEventListener('click', () => guidePage(b.dataset.page));
     for (const b of document.querySelectorAll('#guide [data-goto]')) b.addEventListener('click', () => guidePage(b.dataset.goto));
     $('guide').addEventListener('click', (e) => { if (e.target.id === 'guide') hideGuide(); });

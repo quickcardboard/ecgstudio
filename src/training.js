@@ -347,6 +347,17 @@
     st.mode = mode; st.focus = focus; st.reviewRun = mode === 'review' ? dueReviews().map((r) => r.id) : [];
     $('home').hidden = true; nextItem(); fill();
   }
+  // the interactive tutorial (src/tutorial.js) answers one fixed ECG, not rated: sinus rhythm with an anterior STEMI
+  // (mid LAD, as in the simulator's step), prepared in the background while the simulator's steps run
+  const TOUR_RECIPE = { rhythm: 'sinus', rate: 75, seed: 7, abn: [{ k: 'stemi', site: 'mLAD' }] };
+  const tour = { item: null, asked: false, wait: null };
+  function prepTour(cb) {
+    if (tour.item) { if (cb) cb(tour.item); return; }
+    if (cb) tour.wait = cb;
+    if (tour.asked) return;
+    tour.asked = true;
+    request({ type: 'build', recipe: TOUR_RECIPE }, (item) => { tour.asked = false; tour.item = item; const w = tour.wait; tour.wait = null; if (w) w(item); });
+  }
   function goHome() { st.mode = null; st.item = null; gen.waiting = false; setLoading(null); renderHome(); $('home').hidden = false; fill(); }
   function showItem(item) {
     if (!item) { toast('Could not prepare that ECG'); goHome(); return; }
@@ -355,6 +366,7 @@
   function nextItem() {
     st.picked = []; st.typed = ''; st.phase = 'answer'; st.region = null; st.score = null; st.item = null;
     const loading = () => { setLoading(gen.ready ? 'Preparing the ECG…' : 'Building the heart…'); render(); };
+    if (st.mode === 'tutorial') { loading(); prepTour((item) => { if (st.mode === 'tutorial' && !st.item) showItem(item); }); return; }
     if (st.mode === 'daily') { loading(); request({ type: 'make', target: 1500, focus: null, seed: dailySeed() }, showItem); return; }
     if (st.mode === 'review') {
       const id = st.reviewRun.shift(), r = st.reviews.find((x) => x.id === id);
@@ -607,6 +619,10 @@
     if (!rhythmPick()) { const f = $('field'); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); toast('Name the rhythm first'); return; }
     st.time = (performance.now() - st.t0) / 1000;
     st.score = score(st.item.key, st.picked, (k) => (st.skills[k || 'conditions'] || { r: 1500 }).r); st.selRow = null;
+    if (st.mode === 'tutorial') {   // (not rated, not kept)
+      st.delta = 0; st.phase = 'result'; st.typed = ''; st.shownAt = performance.now();
+      setPage(1); render(); return;
+    }
     // Glicko-2 per skill against the item's rating (from its rhythm and the number and type of its
     // abnormalities): the rhythm skill on the rhythm, each other skill on its findings (location half)
     const before = overall(), opp = { r: st.item.rating, rd: 60 }, sub = st.score.skill;
@@ -695,10 +711,10 @@
     const sc = st.score, pct = Math.round(sc.total * 100);
     $('rscore').textContent = `${pct}%`;
     $('rbar').style.width = '0%'; requestAnimationFrame(() => { $('rbar').style.width = `${pct}%`; $('rbar').style.background = pct >= 80 ? 'var(--ok)' : pct >= 40 ? 'var(--part)' : 'var(--bad)'; });
-    const d = Math.round(st.delta), daily = st.mode === 'daily';
+    const d = Math.round(st.delta), daily = st.mode === 'daily' || st.mode === 'tutorial';
     // the rating before this ECG, then the change ("1500+13")
     $('rdelta').innerHTML = daily ? 'not rated' : `${Math.round(overall() - st.delta)}<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>`;
-    $('share').hidden = !daily;
+    $('share').hidden = st.mode !== 'daily';
     $('next').textContent = daily || (st.mode === 'review' && !st.reviewRun.length) ? 'Done' : 'Next';
     $('rtime').textContent = `${Math.round(st.time)} s`;
     $('rchips').innerHTML = sc.rows.map((r, i) => `<button type="button" class="achip ${r.cls}${st.selRow === r ? ' sel' : ''}" data-i="${i}">${r.label}${r.tag ? ` <span class="tag">${r.tag}</span>` : ''}</button>`).join('');
@@ -812,6 +828,10 @@
       else handled = false;
       window.ECGInApp.post('back', { handled });
     });
+    if (INAPP) window.ECGInApp.listen('tour', (d) => {
+      if (d.step === 'prep') prepTour();
+      if (d.step === 'train' && window.ECGTour) window.ECGTour.startTraining();
+    });
     if (INAPP) window.ECGInApp.listen('reselect', () => { $('menu').hidden = true; $('help').hidden = true; for (const pg of document.querySelectorAll('.page:not(#home)')) pg.hidden = true; if ($('home').hidden) goHome(); });
     $('btnTrain').addEventListener('click', () => startMode('train'));
     $('btnDaily').addEventListener('click', () => startMode('daily'));
@@ -856,7 +876,7 @@
     // (an installed iOS web app can settle its screen size and home-bar inset only after the first layout)
     addEventListener('pageshow', () => requestAnimationFrame(sizeBottom));
     if (window.visualViewport) visualViewport.addEventListener('resize', () => requestAnimationFrame(sizeBottom));
-    window.ECGTraining = { st, gen, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, startMode, goHome, VOCAB, BY_ID, suggest: () => suggestions().list.map((x) => x.t.name) };   // (automated tests)
+    window.ECGTraining = { st, gen, tour, prepTour, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, startMode, goHome, VOCAB, BY_ID, suggest: () => suggestions().list.map((x) => x.t.name) };   // (automated tests)
     startWorker(); renderHome(); syncFs(); requestAnimationFrame(sizeBottom);   // (the heart is built in the background while the home screen shows)
     if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(drawAll));
   }

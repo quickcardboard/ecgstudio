@@ -2107,3 +2107,30 @@ Training (`src/training_gen.js`, `src/training.js`):
   which overlap where the left bundle divides (an LBB tap could hit the anterior fascicle's tube first).
 - Checked: in the four-chamber cut, taps along the LBB, RBB, fascicles and His block them (none reach an artery); in the
   outside view a tap on the LAD narrows it.
+
+## Round 58: the interactive tutorial (app)
+
+The author's answers to the open questions in docs/TUTORIAL_PLAN.md: Training's step walks through answering one ECG;
+the app only for now (tried at ecgstudio.app/app/); keep both the artery and the conduction steps.
+
+- **`src/tutorial.js`** (inlined into the simulator and Training by `tools/build.py`): a dim with a ringed cut-out over the
+  target and a one-line card ("3 / 7", Skip; Next after 6 s on the same instruction, and Next does the step for the
+  user). Steps watch for their result, not for a particular tap, so the user's own route counts.
+- **Simulator (steps 1–6):** welcome; drag to turn the heart (≥ 25°); tap the ringed muscle (a spot in sight, away from the
+  arteries and the sinus node) → PVC (or PAC) explained with the ECG ringed; double tap the ringed mid LAD (outside view,
+  from the chest) → the strip moves to V1–V3, anterior STEMI; the four-chamber cut opens (ischemia cleared), tap the
+  ringed left bundle → V4–V6, LBBB; double tap the ECG for all 12 leads and back.
+- **Step 7 (app shell):** the simulator asks the shell to ring the Training tab (`tour` messages: `prep`, `ring`, `end`);
+  tapping it hands over to Training, and the simulator goes back to the Reset state (sinus 72/min, no abnormalities) and
+  the view it had. Training walks through one fixed ECG, prepared in the background from the start of the tour:
+  sinus rhythm at 75/min with a mid-LAD STEMI (`TOUR_RECIPE`; key: Sinus rhythm + ST elevation, anterior). Typing "si",
+  Sinus rhythm, "st", ST elevation, Anterior, Done, Submit, the result, then "Replay it any time: Simulator → Help →
+  Tutorial". The `tutorial` mode is not rated and leaves no history, review or streak.
+- **When:** the first open of the simulator in the app (and ecgstudio.app/app/) on a phone held upright, not opened on a
+  scenario link; `localStorage` `ecgstudio.tour` is set when it starts. The first-open phone tip is not shown then.
+  Afterwards: a **Tutorial** button beside Close in the simulator's Help (app, phone layout only). The website and
+  desktop have no tutorial.
+- Simulator hooks for it: `ECGStudioApp.tour` (events `ectopic`, `ischemia`, `blocks`, `layout`; target finders
+  `muscleSpot`, `arterySpot`, `conductionSpot`; view, reset and the same actions as the gestures).
+- Checked (Playwright, Pixel 7, `app/index.html` over http): the whole tour by touch, by Next alone, Skip mid-way (the heart
+  resets), the Help replay, and the website on a phone (no tutorial; the tip still shows). Training history stays empty.

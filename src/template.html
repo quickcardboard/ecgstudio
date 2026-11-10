@@ -293,6 +293,8 @@ body.m .vsum { display: none; }
 .sheet ul { padding-left: 18px; margin: 6px 0; }
 .sheet .src { font-size: 12px; color: var(--muted); }
 .sheet .close { float: right; font-size: 14px; padding: 8px 12px; border-radius: 8px; background: var(--raised); }   /* (the Help close button matches Training's) */
+.sheet .tourbtn { margin-right: 8px; display: none; }   /* (the interactive tutorial: the app's phone layout only) */
+html.inapp body.m .sheet .tourbtn { display: block; }
 .toc { display: flex; flex-wrap: nowrap; gap: 6px; margin: 10px 0 4px; overflow-x: auto; scrollbar-width: none; }
 .toc::-webkit-scrollbar { display: none; }
 .toc button { flex: none; white-space: nowrap; font-size: 12.5px; padding: 5px 11px; border-radius: 999px; }
@@ -665,6 +667,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
 <div class="overlay" id="guide" hidden>
   <div class="sheet" role="dialog" aria-labelledby="guideTitle">
     <button class="close" id="guideClose" type="button">Close</button>
+    <button class="close tourbtn" id="guideTour" type="button">Tutorial</button>
     <h2 id="guideTitle">Help</h2>
     <nav class="toc" role="tablist" aria-label="Help pages">
       <button type="button" role="tab" class="dk" data-page="start" aria-selected="true">Getting started</button><button type="button" role="tab" class="dk" data-page="view" aria-selected="false">View controls</button><button type="button" role="tab" class="dk" data-page="tabs" aria-selected="false">Control tabs</button><button type="button" role="tab" class="dk" data-page="about" aria-selected="false">About</button><button type="button" role="tab" class="mo" data-page="mstart" aria-selected="false">Getting started</button><button type="button" role="tab" class="mo" data-page="mpanel" aria-selected="false">Control panel</button><button type="button" role="tab" class="mo" data-page="mabout" aria-selected="false">About</button>
@@ -852,4 +855,7 @@ THE SOFTWARE.
 </script>
 <script>
 /*__APP__*/
+</script>
+<script>
+/*__TOUR__*/
 </script>

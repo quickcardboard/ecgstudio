@@ -42,6 +42,9 @@ for key, f in (('/*__THREE__*/', 'three.min.js'), ('/*__ORBIT__*/', 'OrbitContro
     html = html.replace(key, js, 1)
 html = html.replace('/*__ENGINE__*/', (src / 'engine.js').read_text(), 1)
 html = html.replace('/*__APP__*/', (src / 'app.js').read_text(), 1)
+tour = (src / 'tutorial.js').read_text()   # (the interactive tutorial: the simulator's steps and Training's)
+assert '</script' not in tour
+html = html.replace('/*__TOUR__*/', tour, 1)
 (root / 'index.html').write_text(html)
 print('index.html', round(len(html.encode()) / 1e6, 2), 'MB')
 
@@ -84,7 +87,7 @@ t = with_logo((src / 'training.html').read_text()).replace('{{AUTHOR}}', htmlmod
 t = t.replace('{{REPORT_FORM}}', htmlmod.escape(site.get('reportForm', '').strip()))   # (Google Form prefill link: problem reports)
 for key, text in (('/*__INAPP__*/', inapp), ('/*__VOCAB__*/', json.dumps((src / 'training_vocab.txt').read_text())),
                   ('/*__ANATOMY__*/', anatomy), ('/*__TORSO__*/', torso), ('/*__WORKER__*/', worker),
-                  ('/*__TRAIN__*/', (src / 'training.js').read_text())):
+                  ('/*__TRAIN__*/', (src / 'training.js').read_text()), ('/*__TOUR__*/', tour)):
     assert '</script' not in text
     t = t.replace(key, text, 1)
 (root / 'training').mkdir(exist_ok=True)

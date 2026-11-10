@@ -1,4 +1,4 @@
-# Interactive tutorial: plan (draft, for the author to confirm)
+# Interactive tutorial: plan (built in Round 58)
 
 Goal: show the main features, Training included, in **one minute or less**, on the first open of the app; afterwards from
 a **Tutorial** button in Help.
@@ -54,8 +54,10 @@ a **Tutorial** button in Help.
 - Headless checks: Playwright with the Pixel 7 profile on `app/index.html`. Synthetic touch `PointerEvent`s on `#c3d` work
   for taps; Playwright's own `touchscreen.tap` is too slow for double taps in the software-rendered browser.
 
-## Open questions for the author
+## Decisions (2026-11-10, the author)
 
-1. Step 7: only point at Train, or walk through answering one ECG (more useful, about 20 s longer, so over a minute)?
-2. Desktop website: a tutorial with clicks too, or phones and the app only for now?
-3. Keep both the artery (4) and the conduction (5) steps, or drop one to shorten it?
+1. Step 7 walks through answering one ECG (a fixed one: sinus rhythm with a mid-LAD STEMI, not rated).
+2. The app only for now, tried at ecgstudio.app/app/ (and the branch preview of `app/index.html`). No website tutorial.
+3. Keep both the artery (4) and the conduction (5) steps.
+
+Built in Round 58 (docs/DEVELOPMENT.md).

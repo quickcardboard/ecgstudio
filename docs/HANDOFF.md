@@ -2,7 +2,7 @@
 
 Read first, in this order:
 1. `CLAUDE.md`: build, validation and conventions.
-2. `docs/TUTORIAL_PLAN.md`: the next project, with three open questions for the author.
+2. `docs/TUTORIAL_PLAN.md`: the interactive tutorial (built in Round 58; `src/tutorial.js`).
 3. `docs/APP_PLAN.md`: the Android app, releases and signing.
 
 The history of every change is in `docs/DEVELOPMENT.md` ("Round N"; the latest are Rounds 48–57).
@@ -87,8 +87,8 @@ Other recent UI:
 
 ## Open items (besides the tutorial)
 
-- **V6 / chest leads:** a solved-torso chest field is the planned fix (see `CLAUDE.md` known limitations). A reminder for
-  it was scheduled for 2026-11-14 in an older chat; raise it if the author doesn't.
+- **V6 / chest leads:** a solved-torso chest field is the planned fix (see `CLAUDE.md` known limitations). The scheduled
+  reminder for it was removed at the author's request (2026-11-10).
 - Distal LCx (V6 weak); the lead I P wave is a small double hump; after an infarct, the V3–V5 T can be too deep.
 - Desktop help text and the store listing do not mention the newest findings yet.
 
