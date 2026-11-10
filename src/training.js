@@ -608,7 +608,7 @@
     if (st.phase !== 'answer' || !st.item) return;
     if (!rhythmPick()) { const f = $('field'); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); toast('Name the rhythm first'); return; }
     st.time = (performance.now() - st.t0) / 1000;
-    st.score = score(st.item.key, st.picked); st.selRow = null;
+    st.score = score(st.item.key, st.picked, (k) => (st.skills[k || 'conditions'] || { r: 1500 }).r); st.selRow = null;
     // Glicko-2 per skill against the item's rating (from its rhythm and the number and type of its
     // abnormalities): the rhythm skill on the rhythm, each other skill on its findings (location half)
     const before = overall(), opp = { r: st.item.rating, rd: 60 }, sub = st.score.skill;
@@ -634,14 +634,17 @@
   // answers that count as the key's own (full credit): a more specific or more serious reading of the same thing
   const SAME_FINDING = { lvh: ['lvhStrain'], rbbb: ['bifascicular'], lafb: ['bifascicular'] };
   const SAME_RHYTHM = { avb2to1: ['mobitz2'] };   // (2:1 block: go with the more serious reading, Mobitz II)
-  function score(key, picked) {
+  // advanced findings (f.adv, a rating): below that rating in the finding's skill they are shown but not asked: no
+  // miss for leaving one out, credited (as a true extra) when named
+  function score(key, picked, ratingOf = () => 9999) {
     const out = { rows: [], total: 0, skill: {} }, rp = picked.find((p) => BY_ID[p.id].kind === 'rhythm'), fs = {};
     const credit = (f, v) => { const k = f.skill || 'conditions'; (fs[k] = fs[k] || []).push(v); };
     let s = 0;
     if (rp && (rp.id === key.rhythm || (SAME_RHYTHM[key.rhythm] || []).includes(rp.id))) { s += 0.4; out.rows.push({ id: rp.id, rhythm: true, cls: 'ok', label: BY_ID[rp.id].name }); out.rhythm = 'ok'; }
     else if (rp && (key.alt || []).includes(rp.id)) { s += 0.2; out.rows.push({ id: rp.id, rhythm: true, cls: 'part', label: BY_ID[rp.id].name, tag: `more exactly: ${BY_ID[key.rhythm].name}` }); out.rhythm = 'part'; }
     else { out.rows.push({ id: rp.id, rhythm: true, cls: 'bad', label: BY_ID[rp.id].name }); out.rows.push({ id: key.rhythm, rhythm: true, cls: 'miss', label: BY_ID[key.rhythm].name }); out.rhythm = 'bad'; out.wrongRhythm = rp.id; }
-    const req = key.findings, share = req.length ? 0.6 / req.length : 0, opt = key.optional || [];
+    const later = key.findings.filter((f) => f.adv && ratingOf(f.skill) < f.adv), req = key.findings.filter((f) => !later.includes(f));
+    const share = req.length ? 0.6 / req.length : 0, opt = key.optional || [];
     const fp = picked.filter((p) => BY_ID[p.id].kind === 'finding');
     let wrong = 0;
     for (const f of req) {
@@ -653,6 +656,11 @@
       s += regOk ? share : share / 2; credit(f, regOk ? 1 : 0.5);
       out.rows.push({ id: f.id, cls: regOk ? 'ok' : 'part', label: chipLabel(p), tag: regOk ? '' : `leads: ${regionText(f.regions)}` });
       if (!regOk) out.regionMiss = out.regionMiss || f;
+    }
+    for (const f of later) {
+      const p = fp.find((x) => !x.matched && x.id === f.id);
+      if (p) { p.matched = true; s += 0.05; out.rows.push({ id: f.id, cls: 'ok', label: chipLabel(p), tag: 'advanced' }); }
+      else out.rows.push({ id: f.id, cls: 'info', label: f.regions ? `${BY_ID[f.id].name}, ${regionText(f.regions)}` : BY_ID[f.id].name, tag: `advanced: asked from ${f.adv}` });
     }
     for (const p of fp) {
       if (p.matched || req.some((f) => f.id === p.id)) { delete p.matched; continue; }
@@ -737,6 +745,7 @@
   // ------------------------------------------------------------------ bug report (testers)
   // Opens the share sheet (or copies to the clipboard) with everything needed to rebuild and check the ECG:
   // the simulator link, the key, the tester's answer, the reader's checks and the generator recipe.
+  function openExternal(url) { window.open(url, '_blank', 'noopener'); }
   function reportProblem() {
     const it = st.item;
     if (!it) { toast('No ECG on screen to report'); return; }
@@ -750,6 +759,17 @@
       `My answer: ${ans}${st.score ? ` (score ${Math.round(st.score.total * 100)}%)` : ''}`, `Measurements: ${JSON.stringify(it.m)}`,
       `Reader: ${it.read.rhythm}; ${(it.read.dx || []).join(', ') || 'no findings'}; ${(it.read.checks || []).join('; ')}`,
       `Recipe: ${JSON.stringify(it.recipe)}`, `Mode: ${st.mode}; version ${ver}`].join('\n');
+    // with a report form set (site.json reportForm: a Google Form's prefill link ending in "entry.<id>="), the report
+    // opens there, filled in: anyone can send one and no address is shown. The recipe and measurements are left out
+    // when the link would be too long (the scenario link rebuilds the ECG).
+    const form = ((document.querySelector('meta[name="report-form"]') || {}).content || '').trim();
+    if (/^https:\/\//.test(form)) {
+      let body = text.replace('What looks wrong: \n\n', '');   // (the form asks this in its own field)
+      if (encodeURIComponent(body).length > 6000) body = body.split('\n').filter((l) => !/^(Recipe|Measurements): /.test(l)).join('\n');
+      if (encodeURIComponent(body).length > 6000) body = body.slice(0, 1800);
+      openExternal(form + encodeURIComponent(body));
+      return;
+    }
     if (navigator.share) navigator.share({ title: 'ECG Studio Training: problem report', text }).catch(() => {});
     else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast('Report copied: paste it into a message to the author'), () => toast('Could not copy the report'));
     else toast('Sharing is not available in this browser');

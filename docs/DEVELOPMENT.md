@@ -1822,3 +1822,179 @@ The Android app is in closed testing, so the website now recruits testers instea
   ⋯ menu (last item, in place of Install app) and in the desktop header (in place of Install app).
 - The **Training** item is gone from the phone's ⋯ menu; ecgstudio.app/training stays online, unlinked.
 - No web-app manifest or install prompts any more; the service worker stays, so the website still works offline once visited.
+
+## Round 48: generator fixes (WAP/MAT, sinus pause, sinus tachycardia combinations)
+
+From the audit of discarded training ECGs (docs/GEN_EXCLUSIONS.md on app-1).
+
+- **WAP/MAT.** The rhythm is now "WAP/MAT" in the simulator (it starts at the current rate; the slider sets it; the
+  interpretation says wandering atrial pacemaker below 100/min). Training draws 70–130/min: the key is `wap` below 100,
+  `mat` above, both accepted at 95–105 (new vocabulary term "Wandering atrial pacemaker"). The gate is the engine's
+  own record, not the blind rhythm read (which took some MAT strips for AF or irregular sinus tachycardia): at least three
+  different atrial foci fired in the strip (the MAT driver now logs each firing in `fireLog`), P waves visible.
+- **Sinus pause.** Not a timing bug: the junctional escape (48/min, 1.25 s) fired inside the 2.6 s pause, so in slower
+  hearts the RR check failed, and the ECGs that passed had an unannounced escape beat. Now both kinds are generated
+  (`rec.pauseEscape`): with the escape (a narrow beat without a P inside the pause; "Junctional escape beat" is a new,
+  optional finding) or a pure pause (`setBlock('SAN', 'pause', { escape: false })` keeps the junctional pacemaker silent
+  too). Checked on the sinus P–P interval; a retrograde P inside an escape QRS no longer counts as a hidden P.
+- **Sinus tachycardia** may now carry first-degree AV block, WPW, LBBB or RBBB; SVT (and sinus rhythm) is accepted as the
+  rhythm, P waves may be half hidden, and the PR for those findings comes from the engine (the reader's PR is unreliable
+  with the P on the T). The blind read's RAE and long PR at sinus tachycardia, WPW's pseudo-infarct Q waves (optional) and
+  LBBB's discordant ST elevation are no longer counted as extra findings.
+- Audit (seeds 11–13, 60 each): 127/180 → 140/180 kept. WAP/MAT 6/8 (P hidden with infarcts the rest); sinus pause and
+  the new sinus tachycardia combinations pass. Reader 47/57 as before.
+
+## Round 49: chest-lead ST-T from the solved torso (V4–V6); Round 47's LAD bandage removed
+
+The V6 problem (V6 unrelated to V5) and the post-infarct T depth, with a solved-torso chest field.
+
+- **Solve.** `node tools/export_heart_torso.js heart.json` + `ANISO=1 python3 tools/torso_v2.py heart.json tv17.json 3` (needs
+  `pip install scipy pyamg`; 61 s). Its LA/LL fields are identical to the bundled `src/torso_limb.json`; the V3–V6 fields are
+  now bundled with them (plus `chestScale`, the V2-normalised chest scale of that solve, since V2 is not shipped).
+  `torso_limb.json` 0.93 → 2.8 MB.
+- **Every lead from the torso (`fullTorso`) was tried and not adopted:** V5–V6 alike (correlation 0.99) and a natural T
+  progression, but a poor R progression (small R in V4, then a tall R in V5), small QRS, and the anterior and lateral infarct
+  Q waves lost (the cavity-window electrode is skipped on that path). `chestTorso` (torso near field for the whole beat):
+  iErr 4 → 11 for the same reason.
+- **Adopted: `chestTorsoT`.** The QRS of every chest lead stays as it was (blend + cavity window: R progression and Q waves
+  unchanged); the ST-T of **V4–V6** comes from the solved torso (electrode − Wilson terminal, without the cavity window),
+  ramped in from 40 ms after the last ventricular activation over 80 ms. Separate torso electrodes (`torsoTE`), so the QRS
+  path is untouched. V1–V3 keep the blend: with the torso T, Brugada's coved ST read as STEMI (V1–V2), and V3 turned
+  upright after an LAD infarct (the solved field's V3 sits on that boundary).
+- **Bandage removed:** `occlusionLate` LAD 0.5 → 1. (`cavityWindowT` 0.25 stays for the blend part, so V1–V3 only.)
+- Results (normal; T V4/V5/V6, mm): 6.9/3.8/1.2 → 4.9/3.6/2.0; V5–V6 correlation 0.79 → 0.90. Mid LAD 48 h: T V4 −6.0 → −5.9
+  with the bandage gone, V5 −2.2 → −2.1, now inverted V2–V5 in the ischaemia audit. Proximal LCx 48 h V6 T −6.2 → −3.0.
+  Acute STE smaller in V4 (mid LAD 7.6 → 6.0 mm).
+- Validation: reader 47/57 (pLCx 1 h partial → pass, acute marginal 1 h pass → partial), fullcheck iErr 4 (unchanged),
+  Brugada passes. Training audit (seeds 11–13): 140 → 134/180, almost all hyperacute T now under 10 mm in V4 (Round 50
+  reworks the hyperacute T).
+- Still open: the tall upright T in V3–V5 after an inferior (RCA) infarct at 2–30 days (V4 11.6 mm) is unchanged by the
+  torso field: it is in the repolarisation model, not the forward model.
+
+## Round 50: ischaemia engine (the author's exclusion list)
+
+- **Hyperacute T, single and broad (was biphasic).** The K-ATP effect of the first minutes is now a smaller APD shortening
+  (`ischApdShort` 0.45 → 0.35) plus a sloping plateau in the ischaemic zone (`ischPlateauDrop` 0.25: the T rises from the
+  ST), and the RCA's injury scale (0.33, Round 46, for ST height) no longer shrinks it below `ischKatpFloor` 0.7. At 15 min:
+  mid RCA II/III/aVF 8.0/9.9/8.7 mm, single-peaked (III was a small down-up wave); mid LAD V3/V4 11.0/9.2. With LAFB the
+  anterior T stays single (the "M"-shaped T that excluded fascicular blocks is gone). Inferior ST at 1 h: III 3.8 (proximal)
+  and 5.7 mm (mid RCA), within Round 46's target.
+- **V4 at half on the torso ST-T** (`chestTorsoTLead` [0, 0, 0, 0.5, 1, 1]): with V4 fully on the solved torso the hyperacute
+  T in V4 was no taller than normal (the solved field sees the anterior wall's regional change weakly).
+- **Narrowing (subendocardial ischaemia):** `stenosisGlobal` 0.3: the rest of the LV inner wall shares 0.3 of the culprit's
+  severity (demand). Proximal LAD narrowing raised III/aVF (the mirror of its deep I/aVL depression); now diffuse ST
+  depression with ST elevation in aVR (2.5–3.5 mm) and slightly V1, as taught ("ST depression does not localise"). Mid-LAD
+  narrowing now reaches ≥ 1 mm and is used in Training.
+- **Hypertrophy with acute ischaemia:** `ischHypComp` 1 divides the injury current by the hypertrophy source gain. LVH + mid
+  LAD STEMI ST V3 9.4 → 6.5 mm (normal heart 6.3); LVH + mid RCA III 9.3 → 6.7 mm at J+20 (normal 5.0); the hyperacute floor is compensated too.
+- **Inferior infarct T waves:** `occlusionLate` RCA 1 → 0.1. After an RCA infarct, III/aVF inverted by 17–23 mm and aVL/I
+  rose 13–18 mm from 12 h to 30 days (live site too): the late APD prolongation over a wall that faces the limb leads squarely.
+  Now III ≈ −10 (≈ −7 mm on paper), aVF −6. Still open: the dead region alone leaves aVL/I ≈ +9 mm and V3–V4 ≈ 10 mm (the
+  normal T is a small residue of large opposing sources; removing a large territory unbalances it).
+- **Training generator:** hyperacute T with fascicular blocks and at the proximal RCA; LVH/RVH with STEMI and narrowing
+  (not with hyperacute T: LVH's tall right-precordial T mimics it); RBBB with old/recent infarcts and narrowing (not with
+  hyperacute T or pericarditis); LAFB with acute STEMI anywhere and LPFB with LAD/circumflex infarcts (an old/recent inferior
+  infarct with LAFB or LPFB stays out: its Q waves mask the block, as in real ECGs); Q waves and T inversion count lead III
+  beside aVF or II (4th UDMI); new infarct sites LM, OM1, OM2, distal RCA, PDA (distal circumflex: old infarcts only).
+  Not used: distal LAD (inferior ST elevation only), acute marginal (inferior pattern), distal circumflex STEMI (V6 only).
+- Validation: reader 47/57 (unchanged per scenario except acute marginal 30 d reads differently, still pass), fullcheck iErr 4,
+  hypertrophy presets unchanged. Training audit (seeds 11–13): 138/180 with the wider mix.
+
+## Round 51: electrolytes and hypothermia
+
+`Sim.setElectrolyte(key, level)`; Conditions panel: **Electrolytes** (Hyperkalemia mild/severe, Hypokalemia, Hypocalcemia,
+Hypercalcemia) and **Temperature** (Hypothermia: the sinus rate drops to 45/min when it is turned on above 50). Each comes from
+its cellular effect:
+
+| Condition | Model | Result (normal: QRS 77, QT 313, PR 140, T II/V3 5.9/5.4 mm, 127 ms wide) |
+|---|---|---|
+| Hyperkalemia, mild | repolarisation width × 0.5, APD × 0.85, APD gradient × 1.3 | T II/V3 11.9/10.8 mm, 70 ms wide (peaked), QT 289 |
+| Hyperkalemia, severe | + ventricular conduction / 2.6, atrial / 1.8, atrial AP amplitude 0.4 | QRS 127, PR 176, P in II 2.5 → 0.9 mm |
+| Hypokalemia | repolarisation width × 1.2, 18% of it left to a slow terminal tail 230 ms later (reduced IK1/IKr), plateau sag +0.05 | flat T (V3 3.7 mm), U wave V3 1.6 mm (about 40% of the T; 32% made it as tall as the T: too tall, the author) |
+| Hypocalcemia | APD × 1.45 (plateau) | QT 427, T unchanged |
+| Hypercalcemia | APD × 0.75 | QT 250, short ST |
+| Hypothermia | epicardial notch-and-dome (amplitude 0.5, delayed dome, as Brugada's but over the whole epicardium), APD × 1.3, conduction / 1.25 | J (Osborn) waves, QT 454 at 45/min, PR 165, QRS 83 |
+
+- **The repolarisation kernel.** Most cells repolarise through one shared shape (the convolution kernel built from `repWVent`);
+  per-cell `repW` only reached cells on the exact path. Electrolytes now rebuild the ventricular kernel (width, and the
+  hypokalaemic tail). Fixed on the way: a plateau slope of 0.05 + 0.05 rounded to 0.1000000015 in Float32 and sent every cell
+  down the exact path (threshold now 0.1 + 1e-6).
+- **Simulator:** interpretation lines for each pattern, Learn text (features and pitfalls), links (`hyperK=mild|severe`,
+  `s=hypoK,hypoCa,hyperCa,hypothermia`).
+- **Training:** findings Hyperkalemia (mild and severe, one answer), Hypokalemia, Hypocalcemia (QTc ≥ 460), Hypercalcemia
+  (QTc ≤ 370), Hypothermia (sinus bradycardia only); one per ECG, not with ischaemia, pericarditis, Brugada, non-specific ST-T,
+  WPW, bundle branch block or hypertrophy. The blind read's LBBB/IVCD in severe hyperkalemia (optional IVCD) and STEMI in
+  hypothermia (J waves) are not counted as extra findings. Audit: 8 of 10 electrolyte ECGs kept in a random mix.
+- Validation: reader 47/57 and fullcheck iErr 4, unchanged.
+
+## Round 52: Wellens and STEMI in LBBB (Sgarbossa); de Winter dropped (too rare, the author)
+
+- **Wellens** (`Sim.setWellens('A'|'B')`; Conditions → **Ischemia patterns**). A critical proximal LAD lesion that reperfused
+  before the muscle died: no necrosis, no Q waves, ST at baseline. The anterior wall (the mid-LAD territory; with the proximal
+  LAD's territory the high lateral wall also inverted I/aVL and made II/aVF tall) keeps prolonged action potentials, most in
+  the outer wall (`wellensEndo` 0.1 inner share): type A × (1 + 0.65·severity) gives the biphasic T (up, then down) in V2–V3;
+  type B × (1 + 1.2·severity) deep symmetric T inversion V2–V5 with normal limb leads. A heart condition rather than an
+  insult, so the occlusion tools (time slider, ischemia list) are untouched. Interpretation line, Learn text, link `wellens=A|B`.
+- **STEMI in LBBB.** Training allows LBBB with an acute STEMI; its finding is "STEMI in LBBB (Sgarbossa)", checked by the
+  Smith-modified criteria on the median beat: concordant ST elevation ≥ 1 mm, concordant ST depression ≥ 1 mm in V1–V3, or
+  discordant ST elevation ≥ 1 mm and ≥ 25% of the S. LBBB alone meets none (largest discordant ratio 4%, V3); proximal and
+  mid LAD meet the discordant criterion (27–65%), RCA the concordant elevation in II/III/aVF, circumflex the concordant
+  V1–V3 depression. The simulator reads the same criteria when LBBB and an occlusion are both present (and no longer lists
+  Q/QS waves, lost R waves or T inversion in LBBB). Learn text "STEMI in LBBB: Sgarbossa criteria".
+- Training: Wellens types A and B (not with flutter, fascicular blocks, bundle branch blocks, hypertrophy, WPW, electrolytes).
+- Validation: reader 47/57, fullcheck iErr 4. Audit (seeds 13–14): 91/120 kept, including LBBB + STEMI at the proximal LAD and OM1.
+
+## Round 53: torsades de pointes; LBBB + STEMI answered separately; hypothermia under "Other"
+
+- **Torsades de pointes** (`startArrhythmia('tdp')`; Rhythm list, Ventricular; link `a=tdp`). One ventricular focus at
+  `tdpCl` 230 ms (±8%, about 260/min) whose site moves a step every beat along a loop over the LV epicardium: once around the
+  ventricle (rotational UVC −π → π) while swinging between apex and base (apicobasal 0.12–0.72), `tdpSteps` 16 beats per
+  turn. The activation direction turns through a full circle, so the QRS grows, shrinks and changes polarity in spindles in
+  every lead. Sustained until a shock or another rhythm (AV node blocked as in VT/VF). Interpretation line (no axis or QT
+  chip while the axis turns), Learn text (long QT causes, magnesium/pacing), Shock offered. Training rhythm "Torsades de
+  pointes" (synonyms TdP, polymorphic VT).
+- **LBBB + STEMI in Training** (the author): LBBB and ST elevation are two separate answers, as any other combination; the ST
+  elevation's region is the artery's (any territory the criteria flag accepted). The Sgarbossa criteria (Round 52) stay the
+  gate for whether the STEMI is visible; "Sgarbossa" is a synonym of ST elevation; the separate term is removed.
+- **Hypothermia** moved from "Temperature" to the **Other** heading of the Conditions panel.
+- Validation: reader 47/57, `tools/arrhythmia.js` identical.
+
+## Round 54: touch and view fixes, report form, advanced findings in Training
+
+Simulator (`src/app.js`, `src/template.html`):
+- **Phone layout from the first paint**: a small script inside `#app` sets `body.m`/`body.ml` before the large scripts are
+  parsed (the desktop layout no longer flashes first).
+- **Coronary taps**: single tap/click narrows, double tap/click occludes; the same gesture again removes the marker, the
+  other converts it. **One marker per region** (`regionNode`: left main, proximal/mid/distal LAD, LCx, RCA by
+  `segmentName`, and each side branch); the marker sits at the region's start (distal LAD and RCA: the Training/validation
+  site), so a tap anywhere in the region acts on it. On a busy page a late second tap turns the narrowing just made into
+  what the double tap means (`ischPress`). On phones these taps work in the Ischemia tab (the hold gestures are removed).
+- **Two-finger gestures**: pinch, pan (`enablePan`, screen-space) and twist (`initTwist`: the new `g3.world` group, heart
+  and lead vectors, turns about the line of sight). Any view preset clears the twist and pan.
+- **Tabs choose the view**: Ischemia → external, Blocks → four-chamber cut (desktop and phone).
+- **Lead vectors** shorter (limb 72/64 mm, chest 70 mm, measured chest ×0.65) with the camera at 480 instead of 720.
+- **Conduction system see-through**: a faint copy drawn over tissue, so the left bundle under the septum's cut face shows
+  (the pick tubes already ignored tissue).
+- Lead vectors are removed from the scene on a heart rebuild (an older set no longer stays behind).
+- Resources: added Rautaharju 2009 (ST-T/QT), de Zwaan/Wellens 1982, Sgarbossa 1996, Wang 2003, Diercks 2004, Osborn 1953,
+  Dessertenne 1966, Drew 2010, McCord 1998.
+
+Training (`src/training_gen.js`, `src/training.js`):
+- VT, TdP and VF carry no artifact (they never took abnormalities).
+- Tremor duration varies: a quarter of strips shake throughout (slowly swelling), the rest 1–4 bursts of 0.4–3.5 s, each
+  of its own strength.
+- The electrolytes and Wellens are rarer (`ABN_W` 0.15–0.35; TdP w 0.3): in 20 000 sampled ECGs each now appears about as
+  often as atrial enlargement or less.
+- **Advanced findings** (`adv`, `ADV = 1700`): Wellens, hypothermia, and the STEMI in LBBB (Sgarbossa). Below 1700 in the
+  finding's skill they appear but are not asked: shown as a dotted "advanced" chip, credited (+5%) when named.
+- Problem reports: with `reportForm` set in `site.json` (a Google Form prefill link ending in `entry.<id>=`), the report
+  opens that form filled in, so no address is shown; without it the share sheet/clipboard as before.
+- Home: the Reviews subheading is "ECGs you missed"; the 1–35 day schedule is in Help (Other).
+- Validation: engine unchanged; `tools/trainlive.js 40 3` runs, VT/TdP/VF alone in 20 000 samples.
+- Follow-up (the author): the phone's first tip reads "Double tap the ECG to expand it, or double tap the empty space beside
+  the model to expand the 3D view."; the ischemia stage description under "Time since onset" is hidden (`#ischStage`);
+  VT, torsades and VF carry artifacts again; hypo- and hypercalcemia are advanced findings (1700); the report form is set.
+- **What is on, outside its tab** (the author): on phones (site and app) a neutral count badge on the Blocks, Ischemia and
+  Conditions tabs (`updateBadges`); on desktop a "Conditions" line under the view name lists the active conditions (up to
+  three, then "+N"; most do not change the model) and opens the Conditions tab. Option names keep their abbreviations'
+  capitals ("wide QRS, flat P (K > 7)", `lowFirst`).

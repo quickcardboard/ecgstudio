@@ -205,6 +205,7 @@
     matClMin: 380, matClMax: 640,
     ectopicDist: 25,        // ectopic atrial focus: distance (mm) from the AV node, low in the right atrium
     vtCl: 330,
+    tdpCl: 230, tdpSteps: 16,   // torsades: cycle length (ms, ±8%) and beats per full turn of the axis
     vfFoci: 12, vfClMin: 140, vfClMax: 240,
     adenosineDelay: 1000, adenosineBlock: 3000, shockRefractory: 160,
 
@@ -224,22 +225,32 @@
     ischKatpH: 0.15,       // hours for K-ATP APD shortening to develop (hyperacute T)
     ischInjuryOnset: 0.15, // hours before the injury current starts (the first minutes show hyperacute T only)
     ischInjuryH: 0.6,      // hours for the injury current (resting depolarisation) to develop
-    ischApdShort: 0.45, ischApdLate: 0.9, ischLateH: 3,
+    ischApdShort: 0.35, ischApdLate: 0.9, ischLateH: 3,
+    ischPlateauDrop: 0.25, ischKatpFloor: 0.7,    // minutes (with the K-ATP shortening): extra fall of the plateau over the APD in the ischaemic zone (a broad T rising from the ST)
     ischSubendoGain: 1.6, subendoInj: 0.6, subendoRVGain: 0.5, subendoSpanPhi: 1.6, subendoSpanZ: 0.5,  // demand ischaemia: the inner wall is the most severely injured
     ischStResolve: 0.6,    // subendocardial: fraction of the injury current gone by 8 h
     // narrowing (Sim.addStenosis): severity of the partial-flow ischaemia in the territory's inner wall, per
     // artery family (the injury of a territory saturates: these give 1.5–2 mm of horizontal ST depression at
     // J+80 in two contiguous leads at 1 h for the proximal artery; a mid-LAD territory reaches ~1 mm at most)
     stenosisSev: { LAD: 0.65, LCx: 0.55, RCA: 0.17, LM: 0.5 },
+    // electrolytes and hypothermia (Sim.setElectrolyte): factors on the healthy values
+    elecHyperKRepW: 0.5, elecHyperKApd: 0.85, elecHyperKGrad: 0.3, elecHyperKSync: 0, elecHyperKCv: 2.6, elecHyperKCvAtrial: 1.8, elecHyperKPAmp: 0.4,
+    elecHypoKRepW: 1.2, elecHypoKSag: 0.05, elecHypoKMid: 0, elecHypoKLayer: 0.5, elecHypoKLayerW: 0.25, elecHypoKTail: 0.18, elecHypoKTailMs: 230, elecHypoKTailW: 90,
+    elecHypoCaApd: 1.45, elecHyperCaApd: 0.75,
+    elecHypothermiaApd: 1.3, elecHypothermiaCv: 1.25, elecOsbornNotch: 0.5,
+    wellensA: 0.65, wellensB: 1.2, wellensEndo: 0.1, wellensAt: 0.22,   // Wellens (Sim.setWellens): APD prolongation of type A / B, inner-wall share, LAD node (fraction along it)
+    stenosisGlobal: 0.3,   // narrowing: share of its severity in the rest of the LV inner wall
+    stenosisBaseGain: 1, stenosisBaseZ: 0.6,   // narrowing: severity in the basal inner wall (apicobasal UVC above stenosisBaseZ)
     // occlusion: the injury current (resting depolarisation, the ST shift) per artery family. The inferior wall faces
     // the inferior limb leads squarely in this torso: at full strength an RCA STEMI gave 12–15 mm in III. The scale
     // keeps III at most ~5–6 mm, aVF ~4–5, II ~3–4 at 1 h (and less R loss in the injured wall). It applies to LV
     // muscle only (the RV keeps its V1 elevation). Necrosis, Q waves and the time course are unchanged.
     occlusionInj: { LAD: 1, LCx: 1, RCA: 0.33, LM: 1 },
     occlusionInjRV: 1.8,
+    ischHypComp: 1,        // hypertrophy: the injury current divided by (source gain)^ischHypComp (1: as in a normal heart)
     // BANDAGE, not a fix (with cavityWindowT): the late T inversion (APD prolongation in and around the infarct, from ~6 h)
     // per artery family; see cavityWindowT and docs/DEVELOPMENT.md Round 47
-    occlusionLate: { LAD: 0.5, LCx: 1, RCA: 1, LM: 1 },   // (× occlusionInj in RV muscle: ~0.6)
+    occlusionLate: { LAD: 1, LCx: 1, RCA: 0.1, LM: 1 },   // (Round 50: RCA 0.1, the inferior wall faces the limb leads squarely: III −17 to −23 mm)   // (× occlusionInj in RV muscle: ~0.6)
     // non-specific ST-T changes (Sim.setNonspecificSTT): the transmural repolarisation gradient that makes the
     // T wave upright is reduced in patches that follow no artery (a smooth pattern from the Sim's seed), by up
     // to nssttGrad of it, and the plateau sags a little (nssttSag): flat or slightly inverted T waves and
@@ -281,6 +292,7 @@
     atrialLimbGain: 1.85,      // atrial sources in the solved-torso limb leads: keeps the P-wave calibration made with the cylinder field (P in II 0.23 mV)
     limbTorso2: true,          // limb leads I, II from the solved torso (src/torso_limb.json: shoulder/axilla and hip contact patches) instead of the cylinder field
     fullTorso: false,          // with chestTorso: every lead from the solved torso's electrode potentials (limb LA−RA, LL−RA; chest V − WCT), no heart-vector blend
+    chestTorsoT: 1, chestTorsoT0: 40, chestTorsoTRamp: 80, chestTorsoTGain: 1, chestTorsoTCav: 0, chestTorsoTLead: [0, 0, 0, 0.5, 1, 1],   // ST-T of the chest leads from the solved torso (see the chest leads in Sim)
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
@@ -1263,7 +1275,8 @@
       // + three uniform-field "leads" giving the heart dipole vector (VCG X,Y,Z)
       // + optionally limb leads I and II from a bounded-torso lead field
       const TF = this.P.torsoField !== undefined ? this.P.torsoField : DEFAULT_TORSO;
-      const NE = names.length + 3 + (TF || this.P.limbTorso2 ? 2 : 0) + (this.P.cavityWindow > 0 ? 1 : 0);   // (+ a virtual electrode in the LV cavity)
+      const tE = names.length + 3 + (TF || this.P.limbTorso2 ? 2 : 0), nT = this.P.chestTorsoT > 0 && !this.P.chestTorso ? 9 : 0;   // (chestTorsoT: the 9 electrodes again, from the solved torso)
+      const NE = tE + nT + (this.P.cavityWindow > 0 ? 1 : 0);   // (+ a virtual electrode in the LV cavity)
       let tfSample = null, tfScale = 1, tfMean = null;
       if (TF) {
         if (!TF._I) { TF._I = decode(TF.I, Float32Array); TF._II = decode(TF.II, Float32Array); }
@@ -1336,7 +1349,7 @@
       // psi_e, lead field grad psi_e) instead of the point-source 1/r formula. The
       // heart-vector part of the chest leads and the limb leads are unchanged.
       let tv2 = null;
-      const T2 = this.P.chestTorso || this.P.limbTorso2 ? (this.P.torsoV2 || DEFAULT_TORSO2) : null;
+      const T2 = this.P.chestTorso || this.P.limbTorso2 || this.P.chestTorsoT > 0 ? (this.P.torsoV2 || DEFAULT_TORSO2) : null;
       if (T2) {
         const [nx, ny, nz] = T2.dims, o = T2.origin, th = T2.h;
         const psi = names.map((k) => { if (k === T2.ref || !T2.psi[k]) return null; const a = decode(T2.psi[k], Int16Array), f = new Float32Array(a.length), s = T2.scale[k]; for (let i = 0; i < a.length; i++) f[i] = a[i] * s; return f; });
@@ -1353,9 +1366,11 @@
           return [gx / th, gy / th, gz / th];
         };
         // scale: mean |grad psi_V2| over the ventricles matches the point-source 1/r² near field (keeps the chest gains meaningful)
-        let gs = 0, rs = 0; const eV2 = names.indexOf('V2');
+        let gs = 0, rs = 0; const eV2 = names.indexOf('V2'), hasV2 = !!(T2.psi.V2);
         for (let c = 0; c < n; c += 5) { if (this.kind[c] !== KIND.VENT) continue; const m = this.toTorso(A.p(c)); const gv = grad(eV2, m); gs += Math.hypot(gv[0], gv[1], gv[2]); const r = sub(E[eV2], m); rs += 1 / dot(r, r); }
-        tv2 = { grad, scale: gs ? rs / gs : 0, chest: !!this.P.chestTorso && gs > 0 };
+        if (!hasV2 && T2.chestScale) { gs = 1; rs = T2.chestScale; }   // (the bundled field has no V2: the scale of its solve is stored)
+        tv2 = { grad, scale: gs ? rs / gs : 0, chest: !!this.P.chestTorso && gs > 0, chestT: nT && gs > 0 ? tE : 0 };
+        this.torsoTE = tv2.chestT;
         if (this.P.limbTorso2) {   // limb leads from the solved torso: same normalisation as the cylinder field (mean |lead I| over the heart = 1e-4)
           const eLA = names.indexOf('LA'), eLL = names.indexOf('LL'); let sl = 0, cl = 0;
           for (let c = 0; c < n; c += 7) { if (!this.kind[c]) continue; const gv = grad(eLA, this.toTorso(A.p(c))); sl += Math.hypot(gv[0], gv[1], gv[2]); cl++; }
@@ -1448,6 +1463,10 @@
         const cc = tfScale * h * h * sc * ((Lv[0] * lex[0] + Lv[1] * lex[1] + Lv[2] * lex[2]) + re * (Lv[0] * lrr[0] + Lv[1] * lrr[1] + Lv[2] * lrr[2]) + fe * (Lv[0] * lff[0] + Lv[1] * lff[1] + Lv[2] * lff[2]));
         out[12 + q] = cc;
       }
+      if (tv2 && tv2.chestT) for (let e = 0; e < 9; e++) {     // chestTorsoT: the electrodes again, from the solved torso (ST-T of the chest leads)
+        const G = tv2.grad(e, m);
+        out[tv2.chestT + e] = tv2.scale * h * h * sc * ((G[0] * ex[0] + G[1] * ex[1] + G[2] * ex[2]) + re * (G[0] * rr[0] + G[1] * rr[1] + G[2] * rr[2]) + fe * (G[0] * ff[0] + G[1] * ff[1] + G[2] * ff[2]));
+      }
       if (tv2 && tv2.chest) {                                 // torso lead fields for the electrode potentials
         for (let e = 0; e < 9; e++) {
           const G = tv2.grad(e, m);
@@ -1515,6 +1534,7 @@
       this.arrive = new Float64Array(N).fill(Infinity);
       this.blocked = new Uint8Array(N);
       this.cvMul = new Float32Array(N).fill(1);       // >1 slows conduction (ischaemia)
+      this.cvElec = new Float32Array(N).fill(1);      // >1 slows conduction (electrolytes, hypothermia: setElectrolyte)
       this.buckets = Array.from({ length: RING }, () => []);
       this._assignParams();
       if (!opts.noMemory && this.P.electrotonicK > 0) this._electrotonicMemory();
@@ -1537,6 +1557,7 @@
       this.H = [new Float64Array(HRING * model.NE), new Float64Array(HRING * model.NE)];   // [ventricular, atrial]
       const ker = (w) => Float64Array.from({ length: w }, (_, x) => { const u = x / w; return u * u * (3 - 2 * u); });
       this.K = [ker(Math.round(this.P.repWVent)), ker(Math.round(this.P.repWAtrial))];
+      this._kerVent0 = this.K[0];
       this.tbuckets = Array.from({ length: RING }, () => []);
       this.W = model.W;                                  // lead weights (copied when necrosis uncouples tissue)
       this.S0 = new Float64Array(model.NE); this.S1 = new Float64Array(model.NE);
@@ -1552,7 +1573,7 @@
       const anyBlocked = (ids) => ids.some((c) => this.blocked[c]);
       const M = model, cs = M.csSegments;
       this._addPacemaker(M.junctionalCell, 60000 / this.P.junctionalRate, 'junctional',
-        () => this.blocked[M.sanCell] || this.sinusArrest || this.t < this.sinusPauseUntil || anyBlocked(M.avn));
+        () => this.blocked[M.sanCell] || this.sinusArrest || (this.t < this.sinusPauseUntil && this.pauseEscape !== false) || anyBlocked(M.avn));
       // Conduction to the ventricles is lost with His block or block of every
       // ventricular route: RBB plus LBB, or RBB plus both left fascicles.
       const allDistal = () => anyBlocked(cs.RBB) && (anyBlocked(cs.LBB) || (anyBlocked(cs.LAF) && anyBlocked(cs.LPF)));
@@ -1671,7 +1692,7 @@
       const gate = (cell, mode, n) => this.gates.set(cell, { mode, n, count: 0, site });
       if (site === 'SAN') {
         if (type === 'sa-exit') this.saExit = { n: opts.n || 3, count: 0 };
-        else if (type === 'pause') { this.sinusPauseUntil = this.t + (opts.ms || 2800); }
+        else if (type === 'pause') { this.sinusPauseUntil = this.t + (opts.ms || 2800); this.pauseEscape = opts.escape !== false; }   // (escape: false: the junctional escape stays silent too, a pure pause)
         else if (type === 'arrest') this.sinusArrest = true;
       } else if (site === 'AVN') {
         if (type === 'first') this.avnBlockMul = P.avnFirstDegreeMul;
@@ -1814,7 +1835,17 @@
       const ins = this._makeInsult('subendo', aff, this.P.ischBorderMm);
       const br = M.coronary.nodes[node].branch, fam = this._family(br);
       const sv = typeof this.P.stenosisSev === 'number' ? this.P.stenosisSev : this.P.stenosisSev[fam];
-      for (let q = 0; q < ins.sev.length; q++) ins.sev[q] *= sv * (A.label[ins.cells[q]] === LAB.RV ? this.P.subendoRVGain : 1);   // (thin, low-pressure RV: milder)
+      const dg = this.P.stenosisBaseGain, nodes = M.coronary.nodes;
+      for (let q = 0; q < ins.sev.length; q++) { const c = ins.cells[q], b = vn[c] >= 0 ? nodes[vn[c]].branch : ''; ins.sev[q] *= sv * (A.label[c] === LAB.RV ? this.P.subendoRVGain : 1) * (A.zuvc[c] > this.P.stenosisBaseZ ? dg : 1); }   // (thin, low-pressure RV: milder; the basal wall: stenosisBaseGain)
+      // (stenosisGlobal: the rest of the LV inner wall shares a little of it (demand): ST depression that does not localise)
+      const g = this.P.stenosisGlobal;
+      if (g > 0) {
+        const have = new Set(ins.cells);
+        const xc = [], xs = [];
+        for (let c = 0; c < A.n; c++) if (A.label[c] === LAB.LV && !have.has(c) && this.M.kind[c] === KIND.VENT) { xc.push(c); xs.push(g * sv); }
+        const cat = (a0, b0) => { const o = new a0.constructor(a0.length + b0.length); o.set(a0); o.set(b0, a0.length); return o; };
+        ins.cells = cat(ins.cells, xc); ins.sev = cat(ins.sev, xs);
+      }
       ins.node = node; ins.branch = M.coronary.nodes[node].branch; ins.stenosis = true;
       return this._addInsult(ins);
     }
@@ -1861,6 +1892,27 @@
     setPericarditis(on) { this.pericarditis = !!on; this._applyMyocardialDisease(); }
     setNonspecificSTT(on) { this.nsstt = !!on; this._applyMyocardialDisease(); }
     setBrugada(on) { this.brugada = !!on; this._applyMyocardialDisease(); }
+    // Wellens syndrome (Round 52): a critical proximal LAD lesion that reperfused before the muscle died: no necrosis, no Q
+    // waves, ST back to baseline; the anterior wall (the mid-LAD territory) keeps prolonged action potentials, most in the
+    // outer wall (the transmural gradient reverses): type 'A' biphasic T, type 'B' deep symmetric T inversion in V2–V4
+    setWellens(type) {
+      this.wellens = type === 'A' || type === 'B' ? type : null;
+      if (this.wellens && !this._wellensMap) {
+        const M = this.M, A = M.A, vn = M.coronary.voxNode, lad = M.coronary.branches.LAD, node = lad[Math.round(lad.length * this.P.wellensAt)], aff = new Uint8Array(A.n);
+        for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
+        const ins = this._makeInsult('wellens', aff, this.P.ischBorderMm);
+        this._wellensMap = new Map(); for (let q = 0; q < ins.cells.length; q++) this._wellensMap.set(ins.cells[q], ins.sev[q]);
+      }
+      this._applyMyocardialDisease();
+    }
+    // Electrolytes and temperature (Round 51), each from its cellular effect:
+    //   hyperK 1 (K ≈ 6–7): faster phase-3 repolarisation (repW × elecHyperKRepW) and a shorter APD: tall, narrow, peaked T, short QT
+    //   hyperK 2 (K > 7): also slower conduction (wide QRS, long PR) and flattened atrial action potentials (flat, broad P)
+    //   hypoK: slower repolarisation (wider repW: flat T), a sagging plateau (ST depression) and the mid-wall layer repolarising
+    //          late (U wave, best seen in V2–V3)
+    //   hypoCa: a longer plateau (long ST segment, normal T: long QTc); hyperCa: a shorter one (short ST, short QT)
+    //   hypothermia: an epicardial notch with a delayed dome (Ito; the J (Osborn) wave), longer APD, slower conduction
+    setElectrolyte(key, level) { this.elec = { ...(this.elec || {}), [key]: level ? (level === true ? 1 : +level) : 0 }; this._applyMyocardialDisease(); }
     _applyMyocardialDisease() {
       const M = this.M, A = M.A, P = this.P;
       // Brugada substrate: the anterior RV outflow epicardium under V1–V2
@@ -1892,6 +1944,21 @@
             apd *= 1 - P.nssttGrad * f * P.apdVentEndoExtra * (0.5 - tm) / this._apdBase[c];
             nsSag = P.nssttSag * f;
           }
+          const E = this.elec || {}, tmE = A.tm[c] < 0 ? 0.5 : A.tm[c];
+          let declE = 0, repWE = 1, cvE = 1;
+          if (E.hyperK) {
+            // (the repolarisation gradient across the ventricles grows too: each cell's APD moves further from the mean)
+            const mean = this._apdMeanV || (this._apdMeanV = (() => { let sm = 0, n = 0; for (let q = 0; q < M.nVox; q++) if (M.kind[q] === KIND.VENT) { sm += this._apdBase[q]; n++; } return sm / n; })());
+            apd *= P.elecHyperKApd * (1 + P.elecHyperKGrad * (this._apdBase[c] / mean - 1)); repWE *= P.elecHyperKRepW; if (E.hyperK > 1) cvE *= P.elecHyperKCv;
+            // (and repolarisation more synchronous: more of the electrotonic APD-activation coupling; a narrow, peaked T)
+            const mem = M._memory; if (mem && mem.delta[c]) apd *= 1 - P.elecHyperKSync * mem.delta[c] / this._apdBase[c];
+          }
+          if (E.hypoK) { repWE *= P.elecHypoKRepW; declE += P.elecHypoKSag; const mid = Math.max(0, 1 - Math.abs(tmE - P.elecHypoKLayer) / P.elecHypoKLayerW); apd *= 1 + P.elecHypoKMid * mid; }
+          if (E.hypoCa) apd *= P.elecHypoCaApd;
+          if (E.hyperCa) apd *= P.elecHyperCaApd;
+          if (E.hypothermia) { apd *= P.elecHypothermiaApd; cvE *= P.elecHypothermiaCv; const epi = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (tmE - 0.6) / 0.3)); if (epi > 0) amp *= 1 - P.elecOsbornNotch * epi; }
+          if (this.wellens && this._wellensMap.has(c)) apd *= 1 + (this.wellens === 'A' ? P.wellensA : P.wellensB) * this._wellensMap.get(c) * (P.wellensEndo + (1 - P.wellensEndo) * tmE);
+          this.cvElec[c] = cvE; this.repW[c] = (this._repWBase || (this._repWBase = this.repW.slice()))[c] * repWE;
           if (this.brugada && A.label[c] === LAB.RV && A.epi[c]) {
             const d = Math.hypot(A.pos[3 * c] - puv[0], A.pos[3 * c + 1] - puv[1], A.pos[3 * c + 2] - puv[2]);
             const w = Math.max(0, Math.min(1, (P.brugadaMm - d) / 8));
@@ -1902,8 +1969,8 @@
           // (pericarditis: the inflamed epicardial plateau starts low and partly recovers
           // (negative slope), so ST elevation is highest at the J point, sags mid-ST and
           // rises again into the T wave: the concave-upward "saddle")
-          this.pDecl[c] = amp < 1 && this.brugada && A.label[c] === LAB.RV ? 1 - (1 - P.plateauDecline) / amp
-            : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline + nsSag;
+          this.pDecl[c] = (amp < 1 && ((this.brugada && A.label[c] === LAB.RV) || (this.elec && this.elec.hypothermia)) ? 1 - (1 - P.plateauDecline) / amp
+            : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline + nsSag) + declE;
           this.vAmp0[c] = this._vAmpBase[c] * amp; this.apdMax0[c] = this._apdBase[c] * apd;
           if (!this._ischCells.has(c)) { this.vAmp[c] = this.vAmp0[c]; this.apdMax[c] = this.apdMax0[c]; }
         } else if (k === KIND.ATRIAL) {
@@ -1911,10 +1978,23 @@
           const on = this.pericarditis && A.epi[c];
           if (on) dv += P.pericardAtrialDv;
           this.pDecl[c] = on ? P.pericardAtrialDecline : P.plateauDecline;
+          const E = this.elec || {}, sev = E.hyperK > 1;
+          this.cvElec[c] = sev ? P.elecHyperKCvAtrial : E.hypothermia ? P.elecHypothermiaCv : 1;
+          this.vAmp0[c] = this._vAmpBase[c] * (sev ? P.elecHyperKPAmp : 1); this.vAmp[c] = this.vAmp0[c];
         }
         this.vRest0[c] = P.vRest + dv;
         if (!this._ischCells.has(c)) this.vRest[c] = this.vRest0[c];
       }
+      // the ventricular repolarisation shape shared by most cells (the convolution kernel): its width follows the
+      // electrolytes (hyperK steeper, hypoK slower), and in hypokalaemia a share elecHypoKTail of the repolarisation
+      // is left to a late, slow terminal phase (reduced IK1/IKr): the U wave
+      const E = this.elec || {};
+      if (E.hyperK || E.hypoK) {
+        const ss = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
+        const w1 = Math.round(P.repWVent * (E.hyperK ? P.elecHyperKRepW : 1) * (E.hypoK ? P.elecHypoKRepW : 1));
+        const f = E.hypoK ? P.elecHypoKTail : 0, d = P.elecHypoKTailMs, w2 = P.elecHypoKTailW, n = f ? Math.max(w1, d + w2) : w1;
+        this.K[0] = Float64Array.from({ length: n }, (_, x) => (1 - f) * ss(x / w1) + f * ss((x - d) / w2));
+      } else this.K[0] = this._kerVent0;
       this._applyIschemia();
     }
 
@@ -1968,7 +2048,7 @@
 
     // Cell state h hours after onset for severity s and transmural depth tm.
     // Returns {apd, vRest, amp, cv, dead} multipliers/values.
-    _ischemicState(s, tm, h, kind, k = 1, kl = 1) {   // k: occlusionInj of the artery family (the early ST/T sources: injury current, K-ATP shortening)
+    _ischemicState(s, tm, h, kind, k = 1, kl = 1, hg = 1) {   // k: occlusionInj of the artery family (the early ST/T sources: injury current, K-ATP shortening)
       const P = this.P, sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
       if (kind === 'subendo') s *= 1 - sm((tm - 0.12) / 0.2);                // confined to the inner wall
       if (s <= 0.01) return null;
@@ -1977,7 +2057,8 @@
       // injury current: develops over half an hour, eases after a few hours, gone by ~2 days (ST back to baseline)
       const inj = Math.min(1, s * (kind === 'subendo' ? P.ischSubendoGain : 1)) * (kind === 'subendo' ? P.subendoInj : 1) * sm((h - P.ischInjuryOnset) / P.ischInjuryH)
         * (kind === 'subendo' ? (1 - P.ischStResolve * sm((h - 3) / 5)) * (1 - sm((h - 12) / 30)) : stResidual(h));
-      let apd = 1 - P.ischApdShort * s * katp * k;
+      const kk = Math.max(k, P.ischKatpFloor * hg);   // (the hyperacute T keeps at least this share where occlusionInj trims the injury current)
+      let apd = 1 - P.ischApdShort * s * katp * kk;
       // prolonged repolarisation in the surviving border: T inversion from ~6 h, deepest at 1–3 days,
       // fading over the following weeks (T waves upright again in an old infarct)
       const late = sm((h - P.ischLateH) / 3) * (1 + 0.8 * sm((h - 12) / 30)) * (1 - P.ischTRecover * sm((h - 200) / 400));
@@ -1993,7 +2074,7 @@
       // conducting (sodium-channel inactivation) while it still drives injury current
       const unexcitable = !dead && kind !== 'subendo' && h >= 2 && s > P.ischDeadS && inj > P.ischBlockInj;
       return {
-        apd, dead, rim, unexcitable, level: Math.max(inj, 0.5 * s * katp), kind,
+        apd, dead, rim, unexcitable, level: Math.max(inj, 0.5 * s * katp), kind, decl: dead ? 0 : P.ischPlateauDrop * s * katp * kk,
         // necrotic muscle stays depolarised (and partly coupled, see _uncoupleDead) until it turns to scar
         vRest: dead ? P.vRest + P.ischDvRest * k * (kind === 'subendo' ? 0 : stResidual(h)) : P.vRest + P.ischDvRest * inj * k,
         amp: dead ? 0 : 1 - P.ischAmpDrop * inj * k,
@@ -2048,6 +2129,7 @@
       for (const c of this._ischCells) {                                     // restore healthy values
         lvl[c] = 0; this.apdMax[c] = this.apdMax0[c]; this.vRest[c] = this.vRest0[c]; this.vAmp[c] = this.vAmp0[c]; this.cvMul[c] = 1; this.blocked[c] = 0;
       }
+      if (this._pDeclSave) { for (const [c, v] of this._pDeclSave) this.pDecl[c] = v; this._pDeclSave.clear(); }
       this._ischCells = new Set();
       const best = new Map();                                                // strongest insult per cell
       for (const ins of this.insults) for (let q = 0; q < ins.cells.length; q++) {
@@ -2055,7 +2137,8 @@
         // it as mid-wall (it dies through its thickness), subendocardial patches
         // take its inner layers (everything off the epicardial surface)
         const c = ins.cells[q], rv = A.label[c] === LAB.RV, tm = rv ? (ins.kind === 'subendo' ? (A.epi[c] ? 1 : 0.05) : 0.5) : A.tm[c] < 0 ? 0.5 : A.tm[c];
-        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale, ins.lateScale === undefined ? 1 : ins.lateScale);   // (RV muscle less reduced: the V1 elevation of RV involvement)
+        const hg = P.ischHypComp ? Math.pow(rv ? P.rvSourceGain : P.lvSourceGain, -P.ischHypComp) : 1;   // (hypertrophy: its source gain would multiply the injury current too)
+        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, (ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale) * hg, ins.lateScale === undefined ? 1 : ins.lateScale, hg);   // (RV muscle less reduced: the V1 elevation of RV involvement)
         if (!st) continue;
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);
@@ -2082,6 +2165,7 @@
         if (st.dead && st.kind !== 'subendo' && M.kind[c] === KIND.VENT) ph[c] = 1;   // (a subendocardial scar is covered by living muscle: no window)
         this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = this.vAmp0[c] * st.amp;
         this.cvMul[c] = st.cv; this.blocked[c] = st.dead || st.unexcitable ? 1 : 0; this._ischCells.add(c);
+        if (st.decl > 0) { const sv = this._pDeclSave || (this._pDeclSave = new Map()); if (!sv.has(c)) sv.set(c, this.pDecl[c]); this.pDecl[c] = Math.min(0.9, sv.get(c) + st.decl); }
         lvl[c] = st.dead || st.rim ? 2 : st.level;   // (display only: 2 = necrotic)
         if (st.dead) nDead++;
       }
@@ -2296,12 +2380,24 @@
       } else if (type === 'vt') {
         const c = opts.cell !== undefined ? opts.cell : pick(vent, 1)[0];
         this.drivers.push({ kind: 'focus', cell: c, next: this.t, cl: () => opts.cl || P.vtCl });
+      } else if (type === 'tdp') {
+        // torsades de pointes (Round 53): one ventricular focus at tdpCl whose site moves a step every beat around a loop
+        // over the LV epicardium (around the ventricle while swinging between apex and base), so the QRS axis turns
+        // through a full circle every tdpSteps beats: the QRS "twists" around the baseline, its amplitude waxing and waning
+        const A = M.A, path = [];
+        for (let i = 0; i < P.tdpSteps; i++) {
+          const th = 2 * Math.PI * i / P.tdpSteps, ph = -Math.PI + th, z = 0.42 + 0.3 * Math.cos(th);
+          let best = -1, bd = Infinity;
+          for (let c = 0; c < M.nVox; c++) if (vent(c) && A.label[c] === LAB.LV && A.epi[c]) { let dp = Math.abs(A.phi[c] - ph); if (dp > Math.PI) dp = 2 * Math.PI - dp; const d = dp * dp + 4 * (A.zuvc[c] - z) ** 2; if (d < bd) { bd = d; best = c; } }
+          if (best >= 0) path.push(best);
+        }
+        this.drivers.push({ kind: 'tdp', cells: path, i: 0, next: this.t, cl: () => P.tdpCl * (0.92 + 0.16 * r()) });
       } else if (type === 'vf') {
         for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
       } else throw new Error('unknown arrhythmia ' + type);
       this.arrhythmia = { type, t: this.t, cell: opts.cell, clockwise: !!opts.clockwise };
       this.rhythmChangedAt = this.t;
-      if (type === 'vt' || type === 'vf') { this._ventArr = true; this._applyAvn(); }
+      if (type === 'vt' || type === 'vf' || type === 'tdp') { this._ventArr = true; this._applyAvn(); }
     }
     // substrate for R-on-T ventricular fibrillation: acute ischaemia (minutes
     // to ~2 days after onset)
@@ -2351,7 +2447,8 @@
           continue;
         }
         if (t >= d.next) {
-          const c = d.kind === 'rotate' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.cell;
+          const c = d.kind === 'rotate' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.kind === 'tdp' ? d.cells[d.i++ % d.cells.length] : d.cell;
+          if (d.kind === 'rotate') { this.fireLog.push({ name: 'focus', t, cell: c }); if (this.fireLog.length > 40) this.fireLog.shift(); }   // (which MAT focus fired: read by the training generator)
           if (t >= this.refEnd[c] && !this.blocked[c]) this.schedule(c, t);
           d.next = t + d.cl();
         }
@@ -2420,12 +2517,12 @@
       this._logActivation(c, ta);
       // propagate
       const M = this.M, st = M.start, nb = M.nbr, w0 = M.w0, nVox = M.nVox;
-      const blocked = this.blocked, cvMul = this.cvMul, refEnd = this.refEnd, repEnd = this.repEnd, cvK = this.cvK, cvTau = this.cvTau, arrive = this.arrive, tAct = this.tAct;
+      const cvE = this.cvElec, blocked = this.blocked, cvMul = this.cvMul, refEnd = this.refEnd, repEnd = this.repEnd, cvK = this.cvK, cvTau = this.cvTau, arrive = this.arrive, tAct = this.tAct;
       const fg = this._flutterGate, iaSlow = this._iaSlow;
       for (let e = st[c]; e < st[c + 1]; e++) {
         const j = nb[e];
         if (blocked[j]) { if (this._pOn && this.phantom[j] && ta + w0[e] * cvMul[j] - this._pAct[j] >= P.scarRefractory) this.schedule(j, ta + w0[e] * cvMul[j]); continue; }
-        let tau = w0[e] * cvMul[j];
+        let tau = w0[e] * cvMul[j] * cvE[j];
         if (fg && j < nVox && c < nVox) {          // one-way conduction around the annulus (flutter circuit)
           const a = fg.ang[c], b = fg.ang[j];
           if (a === a && b === b) { let d = b - a; if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI; if (d * fg.dir < -fg.tol) continue; }
@@ -2578,7 +2675,7 @@
       this._dynRemove(c);
       this._setPiece(c, 1);
       const p = this.pDecl[c];
-      if (Math.abs(p) > 0.1) {                                  // unusual plateau (Brugada dome, inflamed atria): exact segments
+      if (Math.abs(p) > 0.1 + 1e-6) {                           // unusual plateau (Brugada dome, inflamed atria): exact segments
         this.tbuckets[Math.max(this._segT(c, 0), this.t + 1) % RING].push(c, g, 2);
         return;
       }
@@ -2741,10 +2838,23 @@
       // model (a solved-torso chest field with the infarct patterns re-tuned).
       let cavF = 1;
       if (this._cavOmega && P.cavityWindowT < 1 && this._curV) { const end = this._curV.last + 15; if (t > end) cavF = 1 - Math.min(1, (t - end) / 40) * (1 - P.cavityWindowT); }
+      // chestTorsoT (with chestTorso): the ST-T of the chest leads from the solved torso (electrode potential − WCT,
+      // cavity window at full strength), the QRS from the blend above: share chestTorsoT, ramped in from chestTorsoT0 ms
+      // after the last ventricular activation over chestTorsoTRamp ms
+      let wT = 0;
+      const tE = this.M.torsoTE;
+      if (P.chestTorsoT > 0 && tE && this._curV) { const end = this._curV.last + P.chestTorsoT0; if (t > end) wT = Math.min(1, (t - end) / P.chestTorsoTRamp) * P.chestTorsoT; }
       for (let k = 0; k < 6; k++) {
         const u = dir[k], proj = D[0] * u[0] + D[1] * u[1] + D[2] * u[2];
         L[6 + k] = P.precordialGain * (P.precordialDipoleW * P.precordialDipoleGain * proj + (1 - P.precordialDipoleW) * (v(3 + k) - wct));
         if (this._cavOmega) { const om = this._cavOmega[k] * cavF; L[6 + k] = (1 - om) * L[6 + k] + om * P.precordialGain * (v(this.M.cavityE) - wct); }
+        if (wT > 0) {
+          const wctT = (v(tE) + v(tE + 1) + v(tE + 2)) / 3;
+          let f = v(tE + 3 + k) - wctT;
+          if (this._cavOmega && P.chestTorsoTCav > 0) { const om = this._cavOmega[k] * P.chestTorsoTCav; f = (1 - om) * f + om * (v(this.M.cavityE) - wct); }
+          const wk = wT * (P.chestTorsoTLead ? P.chestTorsoTLead[k] : 1);
+          L[6 + k] = (1 - wk) * L[6 + k] + wk * P.chestTorsoTGain * f;
+        }
       }
       }
       // recording chain: 2nd-order Butterworth low-pass per lead (ECG machine filter)

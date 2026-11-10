@@ -75,6 +75,7 @@ self.onmessage = (e) => {
 };
 ''')
 t = with_logo((src / 'training.html').read_text()).replace('{{AUTHOR}}', htmlmod.escape(site['author'])).replace('{{VERSION}}', datetime.date.today().isoformat() + (f' ({rev})' if rev else ''))
+t = t.replace('{{REPORT_FORM}}', htmlmod.escape(site.get('reportForm', '').strip()))   # (Google Form prefill link: problem reports)
 for key, text in (('/*__VOCAB__*/', json.dumps((src / 'training_vocab.txt').read_text())),
                   ('/*__ANATOMY__*/', anatomy), ('/*__TORSO__*/', torso), ('/*__WORKER__*/', worker),
                   ('/*__TRAIN__*/', (src / 'training.js').read_text())):
