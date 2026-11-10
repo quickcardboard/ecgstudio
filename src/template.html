@@ -20,7 +20,7 @@
 :root {
   --bg: #eef1f4;          /* app chrome */
   --surface: #ffffff;
-  --raised: #f4f6f8;      /* close buttons (as Training's) */
+  --raised: #f4f6f8;      /* the Help dialog's close button (as Training's) */
   --fg: #1d2a36;
   --muted: #5d6b78;
   --line: #d3dae1;
@@ -291,7 +291,7 @@ body.m .vsum { display: none; }
 .sheet p, .sheet li { max-width: 65ch; }
 .sheet ul { padding-left: 18px; margin: 6px 0; }
 .sheet .src { font-size: 12px; color: var(--muted); }
-.sheet .close { float: right; font-size: 14px; padding: 8px 12px; border-radius: 8px; background: var(--raised); }   /* (the close buttons match Training's) */
+.sheet .close { float: right; font-size: 14px; padding: 8px 12px; border-radius: 8px; background: var(--raised); }   /* (the Help close button matches Training's) */
 .toc { display: flex; flex-wrap: nowrap; gap: 6px; margin: 10px 0 4px; overflow-x: auto; scrollbar-width: none; }
 .toc::-webkit-scrollbar { display: none; }
 .toc button { flex: none; white-space: nowrap; font-size: 12.5px; padding: 5px 11px; border-radius: 999px; }
@@ -400,7 +400,7 @@ body.m.sheet-full #controls { position: fixed; z-index: 12; left: 0; right: 0; m
 body.m #controls .shead { display: flex; align-items: center; gap: 8px; padding: 14px 10px 4px 14px; position: sticky; top: 0; z-index: 1; background: var(--viewport); touch-action: none; }
 .shead .grab { position: absolute; left: 50%; top: 6px; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px; background: rgba(255,255,255,0.28); }
 .stitle { flex: 1; font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); }
-#controls .sclose { font-size: 14px; padding: 8px 12px; border-radius: 8px; background: var(--raised); border-color: var(--line); color: var(--fg); }
+#controls .sclose { padding: 7px 11px; }
 body.m #controls .body { padding-top: 4px; }
 body.m #controls .presets button, body.m .btnrow button { padding: 10px 2px; font-size: 13px; }
 body.m .crow b { font-size: 14px; }
@@ -513,7 +513,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <div class="hint" id="hint">Drag to rotate · scroll to zoom</div>
 
       <div id="controls">
-        <div class="shead" id="shead"><span class="grab" aria-hidden="true"></span><span class="stitle" id="stitle"></span><button type="button" class="sclose" id="sclose" aria-label="Close controls">Close</button></div>
+        <div class="shead" id="shead"><span class="grab" aria-hidden="true"></span><span class="stitle" id="stitle"></span><button type="button" class="sclose" id="sclose" aria-label="Close controls">✕</button></div>
         <div class="body">
           <div class="note clicknote" id="actionNote">Click the atria for a PAC or the ventricles for a PVC.</div>
 

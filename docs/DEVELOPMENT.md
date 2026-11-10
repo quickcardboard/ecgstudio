@@ -1998,3 +1998,20 @@ Training (`src/training_gen.js`, `src/training.js`):
   Conditions tabs (`updateBadges`); on desktop a "Conditions" line under the view name lists the active conditions (up to
   three, then "+N"; most do not change the model) and opens the Conditions tab. Option names keep their abbreviations'
   capitals ("wide QRS, flat P (K > 7)", `lowFirst`).
+
+## Round 55: phone taps by location again; one tap removes a marker; Help close button as Training's
+
+- Bug (the author): Round 54 made phone taps act on the arteries only while Ischemia was the chosen tab; with the sheet
+  closed that mode was invisible (taps meant for an artery made PVCs, taps meant for PVCs said "tap a coronary artery").
+- Back to no mode, as before Round 54 (the author's call): what a tap does depends only on where it lands, from any tab.
+  A tap on or within a fingertip of a coronary artery (`arteryAt`: a vessel hit on the visible side, or the nearest vessel
+  on screen within 30 px on phones / 20 px with a mouse, among those within 30 mm of the tapped surface) acts on the
+  artery: one tap narrows, a double tap occludes. Elsewhere on the muscle, taps stimulate (bursts as before). An artery
+  tap no longer opens the Ischemia sheet (the time scrubber shows on the heart; opening the tab would move the view).
+  Desktop keeps the tab's click action (Rhythm stimulates, Ischemia acts on arteries), with the same artery matching.
+- A marker in the region: **one tap removes it**, narrowing or occlusion; a double tap turns a narrowing into an
+  occlusion (and removes an occlusion).
+- The Help dialog's Close button matches Training's (14 px, 8 px radius, raised background `--raised`); the control
+  panel's ✕ is unchanged.
+- Help → About (phones and app): limitations updated (marginal-branch pattern, apical infarct's inferior Q, deep
+  post-infarct T in V3–V5, hyperkalemia T base, torsades).
