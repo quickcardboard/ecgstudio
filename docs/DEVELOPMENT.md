@@ -2157,3 +2157,6 @@ the app only for now (tried at ecgstudio.app/app/); keep both the artery and the
 - It replaces the spinner on the simulator's start-up screen (Building the heart) and on Training's ECG loading screen.
 - Training's loading text: "Recording the ECG…" (was "Preparing the (next) ECG…"); the line "Simulating the heart and
   checking the reading" is removed.
+- Follow-up (the author): the turn is one even 360° (ease in and out over 0.55 s, no overshoot), with a higher hop
+  (2.2 voxels) and a small bounce on landing; one cycle is 2.04 s (wave 1.0 s, turn 0.55 s, landing 0.24 s, pause
+  0.25 s). `ECGLoader.at` draws a fixed moment of the cycle (for recording frames).

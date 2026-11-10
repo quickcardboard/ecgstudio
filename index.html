@@ -79,15 +79,17 @@
 })();
 
 // The loading animation: the app's voxel heart (icons/logo/logo.svg, made by tools/logo/iso.js: the 9-wide upright
-// heart, its wavefront raised one voxel) drawn live on a canvas. Each cycle the depolarisation wave flows down from the
-// upper-left lobe (resting pink → front blue → depolarised → repolarising green → resting), then the heart spins once
-// about its vertical axis, overshooting a little, with a small hop. With reduced motion: the wave only.
+// heart, its wavefront raised one voxel) drawn live on a canvas. Each cycle one depolarisation wave flows down from the
+// upper-left lobe (resting pink → front blue → depolarised → repolarising green → resting pink), then the heart turns
+// once about its vertical axis at an even pace (no overshoot) with a hop, and lands with a small bounce. With reduced
+// motion: the wave only.
 // ECGLoader.mount(element, cssSize): fills the element with the animation; it runs only while the element is showing.
 (function () {
   'use strict';
   const PAL = { rest: '#f4a3bd', front: '#2f6bff', dep: '#7aa2ff', rep: '#2fcf8a' };
   const MASK = ['.XX...XX.', 'XXXX.XXXX', 'XXXXXXXXX', 'XXXXXXXXX', '.XXXXXXX.', '..XXXXX..', '...XXX...', '....X....'];
-  const BEAT = 1000, SPIN = 850, REST = 250, CYCLE = BEAT + SPIN + REST;   // ms
+  const HOP = 2.2;   // voxels
+  const BEAT = 1000, SPIN = 550, LAND = 240, REST = 250, CYCLE = BEAT + SPIN + LAND + REST;   // ms
   const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
   const C = Object.fromEntries(Object.entries(PAL).map(([k, v]) => [k, hex(v)]));
@@ -126,10 +128,10 @@
     return v;
   }
   // draw: yaw (radians) about the vertical axis, isometric view from +x +y +z as the logo; hop in voxels
-  const R = Math.hypot(2.5, W / 2) + 0.2, SPAN = Math.max(2 * Math.SQRT2 * R * C30, 2 * (R / Math.SQRT2 + H / 2)) + 1.6;
+  const R = Math.hypot(2.5, W / 2) + 0.2, SPAN = Math.max(2 * Math.SQRT2 * R * C30, 2 * (R / Math.SQRT2 + H / 2)) + 1.6 + HOP;
   function draw(g, size, front, yaw, hop) {
     const vox = voxels(front), occ = new Set(vox.map((v) => `${v.x},${v.y},${v.z}`)), cs = Math.cos(yaw), sn = Math.sin(yaw);
-    const sc = size / SPAN, ox = size / 2, oy = size / 2 - hop * sc + 0.4 * sc;
+    const sc = size / SPAN, ox = size / 2, oy = size / 2 - hop * sc + (0.4 + HOP / 2) * sc;
     const faces = [];
     for (const v of vox) for (const [n, q] of FACES) {
       if (occ.has(`${v.x + n[0]},${v.y + n[1]},${v.z + n[2]}`)) continue;
@@ -154,7 +156,6 @@
     }
   }
   const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
-  const backOut = (t) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };   // (overshoots, then settles)
 
   function mount(el, css = 96) {
     if (!el || el.dataset.loader) return;
@@ -169,20 +170,18 @@
     const frame = (now) => {
       if (!el.isConnected) return;
       if (!el.offsetParent && getComputedStyle(el).position !== 'fixed') { t0 = now; setTimeout(() => requestAnimationFrame(frame), 250); return; }   // (hidden: wait)
-      const t = (now - t0) % CYCLE;
+      const t = (api.at === null ? now - t0 : api.at) % CYCLE, spun = BEAT + SPIN;
       let front = 2, yaw = 0, hop = 0;
-      if (t < BEAT) front = -0.1 + 2.1 * easeInOut(t / BEAT);
-      else if (t < BEAT + SPIN && !still.matches) {
-        const u = (t - BEAT) / SPIN;
-        yaw = 2 * Math.PI * backOut(u);
-        hop = 1.1 * Math.sin(Math.PI * Math.min(1, u * 1.25));
-      }
-      draw(g, css, front, yaw, Math.max(0, hop));
+      if (t < BEAT) front = -0.1 + 2.1 * easeInOut(t / BEAT);                       // the wave, back to pink
+      else if (still.matches) { /* (reduced motion: no turn) */ }
+      else if (t < spun) { const u = (t - BEAT) / SPIN; yaw = 2 * Math.PI * easeInOut(u); hop = HOP * Math.sin(Math.PI * u); }   // one turn, even pace, with a hop
+      else if (t < spun + LAND) hop = 0.35 * HOP * Math.sin(Math.PI * (t - spun) / LAND);   // a small bounce on landing
+      draw(g, css, front, yaw, hop);
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
   }
-  window.ECGLoader = { mount };
+  const api = window.ECGLoader = { mount, CYCLE, at: null };   // (at: a fixed time in the cycle, ms, for recording frames)
   // any element marked data-ecg-loader="size" gets the animation
   const auto = () => { for (const el of document.querySelectorAll('[data-ecg-loader]')) mount(el, +el.dataset.ecgLoader || 96); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', auto); else auto();
@@ -899,7 +898,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (6bc37fc).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (7c0c87e).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -943,7 +942,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (6bc37fc).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (7c0c87e).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
