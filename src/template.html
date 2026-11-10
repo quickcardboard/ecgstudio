@@ -473,7 +473,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
 // (inside #app: the body exists by now) phone layout from the first paint (app.js setMode() repeats this once the page has loaded, and moves the controls):
 // without it the desktop layout shows while the large scripts below are parsed
 (function () { var p = matchMedia('(max-width: 743px) and (orientation: portrait)').matches, l = matchMedia('(max-height: 500px) and (orientation: landscape) and (pointer: coarse)').matches;
-  if (p || l) document.body.classList.add('m'); if (l && !p) document.body.classList.add('ml'); })();
+  if (p || l) { document.body.classList.add('m'); document.documentElement.dataset.theme = 'dark'; } if (l && !p) document.body.classList.add('ml'); })();   // (phones: dark only, as the app)
 </script>
   <header class="top">
     <div class="brand">{{LOGO_SVG}}<div class="brandtext"><h1>ECG <b>Studio</b></h1><span>Interactive 3D heart and 12-lead ECG simulator</span></div></div>

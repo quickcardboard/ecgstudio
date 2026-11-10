@@ -2472,6 +2472,8 @@
   function setMode() {
     const b = document.body, was = isM(), m = MQ_PORT.matches || MQ_LAND.matches;
     b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches);
+    // phones (website and app): dark only, as the app; desktop follows the system setting
+    if (m) document.documentElement.dataset.theme = 'dark'; else if (!INAPP) delete document.documentElement.dataset.theme;
     const ctl = $('controls');
     if (m && ctl.parentNode !== $('app')) $('app').insertBefore(ctl, $('mTabs'));
     if (!m && ctl.parentNode !== $('pane3d')) $('pane3d').insertBefore(ctl, $('blockMenu'));

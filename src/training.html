@@ -93,8 +93,6 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .hskills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .hskills button { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 12px; }
 .hskills small { font: 500 12px/1 var(--font-data); color: var(--muted); }
-.hsim { display: flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; font: 600 15px/1.2 var(--font-ui); padding: 12px 14px; border-radius: 10px; background: var(--raised); border: 1px solid #3a4a59; }
-.hsim span { color: var(--accent); font-size: 22px; line-height: 0.8; }
 .hspace { flex: 1; }
 header h1 { margin: 0; font: 600 18px/1 var(--font-display); letter-spacing: 0.01em; flex: 1; }
 header h1 span { color: var(--accent); }
@@ -103,7 +101,10 @@ header h1 span { color: var(--accent); }
 html.inapp header, html.inapp .app-bar { min-height: 50px; box-sizing: border-box; padding-top: 0; padding-bottom: 0; padding-left: var(--tabs-w, 12px); }
 html.inapp #home .phead { justify-content: flex-end; }
 html.inapp #app { max-width: none; }   /* (tablets: the full width, under the tabs; the wider layout comes in app phase 4) */
-html.inapp #home .phead h2, html.inapp .hsim, html.inapp .menu a[href], html.inapp .menu hr { display: none; }
+html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href], html.inapp .menu hr { display: none; }
+/* website: the logo at the left of the headers, where the app shell puts it (the ⋯ menu links back to the simulator) */
+.tlogo { display: inline-flex; flex: none; } .tlogo .logo { width: 26px; height: 26px; }
+#home .phead h2 { display: flex; align-items: center; gap: 9px; }
 
 /* help: a dialog over the page (as in the simulator), with a page per topic */
 .overlay { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(5, 10, 15, 0.55); padding: 0 16px; }
@@ -248,7 +249,7 @@ body.land #fsClose { display: none; }
 <body>
 <div id="app">
   <header>
-    <span class="hspace"></span>
+    <span class="tlogo">{{LOGO_SVG}}</span><span class="hspace"></span>
     <button type="button" id="menuBtn" aria-label="Menu" aria-expanded="false">⋯</button>
   </header>
   <div class="menu" id="menu" hidden>
@@ -293,9 +294,8 @@ body.land #fsClose { display: none; }
   </div>
 
   <div class="page" id="home">
-    <div class="phead app-bar"><h2>ECG <span class="red">Studio</span> Training</h2><button type="button" id="homeMenuBtn" aria-label="Menu" aria-expanded="false">⋯</button></div>
+    <div class="phead app-bar"><h2><span class="tlogo">{{LOGO_SVG}}</span><span>ECG <span class="red">Studio</span> Training</span></h2><button type="button" id="homeMenuBtn" aria-label="Menu" aria-expanded="false">⋯</button></div>
     <div class="pbody hbody">
-      <a class="hsim" href="../index.html"><span>‹</span> Back to the ECG Studio simulator</a>
       <div class="hstats">
         <div><b id="hRating">1500</b><span>Rating</span></div>
         <div><b id="hStreak">0</b><span>Day streak</span></div>

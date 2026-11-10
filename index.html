@@ -538,7 +538,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
 // (inside #app: the body exists by now) phone layout from the first paint (app.js setMode() repeats this once the page has loaded, and moves the controls):
 // without it the desktop layout shows while the large scripts below are parsed
 (function () { var p = matchMedia('(max-width: 743px) and (orientation: portrait)').matches, l = matchMedia('(max-height: 500px) and (orientation: landscape) and (pointer: coarse)').matches;
-  if (p || l) document.body.classList.add('m'); if (l && !p) document.body.classList.add('ml'); })();
+  if (p || l) { document.body.classList.add('m'); document.documentElement.dataset.theme = 'dark'; } if (l && !p) document.body.classList.add('ml'); })();   // (phones: dark only, as the app)
 </script>
   <header class="top">
     <div class="brand"><svg class="logo" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -784,7 +784,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (15c4e09).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (b201dc4).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -828,7 +828,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (15c4e09).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (b201dc4).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -7376,6 +7376,8 @@ THE SOFTWARE.
   function setMode() {
     const b = document.body, was = isM(), m = MQ_PORT.matches || MQ_LAND.matches;
     b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches);
+    // phones (website and app): dark only, as the app; desktop follows the system setting
+    if (m) document.documentElement.dataset.theme = 'dark'; else if (!INAPP) delete document.documentElement.dataset.theme;
     const ctl = $('controls');
     if (m && ctl.parentNode !== $('app')) $('app').insertBefore(ctl, $('mTabs'));
     if (!m && ctl.parentNode !== $('pane3d')) $('pane3d').insertBefore(ctl, $('blockMenu'));

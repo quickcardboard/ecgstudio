@@ -2080,3 +2080,16 @@ Training (`src/training_gen.js`, `src/training.js`):
   panel's ✕ is unchanged.
 - Help → About (phones and app): limitations updated (marginal-branch pattern, apical infarct's inferior Q, deep
   post-infarct T in V3–V5, hyperkalemia T base, torsades).
+
+## Round 56: the mobile website matches the app
+
+- `app-1` merged into `milestone-1` (earlier than planned in docs/APP_PLAN.md, at the author's request), so the website's
+  phone pages and /training run the same code as the app; the Android project (`app/`) comes along (no secrets in it).
+- **Phones are dark only**, on the website as in the app (`data-theme="dark"` from the first paint, and in `setMode`);
+  desktop still follows the system setting.
+- **Training on the website**: the logo at the left of its headers, where the app shell puts it; the "Back to the ECG
+  Studio simulator" card is gone (as in the app); the ⋯ menu keeps the link to the simulator. No module tabs on the
+  website, so Training stays unlinked (ecgstudio.app/training).
+- **ecgstudio.app/app/** is the app shell as a web page (module tabs, both modules; `noindex`, unlinked): the app's exact
+  look on a phone browser, for trying changes without building an APK. A branch can be tried before it is merged at
+  `https://raw.githack.com/quickcardboard/ecgstudio/<branch>/app/index.html`.
