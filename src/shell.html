@@ -134,6 +134,7 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
     if (!id) return;
     if (d.ecgApp === 'ready') { post(id, 'tabs', { w: tabsWidth() }); post(id, id === current ? 'show' : 'hide'); if (SharePlugin && FsPlugin) post(id, 'caps', { share: true }); }
     if (d.ecgApp === 'share') share(id, d);
+    if (d.ecgApp === 'open' && /^https:\/\//.test(d.url || '')) { if (AppPlugin) location.href = d.url; else window.open(d.url, '_blank', 'noopener'); }   // (an outside link: in the app, Capacitor hands the page's own navigation to the phone's browser)
     if (d.ecgApp === 'chrome') { chrome[id] = !!d.on; syncChrome(); }
     if (d.ecgApp === 'go' && BY[d.module]) open(d.module, typeof d.hash === 'string' ? d.hash : '');
     if (d.ecgApp === 'back' && id === current && back.wait) { clearTimeout(back.wait); back.wait = 0; if (!d.handled) back.leave(); }

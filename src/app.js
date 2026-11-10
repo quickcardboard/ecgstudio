@@ -65,6 +65,10 @@
         const r = $('c3d').getBoundingClientRect();
         return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
       },
+      coronaryScreen(node) {   // (page point of a coronary tree node)
+        const p = g3.corPos[node].clone().applyMatrix4(g3.inner.matrixWorld).project(g3.camera), r = $('c3d').getBoundingClientRect();
+        return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
+      },
       // what a tap at page point (x, y) on the heart would act on: a block site
       // (cut view), 'RA', 'LA', 'V', or null for empty space
       touchTarget(x, y) {
@@ -92,7 +96,7 @@
   // Each hypertrophy configuration (anatomy, model and its 3D scene) is kept
   // once built, so switching back to it is immediate.
   const heartCache = new Map();
-  const G3_FIXED = new Set(['renderer', 'scene', 'camera', 'outer', 'inner', 'controls', 'planeDirty']);
+  const G3_FIXED = new Set(['renderer', 'scene', 'camera', 'world', 'outer', 'inner', 'controls', 'planeDirty']);
   const heartKey = () => CONDITIONS.filter((c) => c.rebuild).map((c) => +!!ui.struct[c.id]).join('');
   function storeHeart(key) {
     if (heartCache.has(key)) return;
@@ -103,9 +107,10 @@
     storeHeart(prevKey);
     const hit = heartCache.get(heartKey());
     g3.inner.clear();
+    if (g3.leads) g3.world.remove(g3.leads);   // (each heart has its own lead vectors)
     if (hit) {
       A = hit.A; M = hit.M; newSim(true);
-      Object.assign(g3, hit.fields); g3.inner.add(...hit.children); $('labels').replaceChildren(...hit.labels);
+      Object.assign(g3, hit.fields); g3.inner.add(...hit.children); g3.world.add(g3.leads); $('labels').replaceChildren(...hit.labels);
     } else {
       // (a small note instead of the full-screen overlay, so the ECG stays in view)
       $('rebuildNote').hidden = false; await tick();
@@ -234,7 +239,9 @@
     outer.setRotationFromMatrix(new THREE.Matrix4().set(R9[0], R9[1], R9[2], 0, R9[3], R9[4], R9[5], 0, R9[6], R9[7], R9[8], 0, 0, 0, 0, 1));
     const inner = g3.inner = new THREE.Group();
     inner.position.set(-M.center[0], -M.center[1], -M.center[2]);
-    outer.add(inner); scene.add(outer);
+    // (world: the whole view, heart and lead vectors, turned about the line of sight by a two-finger twist)
+    const world = g3.world = new THREE.Group(); scene.add(world);
+    outer.add(inner); world.add(outer);
 
     buildSurfaces();
     buildConduction();
@@ -243,7 +250,7 @@
     buildOverlays();
 
     const ctl = g3.controls = new THREE.OrbitControls(cam, canvas);
-    ctl.enableDamping = true; ctl.dampingFactor = 0.12; ctl.enablePan = false;
+    ctl.enableDamping = true; ctl.dampingFactor = 0.12; ctl.enablePan = true; ctl.screenSpacePanning = true;   // (two fingers: pinch, pan and, below, twist)
     ctl.minDistance = 140; ctl.maxDistance = 900;
     setView('external'); setCut(0); cameraPreset('front');
     new ResizeObserver(resize3D).observe($('pane3d'));
@@ -434,6 +441,10 @@
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
       const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 50, emissive: 0x222222 }));
       grp.add(mesh); g3.tubes.push({ geo, col, map });
+      // see-through twin: the parts behind tissue (the left bundle under the septum's cut face) show faintly, so the
+      // whole system can be found and clicked
+      const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.45, depthTest: false, depthWrite: false }));
+      ghost.renderOrder = 9; grp.add(ghost);
       // invisible, thicker twin for easy clicking
       const pgeo = new THREE.TubeGeometry(curve, tub, isM() ? 5 : 3.2, rad, false);
       const pick = new THREE.Mesh(pgeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
@@ -530,6 +541,16 @@
     for (const n of cor.nodes) if (n.parent >= 0 && n.branch !== b && cor.nodes[n.parent].branch === b) firstK = Math.min(firstK, list.indexOf(n.parent));
     const pos = k <= firstK || f < 0.25 ? 'proximal' : f < 0.65 ? 'mid' : 'distal';
     return `${pos} ${BRANCH_NAME[b]}`;
+  }
+  // One marker per artery region (proximal/mid/distal LAD, LCx, RCA; left main; each side branch): a click anywhere in
+  // a region acts on that region's marker, placed at the region's start, or at the site Training and the validation
+  // tools use when it lies inside the region (distal LAD and RCA)
+  const REGION_AT = { 'distal LAD': ['LAD', 0.7], 'distal RCA': ['RCA', 0.8] };
+  function regionNode(id) {
+    const cor = M.coronary, name = segmentName(id), b = cor.nodes[id].branch, list = cor.branches[b];
+    const at = REGION_AT[name];
+    if (at) { const n = list[Math.round(list.length * at[1])]; if (n !== undefined && segmentName(n) === name) return n; }
+    return list.find((n) => segmentName(n) === name);
   }
 
   // territory tint (resting colour per voxel) and artery colours after any change
@@ -737,13 +758,15 @@
     return parts[0].name;
   }
 
+  const LEADS_DIST = 480;   // camera distance with the lead vectors shown (they reach past the heart)
   function cutPreset(name) {
     const pr = g3.cutPresets[name], cam = g3.camera, ctl = g3.controls;
+    g3.world.position.set(0, 0, 0); g3.world.quaternion.identity();   // (a preset undoes any twist and pan)
     g3.scene.updateMatrixWorld(true);
     const mw = g3.inner.matrixWorld;
     const dir = pr.world ? new THREE.Vector3(...pr.world).normalize() : pr.n.clone().transformDirection(mw);
     ctl.target.set(0, 0, 0);
-    cam.position.copy(dir).multiplyScalar(ui.leads ? 720 : pr.dist);
+    cam.position.copy(dir).multiplyScalar(ui.leads ? LEADS_DIST : pr.dist);
     cam.up.set(...pr.up); cam.lookAt(0, 0, 0); ctl.update();
     g3.planeDirty = true;
   }
@@ -817,7 +840,7 @@
     //  measured — the directions this model's ECG uses (limb leads: torso
     //    lead field blended with Einthoven, as in the engine; chest leads:
     //    electrode directions blended toward Dower's lead vectors).
-    const grp = g3.leads = new THREE.Group(); grp.visible = false; g3.scene.add(grp);
+    const grp = g3.leads = new THREE.Group(); grp.visible = false; g3.world.add(grp);
     const sets = g3.leadSets = { book: new THREE.Group(), meas: new THREE.Group() };
     grp.add(sets.book, sets.meas);
     const hc = M.heartCenterTorso;
@@ -833,7 +856,7 @@
       g3.labels.push({ el, pos: p, view: 'leads', space: 'scene', set });
       return g3.labels[g3.labels.length - 1];
     };
-    const limbFan = (set, LIMB, Rl = 95) => {
+    const limbFan = (set, LIMB, Rl = 72) => {
       const Lmax = Math.max(...LIMB.map((x) => x[1].length()));
       for (const [name, vec] of LIMB) {
         const len0 = vec.length(), d = vec.clone().normalize(), Rk = Rl * (0.55 + 0.45 * len0 / Lmax);
@@ -858,12 +881,12 @@
     const hexaxial = (I, II) => { const III = II.clone().sub(I);
       return [['I', I], ['II', II], ['III', III], ['aVR', I.clone().add(II).multiplyScalar(-0.5)], ['aVL', I.clone().sub(III).multiplyScalar(0.5)], ['aVF', II.clone().add(III).multiplyScalar(0.5)]]; };
     // textbook: hexaxial (equal lengths) and V1 120°, V2 90°, V3 75°, V4 60°, V5 30°, V6 0° (from the patient's left toward anterior)
-    limbFan('book', [['I', 0], ['II', 60], ['III', 120], ['aVR', -150], ['aVL', -30], ['aVF', 90]].map(([n, d]) => [n, fromDeg(d)]), 82);
+    limbFan('book', [['I', 0], ['II', 60], ['III', 120], ['aVR', -150], ['aVL', -30], ['aVF', 90]].map(([n, d]) => [n, fromDeg(d)]), 64);
     // (each tilted to its electrode's height: V1/V2 in the 4th intercostal space above V4–V6 in the 5th, V3 between)
     chestFan('book', [120, 90, 75, 60, 30, 0].map((d, i) => {
       const e = M.electrodes[['V1', 'V2', 'V3', 'V4', 'V5', 'V6'][i]], el = Math.atan2(e[1] - hc[1], Math.hypot(e[0] - hc[0], e[2] - hc[2])), a = d * Math.PI / 180;
       return new THREE.Vector3(Math.cos(a) * Math.cos(el), Math.sin(el), Math.sin(a) * Math.cos(el));
-    }), [92, 92, 92, 92, 92, 92]);
+    }), [70, 70, 70, 70, 70, 70]);
     // measured: the limb vectors the ECG computation uses (engine blend of the torso field and Einthoven)
     const lv = M.limbLeadVectors, V3v = (a) => new THREE.Vector3(a[0], a[1], a[2]);
     if (lv) {
@@ -874,7 +897,7 @@
       const II = V3v(tv.II).multiplyScalar(b * P.torsoIIGain).add(ein(60).multiplyScalar(1 - b));
       limbFan('meas', hexaxial(I, II));
     } else limbFan('meas', hexaxial(fromDeg(0), fromDeg(60)));
-    chestFan('meas', M.leadDir.map((u) => V3v(u)), ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k) => { const e = M.electrodes[k]; return Math.hypot(e[0] - hc[0], e[1] - hc[1], e[2] - hc[2]); }));
+    chestFan('meas', M.leadDir.map((u) => V3v(u)), ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k) => { const e = M.electrodes[k]; return 0.65 * Math.hypot(e[0] - hc[0], e[1] - hc[1], e[2] - hc[2]); }));   // (scaled: the full electrode distance needs the heart zoomed far out)
     g3.heartVec = arrow(grp, new THREE.Vector3(1, 0, 0), 10, 0xffffff, 9);
     g3.heartVecTag = leadTag('Heart vector', new THREE.Vector3(), 'lead hv');
   }
@@ -963,7 +986,7 @@
       else vis = showLabels && (l.view === 'both' || l.view === ui.view);
       if (l === g3.heartVecTag) vis = showLeads && !g3.heartVecTag.hidden;
       if (vis) {
-        if (l.space === 'heart') tmp.copy(l.pos).applyMatrix4(mw); else tmp.copy(l.pos);
+        if (l.space === 'heart') tmp.copy(l.pos).applyMatrix4(mw); else tmp.copy(l.pos).applyMatrix4(g3.world.matrixWorld);
         if (l.view === 'external' || (l.view === 'both' && !cut)) {
           nw.copy(l.nrm).applyMatrix3(nmat).normalize(); toCam.copy(cam.position).sub(tmp);
           if (nw.dot(toCam) < (l.cosMin ? l.cosMin * toCam.length() : 0)) vis = false;   // anchor faces away from the viewer (or outside its viewing cone)
@@ -1091,7 +1114,7 @@
   }
 
   function renderBlockList() {
-    markChange();
+    markChange(); updateBadges();
     const sites = Object.keys(S.blocks);
     $('noBlocks').hidden = !!sites.length;
     $('legendBlock').hidden = !sites.length || ui.view === 'external';
@@ -1132,20 +1155,20 @@
   }
 
   function updateActionNote() {
-    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click a coronary artery to narrow it (partial flow), double-click to occlude it' }[ui.action];
+    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click a coronary artery to narrow it (partial flow), double-click to occlude it. Click a marked region again to remove it.' }[ui.action];
     $('actionNote').hidden = !note || ui.tab === 'learn';
     $('actionNote').textContent = note || '';
   }
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
     blocks: 'Tap the conduction system to cycle through blocks.',
-    ischemia: 'Hold a coronary artery: a short hold narrows it (partial flow), a long hold occludes it.',
+    ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marked region again to remove it.',
   };
 
   // pointer handling on the 3D canvas: a click (not a drag) acts
   function initPicking() {
     const canvas = $('c3d'), ray = new THREE.Raycaster();
-    let down = null, ischClick = null;
+    let down = null; const ischClick = { last: null };
     canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });
     canvas.addEventListener('pointerup', (e) => {
       if (isM()) { down = null; return; }                       // phones: see initTouch
@@ -1156,9 +1179,8 @@
       hideBlockMenu();
       if (ui.action === 'ischemia') {
         // a click narrows the artery (after a moment, so a double-click can occlude it instead)
-        const now = performance.now(), r0 = new THREE.Raycaster(); r0.ray.copy(ray.ray);
-        if (ischClick && now - ischClick.t < DOUBLE_MS && Math.hypot(x - ischClick.x, y - ischClick.y) < 12) { clearTimeout(ischClick.timer); ischClick = null; pickIschemia(r0, x, y, 'occlude'); return; }
-        ischClick = { t: now, x, y, timer: setTimeout(() => { ischClick = null; pickIschemia(r0, x, y, 'narrow'); }, DOUBLE_MS) };
+        const r0 = new THREE.Raycaster(); r0.ray.copy(ray.ray);
+        ischPress(ischClick, x, y, e.timeStamp, (mode) => pickIschemia(r0, x, y, mode), 12);
         return;
       }
       if (ui.action === 'block') pickBlock(ray, x, y); else if (ui.action === 'stimulate') pickStimulus(ray, x, y);
@@ -1247,7 +1269,7 @@
     const clotOf = clot && S.insults.find((v) => v.id === clot.object.userData.insult);
     let subCell = -1;
     if (SUBENDO_ON && !corHit && cut && front) {
-      if (front.object === g3.slab.im) { const c = nearestTissue(p.x, p.y, p.z, 1); if (c >= 0 && (A.label[c] === 1 || A.label[c] === 2)) subCell = c; else { flash(x, y, `${isM() ? 'Hold' : 'Click'} ventricular muscle`); return; } }
+      if (front.object === g3.slab.im) { const c = nearestTissue(p.x, p.y, p.z, 1); if (c >= 0 && (A.label[c] === 1 || A.label[c] === 2)) subCell = c; else { flash(x, y, `${isM() ? 'Tap' : 'Click'} ventricular muscle`); return; } }
       else { const side = ventricularSide(p.x, p.y, p.z); if (side && side.endo) subCell = side.cell; }
     }
     if (subCell >= 0) {
@@ -1262,22 +1284,48 @@
         const cor = M.coronary;                                   // (only the vessels offered: side-branch nodes are not)
         g3.corPos.forEach((q, i) => { if (!cor.branches[cor.nodes[i].branch]) return; const d = q.distanceToSquared(p); if (d < bd) { bd = d; node = i; } });
       }
-      const verb = isM() ? 'Hold' : 'Click';
+      const verb = isM() ? 'Tap' : 'Click';
       if (node < 0) { flash(x, y, SUBENDO_ON && cut ? `${verb} an artery, the cut face or the inner wall` : `${verb} a coronary artery`); return; }
-      // the same artery again: the same action removes it, the other one replaces it (narrowing ↔ occlusion)
-      const same = S.insults.find((v) => (v.kind === 'occlusion' || v.stenosis) && v.node === node);
+      // the same region again (one marker per region): the same action removes it, the other one replaces it
+      // (narrowing ↔ occlusion)
+      const region = segmentName(node);
+      node = regionNode(node);
+      const same = S.insults.find((v) => (v.kind === 'occlusion' || v.stenosis) && segmentName(v.node) === region);
+      const did = { node, region, prev: same ? (same.stenosis ? 'narrow' : 'occlude') : null, x, y };
       if (same) {
-        const was = same.stenosis ? 'narrow' : 'occlude';
         removeIschemia(same.id);
-        if (was === mode) { flash(x, y, mode === 'narrow' ? 'Narrowing removed' : 'Occlusion removed'); return; }
+        if (did.prev === mode) { flash(x, y, mode === 'narrow' ? 'Narrowing removed' : 'Occlusion removed'); return did; }
       }
+      added = did;
       captureRef();
-      if (mode === 'narrow') { added = S.addStenosis(node); flash(x, y, `Narrowed: ${segmentName(node)}`); }
-      else { added = S.addOcclusion(node); flash(x, y, `Occluded: ${segmentName(node)}`); }
+      if (mode === 'narrow') { S.addStenosis(node); flash(x, y, `Narrowed: ${segmentName(node)}`); }
+      else { S.addOcclusion(node); flash(x, y, `Occluded: ${segmentName(node)}`); }
     }
     if (ui.ischH === 0) setIschTime(1);                         // start an hour in, so the change is visible
     else S.setIschemiaTime(ui.ischH);
     recolorIschemia(); renderIschList(); interpret(true);
+    return added;
+  }
+  // click/tap = narrow (after DOUBLE_MS, so a second one can occlude instead); a second within DOUBLE_MS (by the
+  // events' own times) = occlude. On a busy page the narrowing may already be done when the second arrives: it is then
+  // turned into what the double click means (an occlusion, or removal of the occlusion that was there).
+  function ischPress(st, x, y, now, run, tol) {
+    const l = st.last;
+    if (l && now - l.t < DOUBLE_MS && Math.hypot(x - l.x, y - l.y) < tol) {
+      st.last = null;
+      if (l.timer) { clearTimeout(l.timer); run('occlude'); return; }
+      const d = l.done;
+      if (!d || !d.region) return;
+      const cur = S.insults.find((v) => (v.kind === 'occlusion' || v.stenosis) && segmentName(v.node) === d.region);
+      if (cur) removeIschemia(cur.id);
+      if (d.prev === 'occlude') { flash(d.x, d.y, 'Occlusion removed'); return; }
+      captureRef(); S.addOcclusion(d.node); flash(d.x, d.y, `Occluded: ${segmentName(d.node)}`);
+      if (ui.ischH === 0) setIschTime(1); else S.setIschemiaTime(ui.ischH);
+      recolorIschemia(); renderIschList(); interpret(true);
+      return;
+    }
+    const e = st.last = { t: now, x, y, done: null };
+    e.timer = setTimeout(() => { e.timer = 0; e.done = run('narrow'); }, DOUBLE_MS);
   }
 
   function insultLabel(v) {
@@ -1288,7 +1336,7 @@
   }
   function renderIschList() {
     const list = S.insults;
-    $('ischWrap').hidden = !list.length;
+    $('ischWrap').hidden = !list.length; updateBadges();
     $('ischList').innerHTML = list.map((v) => `<div class="bchip isch"><span>${insultLabel(v)}</span><button type="button" data-id="${v.id}" aria-label="Remove">×</button></div>`).join('');
     for (const b of $('ischList').querySelectorAll('button')) b.addEventListener('click', () => {
       removeIschemia(+b.dataset.id);
@@ -1344,11 +1392,16 @@
   function setTab(t, fromClick = false) {
     const collapsed = $('controls').classList.contains('collapsed');
     if (fromClick && t === ui.tab && !collapsed) { toggleControls(false); return; }
+    const changed = t !== ui.tab;
     ui.tab = t; ui.action = t === 'blocks' ? 'block' : t === 'ischemia' ? 'ischemia' : t === 'rhythm' ? 'stimulate' : 'none';
     for (const p of document.querySelectorAll('#controls .tabpanel')) p.hidden = p.dataset.panel !== t;
     $('controls').classList.toggle('wide', t === 'learn' || (t === 'conditions' && !$('condCatalog').hidden));
     toggleControls(true);
-    if (isM() && t === 'blocks' && ui.cutFrac < 100) { setCut(100); cameraPreset('front'); }   // blocks are tapped in the four-chamber cut
+    // opening a tab shows the view it works in: blocks in the four-chamber cut, ischemia on the outside (the arteries)
+    if (changed || fromClick) {
+      if (t === 'blocks' && ui.cutFrac < 100) { setCut(100); cameraPreset('front'); }
+      if (t === 'ischemia' && ui.cutFrac > 0) { setCut(0); cameraPreset('chest'); }
+    }
     if (t === 'learn') renderLearn();
     updateActionNote(); hideBlockMenu();
   }
@@ -1408,9 +1461,9 @@
   // applies to sinus and the atrial rhythms only.
   const RHYTHMS = [
     ['sinus', 'Sinus rhythm', ''],
-    ['af', 'Atrial fibrillation', 'Atrial'], ['flutter', 'Atrial flutter', 'Atrial'], ['ectopic', 'Ectopic atrial rhythm', 'Atrial'], ['mat', 'Multifocal atrial tachycardia', 'Atrial'],
+    ['af', 'Atrial fibrillation', 'Atrial'], ['flutter', 'Atrial flutter', 'Atrial'], ['ectopic', 'Ectopic atrial rhythm', 'Atrial'], ['mat', 'WAP/MAT', 'Atrial'],
     ['avnrt', 'AVNRT', 'Re-entry through the AV node'], ['avrt', 'Orthodromic AVRT', 'Re-entry through the AV node'],
-    ['vt', 'Ventricular tachycardia', 'Ventricular'], ['vf', 'Ventricular fibrillation', 'Ventricular'],
+    ['vt', 'Ventricular tachycardia', 'Ventricular'], ['tdp', 'Torsades de pointes', 'Ventricular'], ['vf', 'Ventricular fibrillation', 'Ventricular'],
   ];
   const RATE_RHYTHMS = ['sinus', 'af', 'flutter', 'ectopic', 'mat'];
   function currentRhythm() {
@@ -1484,7 +1537,7 @@
     }
     if (type === 'af' && !ui.struct.fib) { setCondition('fib', true); toast('AF needs a substrate: atrial fibrosis added. It stays after a shock; remove it under Conditions.', 4200); }
     if (type === 'vt') { let best = -1; for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.epi[c] && A.zuvc[c] > 0.35 && A.zuvc[c] < 0.45 && A.phi[c] < -2.2) { best = c; break; } S.startArrhythmia('vt', { cell: best }); return; }
-    if (type === 'mat' && ui.rate < 110) { ui.preAtrRate = ui.preAtrRate || ui.rate; ui.rate = 120; S.setRate(120); ui.rateMode = ''; }   // MAT starts tachycardic; the slider then sets it
+    if (type === 'mat') { ui.preAtrRate = ui.preAtrRate || ui.rate; ui.rateMode = ''; }   // WAP/MAT starts at the current rate (below 100: wandering atrial pacemaker); the slider sets it
     S.startArrhythmia(type);
     syncRate();
   }
@@ -1706,8 +1759,9 @@
       const ar = flutterCl ? 60000 / flutterCl : 0, ratio = ar ? ar / rate : 0, fixed = rrSd < 25 && Math.abs(ratio - Math.round(ratio)) < 0.2;
       rhythm = `Atrial flutter (${S.arrhythmia.clockwise ? 'atypical, clockwise' : 'typical, counterclockwise'}), atrial ${Math.round(ar)}/min with ${fixed ? Math.round(ratio) + ':1' : 'variable'} AV conduction`;
     } else if (arr === 'ectopic') rhythm = `Ectopic atrial ${vr > 100 ? 'tachycardia' : 'rhythm'}: low right-atrial focus, ${vr} bpm, inverted P in II, III and aVF`;
-    else if (arr === 'mat') rhythm = vr > 100 ? `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes` : `Multifocal atrial rhythm (wandering atrial pacemaker): ${vr} bpm, irregular, three or more P-wave shapes`;
+    else if (arr === 'mat') rhythm = vr > 100 ? `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes` : `Wandering atrial pacemaker: ${vr} bpm, irregular, three or more P-wave shapes`;
     else if (arr === 'vt') rhythm = `Monomorphic ventricular tachycardia, ${vr} bpm, with AV dissociation`;
+    else if (arr === 'tdp') rhythm = `Torsades de pointes: polymorphic ventricular tachycardia, ${vr} bpm, the QRS axis twisting around the baseline (amplitude waxing and waning)`;
     else if (avnrt) rhythm = `AVNRT (typical slow–fast): ${vr} bpm, narrow QRS, retrograde P hidden at the end of the QRS`;
     else if (avrt) {
       const SITE = { 'left-lateral': 'left lateral', 'left-posterior': 'left posterior', posteroseptal: 'posteroseptal', 'right-free-wall': 'right free wall', 'right-anteroseptal': 'right anteroseptal' };
@@ -1757,12 +1811,12 @@
       chip(dissociated ? 'Ventricular' : 'Rate', `${Math.round(rate)} bpm`, rate < 60 || rate > 100),
       dissociated && aRate ? chip('Atrial', `${Math.round(aRate)} bpm`, aRate < 60 || aRate > 100) : '',
       arr === 'af' ? chip('Atrial', 'fibrillatory', true) : arr === 'flutter' && flutterCl ? chip('Atrial', `${Math.round(60000 / flutterCl)}/min`, true) : '',
-      arr === 'af' || arr === 'flutter' || arr === 'vt' ? '' : avrt ? chip('RP', (() => { const a = Aa.find((x) => x.on > vb.on); return a ? `${Math.round(a.on - vb.on)} ms (retrograde P)` : '—'; })()) : chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
+      arr === 'af' || arr === 'flutter' || arr === 'vt' || arr === 'tdp' ? '' : avrt ? chip('RP', (() => { const a = Aa.find((x) => x.on > vb.on); return a ? `${Math.round(a.on - vb.on)} ms (retrograde P)` : '—'; })()) : chip('PR', avComplete ? 'dissociated' : prVar ? `${Math.round(Math.min(...PRs))}–${Math.round(Math.max(...PRs))} ms` : PR !== null ? `${Math.round(PR)} ms` : '—', !avComplete && PR !== null && (PR > 200 || PR < 120 || prVar)),
       chip('QRS', `${Math.round(QRS)} ms`, QRS >= 120),
-      chip('QT/QTcF', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 450),
-      chip(rbbOnly && ui.normalAxis !== undefined ? 'Axis (LV forces)' : axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
+      arr === 'tdp' ? '' : chip('QT/QTcF', `${Math.round(QT)}/${Math.round(QTc)} ms`, QTc > 450),
+      arr === 'tdp' ? '' : chip(rbbOnly && ui.normalAxis !== undefined ? 'Axis (LV forces)' : axisWin === 60 ? 'Axis (first 60 ms)' : 'Axis', `${axis > 0 ? '+' : ''}${axis}° · ${axisTxt}`, axis < -30 || axis > 90),
     ].join('');
-    const f = tachy ? [] : structFindings(vb).concat(ischFindings(vb));
+    const f = tachy ? [] : structFindings(vb, QTc).concat(ischFindings(vb));
     $('findings').innerHTML = f.map((x, i) => `<li${i === 0 && x.head ? ' class="head"' : ''}>${x.text || x}</li>`).join('');
     ui.snap = { rhythm, arr, rate, aRate, PR, PRs, prVar, QRS, QT, QTc, axis, axisTxt, axisWin, rbbOnly, rrSd, RR, tachy, avComplete, distal, avnrt, avrt,
       B, nPAC, nPVC, nBlockedPAC, flutterCl, dissociated, escape: fired('junctional') ? 'junctional' : fired('ventricular') || fired('idioventricular') ? 'ventricular' : '',
@@ -1779,9 +1833,10 @@
     af: { t: 'Atrial fibrillation', f: ['No P waves: a wavy or flat baseline of fibrillatory (f) waves, often clearest in V1 and II.', 'Irregularly irregular RR intervals with no repeating pattern.', 'Narrow QRS unless there is bundle branch block or pre-excitation.'], p: ['A fast AF can look regular at a glance: measure several RR intervals.', 'AF with WPW gives broad, bizarre, very fast beats (pre-excited AF): AV-nodal blockers are dangerous there.'] },
     flutter: { t: 'Atrial flutter', f: ['Sawtooth flutter (F) waves, about 300/min, best seen in II, III, aVF (negative in typical counterclockwise flutter) and V1.', 'Fixed AV conduction gives a regular rhythm: 2:1 (≈150 bpm), 3:1, 4:1; variable conduction gives an irregular one.'], p: ['2:1 flutter at 150 bpm hides every other F wave in the QRS or T: suspect it whenever a regular narrow tachycardia runs at ~150.', 'Adenosine slows the ventricular response and unmasks the F waves; it does not stop flutter.'] },
     ectopic: { t: 'Ectopic atrial rhythm', f: ['A P wave before each QRS but with an abnormal axis: here inverted in II, III and aVF (low right-atrial focus).', 'PR often short (the focus lies close to the AV node); P shape constant, unlike MAT.'], p: ['Inverted inferior P waves with a short PR can also be junctional rhythm with retrograde P: in junctional rhythm the PR is usually < 120 ms or the P falls after the QRS.'] },
-    mat: { t: 'Multifocal atrial tachycardia', f: ['At least three different P-wave shapes in one lead, each followed by a QRS.', 'Varying PR and RR intervals: irregular, rate > 100 (below 100: wandering atrial pacemaker).'], p: ['Easily mistaken for AF: look for a distinct P before every QRS. Classically seen in severe lung disease.'] },
+    mat: { t: 'Wandering atrial pacemaker / multifocal atrial tachycardia', f: ['At least three different P-wave shapes in one lead, each followed by a QRS.', 'Varying PR and RR intervals: irregular. Rate below 100: wandering atrial pacemaker (WAP); above 100: multifocal atrial tachycardia (MAT). Set the rate with the slider.'], p: ['Easily mistaken for AF: look for a distinct P before every QRS. Classically seen in severe lung disease.'] },
     avnrt: { t: 'AVNRT', f: ['Regular narrow-complex tachycardia, typically 140–180 bpm, starting abruptly (often after a PAC with a long PR).', 'No visible P before the QRS: the retrograde P is buried in the QRS or seen as a pseudo-r′ in V1 / pseudo-S in II.'], p: ['Adenosine (or vagal manoeuvres) terminates it, unlike atrial flutter or atrial tachycardia.'] },
     avrt: { t: 'Orthodromic AVRT', f: ['Regular narrow-complex tachycardia, typically faster than AVNRT (often above 200 bpm); retrograde P after the QRS with RP > 70 ms (the impulse returns up the accessory pathway).', 'In sinus rhythm the same patient may show pre-excitation (short PR, delta wave).'], p: ['A rate above 200 bpm and RP > 70 ms favour AVRT over typical AVNRT (140–180 bpm, the P hidden in the QRS).'] },
+    tdp: { t: 'Torsades de pointes', f: ['Polymorphic VT (often 200–250/min) whose QRS axis twists around the baseline: the complexes grow, shrink and change polarity in spindles every 5–20 beats.', 'It arises on a long QT (congenital, drugs, low potassium or magnesium, bradycardia), typically after a short–long–short sequence of beats.', 'Here: one ventricular focus that moves a step every beat around the left ventricle, between apex and base, so the activation direction turns through a full circle.'], p: ['Treatment differs from monomorphic VT: magnesium, raise the heart rate (pacing, isoprenaline), correct potassium, stop QT-prolonging drugs; defibrillate if it does not stop.', 'Runs often stop on their own and recur; it can degenerate into VF.'] },
     vt: { t: 'Ventricular tachycardia', f: ['Regular broad-complex tachycardia (QRS ≥ 120 ms), rate > 100.', 'AV dissociation: P waves march through at their own slower rate; capture and fusion beats prove it.', 'Concordance (all chest leads positive or all negative) and extreme axis favour VT.'], p: ['A broad regular tachycardia is VT until proven otherwise, even if the patient looks well.'] },
     vf: { t: 'Ventricular fibrillation', f: ['Chaotic, irregular deflections of varying amplitude; no identifiable QRS, P or T waves.'], p: ['Check leads and the patient: artefact can mimic VF, but if pulseless, defibrillate now.'] },
     first: { t: '1st-degree AV block', f: ['PR > 200 ms and constant; every P is followed by a QRS.'], p: [] },
@@ -1805,6 +1860,13 @@
     wpw: { t: 'Wolff–Parkinson–White pattern', f: ['Short PR (< 120 ms), delta wave (slurred QRS upstroke), QRS > 110 ms.', 'Secondary ST/T changes opposite to the delta wave.', 'Delta-wave polarity localises the pathway (e.g. negative delta in I/aVL: left lateral).'], p: ['Delta waves can mimic Q waves (pseudo-infarction) and hide in some leads: look in all twelve.'] },
     nsstt: { t: 'Non-specific ST-T changes', f: ['Flat T waves (between −1 and +1 mm) or minimal T inversion, with at most slight ST sagging, in leads where T is normally upright.', 'They follow no coronary territory, and there is no ST depression of 1 mm or more and no Q waves.'], p: ['Common and usually benign: electrolytes (low potassium or magnesium), drugs (digoxin, antiarrhythmics), fast heart rate, hyperventilation, posture, or a meal. Report them as non-specific and compare with an earlier ECG; they are not a diagnosis of ischemia.', 'Here: the gradient that makes the T wave upright (endocardium repolarising after epicardium) is reduced in patches across the ventricles.'] },
     peri: { t: 'Acute pericarditis', f: ['Diffuse concave ST elevation across many territories (I, II, aVL, aVF, V2–V6), with ST depression in aVR (and often V1).', 'PR-segment depression (PR elevation in aVR) from the inflamed atria.', 'No Q waves, no reciprocal depression outside aVR/V1; ST elevation often larger in II than in III. Sinus tachycardia is common.'], p: ['STEMI has territorial ST elevation with reciprocal depression and often convex ST: compare the distribution.', 'Early repolarisation can look similar; the ST/T ratio in V6 > 0.25 favours pericarditis.'] },
+    sgarbossa: { t: 'STEMI in LBBB: Sgarbossa criteria', f: ['LBBB normally has discordant ST-T: ST elevation where the QRS is negative (V1–V3) and depression where it is positive (I, aVL, V5–V6).', 'Smith-modified Sgarbossa, any one positive: concordant ST elevation ≥ 1 mm in a lead with a positive QRS; concordant ST depression ≥ 1 mm in V1–V3; discordant ST elevation ≥ 1 mm and ≥ 25% of the depth of the preceding S wave.', 'Here: the injury current adds to the block\'s secondary ST-T, so it shows where the two point the same way, or where the elevation is out of proportion to the QRS.'], p: ['A new or presumed-new LBBB alone is no longer treated as a STEMI equivalent: use the criteria and the clinical picture.', 'Q waves and T inversion cannot be read for infarction in LBBB.'] },
+    wellens: { t: 'Wellens syndrome', f: ['T-wave changes in V2–V3 (often V1–V4) in a patient whose chest pain has settled: type A biphasic T (up, then down), type B deep symmetric T inversion.', 'No Q waves, R waves preserved, ST at or near baseline (under 1 mm), normal or slightly raised troponin.', 'Here: the anterior wall reperfused before it died; its action potentials stay long, most in the outer wall, so the T reverses over it.'], p: ['It marks a critical proximal LAD stenosis about to occlude: angiography, not a stress test.', 'Type A evolves into type B; both can be missed because the patient is pain-free when the ECG is taken.'] },
+    hyperK: { t: 'Hyperkalemia', f: ['Tall, narrow-based, peaked ("tented") T waves, symmetric, best seen in V2–V4 and II: the earliest sign (K about 6–7 mmol/L).', 'Higher: the P wave flattens and widens, the PR lengthens, and the QRS widens; at the extreme the QRS merges with the T into a sine wave.', 'Here: faster repolarisation (more potassium current) makes every cell repolarise steeply and the T narrow; at higher levels conduction slows in the atria and ventricles.'], p: ['The ECG can be normal even at dangerous potassium levels: treat the number, not only the ECG.', 'Tall T waves of early repolarisation and hyperacute T waves of ischemia are broader-based; the hyperkalemic T is narrow and pointed.'] },
+    hypoK: { t: 'Hypokalemia', f: ['Flattened T waves with prominent U waves (a second hump after the T), best seen in V2–V3; the U can exceed the T.', 'Slight ST depression; the T and U merge into a long "QU" interval.', 'Here: less potassium current slows the last part of repolarisation: a share of it is left to a slow tail, which writes the U wave.'], p: ['Measure the QT to the end of the T, not the U: hypokalemia mimics long QT.', 'A U wave is normal in V2–V3 at slow heart rates if small (under ~1.5 mm and much smaller than the T).'] },
+    hypoCa: { t: 'Hypocalcemia', f: ['Long QTc from a long, flat ST segment; the T wave itself keeps its normal shape and width.', 'Here: a longer plateau (phase 2) of the action potential, so repolarisation starts later everywhere.'], p: ['Distinguish from congenital long QT and drugs, which mostly broaden or change the T wave itself.'] },
+    hyperCa: { t: 'Hypercalcemia', f: ['Short QTc with a short or absent ST segment: the T wave starts almost right after the QRS.', 'Here: a shorter plateau (phase 2) of the action potential.'], p: ['Severe hypercalcemia can show J waves (like hypothermia) and bradyarrhythmias.'] },
+    hypothermia: { t: 'Hypothermia', f: ['J (Osborn) waves: a positive hump at the junction of the QRS and ST, best seen in the inferior and lateral leads; it grows as the temperature falls.', 'Sinus bradycardia, long PR, long QT, slightly wide QRS; shivering artefact is common; atrial fibrillation and ventricular arrhythmias at lower temperatures.', 'Here: a notch-and-dome of the epicardial action potential (transient outward current), a longer action potential and slower conduction.'], p: ['J waves also appear in hypercalcemia, brain injury and early repolarisation; the clinical context decides.'] },
     brugada: { t: 'Brugada syndrome (type 1)', f: ['Coved ST elevation ≥ 2 mm (J point) in V1–V2, descending into a negative T wave.', 'Often an rSR′ or a terminal r′ in V1; limb leads usually normal.', 'Only type 1 is diagnostic; higher V1–V2 placement (2nd–3rd intercostal space) can unmask it.'], p: ['Fever and sodium-channel blockers accentuate the pattern; RBBB, pectus excavatum and high-K can mimic it.'] },
     adenosine: { t: 'Adenosine', f: ['Transient AV-nodal block for seconds: P or flutter waves continue without QRS complexes.'], p: [] },
   };
@@ -1833,7 +1895,7 @@
     if (s.nPAC || s.nBlockedPAC) keys.push('pac'); if (s.nPVC) keys.push('pvc');
     if (S.adenosine) keys.push('adenosine');
     const st = ui.struct || {};
-    if (S.ap) keys.push('wpw'); if (st.peri) keys.push('peri'); if (st.nsstt) keys.push('nsstt'); if (st.brugada) keys.push('brugada'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae');
+    if (S.ap) keys.push('wpw'); if (st.peri) keys.push('peri'); if (st.nsstt) keys.push('nsstt'); if (st.brugada) keys.push('brugada'); if (st.lvh) keys.push('lvh'); if (st.rvh) keys.push('rvh'); if (st.rae) keys.push('rae'); if (st.lae) keys.push('lae'); for (const k of ['hyperK', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia', 'wellens']) if (st[k]) keys.push(k); if (S.blocks.LBB && S.insults.length) keys.push('sgarbossa');
     if (S.insults.length) {
       const sub = S.insults.every((x) => x.kind === 'subendo'), h = ui.ischH;
       if (sub) ischK.push('subendo');
@@ -1882,7 +1944,7 @@
   }
   // Structural findings read off the ECG: P-wave size and duration, voltage
   // criteria, dominant R in V1, pre-excitation (short PR + delta wave).
-  function structFindings(vb) {
+  function structFindings(vb, QTc) {
     if (!vb || !isFinite(vb.repEnd)) return [];
     const out = [], m = measureBeat(vb);
     const at = (k, t) => ecg.buf[k][bufIdx(t)];
@@ -1928,7 +1990,21 @@
     // non-specific ST-T changes: flat T waves (within ±0.5 mm) in two contiguous leads where T is normally
     // upright, without ischemia or a cause read elsewhere (the normal heart's flattest such T, V6, is 1.2 mm)
     const st = ui.struct;
-    if (!S.insults.length && !S.ap && !st.lvh && !st.rvh && !st.peri && !st.brugada && !Object.keys(S.blocks).some((b) => ['LBB', 'RBB'].includes(b))) {
+    // electrolytes and temperature: the patterns they set (Round 51)
+    if (st.hyperK) { const n = ['V2', 'V3', 'V4', 'II'].reduce((a, b) => (m[b].t > m[a].t ? b : a)); out.push(`Tall, narrow, peaked T waves (${n} ${(m[n].t * 10).toFixed(0)} mm)${st.hyperK === 'severe' ? ', flattened P waves, long PR and a wide QRS' : ''}: hyperkalemia pattern`); }
+    if (st.hypoK) out.push('Flat T waves followed by U waves (best seen in V2–V3), slight ST sagging: hypokalemia pattern');
+    if (st.hypoCa) out.push(`Long QTc${QTc ? ` (${Math.round(QTc)} ms)` : ''} from a long, flat ST segment with a normal T wave: hypocalcemia pattern`);
+    if (st.hyperCa) out.push(`Short QTc${QTc ? ` (${Math.round(QTc)} ms)` : ''}: the T wave starts almost at the end of the QRS (short ST segment): hypercalcemia pattern`);
+    if (st.hypothermia) out.push('J (Osborn) waves at the end of the QRS, long QT and bradycardia: hypothermia pattern');
+    // STEMI in LBBB: Smith-modified Sgarbossa criteria (Round 52)
+    if (S.blocks.LBB && S.insults.some((x) => x.kind === 'occlusion')) {
+      const L = Object.keys(m), net = (n) => m[n].rMax - m[n].s;
+      const conc = L.filter((n) => net(n) > 0 && m[n].stJ >= 0.1), dep = ['V1', 'V2', 'V3'].filter((n) => net(n) < 0 && m[n].stJ <= -0.1), exc = L.filter((n) => n !== 'aVR' && net(n) < 0 && m[n].stJ >= 0.1 && m[n].stJ >= 0.25 * m[n].s);
+      const parts = [conc.length ? `concordant ST elevation in ${conc.join(', ')}` : '', dep.length ? `concordant ST depression in ${dep.join(', ')}` : '', exc.length ? `discordant ST elevation ≥ 25% of the S wave in ${exc.join(', ')}` : ''].filter(Boolean);
+      out.push(parts.length ? `LBBB with ${parts.join('; ')}: Sgarbossa criteria (modified) positive, acute STEMI` : 'LBBB: ST changes within the expected discordance (Sgarbossa criteria negative)');
+    }
+    if (st.wellens) out.push(st.wellens === 'A' ? 'Biphasic T waves (up, then down) in V2–V3, no Q waves, ST near baseline, R waves preserved: Wellens pattern type A' : 'Deep, symmetric T-wave inversion in V2–V4, no Q waves, ST near baseline, R waves preserved: Wellens pattern type B');
+    if (!S.insults.length && !S.ap && !st.lvh && !st.rvh && !st.peri && !st.brugada && !st.hypoK && !st.hyperK && !st.hypothermia && !st.wellens && !Object.keys(S.blocks).some((b) => ['LBB', 'RBB'].includes(b))) {
       const flat = ['I', 'II', 'aVF', 'V3', 'V4', 'V5', 'V6'].filter((n) => Math.abs(m[n].t) <= 0.05);   // (flat: within ±0.5 mm)
       const nb = { I: [], II: ['aVF'], aVF: ['II'], V3: ['V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5'] }, fc = flat.filter((n) => nb[n].some((x) => flat.includes(x)));
       if (fc.length >= 2) out.push(`Flat T waves in ${fc.join(', ')}: non-specific ST-T changes`);
@@ -2052,9 +2128,11 @@
     }
     const hyperE = hyper.filter((n) => E.has(n));
     if (hyperE.length >= 2 && out.length && !out[0].text.startsWith('Hyperacute')) out.push(`Hyperacute T waves in ${span(hyperE)}`);
-    if (Q.length) out.push(`Pathological Q/QS waves in ${span(Q)}`);
-    if (rLossC.length) out.push(`R waves lost in ${span(rLossC)}`);
-    if (twi.length) out.push(`T-wave inversion in ${span(twi)}`);
+    if (!S.blocks.LBB) {   // (in LBBB, Q/QS waves, R progression and T inversion cannot be read for infarction)
+      if (Q.length) out.push(`Pathological Q/QS waves in ${span(Q)}`);
+      if (rLossC.length) out.push(`R waves lost in ${span(rLossC)}`);
+      if (twi.length) out.push(`T-wave inversion in ${span(twi)}`);
+    }
     return out.concat(nodalNote());
   }
   function nodalNote() {
@@ -2096,6 +2174,17 @@
       apply: (v) => S.setNonspecificSTT(!!v) },
     { id: 'peri', cat: 'Pericardium', label: 'Pericarditis', name: 'Acute pericarditis', also: 'ST elevation PR depression', apply: (v) => S.setPericarditis(!!v) },
     { id: 'brugada', cat: 'Channelopathies', label: 'Brugada', name: 'Brugada syndrome, type 1', also: 'sodium channel coved ST elevation', apply: (v) => S.setBrugada(!!v) },
+    // Wellens (Sim.setWellens; Round 52): a reperfused critical proximal LAD lesion
+    { id: 'wellens', cat: 'Ischemia patterns', label: 'Wellens', name: 'Wellens syndrome', also: 'critical proximal LAD stenosis reperfused biphasic T deep T inversion V2 V3 pain free',
+      options: [['A', 'Type A: biphasic T'], ['B', 'Type B: deep T inversion']], apply: (v) => S.setWellens(v || null) },
+    // electrolytes and temperature (Sim.setElectrolyte; Round 51)
+    { id: 'hyperK', cat: 'Electrolytes', label: 'Hyperkalemia', name: 'Hyperkalemia', also: 'high potassium K peaked T tented T wide QRS flat P sine wave',
+      options: [['mild', 'Peaked T (K 6–7)'], ['severe', 'Wide QRS, flat P (K > 7)']], apply: (v) => S.setElectrolyte('hyperK', v === 'severe' ? 2 : v ? 1 : 0) },
+    { id: 'hypoK', cat: 'Electrolytes', label: 'Hypokalemia', name: 'Hypokalemia', also: 'low potassium K U wave flat T ST depression long QU', apply: (v) => S.setElectrolyte('hypoK', v) },
+    { id: 'hypoCa', cat: 'Electrolytes', label: 'Hypocalcemia', name: 'Hypocalcemia', also: 'low calcium Ca long QT long ST segment', apply: (v) => S.setElectrolyte('hypoCa', v) },
+    { id: 'hyperCa', cat: 'Electrolytes', label: 'Hypercalcemia', name: 'Hypercalcemia', also: 'high calcium Ca short QT short ST segment', apply: (v) => S.setElectrolyte('hyperCa', v) },
+    { id: 'hypothermia', cat: 'Other', label: 'Hypothermia', name: 'Hypothermia', also: 'cold Osborn J wave camel hump bradycardia long QT',
+      apply: (v) => { S.setElectrolyte('hypothermia', v); if (v && !S.arrhythmia && ui.rate > 50) { ui.rate = 45; S.setRate(45); if (ui.rateMode === 'sinus') { $('rate').value = 45; $('rateVal').textContent = '45 bpm'; } } } },   // (hypothermia slows the sinus node: 45/min)
   ];
   const COND = Object.fromEntries(CONDITIONS.map((c) => [c.id, c]));
   const RECENT_KEY = 'ecgstudio.recentConditions';
@@ -2114,7 +2203,8 @@
     }
     renderConditions();
   }
-  const condText = (c, v = ui.struct[c.id]) => c.options ? `${c.name}: ${c.options.find((o) => o[0] === v)[1].toLowerCase()}` : c.name;
+  const lowFirst = (t) => (/^[A-Z][a-z]/.test(t) ? t[0].toLowerCase() + t.slice(1) : t);   // ("Wide QRS" → "wide QRS", abbreviations kept)
+  const condText = (c, v = ui.struct[c.id]) => c.options ? `${c.name}: ${lowFirst(c.options.find((o) => o[0] === v)[1])}` : c.name;
   const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
 
   // recently used (this browser only): 'peri' or 'ap:left-lateral'
@@ -2130,13 +2220,34 @@
   }
   function choose(id, v) { if (v) noteRecent(id, v); setCondition(id, v); }
 
+  // what is switched on, shown outside its tab: a count on the phone's Blocks, Ischemia and Conditions tabs; on desktop
+  // the active conditions under the view name (most of them do not change the model)
+  function updateBadges() {
+    const n = { blocks: S ? Object.keys(S.blocks).length : 0, ischemia: S ? S.insults.length : 0, conditions: CONDITIONS.filter((c) => ui.struct[c.id]).length };
+    for (const [tab, k] of Object.entries(n)) {
+      const b = document.querySelector(`#mTabs [data-tab="${tab}"]`); if (!b) continue;
+      let el = b.querySelector('.badge');
+      if (!k) { if (el) el.remove(); continue; }
+      if (!el) { el = document.createElement('span'); el.className = 'badge'; el.setAttribute('aria-hidden', 'true'); b.appendChild(el); }
+      el.textContent = k;
+      b.setAttribute('aria-label', `${b.textContent.replace(/\d+$/, '').trim()}, ${k} active`);
+    }
+    const on = CONDITIONS.filter((c) => ui.struct[c.id]), sum = $('condSum');
+    sum.hidden = !on.length;
+    if (on.length) {
+      const names = on.map((c) => esc(condText(c)));
+      sum.innerHTML = `<b>Conditions</b>${names.slice(0, 3).join(' · ')}${names.length > 3 ? ` · +${names.length - 3}` : ''}`;
+      sum.title = on.map((c) => condText(c)).join(', ');
+    }
+  }
   function renderConditions() {
     const busy = !!ui.rebuilding, on = CONDITIONS.filter((c) => ui.struct[c.id]);
+    updateBadges();
     $('noCond').hidden = !!on.length;
     $('condActive').innerHTML = on.map((c) => `<div class="bchip cond"><span>${esc(condText(c))}</span><button type="button" data-id="${c.id}" aria-label="Remove ${esc(c.name)}"${busy && c.rebuild ? ' disabled' : ''}>×</button></div>`).join('');
     const recent = readRecent().map((k) => k.split(':')).filter(([id, v]) => COND[id] && (COND[id].options ? COND[id].options.some((o) => o[0] === v) && ui.struct[id] !== v : !ui.struct[id]));
     $('condRecent').hidden = !recent.length;
-    $('condRecentList').innerHTML = recent.map(([id, v]) => `<button type="button" data-id="${id}" data-v="${v || ''}"${busy && COND[id].rebuild ? ' disabled' : ''}>${esc(COND[id].options ? `${COND[id].label}, ${COND[id].options.find((o) => o[0] === v)[1].toLowerCase()}` : COND[id].label)}</button>`).join('');
+    $('condRecentList').innerHTML = recent.map(([id, v]) => `<button type="button" data-id="${id}" data-v="${v || ''}"${busy && COND[id].rebuild ? ' disabled' : ''}>${esc(COND[id].options ? `${COND[id].label}, ${lowFirst(COND[id].options.find((o) => o[0] === v)[1])}` : COND[id].label)}</button>`).join('');
     const q = $('condSearch').value.trim().toLowerCase();
     const match = (c) => !q || [c.name, c.label, c.cat, c.also || ''].concat((c.options || []).map((o) => o[1])).join(' ').toLowerCase().includes(q);
     let html = '', cat = '';
@@ -2160,6 +2271,7 @@
     else renderConditions();
   }
   function initConditions() {
+    $('condSum').addEventListener('click', () => setTab('conditions'));
     $('condActive').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) setCondition(b.dataset.id, COND[b.dataset.id].options ? '' : false); });
     $('condRecentList').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) choose(b.dataset.id, b.dataset.v || true); });
     $('condList').addEventListener('click', (e) => {
@@ -2183,7 +2295,7 @@
   // scenario re-runs from the same starting point.
   // ---------------------------------------------------------------------------
   const STRUCT_KEYS = CONDITIONS.filter((c) => !c.options).map((c) => c.id);
-  const ARR_TYPES = ['af', 'flutter', 'ectopic', 'mat', 'avnrt', 'avrt', 'vt', 'vf'];
+  const ARR_TYPES = ['af', 'flutter', 'ectopic', 'mat', 'avnrt', 'avrt', 'vt', 'tdp', 'vf'];
   // Coronary node numbers in share links. Links made before the left main was lengthened
   // (no c=2) number the nodes of the old tree: each is mapped to the same branch, at the
   // same fraction along it, in the current tree.
@@ -2325,7 +2437,7 @@
   const isM = () => document.body.classList.contains('m');
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
   const SECS = [2500, 5000, 10000];
-  const HOLD_MS = 550, HOLD2_MS = 1300, BURST_MS = 500, BURST_PX = 40, DOUBLE_MS = 350;   // (hold: narrowing at HOLD_MS, occlusion at HOLD2_MS)
+  const BURST_MS = 500, BURST_PX = 40, DOUBLE_MS = 350;
   const ph = { group: 0, peek: null, win: 5000, live: 'II', fsEcg: false, fsHeart: false, flip: false };
   const buzz = (ms = 10) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
   // true the first time a tip key is seen in this browser
@@ -2427,7 +2539,7 @@
     if (!isM()) return;
     const arr = S.arrhythmia && S.arrhythmia.type, s = ui.snap || {};
     const cur = currentRhythm();
-    $('mShock').hidden = !['af', 'flutter', 'vt', 'vf', 'ectopic', 'mat'].includes(arr);
+    $('mShock').hidden = !['af', 'flutter', 'vt', 'tdp', 'vf', 'ectopic', 'mat'].includes(arr);
     $('mAdeno').hidden = !(s.avnrt || s.avrt || cur === 'avnrt' || cur === 'avrt');
   }
 
@@ -2628,6 +2740,12 @@
     hideBlockMenu();
     const ray = rayAt(x, y);
     if (pathwayAt(x, y)) { lastEmpty = null; pathwayTap(x, y, now); return; }
+    // Ischemia tab: a tap on the heart narrows the artery (after a moment, so a second tap can occlude it instead)
+    if (ui.tab === 'ischemia' && (tissueAt(ray) >= 0 || ray.intersectObjects(g3.corPick, false).length)) {
+      lastEmpty = null;
+      ischPress(ischTap, x, y, now, (mode) => { buzz(mode === 'narrow' ? 15 : 35); return mobileIsch(x, y, mode); }, 40);
+      return;
+    }
     if (ui.view === 'cutaway') { const site = conductionAt(ray, x, y); if (site) { lastEmpty = null; conductionTap(site, x, y, now); return; } }
     const c = tissueAt(ray);
     if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }
@@ -2635,48 +2753,54 @@
     if (lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
     else lastEmpty = { x, y, t: now };
   }
-  function mobileHold(x, y, mode) {
+  const ischTap = { last: null };
+  function mobileIsch(x, y, mode) {
     const n = S.insults.length;
-    pickIschemia(rayAt(x, y), x, y, mode);
+    const did = pickIschemia(rayAt(x, y), x, y, mode);
     if (S.insults.length > n) openSheet('ischemia');
+    return did;
+  }
+  // two-finger twist (touch screens): turns the view about the line of sight, as in a map; the pinch and pan of the
+  // same gesture are the orbit controls'
+  function initTwist() {
+    const canvas = $('c3d'), pts = new Map();
+    let ang = null;
+    const angle = () => { const [a, b] = [...pts.values()]; return Math.atan2(b.y - a.y, b.x - a.x); };
+    canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); ang = pts.size === 2 ? angle() : null; });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size !== 2 || ang === null) return;
+      const a = angle(); let d = a - ang; ang = a;
+      if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI;
+      if (!d) return;
+      const tgt = g3.controls.target, axis = g3.camera.position.clone().sub(tgt).normalize();
+      const q = new THREE.Quaternion().setFromAxisAngle(axis, -d), w = g3.world;
+      w.position.sub(tgt).applyQuaternion(q).add(tgt); w.quaternion.premultiply(q);
+      g3.planeDirty = true;
+    });
+    const up = (e) => { pts.delete(e.pointerId); ang = pts.size === 2 ? angle() : null; };
+    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
   }
   function initTouch() {
-    const canvas = $('c3d'), ring = $('press');
-    let down = null, timer = 0, raf = 0, pointers = 0;
+    const canvas = $('c3d');
+    let down = null, pointers = 0;
     const at = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
-    const stop = () => { clearTimeout(timer); cancelAnimationFrame(raf); ring.hidden = true; };
     canvas.addEventListener('contextmenu', (e) => { if (isM()) e.preventDefault(); });
     canvas.addEventListener('pointerdown', (e) => {
       if (!isM()) return;
-      if (++pointers > 1) { down = null; stop(); return; }           // pinch
-      const p = at(e), t0 = performance.now();
-      // a short hold narrows an artery (released after the ring fills once), a long hold occludes it (the ring
-      // fills a second time, in red, and the occlusion acts at once)
-      down = { x: p.x, y: p.y, held: false, stage: 0 };
-      timer = setTimeout(() => {
-        if (!down) return; down.stage = 1; buzz(15);
-        timer = setTimeout(() => { if (!down) return; down.held = true; stop(); buzz(35); mobileHold(p.x, p.y, 'occlude'); }, HOLD2_MS - HOLD_MS);
-      }, HOLD_MS);
-      // the ring appears after a moment and fills until the hold acts
-      const grow = () => {
-        if (!down || down.held) return;
-        const el = performance.now() - t0, k = down.stage ? (el - HOLD_MS) / (HOLD2_MS - HOLD_MS) : (el - 150) / (HOLD_MS - 150);
-        ring.classList.toggle('stage2', !!down.stage);
-        if (k > 0 || down.stage) { ring.hidden = false; ring.style.left = `${p.x}px`; ring.style.top = `${p.y}px`; ring.style.setProperty('--p', `${Math.max(0, Math.min(100, k * 100))}%`); }
-        raf = requestAnimationFrame(grow);
-      };
-      raf = requestAnimationFrame(grow);
+      if (++pointers > 1) { down = null; return; }                  // two fingers: zoom, turn and pan
+      const p = at(e); down = { x: p.x, y: p.y };
     });
     canvas.addEventListener('pointermove', (e) => {
       if (!down) return;
-      const p = at(e); if (Math.hypot(p.x - down.x, p.y - down.y) > 10) { down = null; stop(); }   // a drag rotates
+      const p = at(e); if (Math.hypot(p.x - down.x, p.y - down.y) > 10) down = null;   // a drag rotates
     });
     const end = (e) => {
       if (!isM()) return;
-      pointers = Math.max(0, pointers - 1); stop();
+      pointers = Math.max(0, pointers - 1);
       const d = down; down = null;
-      if (d && !d.held && d.stage && e.type === 'pointerup') { buzz(25); mobileHold(d.x, d.y, 'narrow'); return; }   // (released after the first fill)
-      if (d && !d.held && e.type === 'pointerup') mobileTap(d.x, d.y, e.timeStamp);
+      if (d && e.type === 'pointerup') mobileTap(d.x, d.y, e.timeStamp);
     };
     canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
   }
@@ -2846,7 +2970,7 @@
     $('fsFlip').addEventListener('click', () => { ph.flip = !ph.flip; fsClass(); });
     $('fsInterp').addEventListener('click', () => { const off = document.body.classList.toggle('fs-nointerp'); $('fsInterp').setAttribute('aria-pressed', String(!off)); });
     try { if (localStorage.getItem('ecgstudio.tipFsEcg')) $('ghint').hidden = true; } catch (e) { /* no storage */ }
-    if (isM() && MQ_PORT.matches && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double-tap the ECG for all 12 leads, or the space beside the heart to fill the screen with it. The tabs below explain the gestures.', 7000), 800);
+    if (isM() && MQ_PORT.matches && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
   }
 
   function initUI() {
@@ -2864,7 +2988,7 @@
       ui.leads = e.target.checked;
       $('legendLeads').hidden = !ui.leads;
       // pull back so the chest electrodes fit in view
-      if (ui.leads && g3.camera.position.length() < 660) { g3.camera.position.setLength(720); g3.controls.update(); }
+      if (ui.leads && g3.camera.position.length() < LEADS_DIST - 40) { g3.camera.position.setLength(LEADS_DIST); g3.controls.update(); }
     });
     $('leadSetBtn').addEventListener('click', () => {
       ui.leadSet = ui.leadSet === 'meas' ? 'book' : 'meas';
@@ -2891,7 +3015,7 @@
     $('btnShock').addEventListener('click', () => { ui.avnrt = null; ui.pendingRhythm = null; ui.rhythmFrom = S.t; S.shock(); ui.shockAt = performance.now(); markChange(); syncRate(); interpret(); syncRhythmUI(); });
     initConditions();
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
-    initPicking(); updateActionNote();
+    initPicking(); initTwist(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     $('cutDepth').addEventListener('input', (e) => setCut(+e.target.value));
     $('cutExt').addEventListener('click', () => setCut(0));
