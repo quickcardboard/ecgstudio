@@ -2774,13 +2774,16 @@
   // the nearest conduction point on screen within a fingertip
   // (the segment nearest the finger on screen: the fat touch tubes overlap where the bundle branches divide, so the first
   // tube along the ray could be a neighbour; a tube hit only when no point is within a fingertip)
+  // how far a tap reaches for each site, × the 22 px fingertip: the left bundle's trunk is short (3 points) and lies just
+  // below the AV node, so it reaches further and the AV node less far (else taps meant for it change the AV block)
+  const CS_REACH = { LBB: 1.7, AVN: 0.75 };
   function conductionAt(ray, x, y) {
     if (ray.intersectObject(g3.sanPick, false).length) return 'SAN';
     const r = $('c3d').getBoundingClientRect(), v = new THREE.Vector3();
-    let best = null, bd = 22 * 22;
+    let best = null, bd = 1;
     for (const q of g3.csPts) {
       v.copy(q.p).applyMatrix4(g3.inner.matrixWorld).project(g3.camera);
-      const d = ((v.x + 1) / 2 * r.width - x) ** 2 + ((1 - v.y) / 2 * r.height - y) ** 2;
+      const d = (((v.x + 1) / 2 * r.width - x) ** 2 + ((1 - v.y) / 2 * r.height - y) ** 2) / (22 * (CS_REACH[q.site] || 1)) ** 2;
       if (d < bd) { bd = d; best = q.site; }
     }
     if (best) return best;
