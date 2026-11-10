@@ -21,6 +21,7 @@
 :root {
   --bg: #eef1f4;          /* app chrome */
   --surface: #ffffff;
+  --raised: #f4f6f8;      /* the Help dialog's close button (as Training's) */
   --fg: #1d2a36;
   --muted: #5d6b78;
   --line: #d3dae1;
@@ -42,12 +43,12 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0b131a; --surface: #121d27; --fg: #e3eaf0; --muted: #93a3b1; --line: #24323f;
+    --bg: #0b131a; --surface: #121d27; --raised: #1b2834; --fg: #e3eaf0; --muted: #93a3b1; --line: #24323f;
     --accent: #ef5b7a; --accent-fg: #160a0d; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0b131a; --surface: #121d27; --fg: #e3eaf0; --muted: #93a3b1; --line: #24323f;
+  --bg: #0b131a; --surface: #121d27; --raised: #1b2834; --fg: #e3eaf0; --muted: #93a3b1; --line: #24323f;
   --accent: #ef5b7a; --accent-fg: #160a0d; color-scheme: dark;
 }
 [hidden] { display: none !important; }
@@ -291,7 +292,7 @@ body.m .vsum { display: none; }
 .sheet p, .sheet li { max-width: 65ch; }
 .sheet ul { padding-left: 18px; margin: 6px 0; }
 .sheet .src { font-size: 12px; color: var(--muted); }
-.sheet .close { float: right; }
+.sheet .close { float: right; font-size: 14px; padding: 8px 12px; border-radius: 8px; background: var(--raised); }   /* (the Help close button matches Training's) */
 .toc { display: flex; flex-wrap: nowrap; gap: 6px; margin: 10px 0 4px; overflow-x: auto; scrollbar-width: none; }
 .toc::-webkit-scrollbar { display: none; }
 .toc button { flex: none; white-space: nowrap; font-size: 12.5px; padding: 5px 11px; border-radius: 999px; }
@@ -697,7 +698,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </section>
     <section class="hpage" data-page="tabs" hidden>
       <h3>Control tabs</h3>
-      <p>Clicking a tab toggles its panel. The open tab also decides what a click on the heart does.</p>
+      <p>Clicking a tab toggles its panel. A click on the heart acts on what it lands on, whichever tab is open: a coronary artery, the conduction system (in the cut view; the sinus node in any view) or the muscle.</p>
       <ul>
         <li><b>Rhythm:</b> adjust the heart rate and toggle persistent arrhythmias. Click on the heart to stimulate an ectopic beat.</li>
         <li><b>Blocks:</b> only useful during a cutaway view. Click on the conduction system to start a block.</li>
@@ -749,14 +750,14 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         </li>
         <li><b>Blocks:</b> opens the four-chamber cut. Tap the conduction system to cycle through its blocks.</li>
         <li><b>View:</b> External ↔ Cut slider, the Anterior / 4-chamber / Lateral / Apex views, and the Labels, Leads and Legend switches.</li>
-        <li><b>Ischemia:</b> opens the outside view. Tap a coronary artery to narrow it (partial flow: ST depression and T changes), double-tap to occlude it; each region (for example proximal, mid or distal LAD) holds one marker, and tapping it again removes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
+        <li><b>Ischemia:</b> opens the outside view. From any tab, tap a coronary artery to narrow it (partial flow: ST depression and T changes) or double-tap to occlude it; taps elsewhere on the heart still give ectopic beats. Each region (for example proximal, mid or distal LAD) holds one marker, and one tap on it removes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
         <li><b>Conditions:</b> add or remove chronic and acute heart conditions.</li>
       </ul>
     </section>
     <section class="hpage" data-page="mabout" hidden>
       <h3>About</h3>
       <ul>
-        <li><b>Limitations:</b> normal axis about 0–15°; LBBB/RBBB axes not textbook; LAFB looks like an old anterior MI; distal LCx STEMI at 1 h not visible; acute marginal pattern; VT/VF slow on older phones.</li>
+        <li><b>Limitations:</b> normal axis about 0–15°; LBBB/RBBB axes not textbook (read them on QRS shape); LAFB looks like an old anterior MI; distal LCx STEMI at 1 h not visible; an acute marginal (RV branch) occlusion shows inferior changes rather than the right-ventricular pattern; an old apical infarct also shows inferior Q waves; after an infarct the T inversion in V3–V5 can be deeper and last longer than usual; hyperkalemia T waves are peaked but broader-based than the classic tent; VT, VF and torsades slow older phones.</li>
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
