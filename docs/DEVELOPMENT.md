@@ -2160,3 +2160,5 @@ the app only for now (tried at ecgstudio.app/app/); keep both the artery and the
 - Follow-up (the author): the turn is one even 360° (ease in and out over 0.55 s, no overshoot), with a higher hop
   (2.2 voxels) and a small bounce on landing; one cycle is 2.04 s (wave 1.0 s, turn 0.55 s, landing 0.24 s, pause
   0.25 s). `ECGLoader.at` draws a fixed moment of the cycle (for recording frames).
+- Follow-up (the author): the turn starts at 0.52 s, while the heart is still repolarising (frame 15 at 25 fps), and the
+  next beat starts as soon as the landing bounce ends: one cycle is 1.31 s, with no pause.

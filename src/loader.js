@@ -9,7 +9,8 @@
   const PAL = { rest: '#f4a3bd', front: '#2f6bff', dep: '#7aa2ff', rep: '#2fcf8a' };
   const MASK = ['.XX...XX.', 'XXXX.XXXX', 'XXXXXXXXX', 'XXXXXXXXX', '.XXXXXXX.', '..XXXXX..', '...XXX...', '....X....'];
   const HOP = 2.2;   // voxels
-  const BEAT = 1000, SPIN = 550, LAND = 240, REST = 250, CYCLE = BEAT + SPIN + LAND + REST;   // ms
+  // the turn starts while the heart is still repolarising (frame 15 at 25 fps), and the next beat starts as it lands
+  const BEAT = 1000, TURN_AT = 520, SPIN = 550, LAND = 240, CYCLE = TURN_AT + SPIN + LAND;   // ms
   const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
   const C = Object.fromEntries(Object.entries(PAL).map(([k, v]) => [k, hex(v)]));
@@ -90,12 +91,12 @@
     const frame = (now) => {
       if (!el.isConnected) return;
       if (!el.offsetParent && getComputedStyle(el).position !== 'fixed') { t0 = now; setTimeout(() => requestAnimationFrame(frame), 250); return; }   // (hidden: wait)
-      const t = (api.at === null ? now - t0 : api.at) % CYCLE, spun = BEAT + SPIN;
+      const t = (api.at === null ? now - t0 : api.at) % CYCLE, spun = TURN_AT + SPIN;
       let front = 2, yaw = 0, hop = 0;
       if (t < BEAT) front = -0.1 + 2.1 * easeInOut(t / BEAT);                       // the wave, back to pink
-      else if (still.matches) { /* (reduced motion: no turn) */ }
-      else if (t < spun) { const u = (t - BEAT) / SPIN; yaw = 2 * Math.PI * easeInOut(u); hop = HOP * Math.sin(Math.PI * u); }   // one turn, even pace, with a hop
-      else if (t < spun + LAND) hop = 0.35 * HOP * Math.sin(Math.PI * (t - spun) / LAND);   // a small bounce on landing
+      if (still.matches || t < TURN_AT) { /* (reduced motion: no turn) */ }
+      else if (t < spun) { const u = (t - TURN_AT) / SPIN; yaw = 2 * Math.PI * easeInOut(u); hop = HOP * Math.sin(Math.PI * u); }   // one turn, even pace, with a hop
+      else hop = 0.35 * HOP * Math.sin(Math.PI * (t - spun) / LAND);                 // a small bounce on landing
       draw(g, css, front, yaw, hop);
       requestAnimationFrame(frame);
     };
