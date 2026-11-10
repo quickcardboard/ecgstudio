@@ -1994,3 +1994,7 @@ Training (`src/training_gen.js`, `src/training.js`):
 - Follow-up (the author): the phone's first tip reads "Double tap the ECG to expand it, or double tap the empty space beside
   the model to expand the 3D view."; the ischemia stage description under "Time since onset" is hidden (`#ischStage`);
   VT, torsades and VF carry artifacts again; hypo- and hypercalcemia are advanced findings (1700); the report form is set.
+- **What is on, outside its tab** (the author): on phones (site and app) a neutral count badge on the Blocks, Ischemia and
+  Conditions tabs (`updateBadges`); on desktop a "Conditions" line under the view name lists the active conditions (up to
+  three, then "+N"; most do not change the model) and opens the Conditions tab. Option names keep their abbreviations'
+  capitals ("wide QRS, flat P (K > 7)", `lowFirst`).

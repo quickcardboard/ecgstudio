@@ -1111,7 +1111,7 @@
   }
 
   function renderBlockList() {
-    markChange();
+    markChange(); updateBadges();
     const sites = Object.keys(S.blocks);
     $('noBlocks').hidden = !!sites.length;
     $('legendBlock').hidden = !sites.length || ui.view === 'external';
@@ -1333,7 +1333,7 @@
   }
   function renderIschList() {
     const list = S.insults;
-    $('ischWrap').hidden = !list.length;
+    $('ischWrap').hidden = !list.length; updateBadges();
     $('ischList').innerHTML = list.map((v) => `<div class="bchip isch"><span>${insultLabel(v)}</span><button type="button" data-id="${v.id}" aria-label="Remove">×</button></div>`).join('');
     for (const b of $('ischList').querySelectorAll('button')) b.addEventListener('click', () => {
       removeIschemia(+b.dataset.id);
@@ -2200,7 +2200,8 @@
     }
     renderConditions();
   }
-  const condText = (c, v = ui.struct[c.id]) => c.options ? `${c.name}: ${c.options.find((o) => o[0] === v)[1].toLowerCase()}` : c.name;
+  const lowFirst = (t) => (/^[A-Z][a-z]/.test(t) ? t[0].toLowerCase() + t.slice(1) : t);   // ("Wide QRS" → "wide QRS", abbreviations kept)
+  const condText = (c, v = ui.struct[c.id]) => c.options ? `${c.name}: ${lowFirst(c.options.find((o) => o[0] === v)[1])}` : c.name;
   const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
 
   // recently used (this browser only): 'peri' or 'ap:left-lateral'
@@ -2216,13 +2217,34 @@
   }
   function choose(id, v) { if (v) noteRecent(id, v); setCondition(id, v); }
 
+  // what is switched on, shown outside its tab: a count on the phone's Blocks, Ischemia and Conditions tabs; on desktop
+  // the active conditions under the view name (most of them do not change the model)
+  function updateBadges() {
+    const n = { blocks: S ? Object.keys(S.blocks).length : 0, ischemia: S ? S.insults.length : 0, conditions: CONDITIONS.filter((c) => ui.struct[c.id]).length };
+    for (const [tab, k] of Object.entries(n)) {
+      const b = document.querySelector(`#mTabs [data-tab="${tab}"]`); if (!b) continue;
+      let el = b.querySelector('.badge');
+      if (!k) { if (el) el.remove(); continue; }
+      if (!el) { el = document.createElement('span'); el.className = 'badge'; el.setAttribute('aria-hidden', 'true'); b.appendChild(el); }
+      el.textContent = k;
+      b.setAttribute('aria-label', `${b.textContent.replace(/\d+$/, '').trim()}, ${k} active`);
+    }
+    const on = CONDITIONS.filter((c) => ui.struct[c.id]), sum = $('condSum');
+    sum.hidden = !on.length;
+    if (on.length) {
+      const names = on.map((c) => esc(condText(c)));
+      sum.innerHTML = `<b>Conditions</b>${names.slice(0, 3).join(' · ')}${names.length > 3 ? ` · +${names.length - 3}` : ''}`;
+      sum.title = on.map((c) => condText(c)).join(', ');
+    }
+  }
   function renderConditions() {
     const busy = !!ui.rebuilding, on = CONDITIONS.filter((c) => ui.struct[c.id]);
+    updateBadges();
     $('noCond').hidden = !!on.length;
     $('condActive').innerHTML = on.map((c) => `<div class="bchip cond"><span>${esc(condText(c))}</span><button type="button" data-id="${c.id}" aria-label="Remove ${esc(c.name)}"${busy && c.rebuild ? ' disabled' : ''}>×</button></div>`).join('');
     const recent = readRecent().map((k) => k.split(':')).filter(([id, v]) => COND[id] && (COND[id].options ? COND[id].options.some((o) => o[0] === v) && ui.struct[id] !== v : !ui.struct[id]));
     $('condRecent').hidden = !recent.length;
-    $('condRecentList').innerHTML = recent.map(([id, v]) => `<button type="button" data-id="${id}" data-v="${v || ''}"${busy && COND[id].rebuild ? ' disabled' : ''}>${esc(COND[id].options ? `${COND[id].label}, ${COND[id].options.find((o) => o[0] === v)[1].toLowerCase()}` : COND[id].label)}</button>`).join('');
+    $('condRecentList').innerHTML = recent.map(([id, v]) => `<button type="button" data-id="${id}" data-v="${v || ''}"${busy && COND[id].rebuild ? ' disabled' : ''}>${esc(COND[id].options ? `${COND[id].label}, ${lowFirst(COND[id].options.find((o) => o[0] === v)[1])}` : COND[id].label)}</button>`).join('');
     const q = $('condSearch').value.trim().toLowerCase();
     const match = (c) => !q || [c.name, c.label, c.cat, c.also || ''].concat((c.options || []).map((o) => o[1])).join(' ').toLowerCase().includes(q);
     let html = '', cat = '';
@@ -2246,6 +2268,7 @@
     else renderConditions();
   }
   function initConditions() {
+    $('condSum').addEventListener('click', () => setTab('conditions'));
     $('condActive').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) setCondition(b.dataset.id, COND[b.dataset.id].options ? '' : false); });
     $('condRecentList').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) choose(b.dataset.id, b.dataset.v || true); });
     $('condList').addEventListener('click', (e) => {
