@@ -1,0 +1,63 @@
+# The Android app (app/, Capacitor).
+# - debug APK on every push to app-1 that touches the app or the pages: download it from the run's page
+#   (Artifacts: ecgstudio-debug-apk), unzip, and install on a phone.
+# - release AAB for Google Play: run this workflow by hand (Actions > Android app > Run workflow, "release" ticked).
+#   It is signed with the upload key from the repository secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+#   ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD, and numbered with the run number (each upload needs a higher number).
+name: Android app
+on:
+  push:
+    branches: [app-1]
+    paths: ['app/**', 'src/**', 'vendor/**', 'icons/**', 'tools/build.py', 'tools/reader.js', 'tools/rhythmread.js', '.github/workflows/android.yml']
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Also build the signed release bundle (AAB) for Google Play'
+        type: boolean
+        default: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm, cache-dependency-path: app/package-lock.json }
+      - name: Install the app's packages
+        working-directory: app
+        run: npm ci
+      - name: Build the pages and app/www
+        run: python3 tools/build.py --app
+      - name: Copy the web build into the Android project
+        working-directory: app
+        run: npx cap sync android
+      - name: Build the debug APK
+        working-directory: app/android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ecgstudio-debug-apk
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+      - name: Build the signed release bundle
+        if: ${{ inputs.release }}
+        working-directory: app/android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "The upload key secrets are not set (see docs/APP_PLAN.md)"; exit 1; }
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/upload.jks" ./gradlew bundleRelease --no-daemon
+          rm -f "$RUNNER_TEMP/upload.jks"
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.release }}
+        with:
+          name: ecgstudio-release-aab
+          path: app/android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 90

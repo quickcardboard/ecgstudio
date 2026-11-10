@@ -1,5 +1,8 @@
-"""Assemble the single-file app: src/template.html + Three.js + engine + app + anatomy -> index.html"""
-import datetime, html as htmlmod, json, pathlib, subprocess
+"""Assemble the single-file app: src/template.html + Three.js + engine + app + anatomy -> index.html,
+Training -> training/index.html, and the app shell (src/shell.html) -> app/index.html (a preview that frames the two
+pages above). `--app` also writes app/www/ for the native app (the shell and both pages side by side, with local fonts;
+not in git; needs `npm install` in app/ first). Then `cd app && npx cap sync android`."""
+import datetime, html as htmlmod, json, pathlib, shutil, subprocess, sys
 root = pathlib.Path(__file__).resolve().parent.parent
 src = root / 'src'
 html = (src / 'template.html').read_text()
@@ -11,6 +14,9 @@ LOGO_INLINE = re.sub(r'\s(width|height)="\d+"', '', logo_svg, count=2).replace('
 def with_logo(h):
     return h.replace('{{LOGO_URI}}', LOGO_URI).replace('{{LOGO_SVG}}', LOGO_INLINE)
 html = with_logo(html)
+inapp = (src / 'inapp.js').read_text()
+assert '</script' not in inapp
+html = html.replace('/*__INAPP__*/', inapp, 1)
 # author and version (site.json; version = build date + commit)
 site = json.loads((root / 'site.json').read_text())
 try:
@@ -76,7 +82,7 @@ self.onmessage = (e) => {
 ''')
 t = with_logo((src / 'training.html').read_text()).replace('{{AUTHOR}}', htmlmod.escape(site['author'])).replace('{{VERSION}}', datetime.date.today().isoformat() + (f' ({rev})' if rev else ''))
 t = t.replace('{{REPORT_FORM}}', htmlmod.escape(site.get('reportForm', '').strip()))   # (Google Form prefill link: problem reports)
-for key, text in (('/*__VOCAB__*/', json.dumps((src / 'training_vocab.txt').read_text())),
+for key, text in (('/*__INAPP__*/', inapp), ('/*__VOCAB__*/', json.dumps((src / 'training_vocab.txt').read_text())),
                   ('/*__ANATOMY__*/', anatomy), ('/*__TORSO__*/', torso), ('/*__WORKER__*/', worker),
                   ('/*__TRAIN__*/', (src / 'training.js').read_text())):
     assert '</script' not in text
@@ -84,3 +90,40 @@ for key, text in (('/*__VOCAB__*/', json.dumps((src / 'training_vocab.txt').read
 (root / 'training').mkdir(exist_ok=True)
 (root / 'training' / 'index.html').write_text(t)
 print('training/index.html', round(len(t.encode()) / 1e6, 2), 'MB')
+
+# The app shell (src/shell.html): one frame per module and the module tabs. app/index.html frames the website's
+# pages (../index.html, ../training/index.html) as a preview; --app writes app/www/ for Capacitor.
+version = datetime.date.today().isoformat() + (f' ({rev})' if rev else '')
+def shell(urls):
+    h = with_logo((src / 'shell.html').read_text()).replace('{{AUTHOR}}', htmlmod.escape(site['author'])).replace('{{VERSION}}', version)
+    return h.replace('/*__URLS__*/', json.dumps(urls), 1)
+(root / 'app').mkdir(exist_ok=True)
+(root / 'app' / 'index.html').write_text(shell({'simulator': '../index.html?app', 'training': '../training/index.html?app'}))
+print('app/index.html (preview)')
+if '--app' in sys.argv:
+    www = root / 'app' / 'www'
+    www.mkdir(parents=True, exist_ok=True)
+    (www / 'index.html').write_text(shell({'simulator': 'simulator.html?app', 'training': 'training.html?app'}))
+    # offline: the fonts come with the app (app/node_modules/@fontsource, `npm install` in app/) instead of Google Fonts
+    fonts = www / 'fonts'
+    fonts.mkdir(exist_ok=True)
+    fs = root / 'app' / 'node_modules' / '@fontsource'
+    css = []
+    for fam, pkg, weights in (('IBM Plex Sans', 'ibm-plex-sans', (400, 500, 600)), ('IBM Plex Sans Condensed', 'ibm-plex-sans-condensed', (500, 600)),
+                              ('IBM Plex Mono', 'ibm-plex-mono', (400, 500))):
+        for w in weights:
+            for sub, rng in (('latin', 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD'),
+                             ('latin-ext', 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF')):
+                f = f'{pkg}-{sub}-{w}-normal.woff2'
+                shutil.copyfile(fs / pkg / 'files' / f, fonts / f)
+                css.append(f"@font-face {{ font-family: '{fam}'; font-style: normal; font-weight: {w}; font-display: swap; src: url({f}) format('woff2'); unicode-range: {rng}; }}")
+    (fonts / 'fonts.css').write_text('\n'.join(css) + '\n')
+    def offline(h):
+        h = re.sub(r'<link rel="preconnect" href="https://fonts.googleapis.com">\n?', '', h)
+        h, n = re.subn(r'<link rel="stylesheet" href="https://fonts.googleapis.com/[^"]*">', '<link rel="stylesheet" href="fonts/fonts.css">', h)
+        assert n == 1
+        return h
+    (www / 'index.html').write_text(offline((www / 'index.html').read_text()))
+    (www / 'simulator.html').write_text(offline((root / 'index.html').read_text()))
+    (www / 'training.html').write_text(offline((root / 'training' / 'index.html').read_text()))
+    print('app/www/', sorted(p.name for p in www.iterdir()))

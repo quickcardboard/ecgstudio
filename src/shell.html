@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="author" content="{{AUTHOR}}">
+<title>ECG Studio</title>
+<meta name="robots" content="noindex">
+<meta name="version" content="{{VERSION}}">
+<meta name="theme-color" content="#0b131a">
+<link rel="icon" type="image/svg+xml" href="{{LOGO_URI}}">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+/* The app shell: one frame per module (simulator, training, later lessons, pacemaker, ...) and the module tabs.
+   The tabs sit over the left of the module's own header (the module leaves --tabs-w free there), so the module
+   keeps its phone layout and its own buttons on the right. Active tab: icon and name, first; the others follow
+   in a fixed order, icon only on phones and named on tablets. The logo stays at the far left. The frames are inset by the system bars, so the
+   modules see none. */
+:root {
+  --bg: #0b131a; --surface: #121d27; --raised: #1b2834; --fg: #e3eaf0; --muted: #93a3b1; --line: #24323f; --accent: #ef5b7a;
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
+  --bar-h: 50px;
+  /* system bars: the Android app's values (Capacitor SystemBars, insetsHandling "css"), else the browser's */
+  --in-t: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --in-b: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --in-l: var(--safe-area-inset-left, env(safe-area-inset-left, 0px)); --in-r: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; overscroll-behavior: none; }
+* { -webkit-tap-highlight-color: transparent; }
+#stage { position: fixed; top: var(--in-t); bottom: var(--in-b); left: var(--in-l); right: var(--in-r); }
+#stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: var(--bg); visibility: hidden; }
+#stage iframe.on { visibility: visible; }
+#tabs { position: fixed; z-index: 10; top: var(--in-t); left: var(--in-l); height: var(--bar-h);
+  display: flex; align-items: center; gap: 4px; padding: 0 6px 0 8px; transition: opacity 0.15s; }
+#tabs .mark { display: flex; margin-right: 4px; }
+#tabs .mark .logo { width: 26px; height: 26px; }
+#tabs.off { opacity: 0; pointer-events: none; }
+#tabs button { all: unset; box-sizing: border-box; height: 38px; min-width: 38px; padding: 0 9px; border-radius: 19px; display: flex; align-items: center; justify-content: center; gap: 7px;
+  color: var(--muted); cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+#tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#tabs svg { width: 21px; height: 21px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#tabs .name { font: 600 17px/1 var(--font-display); letter-spacing: 0.01em; white-space: nowrap; display: none; }
+#tabs button.on { background: var(--raised); border: 1px solid #33434f; padding: 0 13px 0 10px; color: var(--fg); }
+#tabs button.on svg { color: var(--accent); }
+#tabs button.on .name { display: inline; }
+#tabs button:not(.on):active { background: rgba(255,255,255,0.07); }
+/* tablets: every tab named */
+@media (min-width: 600px) {
+  #tabs button .name { display: inline; font-size: 16px; }
+  #tabs button:not(.on) { padding: 0 12px 0 10px; }
+}
+</style>
+</head>
+<body>
+<nav id="tabs" role="tablist" aria-label="Modules"><span class="mark">{{LOGO_SVG}}</span></nav>
+<div id="stage"></div>
+<script>
+(function () {
+  // the modules, in their fixed order (url: filled in by tools/build.py for the preview or the app build)
+  const URLS = /*__URLS__*/;
+  const ICONS = {
+    // heart with a trace through it
+    simulator: '<path d="M12 20.5s-7.5-4.6-8.9-9.6C2.2 7.7 4.2 4.5 7.3 4.5c2 0 3.6 1.1 4.7 2.8 1.1-1.7 2.7-2.8 4.7-2.8 3.1 0 5.1 3.2 4.2 6.4-1.4 5-8.9 9.6-8.9 9.6z"/><path d="M3.4 12.2h4.4l1.6-3 2.4 6 1.8-3.8h6.9"/>',
+    // mortarboard
+    training: '<path d="M2.5 9.2 12 4.8l9.5 4.4L12 13.6z"/><path d="M6.5 11.2v4.4c0 1.4 2.5 3 5.5 3s5.5-1.6 5.5-3v-4.4"/><path d="M21.5 9.2v5.3"/>',
+  };
+  const MODULES = [
+    { id: 'simulator', name: 'Simulator' },
+    { id: 'training', name: 'Training' },
+  ].map((m) => Object.assign(m, { url: URLS[m.id] }));
+  const BY = Object.fromEntries(MODULES.map((m) => [m.id, m]));
+  const KEY = 'ecgApp.module';
+  const tabs = document.getElementById('tabs'), stage = document.getElementById('stage');
+  const btn = {}, frame = {}, chrome = {};
+  let current = null;
+  const store = { get() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }, set(v) { try { localStorage.setItem(KEY, v); } catch (e) { /* private mode */ } } };
+
+  for (const m of MODULES) {
+    const b = btn[m.id] = document.createElement('button');
+    b.type = 'button'; b.setAttribute('role', 'tab'); b.dataset.id = m.id; b.setAttribute('aria-label', m.name);
+    b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[m.id] || ''}</svg><span class="name">${m.name}</span>`;
+    b.addEventListener('click', () => open(m.id));
+    tabs.appendChild(b);
+  }
+
+  function post(id, type, data) { const f = frame[id]; if (f && f.contentWindow) f.contentWindow.postMessage(Object.assign({ ecgApp: type }, data || {}), '*'); }
+  function tabsWidth() { return Math.ceil(tabs.getBoundingClientRect().width) + 2; }
+  function sendWidth() { const w = tabsWidth(); for (const id in frame) post(id, 'tabs', { w }); }
+  function syncChrome() { tabs.classList.toggle('off', chrome[current] === false); }
+
+  function load(id, hash) {
+    let f = frame[id];
+    const url = BY[id].url + (hash ? `#${hash}` : '');
+    if (!f) {
+      f = frame[id] = document.createElement('iframe');
+      f.title = BY[id].name; f.allow = 'clipboard-write; fullscreen; web-share';
+      f.src = url; stage.appendChild(f);
+    } else if (hash) {
+      f.src = url;   // (only the #scenario changes; the simulator reloads on a new scenario link)
+    }
+    return f;
+  }
+
+  // switch module: the tapped tab moves to the front and shows its name (animated from where each tab was)
+  function open(id, hash) {
+    if (!BY[id]) id = MODULES[0].id;
+    const prev = current;
+    if (id === prev && !hash) { post(id, 'reselect'); return; }   // (the showing module's tab again: back to its start)
+    const before = new Map(MODULES.map((m) => [m.id, btn[m.id].getBoundingClientRect().left]));
+    current = id; store.set(id);
+    for (const m of [BY[id], ...MODULES.filter((x) => x.id !== id)]) tabs.appendChild(btn[m.id]);
+    for (const m of MODULES) { btn[m.id].classList.toggle('on', m.id === id); btn[m.id].setAttribute('aria-selected', String(m.id === id)); }
+    if (prev && prev !== id && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      for (const m of MODULES) {
+        const dx = before.get(m.id) - btn[m.id].getBoundingClientRect().left;
+        if (Math.abs(dx) > 0.5) btn[m.id].animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 280, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+      }
+      const n = btn[id].querySelector('.name');
+      n.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
+    }
+    load(id, hash);
+    for (const m of MODULES) if (frame[m.id]) frame[m.id].classList.toggle('on', m.id === id);
+    if (prev && prev !== id) post(prev, 'hide');
+    post(id, 'show');
+    sendWidth(); syncChrome();
+  }
+
+  addEventListener('message', (e) => {
+    const d = e.data;
+    if (!d || !d.ecgApp) return;
+    const id = Object.keys(frame).find((k) => frame[k].contentWindow === e.source);
+    if (!id) return;
+    if (d.ecgApp === 'ready') { post(id, 'tabs', { w: tabsWidth() }); post(id, id === current ? 'show' : 'hide'); if (SharePlugin && FsPlugin) post(id, 'caps', { share: true }); }
+    if (d.ecgApp === 'share') share(id, d);
+    if (d.ecgApp === 'open' && /^https:\/\//.test(d.url || '')) { if (AppPlugin) location.href = d.url; else window.open(d.url, '_blank', 'noopener'); }   // (an outside link: in the app, Capacitor hands the page's own navigation to the phone's browser)
+    if (d.ecgApp === 'chrome') { chrome[id] = !!d.on; syncChrome(); }
+    if (d.ecgApp === 'go' && BY[d.module]) open(d.module, typeof d.hash === 'string' ? d.hash : '');
+    if (d.ecgApp === 'back' && id === current && back.wait) { clearTimeout(back.wait); back.wait = 0; if (!d.handled) back.leave(); }
+  });
+
+  // Android back button (in the app): the showing module closes what is open (menu, page, full-screen view) or goes
+  // to its start; when it has nothing to close, the app goes to the background (keeping its state)
+  const CAP = window.Capacitor, AppPlugin = CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (CAP.Plugins.App || (CAP.registerPlugin && CAP.registerPlugin('App')));
+  const back = { wait: 0, leave() { if (AppPlugin) AppPlugin.minimizeApp(); } };
+  // sharing from a module (src/inapp.js): files are written to the app's cache, then the system share sheet
+  const plugin = (n) => CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (CAP.Plugins[n] || (CAP.registerPlugin && CAP.registerPlugin(n)));
+  const SharePlugin = plugin('Share'), FsPlugin = plugin('Filesystem');
+  async function share(id, d) {
+    try {
+      const files = [];
+      for (const f of d.files || []) files.push((await FsPlugin.writeFile({ path: f.name, data: f.data, directory: 'CACHE' })).uri);
+      const opt = {};
+      if (d.title) opt.title = d.title;
+      if (d.text) opt.text = d.text;
+      if (d.url) opt.url = d.url;
+      if (files.length) opt.files = files;
+      await SharePlugin.share(opt);
+      post(id, 'shared', { id: d.id, ok: true });
+    } catch (e) {
+      const msg = String((e && e.message) || e);
+      post(id, 'shared', { id: d.id, ok: false, abort: /cancel/i.test(msg), err: msg });
+    }
+  }
+  function onBack() {
+    if (back.wait) return;
+    if (!frame[current]) { back.leave(); return; }
+    back.wait = setTimeout(() => { back.wait = 0; back.leave(); }, 600);   // (a module still loading does not answer)
+    post(current, 'back');
+  }
+  if (AppPlugin) AppPlugin.addListener('backButton', onBack);
+  addEventListener('resize', sendWidth);
+  if (document.fonts) document.fonts.ready.then(sendWidth);   // (the tab names are wider once the font is in)
+
+  window.ECGAppShell = { open, onBack, MODULES, frame, get current() { return current; } };   // (automated tests)
+  open(store.get() || MODULES[0].id);
+})();
+</script>
+</body>
+</html>

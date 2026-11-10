@@ -5,6 +5,7 @@
   'use strict';
   const LH = window.ECGStudio;
   const $ = (id) => document.getElementById(id);
+  const INAPP = !!(window.ECGInApp && window.ECGInApp.active);   // (a module inside the app shell: src/inapp.js)
 
   const PAGE = 10000;        // ms of ECG on one sheet (10 s)
   const ERASE = 140;         // ms blank gap ahead of the sweep cursor
@@ -166,6 +167,8 @@
     }
   }
   function loop(now) {
+    // (in the app, while another module is showing: no simulation and no drawing; the heart waits where it was)
+    if (ui.offstage) { ui.last = now; requestAnimationFrame(loop); return; }
     const raw = now - ui.last, dt = Math.min(250, raw); ui.last = now;
     if (ui.ischPending !== null) { S.setIschemiaTime(ui.ischPending); ui.ischPending = null; recolorIschemia(); interpret(true); }
     if (ui.necTween) animateNecrosis(now);
@@ -2347,7 +2350,7 @@
     const st = STRUCT_KEYS.filter((k) => ui.struct[k]);
     if (st.length) q.set('s', st.join(','));
     for (const c of CONDITIONS) if (c.options && ui.struct[c.id]) q.set(c.id, ui.struct[c.id]);
-    return `${location.origin}${location.pathname}#${q.toString()}`;
+    return `${INAPP ? window.ECGInApp.site : location.origin + location.pathname}#${q.toString()}`;
   }
   // Parse (and validate: links come from anywhere) the scenario in the address,
   // applying what has to be known before the heart is built.
@@ -2395,7 +2398,7 @@
   }
   async function shareScenario() {
     const url = scenarioLink();
-    history.replaceState(null, '', url);
+    if (!INAPP) history.replaceState(null, '', url);
     try { await navigator.clipboard.writeText(url); toast('Link copied: it reopens this scenario (rhythm, blocks, ischemia and conditions).'); }
     catch (e) {                                                   // no clipboard access (http, some browsers): show the link to copy by hand
       toast('Copy this link to share the scenario:<input readonly>', 12000);
@@ -2469,6 +2472,8 @@
   function setMode() {
     const b = document.body, was = isM(), m = MQ_PORT.matches || MQ_LAND.matches;
     b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches);
+    // phones (website and app): dark only, as the app; desktop follows the system setting
+    if (m) document.documentElement.dataset.theme = 'dark'; else if (!INAPP) delete document.documentElement.dataset.theme;
     const ctl = $('controls');
     if (m && ctl.parentNode !== $('app')) $('app').insertBefore(ctl, $('mTabs'));
     if (!m && ctl.parentNode !== $('pane3d')) $('pane3d').insertBefore(ctl, $('blockMenu'));
@@ -2911,7 +2916,7 @@
   // installable web app (the Android app is on Google Play); instead "Join the alpha" opens the testers' Google Group.
   const ALPHA_URL = 'https://groups.google.com/g/ecgstudio';
   function initAlpha() {
-    if (/^https?:$/.test(location.protocol) && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
+    if (/^https?:$/.test(location.protocol) && !INAPP && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
     const join = () => { if (hasLayer('menu')) closeLayer('menu'); window.open(ALPHA_URL, '_blank', 'noopener'); };
     $('mAlpha').addEventListener('click', join); $('btnAlpha').addEventListener('click', join);
   }
@@ -3045,7 +3050,17 @@
     initPhone();
     $('btnHelp').addEventListener('click', showGuide);
     $('btnShare').addEventListener('click', shareScenario);
-    window.addEventListener('hashchange', () => location.reload());   // a scenario link pasted into an open tab
+    window.addEventListener('hashchange', () => location.reload());   // a scenario link pasted into an open tab (in the app: Training's Model)
+    if (INAPP) {   // the app shell: pause everything while another module shows
+      window.ECGInApp.listen('hide', () => { ui.offstage = true; });
+      window.ECGInApp.listen('show', () => { ui.offstage = false; });
+      // Android back: close the open layer (menu, sheet, full-screen view, help), as the browser's back does here
+      window.ECGInApp.listen('back', () => {
+        let handled = true;
+        if (layers.length) history.back(); else if (!$('guide').hidden) hideGuide(); else handled = false;
+        window.ECGInApp.post('back', { handled });
+      });
+    }
     $('btnSavePng').addEventListener('click', saveEcgPng);
     $('guideClose').addEventListener('click', hideGuide);
     for (const b of document.querySelectorAll('#guide .toc button')) b.addEventListener('click', () => guidePage(b.dataset.page));

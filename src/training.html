@@ -12,6 +12,7 @@
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="{{LOGO_URI}}">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<script>/*__INAPP__*/</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
 <style>
@@ -44,7 +45,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #app { position: fixed; top: 0; bottom: 0; left: 0; right: 0; max-width: 440px; margin: 0 auto; background: var(--bg); display: flex; flex-direction: column;
   padding: env(safe-area-inset-top, 0px) 0 0; box-sizing: border-box; overflow: hidden; }
 header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; min-height: 36px; }
-#menuBtn { font-size: 18px; line-height: 1; padding: 6px 10px; border-radius: 999px; background: var(--surface); }
+#menuBtn, #homeMenuBtn { font-size: 18px; line-height: 1; padding: 6px 10px; border-radius: 999px; background: var(--surface); }
 .menu { position: absolute; z-index: 25; top: calc(env(safe-area-inset-top, 0px) + 48px); right: 10px; min-width: 210px; background: var(--raised); border: 1px solid #33434f; border-radius: 10px; padding: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
 .menu button, .menu a { all: unset; display: block; padding: 12px 12px; border-radius: 6px; font-size: 15px; cursor: pointer; color: var(--fg); }
 .menu button:active, .menu a:active { background: rgba(255,255,255,0.08); }
@@ -71,7 +72,6 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .radar { display: block; width: 100%; max-width: 340px; margin: 0 auto; }
 .empty { color: var(--muted); }
 #result .report { align-self: center; background: transparent; border: 0; color: var(--muted); font-size: 13px; padding: 6px 10px; }
-#homeBtn { font-size: 22px; line-height: 1; padding: 4px 10px 6px; border-radius: 999px; background: var(--surface); }
 .red { color: var(--accent); }
 #home { z-index: 23; }
 #home .phead { justify-content: space-between; }
@@ -93,16 +93,32 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .hskills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .hskills button { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 12px; }
 .hskills small { font: 500 12px/1 var(--font-data); color: var(--muted); }
-.hmore { display: flex; gap: 8px; margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--line); }
-.hmore button { flex: 1; padding: 12px; background: transparent; border-color: #3a4a59; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); }
-.hmore button span { color: var(--fg); }
-.hsim { display: flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; font: 600 15px/1.2 var(--font-ui); padding: 12px 14px; border-radius: 10px; background: var(--raised); border: 1px solid #3a4a59; }
-.hsim span { color: var(--accent); font-size: 22px; line-height: 0.8; }
+.hspace { flex: 1; }
 header h1 { margin: 0; font: 600 18px/1 var(--font-display); letter-spacing: 0.01em; flex: 1; }
 header h1 span { color: var(--accent); }
-.proto { font: 500 10px/1 var(--font-ui); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; text-transform: uppercase; letter-spacing: 0.06em; margin-left: 6px; vertical-align: 2px; }
-.stat { font: 500 12px/1 var(--font-data); padding: 6px 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); }
-.stat em { font: 400 11px/1 var(--font-ui); font-style: normal; color: var(--muted); margin-right: 5px; }
+/* In the app (html.inapp, src/inapp.js): the app shell draws the module tabs over the left of the header (and of the
+   pages' headers); the way back to the simulator and the page title are the tabs' job */
+html.inapp header, html.inapp .app-bar { min-height: 50px; box-sizing: border-box; padding-top: 0; padding-bottom: 0; padding-left: var(--tabs-w, 12px); }
+html.inapp #home .phead { justify-content: flex-end; }
+html.inapp #app { max-width: none; }   /* (tablets: the full width, under the tabs; the wider layout comes in app phase 4) */
+html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href], html.inapp .menu hr { display: none; }
+/* website: the logo at the left of the headers, where the app shell puts it (the ⋯ menu links back to the simulator) */
+.tlogo { display: inline-flex; flex: none; } .tlogo .logo { width: 26px; height: 26px; }
+#home .phead h2 { display: flex; align-items: center; gap: 9px; }
+
+/* help: a dialog over the page (as in the simulator), with a page per topic */
+.overlay { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(5, 10, 15, 0.55); padding: 0 16px; }
+.sheet { background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; max-width: 640px; width: 100%; max-height: 86%; overflow: auto; padding: 16px; box-sizing: border-box; -webkit-user-select: text; user-select: text; }
+.sheet h2 { margin: 0 0 4px; font: 600 22px/1.2 var(--font-display); }
+.sheet h3 { margin: 18px 0 6px; font: 600 13px/1.2 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.sheet p, .sheet li { line-height: 1.5; color: #c9d3dc; }
+.sheet ul { padding-left: 18px; margin: 6px 0; }
+.sheet .close { float: right; }
+.toc { display: flex; flex-wrap: nowrap; gap: 4px; margin: 10px 0 4px; overflow-x: auto; scrollbar-width: none; }
+.toc::-webkit-scrollbar { display: none; }
+.toc button { flex: none; white-space: nowrap; font-size: 12px; padding: 5px 11px; border-radius: 999px; }
+.toc button[aria-selected="true"] { background: var(--fg); color: var(--surface); border-color: var(--fg); }
+.hpage { min-height: 260px; }
 
 /* measurement chips */
 .chips { display: flex; gap: 5px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 0 12px 6px; }
@@ -200,8 +216,8 @@ header h1 span { color: var(--accent); }
 .scorebar .bar { flex: 1; height: 10px; border-radius: 5px; background: var(--key); overflow: hidden; }
 .scorebar .bar i { display: block; height: 100%; border-radius: 5px; background: var(--ok); transition: width 0.5s; }
 .scorebar b { font: 600 20px/1 var(--font-data); min-width: 54px; }
-.scorebar .delta { font: 500 13px/1 var(--font-data); }
-.scorebar .delta.up { color: var(--ok); } .scorebar .delta.down { color: var(--bad); }
+.scorebar .delta { font: 500 13px/1 var(--font-data); color: var(--muted); white-space: nowrap; margin-left: 4px; }
+.scorebar .delta .up { color: var(--ok); } .scorebar .delta .down { color: var(--bad); }
 .scorebar .time { font: 400 12px/1 var(--font-data); color: var(--muted); }
 #rchips { display: flex; flex-wrap: wrap; gap: 6px; }
 #rline { font-size: 14.5px; line-height: 1.35; min-height: calc(3 * 1.35em); padding: 10px 12px; border-radius: 8px; background: var(--surface); border-left: 3px solid var(--accent); }
@@ -233,16 +249,14 @@ body.land #fsClose { display: none; }
 <body>
 <div id="app">
   <header>
-    <button type="button" id="homeBtn" aria-label="Training home">‹</button>
-    <h1 id="modeTitle">Training</h1>
-    <div class="stat" id="rating"><em>Rating</em>1500</div>
+    <span class="tlogo">{{LOGO_SVG}}</span><span class="hspace"></span>
     <button type="button" id="menuBtn" aria-label="Menu" aria-expanded="false">⋯</button>
   </header>
   <div class="menu" id="menu" hidden>
     <button type="button" data-go="home">Training home</button>
     <button type="button" data-go="report">Report a problem with this ECG</button>
     <button type="button" data-go="stats">Statistics</button>
-    <button type="button" data-go="help">How training works</button>
+    <button type="button" data-go="help">Help</button>
     <button type="button" data-go="restart">Reset progress</button>
     <hr>
     <a href="../index.html">ECG Studio simulator</a>
@@ -280,9 +294,8 @@ body.land #fsClose { display: none; }
   </div>
 
   <div class="page" id="home">
-    <div class="phead"><h2>ECG <span class="red">Studio</span> Training</h2><span class="proto">Prototype · all unlocked</span></div>
+    <div class="phead app-bar"><h2><span class="tlogo">{{LOGO_SVG}}</span><span>ECG <span class="red">Studio</span> Training</span></h2><button type="button" id="homeMenuBtn" aria-label="Menu" aria-expanded="false">⋯</button></div>
     <div class="pbody hbody">
-      <a class="hsim" href="../index.html"><span>‹</span> Back to the ECG Studio simulator</a>
       <div class="hstats">
         <div><b id="hRating">1500</b><span>Rating</span></div>
         <div><b id="hStreak">0</b><span>Day streak</span></div>
@@ -291,47 +304,58 @@ body.land #fsClose { display: none; }
       <button type="button" class="hcard daily" id="btnDaily"><span class="ht">Daily ECG <small id="hDailyDate"></small></span><span class="hs" id="hDailyState"></span></button>
       <button type="button" class="hcard main" id="btnTrain"><span class="ht">Train</span><span class="hs">ECGs chosen for your level, mixed skills</span></button>
       <button type="button" class="hcard" id="btnReviews"><span class="ht">Reviews <small id="hReviews"></small></span><span class="hs">ECGs you missed</span></button>
+      <button type="button" class="hcard" id="btnStats"><span class="ht">Statistics</span><span class="hs">Your ratings by skill, scores, speed and recent ECGs</span></button>
       <h3>Practice by skill</h3>
       <div class="hskills" id="hSkills"></div>
-      <div class="hmore"><button type="button" id="btnStats">Statistics</button><button type="button" id="btnHelp">How it works</button></div>
     </div>
   </div>
   <div class="page" id="stats" hidden>
     <div class="phead"><button type="button" data-close>‹ Back</button><h2>Statistics</h2></div>
     <div class="pbody" id="statsBody"></div>
   </div>
-  <div class="page" id="help" hidden>
-    <div class="phead"><button type="button" data-close>‹ Back</button><h2>How training works</h2></div>
-    <div class="pbody">
-      <p>Read the ECG and type what you see: the rhythm first, then every abnormality. Press <b>Submit</b> when you are done.</p>
-      <h3>The ECG</h3>
-      <ul>
-        <li><b>Swipe</b> left or right on the ECG to scroll.</li>
-        <li><b>Double-tap</b> for the full 12-lead sideways. Double-tap again or ✕ to come back.</li>
-        <li>Paper at 25 mm/s and 10 mm/mV. Rate, PR, QRS, QTc and axis are measured for you above the ECG.</li>
-      </ul>
-      <h3>Answering</h3>
-      <ul>
-        <li>Suggestions appear after 2 letters, most common first. Abbreviations work.</li>
-        <li>Findings that need a place (Q waves, ST elevation, ST depression, T inversion) ask you to tap the lead groups on the ECG.</li>
-        <li>Tap a chip to remove it.</li>
-      </ul>
-      <h3>Scoring</h3>
-      <ul>
-        <li>The rhythm is 40% of the score; the findings share the other 60% (the location is half of a finding). When the rhythm is the only abnormality, it is the whole score.</li>
-        <li>True but secondary findings earn a small bonus; findings that are not there cost 10%.</li>
-        <li>Advanced findings (Wellens pattern, the Osborn waves of hypothermia, a STEMI read through LBBB by the Sgarbossa criteria, hypo- and hypercalcemia) can appear at any level, but are asked only from a rating of 1700 in their skill. Before that, naming one earns the bonus and leaving it out costs nothing.</li>
-      </ul>
-      <h3>Other</h3>
-      <ul>
-        <li><b>⚑ Report a problem</b> (under the result, or in the ⋯ menu) sends the author everything needed to check that ECG.</li>
-        <li><b>Reviews</b>: ECGs you missed or got partly right come back after 1, 3, 7, 16 and 35 days.</li>
-        <li><b>Model</b> opens the simulator on the same heart, so you can see what produced the ECG.</li>
-      </ul>
-      <h3>About these ECGs</h3>
-      <p>Every ECG is generated on your phone by the ECG Studio heart model. Before it is shown, the rhythm and P waves are checked from the heart’s own timing, and each abnormality is measured against its textbook criteria and must visibly change the tracing; only ECGs that pass are used.</p>
-      <h3>Ratings</h3>
-      <p>You have a rating for each skill: rhythm, conduction, ischemia and conditions. Each ECG has a difficulty from its rhythm and the number and type of its abnormalities. Progress is kept on this phone. Your rating will increase or decrease depending on your answers. Harder ECGs will move your rating higher, while missing on easy ECGs will move your rating lower.</p>
+  <!-- help: a dialog like the simulator's, one page per topic -->
+  <div class="overlay" id="help" hidden>
+    <div class="sheet" role="dialog" aria-labelledby="helpTitle">
+      <button class="close" id="helpClose" type="button">Close</button>
+      <h2 id="helpTitle">Help</h2>
+      <nav class="toc" role="tablist" aria-label="Help pages">
+        <button type="button" role="tab" data-page="train" aria-selected="true">Train</button><button type="button" role="tab" data-page="progress" aria-selected="false">Progress</button><button type="button" role="tab" data-page="about" aria-selected="false">About</button>
+      </nav>
+      <section class="hpage" data-page="train">
+        <p>Read the ECG and type what you see: the rhythm first, then every abnormality. Press <b>Submit</b> when you are done.</p>
+        <h3>The ECG</h3>
+        <ul>
+          <li><b>Swipe</b> left or right on the ECG to scroll.</li>
+          <li><b>Double-tap</b> for the full 12-lead sideways. Double-tap again or ✕ to come back.</li>
+          <li>Paper at 25 mm/s and 10 mm/mV. Rate, PR, QRS, QTc and axis are measured for you above the ECG.</li>
+        </ul>
+        <h3>Answering</h3>
+        <ul>
+          <li>Suggestions appear after 2 letters, most common first. Abbreviations work.</li>
+          <li>Findings that need a place (Q waves, ST elevation, ST depression, T inversion) ask you to tap the lead groups on the ECG.</li>
+          <li>Tap a chip to remove it.</li>
+        </ul>
+      </section>
+      <section class="hpage" data-page="progress" hidden>
+        <h3>Scoring</h3>
+        <ul>
+          <li>The rhythm is 40% of the score; the findings share the other 60% (the location is half of a finding). When the rhythm is the only abnormality, it is the whole score.</li>
+          <li>True but secondary findings earn a small bonus; findings that are not there cost 10%.</li>
+          <li>Advanced findings (Wellens pattern, the Osborn waves of hypothermia, a STEMI read through LBBB by the Sgarbossa criteria, hypo- and hypercalcemia) can appear at any level, but are asked only from a rating of 1700 in their skill. Before that, naming one earns the bonus and leaving it out costs nothing.</li>
+          <li><b>Reviews</b>: ECGs you missed or got partly right come back after 1, 3, 7, 16 and 35 days.</li>
+        </ul>
+        <h3>Ratings</h3>
+        <p>You have a rating for each skill: rhythm, conduction, ischemia and conditions. Each ECG has a difficulty from its rhythm and the number and type of its abnormalities. Progress is kept on this phone. Your rating will increase or decrease depending on your answers. Harder ECGs will move your rating higher, while missing on easy ECGs will move your rating lower.</p>
+      </section>
+      <section class="hpage" data-page="about" hidden>
+        <h3>Other</h3>
+        <ul>
+          <li><b>⚑ Report a problem</b> (under the result, or in the ⋯ menu) sends the author everything needed to check that ECG.</li>
+          <li><b>Model</b> opens the simulator on the same heart, so you can see what produced the ECG.</li>
+        </ul>
+        <h3>About these ECGs</h3>
+        <p>Every ECG is generated on your phone by the ECG Studio heart model. Before it is shown, the rhythm and P waves are checked from the heart’s own timing, and each abnormality is measured against its textbook criteria and must visibly change the tracing; only ECGs that pass are used.</p>
+      </section>
     </div>
   </div>
 </div>

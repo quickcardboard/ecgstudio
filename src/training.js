@@ -6,6 +6,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
+  const INAPP = !!(window.ECGInApp && window.ECGInApp.active);   // (a module inside the app shell: src/inapp.js)
   const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
 
   // ------------------------------------------------------------------ vocabulary
@@ -342,10 +343,8 @@
   const rhythmPick = () => st.picked.find((p) => BY_ID[p.id].kind === 'rhythm');
 
   // start a mode from the home screen
-  const MODE_TITLE = { train: 'Training', daily: 'Daily ECG', review: 'Reviews' };
   function startMode(mode, focus = null) {
     st.mode = mode; st.focus = focus; st.reviewRun = mode === 'review' ? dueReviews().map((r) => r.id) : [];
-    $('modeTitle').textContent = mode === 'skill' ? `${SKILL_NAME[focus]} practice` : MODE_TITLE[mode];
     $('home').hidden = true; nextItem(); fill();
   }
   function goHome() { st.mode = null; st.item = null; gen.waiting = false; setLoading(null); renderHome(); $('home').hidden = false; fill(); }
@@ -433,7 +432,6 @@
   }
   function render() {
     measChips($('meas')); measChips($('fsMeas'));
-    $('rating').innerHTML = `<em>Rating</em>${Math.round(overall())}`;
     const ph = st.phase;
     $('answer').hidden = ph === 'result'; $('kbd').hidden = ph !== 'answer'; $('region').hidden = ph !== 'region'; $('result').hidden = ph !== 'result';
     renderPicked();
@@ -698,7 +696,8 @@
     $('rscore').textContent = `${pct}%`;
     $('rbar').style.width = '0%'; requestAnimationFrame(() => { $('rbar').style.width = `${pct}%`; $('rbar').style.background = pct >= 80 ? 'var(--ok)' : pct >= 40 ? 'var(--part)' : 'var(--bad)'; });
     const d = Math.round(st.delta), daily = st.mode === 'daily';
-    $('rdelta').textContent = daily ? 'not rated' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`; $('rdelta').className = `delta ${daily ? '' : d >= 0 ? 'up' : 'down'}`;
+    // the rating before this ECG, then the change ("1500+13")
+    $('rdelta').innerHTML = daily ? 'not rated' : `${Math.round(overall() - st.delta)}<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>`;
     $('share').hidden = !daily;
     $('next').textContent = daily || (st.mode === 'review' && !st.reviewRun.length) ? 'Done' : 'Next';
     $('rtime').textContent = `${Math.round(st.time)} s`;
@@ -745,14 +744,21 @@
   // ------------------------------------------------------------------ bug report (testers)
   // Opens the share sheet (or copies to the clipboard) with everything needed to rebuild and check the ECG:
   // the simulator link, the key, the tester's answer, the reader's checks and the generator recipe.
-  function openExternal(url) { window.open(url, '_blank', 'noopener'); }
+  function helpPage(page) {
+    for (const x of document.querySelectorAll('#help .toc button')) x.setAttribute('aria-selected', String(x.dataset.page === page));
+    for (const pg of document.querySelectorAll('#help .hpage')) pg.hidden = pg.dataset.page !== page;
+    $('help').querySelector('.sheet').scrollTop = 0;
+  }
+  function showHelp() { $('help').hidden = false; }
+  // (in the app the shell opens the link in the phone's browser)
+  function openExternal(url) { if (window.ECGInApp && ECGInApp.active) ECGInApp.post('open', { url }); else window.open(url, '_blank', 'noopener'); }
   function reportProblem() {
     const it = st.item;
     if (!it) { toast('No ECG on screen to report'); return; }
     const k = it.key, name = (id) => (BY_ID[id] ? BY_ID[id].name : id);
     const keyTxt = [name(k.rhythm), ...k.findings.map((f) => (f.regions ? `${name(f.id)} (${f.regions.join(', ')})` : name(f.id)))].join('; ');
     const ans = st.picked.map(chipLabel).join('; ') || '(no answer yet)';
-    const link = new URL(`../index.html#${it.link}`, location.href).href;
+    const link = INAPP ? `${window.ECGInApp.site}#${it.link}` : new URL(`../index.html#${it.link}`, location.href).href;
     const ver = (document.querySelector('meta[name="version"]') || {}).content || '';
     const text = ['ECG Studio Training: problem report', '', 'What looks wrong: ', '',
       `Scenario in the simulator: ${link}`, `Answer key: ${keyTxt}`, `Also accepted: ${(k.optional || []).map(name).join(', ') || 'none'}`,
@@ -792,32 +798,59 @@
     $('share').addEventListener('click', () => { if (!justShown()) shareDaily(); });
     $('rchips').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b && !justShown()) selectRow(+b.dataset.i); });
     $('report').addEventListener('click', () => { if (!justShown()) reportProblem(); });
-    $('homeBtn').addEventListener('click', goHome);
+    // (in the app: tapping the Training tab while it is showing returns to Training home; on the website: the menu)
+    // Android back (in the app): close what is open, then back to Training home; at home the app leaves
+    if (INAPP) window.ECGInApp.listen('back', () => {
+      const pg = [...document.querySelectorAll('.page:not(#home)')].find((x) => !x.hidden);
+      let handled = true;
+      if (!$('menu').hidden) $('menu').hidden = true;
+      else if (!$('help').hidden) $('help').hidden = true;
+      else if (pg) pg.hidden = true;
+      else if (st.fs) setFs(false);
+      else if (st.phase === 'region') endRegion(false);
+      else if ($('home').hidden) goHome();
+      else handled = false;
+      window.ECGInApp.post('back', { handled });
+    });
+    if (INAPP) window.ECGInApp.listen('reselect', () => { $('menu').hidden = true; $('help').hidden = true; for (const pg of document.querySelectorAll('.page:not(#home)')) pg.hidden = true; if ($('home').hidden) goHome(); });
     $('btnTrain').addEventListener('click', () => startMode('train'));
     $('btnDaily').addEventListener('click', () => startMode('daily'));
     $('btnReviews').addEventListener('click', () => startMode('review'));
     $('hSkills').addEventListener('click', (e) => { const b = e.target.closest('[data-skill]'); if (b) startMode('skill', b.dataset.skill); });
     $('btnStats').addEventListener('click', () => { renderStats(); $('stats').hidden = false; });
-    $('btnHelp').addEventListener('click', () => { $('help').hidden = false; });
-    // Model ("show me why"): the simulator on the same scenario; coming back starts a new ECG (progress is saved)
-    $('why').addEventListener('click', () => { if (!justShown()) location.href = `../index.html#${st.item.link}`; });
+    // Model ("show me why"): the simulator on the same scenario; coming back starts a new ECG (progress is saved).
+    // In the app: the Simulator tab opens on it, and the Training tab still holds this ECG.
+    $('why').addEventListener('click', () => {
+      if (justShown()) return;
+      if (INAPP) window.ECGInApp.go('simulator', st.item.link); else location.href = `../index.html#${st.item.link}`;
+    });
     addEventListener('resize', syncFs);
     $('submit').addEventListener('click', submit);
-    // menu: statistics, help, restart, the simulator
-    const menu = $('menu'), showMenu = (on) => { menu.hidden = !on; $('menuBtn').setAttribute('aria-expanded', String(on)); };
-    $('menuBtn').addEventListener('click', (e) => { e.stopPropagation(); showMenu(menu.hidden); });
-    addEventListener('pointerdown', (e) => { if (!menu.hidden && !e.target.closest('#menu, #menuBtn')) showMenu(false); });
+    // menu (from the ECG's header or the home screen's): statistics, help, restart, the simulator; on the home screen
+    // without the items about an ECG
+    const menu = $('menu'), showMenu = (on) => {
+      const home = !$('home').hidden;
+      for (const b of menu.querySelectorAll('[data-go="home"], [data-go="report"]')) b.hidden = home;
+      menu.hidden = !on; for (const id of ['menuBtn', 'homeMenuBtn']) $(id).setAttribute('aria-expanded', String(on));
+    };
+    for (const id of ['menuBtn', 'homeMenuBtn']) $(id).addEventListener('click', (e) => { e.stopPropagation(); showMenu(menu.hidden); });
+    addEventListener('pointerdown', (e) => { if (!menu.hidden && !e.target.closest('#menu, #menuBtn, #homeMenuBtn')) showMenu(false); });
     menu.addEventListener('click', (e) => {
       const b = e.target.closest('[data-go]'); if (!b) return;
       showMenu(false);
       if (b.dataset.go === 'home') goHome();
       if (b.dataset.go === 'report') reportProblem();
       if (b.dataset.go === 'stats') { renderStats(); $('stats').hidden = false; }
-      if (b.dataset.go === 'help') $('help').hidden = false;
+      if (b.dataset.go === 'help') showHelp();
       if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {
         st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); st.reviews = []; st.days = {}; saveProgress(); goHome();
       }
     });
+    // help (a dialog; tap outside or Close)
+    for (const b of document.querySelectorAll('#help .toc button')) b.addEventListener('click', () => helpPage(b.dataset.page));
+    $('helpClose').addEventListener('click', () => { $('help').hidden = true; });
+    $('help').addEventListener('click', (e) => { if (e.target.id === 'help') $('help').hidden = true; });
+    addEventListener('keydown', (e) => { if (e.key === 'Escape') $('help').hidden = true; });
     for (const b of document.querySelectorAll('.page [data-close]')) b.addEventListener('click', () => { b.closest('.page').hidden = true; });
     addEventListener('resize', () => requestAnimationFrame(sizeBottom));
     // (an installed iOS web app can settle its screen size and home-bar inset only after the first layout)
