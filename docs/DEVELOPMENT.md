@@ -2162,3 +2162,11 @@ the app only for now (tried at ecgstudio.app/app/); keep both the artery and the
   0.25 s). `ECGLoader.at` draws a fixed moment of the cycle (for recording frames).
 - Follow-up (the author): the turn starts at 0.52 s, while the heart is still repolarising (frame 15 at 25 fps), and the
   next beat starts as soon as the landing bounce ends: one cycle is 1.31 s, with no pause.
+
+## Round 60: the left atrial appendage cap in tissue colour
+
+- The author asked about a fifth "pulmonary vein": it is the left atrial appendage, which the source mesh (Rodero et al.)
+  trims and caps; `tools/build_anatomy.py` puts that cap with the vessel caps (label 11, lilac). In the 3D view
+  (`buildSurfaces`) the cap's faces, those near the `LAA` landmark (within 4 mm of its plane and 1.6 × its radius), are
+  now drawn as left atrial tissue: live activation colours, and a tap there stimulates the atrium. The four pulmonary
+  veins, the SVC and the IVC stay lilac. Anatomy, model and ECG unchanged.

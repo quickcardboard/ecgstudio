@@ -365,10 +365,28 @@
     };
     const otherVerts = othersOf(1), otherRV = A.rvWallLayers ? othersOf(2) : null, otherRA = A.raWallLayers ? othersOf(4) : null;
     g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = []; g3.pickTissue = [];
+    // The source mesh trims the left atrial appendage and caps it, and the build puts that cap with the vessel caps
+    // (label 11, drawn lilac): its faces (near the LAA landmark) are drawn as left atrial tissue instead, so the model
+    // shows four pulmonary veins, not five
+    const laa = A.landmarks && A.landmarks.LAA;
+    const onLAA = (pos, f) => {
+      let x = 0, y = 0, z = 0; for (let k = 0; k < 3; k++) { const v = 3 * f[k]; x += pos[v] / 3; y += pos[v + 1] / 3; z += pos[v + 2] / 3; }
+      const d = [x - laa.c[0], y - laa.c[1], z - laa.c[2]], along = d[0] * laa.n[0] + d[1] * laa.n[1] + d[2] * laa.n[2];
+      return Math.abs(along) < 4 && Math.hypot(...d) < laa.r * 1.6;
+    };
+    const parts = [];
     for (const s of A.json.surfaces) {
       const q = decodeB64(s.pos, Uint16Array), idx = decodeB64(s.idx, Uint32Array);
       const pos = new Float32Array(q.length);
       for (let i = 0; i < q.length; i++) pos[i] = A.origin[i % 3] + (q[i] / 65535) * span[i % 3];
+      if (s.label !== 11 || !laa) { parts.push({ label: s.label, pos, idx }); continue; }
+      const cap = [], rest = [];
+      for (let i = 0; i < idx.length; i += 3) (onLAA(pos, [idx[i], idx[i + 1], idx[i + 2]]) ? cap : rest).push(idx[i], idx[i + 1], idx[i + 2]);
+      parts.push({ label: 11, pos, idx: new Uint32Array(rest) });
+      if (cap.length) parts.push({ label: 3, pos, idx: new Uint32Array(cap), laaCap: true });
+    }
+    for (const s of parts) {
+      const pos = s.pos, idx = s.idx;
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       geo.setIndex(new THREE.BufferAttribute(idx, 1));
@@ -382,6 +400,7 @@
         for (let v = 0; v < nv; v++) {
           vmap[v] = nearestTissue(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2]);
           if (vmap[v] < 0) vmap[v] = nearestTissue(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2], 4);
+          if (vmap[v] < 0 && s.laaCap) vmap[v] = nearestTissue(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2], 7);   // (the cap spans the opening)
         }
         geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
         mat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 22, specular: 0x222222, side: THREE.DoubleSide });
