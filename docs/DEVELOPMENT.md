@@ -1991,3 +1991,6 @@ Training (`src/training_gen.js`, `src/training.js`):
   opens that form filled in, so no address is shown; without it the share sheet/clipboard as before.
 - Home: the Reviews subheading is "ECGs you missed"; the 1–35 day schedule is in Help (Other).
 - Validation: engine unchanged; `tools/trainlive.js 40 3` runs, VT/TdP/VF alone in 20 000 samples.
+- Follow-up (the author): the phone's first tip reads "Double tap the ECG to expand it, or double tap the empty space beside
+  the model to expand the 3D view."; the ischemia stage description under "Time since onset" is hidden (`#ischStage`);
+  VT, torsades and VF carry artifacts again; hypo- and hypercalcemia are advanced findings (1700); the report form is set.

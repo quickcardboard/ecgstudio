@@ -2944,7 +2944,7 @@
     $('fsFlip').addEventListener('click', () => { ph.flip = !ph.flip; fsClass(); });
     $('fsInterp').addEventListener('click', () => { const off = document.body.classList.toggle('fs-nointerp'); $('fsInterp').setAttribute('aria-pressed', String(!off)); });
     try { if (localStorage.getItem('ecgstudio.tipFsEcg')) $('ghint').hidden = true; } catch (e) { /* no storage */ }
-    if (isM() && MQ_PORT.matches && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double-tap the ECG for all 12 leads, or the space beside the heart to fill the screen with it. The tabs below explain the gestures.', 7000), 800);
+    if (isM() && MQ_PORT.matches && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
   }
 
   function initUI() {

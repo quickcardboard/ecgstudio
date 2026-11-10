@@ -539,7 +539,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
             <div class="ctl" id="ischWrap" hidden>
               <div class="row"><span class="lab">Time since onset</span><span class="val" id="ischVal">Onset</span></div>
               <input id="ischTime" type="range" min="0" max="6" step="1" value="0" aria-label="Time since onset of ischemia">
-              <div class="note" id="ischStage"></div>
+              <div class="note" id="ischStage" hidden></div>   <!-- (the stage descriptions are hidden at the author's request; app.js still fills them) -->
               <div class="blocklist" id="ischList"></div>
             </div>
           </section>

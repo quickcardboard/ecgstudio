@@ -79,7 +79,8 @@
   // group: one per group; excl: groups it cannot be combined with (they hide each other);
   // needP: needs a 1:1 P-wave rhythm; dx: the reader's word for it
   // advanced findings (adv: a rating): below it in the finding's skill the finding may appear but is not asked (no miss
-  // for leaving it out; credited when named). Wellens, hypothermia's Osborn waves and a STEMI read through LBBB (Sgarbossa)
+  // for leaving it out; credited when named). Wellens, hypothermia's Osborn waves, a STEMI read through LBBB
+  // (Sgarbossa), and hypo- and hypercalcemia (interval-only changes)
   const ADV = 1700;
   const MI_SITES = {
     pLAD: { f: (b) => b.LAD[0], name: 'proximal LAD', ste: { req: ['anterior'], ok: ['septal', 'lateral'] }, q: { req: ['anterior'], ok: ['septal', 'lateral'] } },
@@ -140,8 +141,8 @@
     hyperK: { group: 'electro', skill: 'conditions', rating: 80, id: 'hyperK', elec: ['hyperK', 1], link: 'hyperK=mild', excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['V2', 'V3', 'V4', 'II'], line: 'Tall, narrow-based, peaked T waves: hyperkalemia (K about 6–7).' },
     hyperK2: { group: 'electro', skill: 'conditions', rating: 160, id: 'hyperK', elec: ['hyperK', 2], link: 'hyperK=severe', optional: ['avb1', 'ivcd'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V1', 'V3'], line: 'Peaked T waves with flattened P waves, a long PR and a wide QRS: severe hyperkalemia (K above 7). Treat now.' },
     hypoK: { group: 'electro', skill: 'conditions', rating: 120, id: 'hypoK', elec: ['hypoK', 1], struct: 'hypoK', optional: ['nsstt', 'longqt'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['V2', 'V3'], line: 'Flat T waves followed by prominent U waves in V2–V3: hypokalemia.' },
-    hypoCa: { group: 'electro', skill: 'conditions', rating: 120, id: 'hypoCa', elec: ['hypoCa', 1], struct: 'hypoCa', optional: ['longqt'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V3'], caliper: 'qt', line: 'Long QTc from a long, flat ST segment with a normal T wave: hypocalcemia.' },
-    hyperCa: { group: 'electro', skill: 'conditions', rating: 140, id: 'hyperCa', elec: ['hyperCa', 1], struct: 'hyperCa', excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V3'], caliper: 'qt', line: 'Short QTc: the T wave starts almost at the end of the QRS (short ST segment): hypercalcemia.' },
+    hypoCa: { group: 'electro', skill: 'conditions', rating: 120, adv: ADV, id: 'hypoCa', elec: ['hypoCa', 1], struct: 'hypoCa', optional: ['longqt'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V3'], caliper: 'qt', line: 'Long QTc from a long, flat ST segment with a normal T wave: hypocalcemia.' },
+    hyperCa: { group: 'electro', skill: 'conditions', rating: 140, adv: ADV, id: 'hyperCa', elec: ['hyperCa', 1], struct: 'hyperCa', excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V3'], caliper: 'qt', line: 'Short QTc: the T wave starts almost at the end of the QRS (short ST segment): hypercalcemia.' },
     hypothermia: { group: 'electro', skill: 'conditions', rating: 140, adv: ADV, id: 'hypothermia', elec: ['hypothermia', 1], struct: 'hypothermia', cold: true, optional: ['longqt', 'avb1'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V4', 'V5'], line: 'J (Osborn) waves at the end of the QRS with bradycardia and a long QT: hypothermia.' },
     brugada: { group: 'brugada', skill: 'conditions', rating: 80, dx: 'Brugada type 1', brugada: true, struct: 'brugada', excl: ['isch', 'peri'], leads: ['V1', 'V2'], line: 'Coved ST elevation ≥ 2 mm in V1–V2 into a negative T: Brugada pattern.' },
   };
@@ -158,7 +159,7 @@
   const ART_EL = [['RA', 2], ['LA', 2], ['LL', 2], ['V1', 0.5], ['V2', 0.5], ['V3', 0.5], ['V4', 0.5], ['V5', 0.5], ['V6', 0.5]];
   const artBonus = (art) => (art ? Math.round(ART_BONUS * art.level * (1 + 0.25 * (art.kinds.length - 1))) : 0);
   function sampleArt(rand, target, rhythm) {
-    if (target < ART_FROM || ['vt', 'tdp', 'vf'].includes(rhythm)) return null;   // (ventricular tachyarrhythmias: alone, no artifact either)
+    if (target < ART_FROM) return null;   // (every rhythm can carry artifacts, VT, torsades and VF included)
     const x = Math.min(1, (target - ART_FROM) / ART_SPAN);
     if (rand() >= 0.35 + 0.25 * x) return null;
     const level = +Math.max(0.15, Math.min(1, 0.25 + 0.75 * x + (rand() - 0.5) * 0.3)).toFixed(2);
