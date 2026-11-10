@@ -1152,14 +1152,14 @@
   }
 
   function updateActionNote() {
-    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click a coronary artery to narrow it (partial flow), double-click to occlude it. Click a marked region again to remove it.' }[ui.action];
+    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click a coronary artery to narrow it (partial flow), double-click to occlude it. Click a marker again to remove it.' }[ui.action];
     $('actionNote').hidden = !note || ui.tab === 'learn';
     $('actionNote').textContent = note || '';
   }
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
     blocks: 'Tap the conduction system to cycle through blocks.',
-    ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marked region again to remove it. While Ischemia stays lit below, taps act on the arteries; open Rhythm for ectopic beats.',
+    ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marker again to remove it.',
   };
 
   // pointer handling on the 3D canvas: a click (not a drag) acts
@@ -1249,6 +1249,27 @@
   // Ischemia clicks: an artery (or the outer surface near one) occludes it; with
   // the heart cut, the cut face or the inner (endocardial) wall of a ventricle
   // starts a subendocardial patch.
+  // the artery node a tap at canvas point (x, y) is on or near (-1: none): a vessel hit on the visible side, or the
+  // nearest vessel on screen within a fingertip (phones) or a few pixels (mouse), among those within 30 mm of the
+  // tapped surface (only the vessels offered: side-branch nodes are not)
+  function arteryAt(ray, x, y, front = undefined) {
+    const cut = ui.view !== 'external';
+    if (front === undefined) front = ray.intersectObjects(g3.pickTissue, false).find((h) => !cut || g3.plane.distanceToPoint(h.point) >= -0.3);
+    const corHit = ray.intersectObjects(g3.corPick, false)
+      .find((h) => (!cut || g3.plane.distanceToPoint(h.point) >= -0.3) && (!front || h.distance <= front.distance + 3));
+    if (corHit) return corHit.object.userData.map[corHit.face.a];
+    if (!front) return -1;
+    const p = g3.inner.worldToLocal(front.point.clone()), cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld;
+    let bd = (isM() ? 30 : 20) ** 2, node = -1;
+    g3.corPos.forEach((q, i) => {
+      if (!cor.branches[cor.nodes[i].branch] || q.distanceToSquared(p) > 900) return;
+      v.copy(q).applyMatrix4(mw).project(g3.camera);
+      if (cut && g3.plane.distanceToPoint(new THREE.Vector3().copy(q).applyMatrix4(mw)) < -0.3) return;   // (cut away)
+      const d = ((v.x + 1) / 2 * rect.width - x) ** 2 + ((1 - v.y) / 2 * rect.height - y) ** 2;
+      if (d < bd) { bd = d; node = i; }
+    });
+    return node;
+  }
   function pickIschemia(ray, x, y, mode = 'occlude') {
     const cut = ui.view !== 'external';
     let added = null;
@@ -1276,29 +1297,20 @@
       let node = -1;
       if (clotOf) node = clotOf.node;
       else if (corHit) node = corHit.object.userData.map[corHit.face.a];
-      else if (front) {
-        // a tap on the surface near an artery counts: the nearest on screen within a fingertip (phones) or a few
-        // pixels (mouse), among the vessels on the near side (within 30 mm of the tapped surface)
-        const cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld;   // (only the vessels offered: side-branch nodes are not)
-        let bd = (isM() ? 36 : 20) ** 2;
-        g3.corPos.forEach((q, i) => {
-          if (!cor.branches[cor.nodes[i].branch] || q.distanceToSquared(p) > 900) return;
-          v.copy(q).applyMatrix4(mw).project(g3.camera);
-          const d = ((v.x + 1) / 2 * rect.width - x) ** 2 + ((1 - v.y) / 2 * rect.height - y) ** 2;
-          if (d < bd) { bd = d; node = i; }
-        });
-      }
+      else node = arteryAt(ray, x, y, front && front.object !== g3.slab.im ? front : null);
       const verb = isM() ? 'Tap' : 'Click';
-      if (node < 0) { flash(x, y, SUBENDO_ON && cut ? `${verb} an artery, the cut face or the inner wall` : isM() ? 'Ischemia tab: tap an artery. For ectopic beats, open Rhythm' : `${verb} a coronary artery`); return; }
+      if (node < 0) { flash(x, y, SUBENDO_ON && cut ? `${verb} an artery, the cut face or the inner wall` : `${verb} a coronary artery`); return; }
       // the same region again (one marker per region): the same action removes it, the other one replaces it
       // (narrowing ↔ occlusion)
       const region = segmentName(node);
       node = regionNode(node);
       const same = S.insults.find((v) => (v.kind === 'occlusion' || v.stenosis) && segmentName(v.node) === region);
       const did = { node, region, prev: same ? (same.stenosis ? 'narrow' : 'occlude') : null, x, y };
+      // a marker in the region: one tap removes it, narrowing or occlusion; a double tap turns a narrowing into an
+      // occlusion (and removes an occlusion)
       if (same) {
         removeIschemia(same.id);
-        if (did.prev === mode) { flash(x, y, mode === 'narrow' ? 'Narrowing removed' : 'Occlusion removed'); return did; }
+        if (mode === 'narrow' || did.prev === 'occlude') { flash(x, y, did.prev === 'narrow' ? 'Narrowing removed' : 'Occlusion removed'); return did; }
       }
       added = did;
       captureRef();
@@ -1387,8 +1399,6 @@
   function toggleControls(show) {
     const c = $('controls').classList.toggle('collapsed', show === undefined ? undefined : !show);
     for (const b of document.querySelectorAll('#tabs button, #mTabs button')) b.setAttribute('aria-selected', String(!c && b.dataset.tab === ui.tab));
-    // (phones: taps on the heart act on the arteries while Ischemia is the chosen tab, so it stays lit with the sheet closed)
-    for (const b of document.querySelectorAll('#mTabs button')) b.classList.toggle('tool', c && b.dataset.tab === 'ischemia' && ui.tab === 'ischemia');
     const tb = document.querySelector(`#mTabs [data-tab="${ui.tab}"] span`); $('stitle').textContent = tb ? tb.textContent : ui.tab === 'learn' ? 'Learn' : '';
     $('mLearn').setAttribute('aria-pressed', String(!c && ui.tab === 'learn'));
     resize3D();
@@ -2746,8 +2756,9 @@
     hideBlockMenu();
     const ray = rayAt(x, y);
     if (pathwayAt(x, y)) { lastEmpty = null; pathwayTap(x, y, now); return; }
-    // Ischemia tab: a tap on the heart narrows the artery (after a moment, so a second tap can occlude it instead)
-    if (ui.tab === 'ischemia' && (tissueAt(ray) >= 0 || ray.intersectObjects(g3.corPick, false).length)) {
+    // a tap on (or within a fingertip of) a coronary artery acts on it, whatever tab is open: one tap narrows it (after a
+    // moment, so a second tap can occlude it instead); elsewhere on the muscle, taps stimulate
+    if (arteryAt(ray, x, y) >= 0) {
       lastEmpty = null;
       ischPress(ischTap, x, y, now, (mode) => { buzz(mode === 'narrow' ? 15 : 35); return mobileIsch(x, y, mode); }, 40);
       return;
@@ -2761,10 +2772,8 @@
   }
   const ischTap = { last: null };
   function mobileIsch(x, y, mode) {
-    const n = S.insults.length;
-    const did = pickIschemia(rayAt(x, y), x, y, mode);
-    if (S.insults.length > n) openSheet('ischemia');
-    return did;
+    // (the sheet stays as it is: the time scrubber appears on the heart, and opening the Ischemia tab would move the view)
+    return pickIschemia(rayAt(x, y), x, y, mode);
   }
   // two-finger twist (touch screens): turns the view about the line of sight, as in a map; the pinch and pan of the
   // same gesture are the orbit controls'
