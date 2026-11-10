@@ -765,7 +765,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </section>
     <section class="hpage" data-page="tabs" hidden>
       <h3>Control tabs</h3>
-      <p>Clicking a tab toggles its panel. A click on the heart acts on what it lands on, whichever tab is open: a coronary artery (in the outside view), the conduction system (in the cut view) or the muscle.</p>
+      <p>Clicking a tab toggles its panel. A click on the heart acts on what is drawn where it lands, whichever tab is open: the conduction system (shown in the cut view) or the sinus node, a coronary artery, or else the muscle.</p>
       <ul>
         <li><b>Rhythm:</b> adjust the heart rate and toggle persistent arrhythmias. Click on the heart to stimulate an ectopic beat.</li>
         <li><b>Blocks:</b> only useful during a cutaway view. Click on the conduction system to start a block.</li>
@@ -784,7 +784,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (e0ed427).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (9f3d360).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -817,7 +817,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         </li>
         <li><b>Blocks:</b> opens the four-chamber cut. Tap the conduction system to cycle through its blocks.</li>
         <li><b>View:</b> External ↔ Cut slider, the Anterior / 4-chamber / Lateral / Apex views, and the Labels, Leads and Legend switches.</li>
-        <li><b>Ischemia:</b> opens the outside view. From any tab, in the outside view, tap a coronary artery to narrow it (partial flow: ST depression and T changes) or double-tap to occlude it; taps elsewhere on the heart still give ectopic beats. Each region (for example proximal, mid or distal LAD) holds one marker, and one tap on it removes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
+        <li><b>Ischemia:</b> opens the outside view. From any tab, tap a coronary artery to narrow it (partial flow: ST depression and T changes) or double-tap to occlude it; taps elsewhere on the heart still give ectopic beats. Each region (for example proximal, mid or distal LAD) holds one marker, and one tap on it removes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
         <li><b>Conditions:</b> add or remove chronic and acute heart conditions.</li>
       </ul>
     </section>
@@ -828,7 +828,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (e0ed427).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (9f3d360).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -6083,7 +6083,8 @@ THE SOFTWARE.
       hideBlockMenu();
       // what a click does depends only on where it lands, whatever tab is open (as on phones): the conduction system
       // (sinus node; the rest in the cut view) blocks, a coronary artery or its marker narrows/occludes, muscle stimulates
-      if (ui.view === 'cutaway' && (ray.intersectObject(g3.sanPick, false).length || ray.intersectObjects(g3.pickTubes, false).length)) { pickBlock(ray, x, y); return; }   // (blocks in the cut view only)
+      // (the conduction system is drawn in the cut view, see-through over the tissue; the sinus node marker in both views)
+      if (ray.intersectObject(g3.sanPick, false).length || (ui.view === 'cutaway' && ray.intersectObjects(g3.pickTubes, false).length)) { pickBlock(ray, x, y); return; }
       if (onArtery(ray, x, y)) {
         // a click narrows the artery (after a moment, so a double-click can occlude it instead)
         const r0 = new THREE.Raycaster(); r0.ray.copy(ray.ray);
@@ -6159,40 +6160,55 @@ THE SOFTWARE.
   // Ischemia clicks: an artery (or the outer surface near one) occludes it; with
   // the heart cut, the cut face or the inner (endocardial) wall of a ventricle
   // starts a subendocardial patch.
-  // the artery node a tap at canvas point (x, y) is on or near (-1: none): a vessel hit on the visible side, or the
-  // nearest vessel on screen within a fingertip (phones) or a few pixels (mouse), among those within 30 mm of the
-  // tapped surface (only the vessels offered: side-branch nodes are not)
-  function arteryAt(ray, x, y, front = undefined) {
-    if (ui.view !== 'external') return -1;   // (arteries are tapped in the outside view only: in the cut view taps go to the conduction system)
-    if (front === undefined) front = ray.intersectObjects(g3.pickTissue, false)[0];
-    const corHit = ray.intersectObjects(g3.corPick, false)
-      .find((h) => !front || h.distance <= front.distance + 3);
+  // Only what is drawn under the finger counts. The first visible surface along a ray: tissue not removed by the cut,
+  // or the cut face where it has muscle (the cut plane spans the cavities too)
+  const onSlab = (h) => { const q = g3.inner.worldToLocal(h.point.clone()); return nearestTissue(q.x, q.y, q.z, 1) >= 0; };
+  function surfaceHit(ray) {
+    const cut = ui.view !== 'external';
+    return ray.intersectObjects(g3.pickTissue.concat(cut ? [g3.slab.im] : []), false)
+      .find((h) => !cut || (h.object === g3.slab.im ? onSlab(h) : g3.plane.distanceToPoint(h.point) >= -0.3));
+  }
+  // is a point (world) in sight: not cut away, and no tissue or cut face in front of it (arteries lie on the surface:
+  // a few mm of slack)
+  const sightRay = new THREE.Raycaster();
+  function inSight(w) {
+    if (ui.view !== 'external' && g3.plane.distanceToPoint(w) < 0) return false;
+    const cam = g3.camera.position, dist = cam.distanceTo(w);
+    sightRay.set(cam, w.clone().sub(cam).normalize());
+    const h = surfaceHit(sightRay);
+    return !h || h.distance >= dist - 3;
+  }
+  // the artery node a tap at canvas point (x, y) is on or near (-1: none): a vessel hit where it is in sight, or the
+  // nearest vessel on screen within a fingertip (phones) or a few pixels (mouse) that is in sight (only the vessels
+  // offered: side-branch nodes are not). Vessels behind the heart or behind the cut face do not count.
+  function arteryAt(ray, x, y) {
+    const corHit = ray.intersectObjects(g3.corPick, false).find((h) => inSight(h.point));
     if (corHit) return corHit.object.userData.map[corHit.face.a];
-    if (!front) return -1;
-    const p = g3.inner.worldToLocal(front.point.clone()), cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld;
-    let bd = (isM() ? 30 : 20) ** 2, node = -1;
+    const cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld, R = (isM() ? 30 : 20) ** 2, near = [];
     g3.corPos.forEach((q, i) => {
-      if (!cor.branches[cor.nodes[i].branch] || q.distanceToSquared(p) > 900) return;
+      if (!cor.branches[cor.nodes[i].branch]) return;
       v.copy(q).applyMatrix4(mw).project(g3.camera);
       const d = ((v.x + 1) / 2 * rect.width - x) ** 2 + ((1 - v.y) / 2 * rect.height - y) ** 2;
-      if (d < bd) { bd = d; node = i; }
+      if (d < R) near.push([d, i]);
     });
-    return node;
+    near.sort((a, b) => a[0] - b[0]);
+    for (const [, i] of near.slice(0, 12)) if (inSight(g3.corPos[i].clone().applyMatrix4(mw))) return i;
+    return -1;
   }
-  const onArtery = (ray, x, y) => ui.view === 'external' && (arteryAt(ray, x, y) >= 0 || ray.intersectObjects(g3.clots.children, false).length > 0);   // (a marker counts too; outside view only)
+  const clotAt = (ray) => ray.intersectObjects(g3.clots.children, false).find((h) => inSight(h.point));
+  const onArtery = (ray, x, y) => !!clotAt(ray) || arteryAt(ray, x, y) >= 0;   // (a marker counts too)
   function pickIschemia(ray, x, y, mode = 'occlude') {
     const cut = ui.view !== 'external';
     let added = null;
     // first surface the ray meets: tissue, or the cut face where it has muscle (the
     // cut plane spans the cavities too), ignoring what the cut removed
-    const onSlab = (h) => { const q = g3.inner.worldToLocal(h.point.clone()); return nearestTissue(q.x, q.y, q.z, 1) >= 0; };
     const front = ray.intersectObjects(g3.pickTissue.concat(cut ? [g3.slab.im] : []), false)
       .find((h) => !cut || (h.object === g3.slab.im ? onSlab(h) : g3.plane.distanceToPoint(h.point) >= -0.3));
     const corHit = ray.intersectObjects(g3.corPick, false)
       .find((h) => (!cut || g3.plane.distanceToPoint(h.point) >= -0.3) && (!front || h.distance <= front.distance + 3));
     const p = front ? g3.inner.worldToLocal(front.point.clone()) : null;
     // a click on an occlusion marker removes that occlusion
-    const clot = ray.intersectObjects(g3.clots.children, false).find((h) => !front || h.distance <= front.distance + 3);
+    const clot = clotAt(ray);
     // a marker: the same gesture removes it, the other switches narrowing ↔ occlusion (below, by its node)
     const clotOf = clot && S.insults.find((v) => v.id === clot.object.userData.insult);
     let subCell = -1;
@@ -6207,7 +6223,7 @@ THE SOFTWARE.
       let node = -1;
       if (clotOf) node = clotOf.node;
       else if (corHit) node = corHit.object.userData.map[corHit.face.a];
-      else node = arteryAt(ray, x, y, front && front.object !== g3.slab.im ? front : null);
+      else node = arteryAt(ray, x, y);
       const verb = isM() ? 'Tap' : 'Click';
       if (node < 0) { flash(x, y, SUBENDO_ON && cut ? `${verb} an artery, the cut face or the inner wall` : `${verb} a coronary artery`); return; }
       // the same region again (one marker per region): the same action removes it, the other one replaces it
@@ -7576,10 +7592,10 @@ THE SOFTWARE.
   }
   // block site under a tap in the cut view: the SA node, a conduction tube, or
   // the nearest conduction point on screen within a fingertip
+  // (the segment nearest the finger on screen: the fat touch tubes overlap where the bundle branches divide, so the first
+  // tube along the ray could be a neighbour; a tube hit only when no point is within a fingertip)
   function conductionAt(ray, x, y) {
     if (ray.intersectObject(g3.sanPick, false).length) return 'SAN';
-    const hit = ray.intersectObjects(g3.pickTubes, false)[0];
-    if (hit) { const site = SEG_SITE[M.seg[hit.object.userData.map[hit.face.a]]]; if (site) return site; }
     const r = $('c3d').getBoundingClientRect(), v = new THREE.Vector3();
     let best = null, bd = 22 * 22;
     for (const q of g3.csPts) {
@@ -7587,7 +7603,9 @@ THE SOFTWARE.
       const d = ((v.x + 1) / 2 * r.width - x) ** 2 + ((1 - v.y) / 2 * r.height - y) ** 2;
       if (d < bd) { bd = d; best = q.site; }
     }
-    return best;
+    if (best) return best;
+    const hit = ray.intersectObjects(g3.pickTubes, false)[0];
+    return hit ? SEG_SITE[M.seg[hit.object.userData.map[hit.face.a]]] || null : null;
   }
   const blockText = (site, type) => (BLOCK_MENU[site].find((m) => m[0] === type) || [])[1];
   function setBlockFrom(site, type) {
@@ -7670,12 +7688,15 @@ THE SOFTWARE.
     if (pathwayAt(x, y)) { lastEmpty = null; pathwayTap(x, y, now); return; }
     // a tap on (or within a fingertip of) a coronary artery acts on it, whatever tab is open: one tap narrows it (after a
     // moment, so a second tap can occlude it instead); elsewhere on the muscle, taps stimulate
+    // what is drawn under the finger: the conduction system (cut view, drawn over the tissue; the sinus node marker in
+    // both views), then a coronary artery in sight, then the muscle
+    const site = ui.view === 'cutaway' ? conductionAt(ray, x, y) : ray.intersectObject(g3.sanPick, false).length ? 'SAN' : null;
+    if (site) { lastEmpty = null; conductionTap(site, x, y, now); return; }
     if (onArtery(ray, x, y)) {
       lastEmpty = null;
       ischPress(ischTap, x, y, now, (mode) => { buzz(mode === 'narrow' ? 15 : 35); return mobileIsch(x, y, mode); }, 40);
       return;
     }
-    if (ui.view === 'cutaway') { const site = conductionAt(ray, x, y); if (site) { lastEmpty = null; conductionTap(site, x, y, now); return; } }
     const c = tissueAt(ray);
     if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }
     // empty space: a double-tap fills the screen with the heart (and back)

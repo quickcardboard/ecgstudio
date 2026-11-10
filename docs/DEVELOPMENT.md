@@ -2094,9 +2094,16 @@ Training (`src/training_gen.js`, `src/training.js`):
   look on a phone browser, for trying changes without building an APK. A branch can be tried before it is merged at
   `https://raw.githack.com/quickcardboard/ecgstudio/<branch>/app/index.html`.
 
-## Round 57: arteries in the outside view only, blocks in the cut view only
+## Round 57: only what is drawn under the finger counts
 
-- The author: taps on the bundle branches and the conduction system were too often taken as artery taps. Now the view
-  decides as well as the place: in the **outside view** a tap on or near an artery narrows/occludes it (`arteryAt`,
-  `onArtery` return nothing in the cut view); in the **cut view** a tap on the conduction system (the sinus node too)
-  blocks it (desktop and phones). Taps elsewhere on the muscle stimulate in both views. Help texts say so.
+- Bug (the author): in the four-chamber cut, taps on the LBB and RBB narrowed an artery on phones. Two causes: the phone
+  checked arteries before the conduction system (Round 54 ordering), and the artery search accepted vessels out of
+  sight (the posterior descending and distal RCA behind the cut face, within 30 px on screen).
+- Fix: a tap acts on what is drawn where it lands, in either view (no view restriction). Order: the conduction system
+  (cut view, drawn see-through over the tissue; the sinus node marker in both views), then a coronary artery or marker
+  **in sight** (`inSight`: not cut away, and no tissue or cut face in front of it, with 3 mm slack; `arteryAt` takes the
+  nearest in-sight vessel within 30 px on phones / 20 px with a mouse), then the muscle. Desktop and phones alike.
+- Phones: the conduction segment is the one nearest the finger on screen (`conductionAt`), before the fat touch tubes,
+  which overlap where the left bundle divides (an LBB tap could hit the anterior fascicle's tube first).
+- Checked: in the four-chamber cut, taps along the LBB, RBB, fascicles and His block them (none reach an artery); in the
+  outside view a tap on the LAD narrows it.
