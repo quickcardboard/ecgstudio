@@ -11,7 +11,7 @@ all rights reserved (LICENSE).
   into the single self-contained `index.html`. Commit the rebuilt `index.html` with source changes;
   it is what the site serves.
   It also writes `training/index.html` and the app shell `app/index.html` (`src/shell.html`, a preview framing both pages
-  with `?app`; `src/inapp.js` handles that mode); `--app` adds `app/www/` for the native app (not in git).
+  with `?app`; `src/inapp.js` handles that mode; `src/tutorial.js`, the interactive tutorial, goes into both pages); `--app` adds `app/www/` for the native app (not in git).
 - `src/engine.js`: anatomy, model, simulation and lead fields; runs in the browser
   (`window.ECGStudio`) and in Node (`require('./src/engine.js')`). Parameters live in `DEFAULTS`.
 - `src/app.js`: Three.js view, ECG paper, interpretation, controls, share links, PNG export.

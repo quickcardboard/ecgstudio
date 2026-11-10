@@ -135,6 +135,7 @@ html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href], html.in
 #track canvas { width: 50%; height: 100%; display: block; }
 #loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(255,255,255,0.94); color: #1d2a36; font-size: 15px; text-align: center; padding: 20px; }
 #loading small { color: #5d6b78; font-size: 12px; }
+.vheart { display: flex; justify-content: center; margin-bottom: 4px; }   /* the loading heart (src/loader.js) */
 .spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #d3dae1; border-top-color: #c2304f; animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .skills { display: flex; flex-direction: column; gap: 8px; }
@@ -263,7 +264,7 @@ body.land #fsClose { display: none; }
   </div>
   <div class="chips" id="meas"></div>
   <div id="ecgView" aria-label="12-lead ECG: swipe for the chest leads, double-tap for the full ECG"><div id="track"><canvas id="c0"></canvas><canvas id="c1"></canvas></div>
-    <div id="loading" hidden><div class="spin"></div><div id="loadingMsg">Building the heart…</div><small>Simulating the heart and checking the reading</small></div></div>
+    <div id="loading" hidden><div class="vheart" data-ecg-loader="96"></div><div id="loadingMsg">Building the heart…</div></div></div>
   <div class="pager" id="pager"><i class="on"></i><i></i><span id="pageName">Limb leads</span><span class="hint" id="ghint">Double-tap: full ECG</span></div>
 
   <!-- the bottom area keeps one height (the typing view's), so the ECG never changes size: the region and
@@ -373,6 +374,9 @@ body.land #fsClose { display: none; }
 <script type="text/plain" id="worker-src">/*__WORKER__*/</script>
 <script>
 /*__TRAIN__*/
+</script>
+<script>
+/*__TOUR__*/
 </script>
 </body>
 </html>

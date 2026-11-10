@@ -46,6 +46,11 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
 #tabs button.on svg { color: var(--accent); }
 #tabs button.on .name { display: inline; }
 #tabs button:not(.on):active { background: rgba(255,255,255,0.07); }
+/* the interactive tutorial (src/tutorial.js) points at a tab */
+#tabs button.tour { color: var(--fg); box-shadow: 0 0 0 2px var(--accent); animation: tourPulse 1.4s ease-in-out infinite; }
+#tabs button.tour svg { color: var(--accent); }
+@keyframes tourPulse { 50% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 9px rgba(239,91,122,0.22); } }
+@media (prefers-reduced-motion: reduce) { #tabs button.tour { animation: none; } }
 /* tablets: every tab named */
 @media (min-width: 600px) {
   #tabs button .name { display: inline; font-size: 16px; }
@@ -73,7 +78,10 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
   const BY = Object.fromEntries(MODULES.map((m) => [m.id, m]));
   const KEY = 'ecgApp.module';
   const tabs = document.getElementById('tabs'), stage = document.getElementById('stage');
-  const btn = {}, frame = {}, chrome = {};
+  const btn = {}, frame = {}, chrome = {}, ready = {};
+  // the interactive tutorial: Training prepares its ECG while the simulator's steps run (prep), the Training tab is
+  // ringed (ring) until it is tapped, then Training takes over (train)
+  const tour = { prep: false, ring: null };
   let current = null;
   const store = { get() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }, set(v) { try { localStorage.setItem(KEY, v); } catch (e) { /* private mode */ } } };
 
@@ -124,6 +132,7 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
     for (const m of MODULES) if (frame[m.id]) frame[m.id].classList.toggle('on', m.id === id);
     if (prev && prev !== id) post(prev, 'hide');
     post(id, 'show');
+    if (tour.ring && tour.ring === id) { btn[id].classList.remove('tour'); tour.ring = null; post(id, 'tour', { step: 'train' }); }
     sendWidth(); syncChrome();
   }
 
@@ -132,9 +141,19 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
     if (!d || !d.ecgApp) return;
     const id = Object.keys(frame).find((k) => frame[k].contentWindow === e.source);
     if (!id) return;
-    if (d.ecgApp === 'ready') { post(id, 'tabs', { w: tabsWidth() }); post(id, id === current ? 'show' : 'hide'); if (SharePlugin && FsPlugin) post(id, 'caps', { share: true }); }
+    if (d.ecgApp === 'ready') { ready[id] = true; if (id === 'training' && tour.prep) post(id, 'tour', { step: 'prep' }); post(id, 'tabs', { w: tabsWidth() }); post(id, id === current ? 'show' : 'hide'); if (SharePlugin && FsPlugin) post(id, 'caps', { share: true }); }
     if (d.ecgApp === 'share') share(id, d);
     if (d.ecgApp === 'open' && /^https:\/\//.test(d.url || '')) { if (AppPlugin) location.href = d.url; else window.open(d.url, '_blank', 'noopener'); }   // (an outside link: in the app, Capacitor hands the page's own navigation to the phone's browser)
+    if (d.ecgApp === 'tour') {
+      if (d.step === 'prep' && BY.training) { tour.prep = true; load('training'); if (ready.training) post('training', 'tour', { step: 'prep' }); }
+      if (d.step === 'ring' && BY[d.module]) {
+        if (tour.ring) btn[tour.ring].classList.remove('tour');
+        tour.ring = d.module; btn[d.module].classList.add('tour');
+        const r = btn[d.module].getBoundingClientRect(), s = stage.getBoundingClientRect();   // (in the module's frame)
+        post(id, 'tour', { step: 'rect', x: r.left - s.left, y: r.top - s.top, w: r.width, h: r.height });
+      }
+      if (d.step === 'end') { if (tour.ring) btn[tour.ring].classList.remove('tour'); tour.ring = null; tour.prep = false; }
+    }
     if (d.ecgApp === 'chrome') { chrome[id] = !!d.on; syncChrome(); }
     if (d.ecgApp === 'go' && BY[d.module]) open(d.module, typeof d.hash === 'string' ? d.hash : '');
     if (d.ecgApp === 'back' && id === current && back.wait) { clearTimeout(back.wait); back.wait = 0; if (!d.handled) back.leave(); }

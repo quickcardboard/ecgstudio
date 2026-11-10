@@ -293,6 +293,9 @@ body.m .vsum { display: none; }
 .sheet ul { padding-left: 18px; margin: 6px 0; }
 .sheet .src { font-size: 12px; color: var(--muted); }
 .sheet .close { float: right; font-size: 14px; padding: 8px 12px; border-radius: 8px; background: var(--raised); }   /* (the Help close button matches Training's) */
+.sheet .tourbtn { margin-right: 8px; display: none; }   /* (the interactive tutorial: the app's phone layout only) */
+html.inapp body.m .sheet .tourbtn { display: block; }
+html.inapp body.m #guide .toc { clear: both; padding-top: 6px; }   /* (room below the Tutorial and Close buttons) */
 .toc { display: flex; flex-wrap: nowrap; gap: 6px; margin: 10px 0 4px; overflow-x: auto; scrollbar-width: none; }
 .toc::-webkit-scrollbar { display: none; }
 .toc button { flex: none; white-space: nowrap; font-size: 12.5px; padding: 5px 11px; border-radius: 999px; }
@@ -312,6 +315,7 @@ body:not(.m) .toc .mo, body.m .toc .dk { display: none; }
 .spin { width: 28px; height: 28px; margin: 6px auto 12px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+.vheart { display: flex; justify-content: center; margin: 0 auto 10px; }   /* the loading heart (src/loader.js) */
 
 /* Phones (body.m, set by the app; portrait only): heart above, the ECG one lead
    group at a time below it, the interpretation under the ECG, and the controls
@@ -665,6 +669,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
 <div class="overlay" id="guide" hidden>
   <div class="sheet" role="dialog" aria-labelledby="guideTitle">
     <button class="close" id="guideClose" type="button">Close</button>
+    <button class="close tourbtn" id="guideTour" type="button">Tutorial</button>
     <h2 id="guideTitle">Help</h2>
     <nav class="toc" role="tablist" aria-label="Help pages">
       <button type="button" role="tab" class="dk" data-page="start" aria-selected="true">Getting started</button><button type="button" role="tab" class="dk" data-page="view" aria-selected="false">View controls</button><button type="button" role="tab" class="dk" data-page="tabs" aria-selected="false">Control tabs</button><button type="button" role="tab" class="dk" data-page="about" aria-selected="false">About</button><button type="button" role="tab" class="mo" data-page="mstart" aria-selected="false">Getting started</button><button type="button" role="tab" class="mo" data-page="mpanel" aria-selected="false">Control panel</button><button type="button" role="tab" class="mo" data-page="mabout" aria-selected="false">About</button>
@@ -817,7 +822,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
 </div>
 
 <div class="overlay" id="loading">
-  <div class="sheet"><div class="spin"></div><b>Building the heart</b><p id="loadMsg">Reading anatomy…</p></div>
+  <div class="sheet"><div class="vheart" data-ecg-loader="104"></div><b>Building the heart</b><p id="loadMsg">Reading anatomy…</p></div>
 </div>
 
 <!-- Three.js r128 and OrbitControls, inlined so the app works offline.
@@ -852,4 +857,7 @@ THE SOFTWARE.
 </script>
 <script>
 /*__APP__*/
+</script>
+<script>
+/*__TOUR__*/
 </script>

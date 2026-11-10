@@ -2107,3 +2107,58 @@ Training (`src/training_gen.js`, `src/training.js`):
   which overlap where the left bundle divides (an LBB tap could hit the anterior fascicle's tube first).
 - Checked: in the four-chamber cut, taps along the LBB, RBB, fascicles and His block them (none reach an artery); in the
   outside view a tap on the LAD narrows it.
+
+## Round 58: the interactive tutorial (app)
+
+The author's answers to the open questions in docs/TUTORIAL_PLAN.md: Training's step walks through answering one ECG;
+the app only for now (tried at ecgstudio.app/app/); keep both the artery and the conduction steps.
+
+- **`src/tutorial.js`** (inlined into the simulator and Training by `tools/build.py`): a dim with a ringed cut-out over the
+  target and a one-line card ("3 / 7", Skip; Next after 6 s on the same instruction, and Next does the step for the
+  user). Steps watch for their result, not for a particular tap, so the user's own route counts.
+- **Simulator (steps 1–6):** welcome; drag to turn the heart (≥ 25°); tap the ringed muscle (a spot in sight, away from the
+  arteries and the sinus node) → PVC (or PAC) explained with the ECG ringed; double tap the ringed mid LAD (outside view,
+  from the chest) → the strip moves to V1–V3, anterior STEMI; the four-chamber cut opens (ischemia cleared), tap the
+  ringed left bundle → V4–V6, LBBB; double tap the ECG for all 12 leads and back.
+- **Step 7 (app shell):** the simulator asks the shell to ring the Training tab (`tour` messages: `prep`, `ring`, `end`);
+  tapping it hands over to Training, and the simulator goes back to the Reset state (sinus 72/min, no abnormalities) and
+  the view it had. Training walks through one fixed ECG, prepared in the background from the start of the tour:
+  sinus rhythm at 75/min with a mid-LAD STEMI (`TOUR_RECIPE`; key: Sinus rhythm + ST elevation, anterior). Typing "si",
+  Sinus rhythm, "st", ST elevation, Anterior, Done, Submit, the result, then "Replay it any time: Simulator → Help →
+  Tutorial". The `tutorial` mode is not rated and leaves no history, review or streak.
+- **When:** the first open of the simulator in the app (and ecgstudio.app/app/) on a phone held upright, not opened on a
+  scenario link; `localStorage` `ecgstudio.tour` is set when it starts. The first-open phone tip is not shown then.
+  Afterwards: a **Tutorial** button beside Close in the simulator's Help (app, phone layout only). The website and
+  desktop have no tutorial.
+- Simulator hooks for it: `ECGStudioApp.tour` (events `ectopic`, `ischemia`, `blocks`, `layout`; target finders
+  `muscleSpot`, `arterySpot`, `conductionSpot`; view, reset and the same actions as the gestures).
+- Checked (Playwright, Pixel 7, `app/index.html` over http): the whole tour by touch, by Next alone, Skip mid-way (the heart
+  resets), the Help replay, and the website on a phone (no tutorial; the tip still shows). Training history stays empty.
+- Follow-up (the author): every card is numbered, 1–12 in the app (1–6 simulator, 7 the Training tab, 8 rhythm,
+  9 finding, 10 leads, 11 submit, 12 result), instead of Training staying on "7 / 7". All the text is in `TEXT` at the top
+  of `src/tutorial.js`.
+- Follow-up (the author): left bundle taps often stepped the AV block instead (phones; also a mouse in the phone layout).
+  The model's left bundle trunk is 3 points just below the AV node, and its tap area was a sliver under the AV node's.
+  Now the AV node and His are one tap target (they already shared one AV-block cycle), with a smaller reach (×0.75 of the
+  22 px fingertip), and the left bundle reaches ×1.7 (`CS_REACH` in `conductionAt`). In the four-chamber cut on a Pixel 7:
+  left bundle area 57 → 182 grid cells, AV node + His 201 → 113; taps up to 12 px off the tutorial's ring never reach the
+  AV node. Desktop (the block menu on the tube that is hit) is unchanged.
+- Follow-up (the author): the tutorial text is the author's own (`TEXT`). Step 10 (lead groups): the card sits at the
+  bottom, below the list (compact, its buttons on its header line), and the page is not dimmed, so the ECG stays clear to
+  swipe and tap. Help (app): more room between the Tutorial and Close buttons and the page tabs.
+
+## Round 59: the loading heart
+
+- `src/loader.js` (inlined with `src/inapp.js` into the simulator and Training): the app's voxel heart (the 9-wide
+  upright mark of `tools/logo/iso.js`, same colours, its wavefront one voxel thicker) drawn live on a canvas. Each cycle
+  (2.1 s) the depolarisation wave flows down from the upper-left lobe and the heart returns to resting pink, then it
+  spins once about its vertical axis with a small overshoot and hop. Reduced motion: the wave only. Any element with
+  `data-ecg-loader="<px>"` gets it; it pauses while hidden.
+- It replaces the spinner on the simulator's start-up screen (Building the heart) and on Training's ECG loading screen.
+- Training's loading text: "Recording the ECG…" (was "Preparing the (next) ECG…"); the line "Simulating the heart and
+  checking the reading" is removed.
+- Follow-up (the author): the turn is one even 360° (ease in and out over 0.55 s, no overshoot), with a higher hop
+  (2.2 voxels) and a small bounce on landing; one cycle is 2.04 s (wave 1.0 s, turn 0.55 s, landing 0.24 s, pause
+  0.25 s). `ECGLoader.at` draws a fixed moment of the cycle (for recording frames).
+- Follow-up (the author): the turn starts at 0.52 s, while the heart is still repolarising (frame 15 at 25 fps), and the
+  next beat starts as soon as the landing bounce ends: one cycle is 1.31 s, with no pause.
