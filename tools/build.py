@@ -14,7 +14,7 @@ LOGO_INLINE = re.sub(r'\s(width|height)="\d+"', '', logo_svg, count=2).replace('
 def with_logo(h):
     return h.replace('{{LOGO_URI}}', LOGO_URI).replace('{{LOGO_SVG}}', LOGO_INLINE)
 html = with_logo(html)
-inapp = (src / 'inapp.js').read_text()
+inapp = (src / 'inapp.js').read_text() + '\n' + (src / 'loader.js').read_text()   # (app mode, and the loading heart: both pages)
 assert '</script' not in inapp
 html = html.replace('/*__INAPP__*/', inapp, 1)
 # author and version (site.json; version = build date + commit)

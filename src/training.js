@@ -365,7 +365,7 @@
   }
   function nextItem() {
     st.picked = []; st.typed = ''; st.phase = 'answer'; st.region = null; st.score = null; st.item = null;
-    const loading = () => { setLoading(gen.ready ? 'Preparing the ECG…' : 'Building the heart…'); render(); };
+    const loading = () => { setLoading(gen.ready ? 'Recording the ECG…' : 'Building the heart…'); render(); };
     if (st.mode === 'tutorial') { loading(); prepTour((item) => { if (st.mode === 'tutorial' && !st.item) showItem(item); }); return; }
     if (st.mode === 'daily') { loading(); request({ type: 'make', target: 1500, focus: null, seed: dailySeed() }, showItem); return; }
     if (st.mode === 'review') {
@@ -373,7 +373,7 @@
       if (!r) { toast('Reviews done for today'); goHome(); return; }
       loading(); request({ type: 'build', recipe: r.recipe }, showItem); return;
     }
-    if (!gen.queue.length) { gen.waiting = true; setLoading(gen.ready ? 'Preparing the next ECG…' : 'Building the heart…'); render(); fill(); return; }
+    if (!gen.queue.length) { gen.waiting = true; setLoading(gen.ready ? 'Recording the ECG…' : 'Building the heart…'); render(); fill(); return; }
     setLoading(null);
     st.item = gen.queue.shift(); fill(); st.t0 = performance.now();
     setPage(0, false); render();

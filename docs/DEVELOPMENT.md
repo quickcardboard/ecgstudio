@@ -2146,3 +2146,14 @@ the app only for now (tried at ecgstudio.app/app/); keep both the artery and the
 - Follow-up (the author): the tutorial text is the author's own (`TEXT`). Step 10 (lead groups): the card sits at the
   bottom, below the list (compact, its buttons on its header line), and the page is not dimmed, so the ECG stays clear to
   swipe and tap. Help (app): more room between the Tutorial and Close buttons and the page tabs.
+
+## Round 59: the loading heart
+
+- `src/loader.js` (inlined with `src/inapp.js` into the simulator and Training): the app's voxel heart (the 9-wide
+  upright mark of `tools/logo/iso.js`, same colours, its wavefront one voxel thicker) drawn live on a canvas. Each cycle
+  (2.1 s) the depolarisation wave flows down from the upper-left lobe and the heart returns to resting pink, then it
+  spins once about its vertical axis with a small overshoot and hop. Reduced motion: the wave only. Any element with
+  `data-ecg-loader="<px>"` gets it; it pauses while hidden.
+- It replaces the spinner on the simulator's start-up screen (Building the heart) and on Training's ECG loading screen.
+- Training's loading text: "Recording the ECG…" (was "Preparing the (next) ECG…"); the line "Simulating the heart and
+  checking the reading" is removed.

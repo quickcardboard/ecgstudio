@@ -315,6 +315,7 @@ body:not(.m) .toc .mo, body.m .toc .dk { display: none; }
 .spin { width: 28px; height: 28px; margin: 6px auto 12px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+.vheart { display: flex; justify-content: center; margin: 0 auto 10px; }   /* the loading heart (src/loader.js) */
 
 /* Phones (body.m, set by the app; portrait only): heart above, the ECG one lead
    group at a time below it, the interpretation under the ECG, and the controls
@@ -821,7 +822,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
 </div>
 
 <div class="overlay" id="loading">
-  <div class="sheet"><div class="spin"></div><b>Building the heart</b><p id="loadMsg">Reading anatomy…</p></div>
+  <div class="sheet"><div class="vheart" data-ecg-loader="104"></div><b>Building the heart</b><p id="loadMsg">Reading anatomy…</p></div>
 </div>
 
 <!-- Three.js r128 and OrbitControls, inlined so the app works offline.
