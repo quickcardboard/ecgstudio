@@ -2093,3 +2093,10 @@ Training (`src/training_gen.js`, `src/training.js`):
 - **ecgstudio.app/app/** is the app shell as a web page (module tabs, both modules; `noindex`, unlinked): the app's exact
   look on a phone browser, for trying changes without building an APK. A branch can be tried before it is merged at
   `https://raw.githack.com/quickcardboard/ecgstudio/<branch>/app/index.html`.
+
+## Round 57: arteries in the outside view only, blocks in the cut view only
+
+- The author: taps on the bundle branches and the conduction system were too often taken as artery taps. Now the view
+  decides as well as the place: in the **outside view** a tap on or near an artery narrows/occludes it (`arteryAt`,
+  `onArtery` return nothing in the cut view); in the **cut view** a tap on the conduction system (the sinus node too)
+  blocks it (desktop and phones). Taps elsewhere on the muscle stimulate in both views. Help texts say so.

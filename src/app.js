@@ -1179,7 +1179,7 @@
       hideBlockMenu();
       // what a click does depends only on where it lands, whatever tab is open (as on phones): the conduction system
       // (sinus node; the rest in the cut view) blocks, a coronary artery or its marker narrows/occludes, muscle stimulates
-      if (ray.intersectObject(g3.sanPick, false).length || (ui.view === 'cutaway' && ray.intersectObjects(g3.pickTubes, false).length)) { pickBlock(ray, x, y); return; }
+      if (ui.view === 'cutaway' && (ray.intersectObject(g3.sanPick, false).length || ray.intersectObjects(g3.pickTubes, false).length)) { pickBlock(ray, x, y); return; }   // (blocks in the cut view only)
       if (onArtery(ray, x, y)) {
         // a click narrows the artery (after a moment, so a double-click can occlude it instead)
         const r0 = new THREE.Raycaster(); r0.ray.copy(ray.ray);
@@ -1259,10 +1259,10 @@
   // nearest vessel on screen within a fingertip (phones) or a few pixels (mouse), among those within 30 mm of the
   // tapped surface (only the vessels offered: side-branch nodes are not)
   function arteryAt(ray, x, y, front = undefined) {
-    const cut = ui.view !== 'external';
-    if (front === undefined) front = ray.intersectObjects(g3.pickTissue, false).find((h) => !cut || g3.plane.distanceToPoint(h.point) >= -0.3);
+    if (ui.view !== 'external') return -1;   // (arteries are tapped in the outside view only: in the cut view taps go to the conduction system)
+    if (front === undefined) front = ray.intersectObjects(g3.pickTissue, false)[0];
     const corHit = ray.intersectObjects(g3.corPick, false)
-      .find((h) => (!cut || g3.plane.distanceToPoint(h.point) >= -0.3) && (!front || h.distance <= front.distance + 3));
+      .find((h) => !front || h.distance <= front.distance + 3);
     if (corHit) return corHit.object.userData.map[corHit.face.a];
     if (!front) return -1;
     const p = g3.inner.worldToLocal(front.point.clone()), cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld;
@@ -1270,13 +1270,12 @@
     g3.corPos.forEach((q, i) => {
       if (!cor.branches[cor.nodes[i].branch] || q.distanceToSquared(p) > 900) return;
       v.copy(q).applyMatrix4(mw).project(g3.camera);
-      if (cut && g3.plane.distanceToPoint(new THREE.Vector3().copy(q).applyMatrix4(mw)) < -0.3) return;   // (cut away)
       const d = ((v.x + 1) / 2 * rect.width - x) ** 2 + ((1 - v.y) / 2 * rect.height - y) ** 2;
       if (d < bd) { bd = d; node = i; }
     });
     return node;
   }
-  const onArtery = (ray, x, y) => arteryAt(ray, x, y) >= 0 || ray.intersectObjects(g3.clots.children, false).length > 0;   // (a marker counts too)
+  const onArtery = (ray, x, y) => ui.view === 'external' && (arteryAt(ray, x, y) >= 0 || ray.intersectObjects(g3.clots.children, false).length > 0);   // (a marker counts too; outside view only)
   function pickIschemia(ray, x, y, mode = 'occlude') {
     const cut = ui.view !== 'external';
     let added = null;
