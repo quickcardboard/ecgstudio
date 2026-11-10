@@ -64,6 +64,10 @@
         const r = $('c3d').getBoundingClientRect();
         return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
       },
+      coronaryScreen(node) {   // (page point of a coronary tree node)
+        const p = g3.corPos[node].clone().applyMatrix4(g3.inner.matrixWorld).project(g3.camera), r = $('c3d').getBoundingClientRect();
+        return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
+      },
       // what a tap at page point (x, y) on the heart would act on: a block site
       // (cut view), 'RA', 'LA', 'V', or null for empty space
       touchTarget(x, y) {
@@ -91,7 +95,7 @@
   // Each hypertrophy configuration (anatomy, model and its 3D scene) is kept
   // once built, so switching back to it is immediate.
   const heartCache = new Map();
-  const G3_FIXED = new Set(['renderer', 'scene', 'camera', 'outer', 'inner', 'controls', 'planeDirty']);
+  const G3_FIXED = new Set(['renderer', 'scene', 'camera', 'world', 'outer', 'inner', 'controls', 'planeDirty']);
   const heartKey = () => CONDITIONS.filter((c) => c.rebuild).map((c) => +!!ui.struct[c.id]).join('');
   function storeHeart(key) {
     if (heartCache.has(key)) return;
@@ -102,9 +106,10 @@
     storeHeart(prevKey);
     const hit = heartCache.get(heartKey());
     g3.inner.clear();
+    if (g3.leads) g3.world.remove(g3.leads);   // (each heart has its own lead vectors)
     if (hit) {
       A = hit.A; M = hit.M; newSim(true);
-      Object.assign(g3, hit.fields); g3.inner.add(...hit.children); $('labels').replaceChildren(...hit.labels);
+      Object.assign(g3, hit.fields); g3.inner.add(...hit.children); g3.world.add(g3.leads); $('labels').replaceChildren(...hit.labels);
     } else {
       // (a small note instead of the full-screen overlay, so the ECG stays in view)
       $('rebuildNote').hidden = false; await tick();
@@ -231,7 +236,9 @@
     outer.setRotationFromMatrix(new THREE.Matrix4().set(R9[0], R9[1], R9[2], 0, R9[3], R9[4], R9[5], 0, R9[6], R9[7], R9[8], 0, 0, 0, 0, 1));
     const inner = g3.inner = new THREE.Group();
     inner.position.set(-M.center[0], -M.center[1], -M.center[2]);
-    outer.add(inner); scene.add(outer);
+    // (world: the whole view, heart and lead vectors, turned about the line of sight by a two-finger twist)
+    const world = g3.world = new THREE.Group(); scene.add(world);
+    outer.add(inner); world.add(outer);
 
     buildSurfaces();
     buildConduction();
@@ -240,7 +247,7 @@
     buildOverlays();
 
     const ctl = g3.controls = new THREE.OrbitControls(cam, canvas);
-    ctl.enableDamping = true; ctl.dampingFactor = 0.12; ctl.enablePan = false;
+    ctl.enableDamping = true; ctl.dampingFactor = 0.12; ctl.enablePan = true; ctl.screenSpacePanning = true;   // (two fingers: pinch, pan and, below, twist)
     ctl.minDistance = 140; ctl.maxDistance = 900;
     setView('external'); setCut(0); cameraPreset('front');
     new ResizeObserver(resize3D).observe($('pane3d'));
@@ -431,6 +438,10 @@
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
       const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 50, emissive: 0x222222 }));
       grp.add(mesh); g3.tubes.push({ geo, col, map });
+      // see-through twin: the parts behind tissue (the left bundle under the septum's cut face) show faintly, so the
+      // whole system can be found and clicked
+      const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.45, depthTest: false, depthWrite: false }));
+      ghost.renderOrder = 9; grp.add(ghost);
       // invisible, thicker twin for easy clicking
       const pgeo = new THREE.TubeGeometry(curve, tub, isM() ? 5 : 3.2, rad, false);
       const pick = new THREE.Mesh(pgeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
@@ -527,6 +538,16 @@
     for (const n of cor.nodes) if (n.parent >= 0 && n.branch !== b && cor.nodes[n.parent].branch === b) firstK = Math.min(firstK, list.indexOf(n.parent));
     const pos = k <= firstK || f < 0.25 ? 'proximal' : f < 0.65 ? 'mid' : 'distal';
     return `${pos} ${BRANCH_NAME[b]}`;
+  }
+  // One marker per artery region (proximal/mid/distal LAD, LCx, RCA; left main; each side branch): a click anywhere in
+  // a region acts on that region's marker, placed at the region's start, or at the site Training and the validation
+  // tools use when it lies inside the region (distal LAD and RCA)
+  const REGION_AT = { 'distal LAD': ['LAD', 0.7], 'distal RCA': ['RCA', 0.8] };
+  function regionNode(id) {
+    const cor = M.coronary, name = segmentName(id), b = cor.nodes[id].branch, list = cor.branches[b];
+    const at = REGION_AT[name];
+    if (at) { const n = list[Math.round(list.length * at[1])]; if (n !== undefined && segmentName(n) === name) return n; }
+    return list.find((n) => segmentName(n) === name);
   }
 
   // territory tint (resting colour per voxel) and artery colours after any change
@@ -734,13 +755,15 @@
     return parts[0].name;
   }
 
+  const LEADS_DIST = 480;   // camera distance with the lead vectors shown (they reach past the heart)
   function cutPreset(name) {
     const pr = g3.cutPresets[name], cam = g3.camera, ctl = g3.controls;
+    g3.world.position.set(0, 0, 0); g3.world.quaternion.identity();   // (a preset undoes any twist and pan)
     g3.scene.updateMatrixWorld(true);
     const mw = g3.inner.matrixWorld;
     const dir = pr.world ? new THREE.Vector3(...pr.world).normalize() : pr.n.clone().transformDirection(mw);
     ctl.target.set(0, 0, 0);
-    cam.position.copy(dir).multiplyScalar(ui.leads ? 720 : pr.dist);
+    cam.position.copy(dir).multiplyScalar(ui.leads ? LEADS_DIST : pr.dist);
     cam.up.set(...pr.up); cam.lookAt(0, 0, 0); ctl.update();
     g3.planeDirty = true;
   }
@@ -814,7 +837,7 @@
     //  measured — the directions this model's ECG uses (limb leads: torso
     //    lead field blended with Einthoven, as in the engine; chest leads:
     //    electrode directions blended toward Dower's lead vectors).
-    const grp = g3.leads = new THREE.Group(); grp.visible = false; g3.scene.add(grp);
+    const grp = g3.leads = new THREE.Group(); grp.visible = false; g3.world.add(grp);
     const sets = g3.leadSets = { book: new THREE.Group(), meas: new THREE.Group() };
     grp.add(sets.book, sets.meas);
     const hc = M.heartCenterTorso;
@@ -830,7 +853,7 @@
       g3.labels.push({ el, pos: p, view: 'leads', space: 'scene', set });
       return g3.labels[g3.labels.length - 1];
     };
-    const limbFan = (set, LIMB, Rl = 95) => {
+    const limbFan = (set, LIMB, Rl = 72) => {
       const Lmax = Math.max(...LIMB.map((x) => x[1].length()));
       for (const [name, vec] of LIMB) {
         const len0 = vec.length(), d = vec.clone().normalize(), Rk = Rl * (0.55 + 0.45 * len0 / Lmax);
@@ -855,12 +878,12 @@
     const hexaxial = (I, II) => { const III = II.clone().sub(I);
       return [['I', I], ['II', II], ['III', III], ['aVR', I.clone().add(II).multiplyScalar(-0.5)], ['aVL', I.clone().sub(III).multiplyScalar(0.5)], ['aVF', II.clone().add(III).multiplyScalar(0.5)]]; };
     // textbook: hexaxial (equal lengths) and V1 120°, V2 90°, V3 75°, V4 60°, V5 30°, V6 0° (from the patient's left toward anterior)
-    limbFan('book', [['I', 0], ['II', 60], ['III', 120], ['aVR', -150], ['aVL', -30], ['aVF', 90]].map(([n, d]) => [n, fromDeg(d)]), 82);
+    limbFan('book', [['I', 0], ['II', 60], ['III', 120], ['aVR', -150], ['aVL', -30], ['aVF', 90]].map(([n, d]) => [n, fromDeg(d)]), 64);
     // (each tilted to its electrode's height: V1/V2 in the 4th intercostal space above V4–V6 in the 5th, V3 between)
     chestFan('book', [120, 90, 75, 60, 30, 0].map((d, i) => {
       const e = M.electrodes[['V1', 'V2', 'V3', 'V4', 'V5', 'V6'][i]], el = Math.atan2(e[1] - hc[1], Math.hypot(e[0] - hc[0], e[2] - hc[2])), a = d * Math.PI / 180;
       return new THREE.Vector3(Math.cos(a) * Math.cos(el), Math.sin(el), Math.sin(a) * Math.cos(el));
-    }), [92, 92, 92, 92, 92, 92]);
+    }), [70, 70, 70, 70, 70, 70]);
     // measured: the limb vectors the ECG computation uses (engine blend of the torso field and Einthoven)
     const lv = M.limbLeadVectors, V3v = (a) => new THREE.Vector3(a[0], a[1], a[2]);
     if (lv) {
@@ -871,7 +894,7 @@
       const II = V3v(tv.II).multiplyScalar(b * P.torsoIIGain).add(ein(60).multiplyScalar(1 - b));
       limbFan('meas', hexaxial(I, II));
     } else limbFan('meas', hexaxial(fromDeg(0), fromDeg(60)));
-    chestFan('meas', M.leadDir.map((u) => V3v(u)), ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k) => { const e = M.electrodes[k]; return Math.hypot(e[0] - hc[0], e[1] - hc[1], e[2] - hc[2]); }));
+    chestFan('meas', M.leadDir.map((u) => V3v(u)), ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map((k) => { const e = M.electrodes[k]; return 0.65 * Math.hypot(e[0] - hc[0], e[1] - hc[1], e[2] - hc[2]); }));   // (scaled: the full electrode distance needs the heart zoomed far out)
     g3.heartVec = arrow(grp, new THREE.Vector3(1, 0, 0), 10, 0xffffff, 9);
     g3.heartVecTag = leadTag('Heart vector', new THREE.Vector3(), 'lead hv');
   }
@@ -960,7 +983,7 @@
       else vis = showLabels && (l.view === 'both' || l.view === ui.view);
       if (l === g3.heartVecTag) vis = showLeads && !g3.heartVecTag.hidden;
       if (vis) {
-        if (l.space === 'heart') tmp.copy(l.pos).applyMatrix4(mw); else tmp.copy(l.pos);
+        if (l.space === 'heart') tmp.copy(l.pos).applyMatrix4(mw); else tmp.copy(l.pos).applyMatrix4(g3.world.matrixWorld);
         if (l.view === 'external' || (l.view === 'both' && !cut)) {
           nw.copy(l.nrm).applyMatrix3(nmat).normalize(); toCam.copy(cam.position).sub(tmp);
           if (nw.dot(toCam) < (l.cosMin ? l.cosMin * toCam.length() : 0)) vis = false;   // anchor faces away from the viewer (or outside its viewing cone)
@@ -1129,20 +1152,20 @@
   }
 
   function updateActionNote() {
-    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click a coronary artery to narrow it (partial flow), double-click to occlude it' }[ui.action];
+    const note = isM() ? PHONE_NOTE[ui.tab] : { stimulate: 'Click on the heart to stimulate an ectopic beat. Fast heart rates such as VT and VF may cause slowdowns due to computational complexity.', block: 'Click on the conduction system to block', ischemia: 'Click a coronary artery to narrow it (partial flow), double-click to occlude it. Click a marked region again to remove it.' }[ui.action];
     $('actionNote').hidden = !note || ui.tab === 'learn';
     $('actionNote').textContent = note || '';
   }
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
     blocks: 'Tap the conduction system to cycle through blocks.',
-    ischemia: 'Hold a coronary artery: a short hold narrows it (partial flow), a long hold occludes it.',
+    ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marked region again to remove it.',
   };
 
   // pointer handling on the 3D canvas: a click (not a drag) acts
   function initPicking() {
     const canvas = $('c3d'), ray = new THREE.Raycaster();
-    let down = null, ischClick = null;
+    let down = null; const ischClick = { last: null };
     canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });
     canvas.addEventListener('pointerup', (e) => {
       if (isM()) { down = null; return; }                       // phones: see initTouch
@@ -1153,9 +1176,8 @@
       hideBlockMenu();
       if (ui.action === 'ischemia') {
         // a click narrows the artery (after a moment, so a double-click can occlude it instead)
-        const now = performance.now(), r0 = new THREE.Raycaster(); r0.ray.copy(ray.ray);
-        if (ischClick && now - ischClick.t < DOUBLE_MS && Math.hypot(x - ischClick.x, y - ischClick.y) < 12) { clearTimeout(ischClick.timer); ischClick = null; pickIschemia(r0, x, y, 'occlude'); return; }
-        ischClick = { t: now, x, y, timer: setTimeout(() => { ischClick = null; pickIschemia(r0, x, y, 'narrow'); }, DOUBLE_MS) };
+        const r0 = new THREE.Raycaster(); r0.ray.copy(ray.ray);
+        ischPress(ischClick, x, y, e.timeStamp, (mode) => pickIschemia(r0, x, y, mode), 12);
         return;
       }
       if (ui.action === 'block') pickBlock(ray, x, y); else if (ui.action === 'stimulate') pickStimulus(ray, x, y);
@@ -1244,7 +1266,7 @@
     const clotOf = clot && S.insults.find((v) => v.id === clot.object.userData.insult);
     let subCell = -1;
     if (SUBENDO_ON && !corHit && cut && front) {
-      if (front.object === g3.slab.im) { const c = nearestTissue(p.x, p.y, p.z, 1); if (c >= 0 && (A.label[c] === 1 || A.label[c] === 2)) subCell = c; else { flash(x, y, `${isM() ? 'Hold' : 'Click'} ventricular muscle`); return; } }
+      if (front.object === g3.slab.im) { const c = nearestTissue(p.x, p.y, p.z, 1); if (c >= 0 && (A.label[c] === 1 || A.label[c] === 2)) subCell = c; else { flash(x, y, `${isM() ? 'Tap' : 'Click'} ventricular muscle`); return; } }
       else { const side = ventricularSide(p.x, p.y, p.z); if (side && side.endo) subCell = side.cell; }
     }
     if (subCell >= 0) {
@@ -1259,22 +1281,48 @@
         const cor = M.coronary;                                   // (only the vessels offered: side-branch nodes are not)
         g3.corPos.forEach((q, i) => { if (!cor.branches[cor.nodes[i].branch]) return; const d = q.distanceToSquared(p); if (d < bd) { bd = d; node = i; } });
       }
-      const verb = isM() ? 'Hold' : 'Click';
+      const verb = isM() ? 'Tap' : 'Click';
       if (node < 0) { flash(x, y, SUBENDO_ON && cut ? `${verb} an artery, the cut face or the inner wall` : `${verb} a coronary artery`); return; }
-      // the same artery again: the same action removes it, the other one replaces it (narrowing ↔ occlusion)
-      const same = S.insults.find((v) => (v.kind === 'occlusion' || v.stenosis) && v.node === node);
+      // the same region again (one marker per region): the same action removes it, the other one replaces it
+      // (narrowing ↔ occlusion)
+      const region = segmentName(node);
+      node = regionNode(node);
+      const same = S.insults.find((v) => (v.kind === 'occlusion' || v.stenosis) && segmentName(v.node) === region);
+      const did = { node, region, prev: same ? (same.stenosis ? 'narrow' : 'occlude') : null, x, y };
       if (same) {
-        const was = same.stenosis ? 'narrow' : 'occlude';
         removeIschemia(same.id);
-        if (was === mode) { flash(x, y, mode === 'narrow' ? 'Narrowing removed' : 'Occlusion removed'); return; }
+        if (did.prev === mode) { flash(x, y, mode === 'narrow' ? 'Narrowing removed' : 'Occlusion removed'); return did; }
       }
+      added = did;
       captureRef();
-      if (mode === 'narrow') { added = S.addStenosis(node); flash(x, y, `Narrowed: ${segmentName(node)}`); }
-      else { added = S.addOcclusion(node); flash(x, y, `Occluded: ${segmentName(node)}`); }
+      if (mode === 'narrow') { S.addStenosis(node); flash(x, y, `Narrowed: ${segmentName(node)}`); }
+      else { S.addOcclusion(node); flash(x, y, `Occluded: ${segmentName(node)}`); }
     }
     if (ui.ischH === 0) setIschTime(1);                         // start an hour in, so the change is visible
     else S.setIschemiaTime(ui.ischH);
     recolorIschemia(); renderIschList(); interpret(true);
+    return added;
+  }
+  // click/tap = narrow (after DOUBLE_MS, so a second one can occlude instead); a second within DOUBLE_MS (by the
+  // events' own times) = occlude. On a busy page the narrowing may already be done when the second arrives: it is then
+  // turned into what the double click means (an occlusion, or removal of the occlusion that was there).
+  function ischPress(st, x, y, now, run, tol) {
+    const l = st.last;
+    if (l && now - l.t < DOUBLE_MS && Math.hypot(x - l.x, y - l.y) < tol) {
+      st.last = null;
+      if (l.timer) { clearTimeout(l.timer); run('occlude'); return; }
+      const d = l.done;
+      if (!d || !d.region) return;
+      const cur = S.insults.find((v) => (v.kind === 'occlusion' || v.stenosis) && segmentName(v.node) === d.region);
+      if (cur) removeIschemia(cur.id);
+      if (d.prev === 'occlude') { flash(d.x, d.y, 'Occlusion removed'); return; }
+      captureRef(); S.addOcclusion(d.node); flash(d.x, d.y, `Occluded: ${segmentName(d.node)}`);
+      if (ui.ischH === 0) setIschTime(1); else S.setIschemiaTime(ui.ischH);
+      recolorIschemia(); renderIschList(); interpret(true);
+      return;
+    }
+    const e = st.last = { t: now, x, y, done: null };
+    e.timer = setTimeout(() => { e.timer = 0; e.done = run('narrow'); }, DOUBLE_MS);
   }
 
   function insultLabel(v) {
@@ -1341,11 +1389,16 @@
   function setTab(t, fromClick = false) {
     const collapsed = $('controls').classList.contains('collapsed');
     if (fromClick && t === ui.tab && !collapsed) { toggleControls(false); return; }
+    const changed = t !== ui.tab;
     ui.tab = t; ui.action = t === 'blocks' ? 'block' : t === 'ischemia' ? 'ischemia' : t === 'rhythm' ? 'stimulate' : 'none';
     for (const p of document.querySelectorAll('#controls .tabpanel')) p.hidden = p.dataset.panel !== t;
     $('controls').classList.toggle('wide', t === 'learn' || (t === 'conditions' && !$('condCatalog').hidden));
     toggleControls(true);
-    if (isM() && t === 'blocks' && ui.cutFrac < 100) { setCut(100); cameraPreset('front'); }   // blocks are tapped in the four-chamber cut
+    // opening a tab shows the view it works in: blocks in the four-chamber cut, ischemia on the outside (the arteries)
+    if (changed || fromClick) {
+      if (t === 'blocks' && ui.cutFrac < 100) { setCut(100); cameraPreset('front'); }
+      if (t === 'ischemia' && ui.cutFrac > 0) { setCut(0); cameraPreset('chest'); }
+    }
     if (t === 'learn') renderLearn();
     updateActionNote(); hideBlockMenu();
   }
@@ -2358,7 +2411,7 @@
   const isM = () => document.body.classList.contains('m');
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
   const SECS = [2500, 5000, 10000];
-  const HOLD_MS = 550, HOLD2_MS = 1300, BURST_MS = 500, BURST_PX = 40, DOUBLE_MS = 350;   // (hold: narrowing at HOLD_MS, occlusion at HOLD2_MS)
+  const BURST_MS = 500, BURST_PX = 40, DOUBLE_MS = 350;
   const ph = { group: 0, peek: null, win: 5000, live: 'II', fsEcg: false, fsHeart: false, flip: false };
   const buzz = (ms = 10) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
   // true the first time a tip key is seen in this browser
@@ -2661,6 +2714,12 @@
     hideBlockMenu();
     const ray = rayAt(x, y);
     if (pathwayAt(x, y)) { lastEmpty = null; pathwayTap(x, y, now); return; }
+    // Ischemia tab: a tap on the heart narrows the artery (after a moment, so a second tap can occlude it instead)
+    if (ui.tab === 'ischemia' && (tissueAt(ray) >= 0 || ray.intersectObjects(g3.corPick, false).length)) {
+      lastEmpty = null;
+      ischPress(ischTap, x, y, now, (mode) => { buzz(mode === 'narrow' ? 15 : 35); return mobileIsch(x, y, mode); }, 40);
+      return;
+    }
     if (ui.view === 'cutaway') { const site = conductionAt(ray, x, y); if (site) { lastEmpty = null; conductionTap(site, x, y, now); return; } }
     const c = tissueAt(ray);
     if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }
@@ -2668,48 +2727,54 @@
     if (lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
     else lastEmpty = { x, y, t: now };
   }
-  function mobileHold(x, y, mode) {
+  const ischTap = { last: null };
+  function mobileIsch(x, y, mode) {
     const n = S.insults.length;
-    pickIschemia(rayAt(x, y), x, y, mode);
+    const did = pickIschemia(rayAt(x, y), x, y, mode);
     if (S.insults.length > n) openSheet('ischemia');
+    return did;
+  }
+  // two-finger twist (touch screens): turns the view about the line of sight, as in a map; the pinch and pan of the
+  // same gesture are the orbit controls'
+  function initTwist() {
+    const canvas = $('c3d'), pts = new Map();
+    let ang = null;
+    const angle = () => { const [a, b] = [...pts.values()]; return Math.atan2(b.y - a.y, b.x - a.x); };
+    canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); ang = pts.size === 2 ? angle() : null; });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size !== 2 || ang === null) return;
+      const a = angle(); let d = a - ang; ang = a;
+      if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI;
+      if (!d) return;
+      const tgt = g3.controls.target, axis = g3.camera.position.clone().sub(tgt).normalize();
+      const q = new THREE.Quaternion().setFromAxisAngle(axis, -d), w = g3.world;
+      w.position.sub(tgt).applyQuaternion(q).add(tgt); w.quaternion.premultiply(q);
+      g3.planeDirty = true;
+    });
+    const up = (e) => { pts.delete(e.pointerId); ang = pts.size === 2 ? angle() : null; };
+    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
   }
   function initTouch() {
-    const canvas = $('c3d'), ring = $('press');
-    let down = null, timer = 0, raf = 0, pointers = 0;
+    const canvas = $('c3d');
+    let down = null, pointers = 0;
     const at = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
-    const stop = () => { clearTimeout(timer); cancelAnimationFrame(raf); ring.hidden = true; };
     canvas.addEventListener('contextmenu', (e) => { if (isM()) e.preventDefault(); });
     canvas.addEventListener('pointerdown', (e) => {
       if (!isM()) return;
-      if (++pointers > 1) { down = null; stop(); return; }           // pinch
-      const p = at(e), t0 = performance.now();
-      // a short hold narrows an artery (released after the ring fills once), a long hold occludes it (the ring
-      // fills a second time, in red, and the occlusion acts at once)
-      down = { x: p.x, y: p.y, held: false, stage: 0 };
-      timer = setTimeout(() => {
-        if (!down) return; down.stage = 1; buzz(15);
-        timer = setTimeout(() => { if (!down) return; down.held = true; stop(); buzz(35); mobileHold(p.x, p.y, 'occlude'); }, HOLD2_MS - HOLD_MS);
-      }, HOLD_MS);
-      // the ring appears after a moment and fills until the hold acts
-      const grow = () => {
-        if (!down || down.held) return;
-        const el = performance.now() - t0, k = down.stage ? (el - HOLD_MS) / (HOLD2_MS - HOLD_MS) : (el - 150) / (HOLD_MS - 150);
-        ring.classList.toggle('stage2', !!down.stage);
-        if (k > 0 || down.stage) { ring.hidden = false; ring.style.left = `${p.x}px`; ring.style.top = `${p.y}px`; ring.style.setProperty('--p', `${Math.max(0, Math.min(100, k * 100))}%`); }
-        raf = requestAnimationFrame(grow);
-      };
-      raf = requestAnimationFrame(grow);
+      if (++pointers > 1) { down = null; return; }                  // two fingers: zoom, turn and pan
+      const p = at(e); down = { x: p.x, y: p.y };
     });
     canvas.addEventListener('pointermove', (e) => {
       if (!down) return;
-      const p = at(e); if (Math.hypot(p.x - down.x, p.y - down.y) > 10) { down = null; stop(); }   // a drag rotates
+      const p = at(e); if (Math.hypot(p.x - down.x, p.y - down.y) > 10) down = null;   // a drag rotates
     });
     const end = (e) => {
       if (!isM()) return;
-      pointers = Math.max(0, pointers - 1); stop();
+      pointers = Math.max(0, pointers - 1);
       const d = down; down = null;
-      if (d && !d.held && d.stage && e.type === 'pointerup') { buzz(25); mobileHold(d.x, d.y, 'narrow'); return; }   // (released after the first fill)
-      if (d && !d.held && e.type === 'pointerup') mobileTap(d.x, d.y, e.timeStamp);
+      if (d && e.type === 'pointerup') mobileTap(d.x, d.y, e.timeStamp);
     };
     canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
   }
@@ -2897,7 +2962,7 @@
       ui.leads = e.target.checked;
       $('legendLeads').hidden = !ui.leads;
       // pull back so the chest electrodes fit in view
-      if (ui.leads && g3.camera.position.length() < 660) { g3.camera.position.setLength(720); g3.controls.update(); }
+      if (ui.leads && g3.camera.position.length() < LEADS_DIST - 40) { g3.camera.position.setLength(LEADS_DIST); g3.controls.update(); }
     });
     $('leadSetBtn').addEventListener('click', () => {
       ui.leadSet = ui.leadSet === 'meas' ? 'book' : 'meas';
@@ -2924,7 +2989,7 @@
     $('btnShock').addEventListener('click', () => { ui.avnrt = null; ui.pendingRhythm = null; ui.rhythmFrom = S.t; S.shock(); ui.shockAt = performance.now(); markChange(); syncRate(); interpret(); syncRhythmUI(); });
     initConditions();
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
-    initPicking(); updateActionNote();
+    initPicking(); initTwist(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     $('cutDepth').addEventListener('input', (e) => setCut(+e.target.value));
     $('cutExt').addEventListener('click', () => setCut(0));

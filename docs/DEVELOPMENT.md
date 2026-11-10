@@ -1958,3 +1958,36 @@ its cellular effect:
   gate for whether the STEMI is visible; "Sgarbossa" is a synonym of ST elevation; the separate term is removed.
 - **Hypothermia** moved from "Temperature" to the **Other** heading of the Conditions panel.
 - Validation: reader 47/57, `tools/arrhythmia.js` identical.
+
+## Round 54: touch and view fixes, report form, advanced findings in Training
+
+Simulator (`src/app.js`, `src/template.html`):
+- **Phone layout from the first paint**: a small script inside `#app` sets `body.m`/`body.ml` before the large scripts are
+  parsed (the desktop layout no longer flashes first).
+- **Coronary taps**: single tap/click narrows, double tap/click occludes; the same gesture again removes the marker, the
+  other converts it. **One marker per region** (`regionNode`: left main, proximal/mid/distal LAD, LCx, RCA by
+  `segmentName`, and each side branch); the marker sits at the region's start (distal LAD and RCA: the Training/validation
+  site), so a tap anywhere in the region acts on it. On a busy page a late second tap turns the narrowing just made into
+  what the double tap means (`ischPress`). On phones these taps work in the Ischemia tab (the hold gestures are removed).
+- **Two-finger gestures**: pinch, pan (`enablePan`, screen-space) and twist (`initTwist`: the new `g3.world` group, heart
+  and lead vectors, turns about the line of sight). Any view preset clears the twist and pan.
+- **Tabs choose the view**: Ischemia → external, Blocks → four-chamber cut (desktop and phone).
+- **Lead vectors** shorter (limb 72/64 mm, chest 70 mm, measured chest ×0.65) with the camera at 480 instead of 720.
+- **Conduction system see-through**: a faint copy drawn over tissue, so the left bundle under the septum's cut face shows
+  (the pick tubes already ignored tissue).
+- Lead vectors are removed from the scene on a heart rebuild (an older set no longer stays behind).
+- Resources: added Rautaharju 2009 (ST-T/QT), de Zwaan/Wellens 1982, Sgarbossa 1996, Wang 2003, Diercks 2004, Osborn 1953,
+  Dessertenne 1966, Drew 2010, McCord 1998.
+
+Training (`src/training_gen.js`, `src/training.js`):
+- VT, TdP and VF carry no artifact (they never took abnormalities).
+- Tremor duration varies: a quarter of strips shake throughout (slowly swelling), the rest 1–4 bursts of 0.4–3.5 s, each
+  of its own strength.
+- The electrolytes and Wellens are rarer (`ABN_W` 0.15–0.35; TdP w 0.3): in 20 000 sampled ECGs each now appears about as
+  often as atrial enlargement or less.
+- **Advanced findings** (`adv`, `ADV = 1700`): Wellens, hypothermia, and the STEMI in LBBB (Sgarbossa). Below 1700 in the
+  finding's skill they appear but are not asked: shown as a dotted "advanced" chip, credited (+5%) when named.
+- Problem reports: with `reportForm` set in `site.json` (a Google Form prefill link ending in `entry.<id>=`), the report
+  opens that form filled in, so no address is shown; without it the share sheet/clipboard as before.
+- Home: the Reviews subheading is "ECGs you missed"; the 1–35 day schedule is in Help (Other).
+- Validation: engine unchanged; `tools/trainlive.js 40 3` runs, VT/TdP/VF alone in 20 000 samples.

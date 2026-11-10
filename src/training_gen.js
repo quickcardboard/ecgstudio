@@ -46,7 +46,7 @@
     chb: { w: 0.9, open: true, rating: 120, rate: [60, 100], rateOk: (x) => ![1, 1.5, 2, 2.5].some((q) => Math.abs(x / 48 - q) < 0.04 * q), block: ['AVN', 'complete'], read: (r) => /complete AV block/.test(r) },
     vt: { w: 1.2, tachy: true, rating: 120, link: 'a=vt', vt: true, read: (r) => r === 'ventricular tachycardia' },
     // torsades de pointes (Round 53): polymorphic VT, the QRS axis twisting (a focus moving around the LV each beat)
-    tdp: { w: 0.6, tachy: true, rating: 180, link: 'a=tdp', poly: true, start: (S) => { S.run(2000); S.startArrhythmia('tdp'); }, read: (r) => /ventricular/.test(r) },
+    tdp: { w: 0.3, tachy: true, rating: 180, link: 'a=tdp', poly: true, start: (S) => { S.run(2000); S.startArrhythmia('tdp'); }, read: (r) => /ventricular/.test(r) },
     vf: { w: 0.8, tachy: true, rating: 40, link: 'a=vf', vf: true, start: (S) => { S.run(2000); S.startArrhythmia('vf'); }, read: (r) => r === 'ventricular fibrillation' },
     // sinus arrest for the whole strip with an escape rhythm: junctional (narrow, retrograde P hidden after the QRS)
     // or ventricular (block in the His bundle below it: wide); naming the sinus pause is true but not required
@@ -78,6 +78,9 @@
   // ---------------------------------------------------------------- abnormalities
   // group: one per group; excl: groups it cannot be combined with (they hide each other);
   // needP: needs a 1:1 P-wave rhythm; dx: the reader's word for it
+  // advanced findings (adv: a rating): below it in the finding's skill the finding may appear but is not asked (no miss
+  // for leaving it out; credited when named). Wellens, hypothermia's Osborn waves and a STEMI read through LBBB (Sgarbossa)
+  const ADV = 1700;
   const MI_SITES = {
     pLAD: { f: (b) => b.LAD[0], name: 'proximal LAD', ste: { req: ['anterior'], ok: ['septal', 'lateral'] }, q: { req: ['anterior'], ok: ['septal', 'lateral'] } },
     mLAD: { f: (b) => b.LAD[Math.round(b.LAD.length * 0.22)], name: 'mid LAD', ste: { req: ['anterior'], ok: ['septal', 'lateral'] }, q: { req: ['anterior'], ok: ['septal', 'lateral'] } },
@@ -131,20 +134,20 @@
     sinusPause: { group: 'ectopy', skill: 'rhythm', rating: 60, id: 'sinusPause', pause: true, linkBlock: 'SAN.pause', at: [[3000, (S, rec) => S.setBlock('SAN', 'pause', { ms: 2600, escape: !!rec.pauseEscape })]], leads: ['II'], line: 'A sudden pause with no P wave, not a multiple of the P–P interval, then sinus beats resume: sinus pause.' },
     couplet: { group: 'ectopy', skill: 'rhythm', rating: 60, ectopy: 'couplet', id: 'couplet', leads: ['II'], line: 'Two premature wide complexes in a row: a ventricular couplet (three or more would be non-sustained VT).' },
     // Wellens (Round 52; Sim.setWellens): a reperfused critical proximal LAD lesion, T changes over V2–V3, no Q waves
-    wellensA: { group: 'isch', skill: 'ischemia', rating: 180, id: 'wellens', wellens: 'A', link: 'wellens=A', optional: ['twi'], excl: ['peri', 'brugada', 'repol', 'bbb', 'hyp', 'wpw', 'electro', 'fasc'], leads: ['V2', 'V3'], line: 'Biphasic T waves (up, then down) in V2–V3 with no Q waves and the ST near baseline: Wellens type A, a critical proximal LAD stenosis.' },
-    wellensB: { group: 'isch', skill: 'ischemia', rating: 140, id: 'wellens', wellens: 'B', link: 'wellens=B', optional: ['twi'], excl: ['peri', 'brugada', 'repol', 'bbb', 'hyp', 'wpw', 'electro', 'fasc'], leads: ['V2', 'V3', 'V4'], line: 'Deep, symmetric T inversion in V2–V4 with no Q waves and the ST near baseline: Wellens type B, a critical proximal LAD stenosis.' },
+    wellensA: { group: 'isch', skill: 'ischemia', rating: 180, adv: ADV, id: 'wellens', wellens: 'A', link: 'wellens=A', optional: ['twi'], excl: ['peri', 'brugada', 'repol', 'bbb', 'hyp', 'wpw', 'electro', 'fasc'], leads: ['V2', 'V3'], line: 'Biphasic T waves (up, then down) in V2–V3 with no Q waves and the ST near baseline: Wellens type A, a critical proximal LAD stenosis.' },
+    wellensB: { group: 'isch', skill: 'ischemia', rating: 140, adv: ADV, id: 'wellens', wellens: 'B', link: 'wellens=B', optional: ['twi'], excl: ['peri', 'brugada', 'repol', 'bbb', 'hyp', 'wpw', 'electro', 'fasc'], leads: ['V2', 'V3', 'V4'], line: 'Deep, symmetric T inversion in V2–V4 with no Q waves and the ST near baseline: Wellens type B, a critical proximal LAD stenosis.' },
     // electrolytes and hypothermia (Round 51; Sim.setElectrolyte): one per ECG, not with ST-T disease or a wide QRS
     hyperK: { group: 'electro', skill: 'conditions', rating: 80, id: 'hyperK', elec: ['hyperK', 1], link: 'hyperK=mild', excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['V2', 'V3', 'V4', 'II'], line: 'Tall, narrow-based, peaked T waves: hyperkalemia (K about 6–7).' },
     hyperK2: { group: 'electro', skill: 'conditions', rating: 160, id: 'hyperK', elec: ['hyperK', 2], link: 'hyperK=severe', optional: ['avb1', 'ivcd'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V1', 'V3'], line: 'Peaked T waves with flattened P waves, a long PR and a wide QRS: severe hyperkalemia (K above 7). Treat now.' },
     hypoK: { group: 'electro', skill: 'conditions', rating: 120, id: 'hypoK', elec: ['hypoK', 1], struct: 'hypoK', optional: ['nsstt', 'longqt'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['V2', 'V3'], line: 'Flat T waves followed by prominent U waves in V2–V3: hypokalemia.' },
     hypoCa: { group: 'electro', skill: 'conditions', rating: 120, id: 'hypoCa', elec: ['hypoCa', 1], struct: 'hypoCa', optional: ['longqt'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V3'], caliper: 'qt', line: 'Long QTc from a long, flat ST segment with a normal T wave: hypocalcemia.' },
     hyperCa: { group: 'electro', skill: 'conditions', rating: 140, id: 'hyperCa', elec: ['hyperCa', 1], struct: 'hyperCa', excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V3'], caliper: 'qt', line: 'Short QTc: the T wave starts almost at the end of the QRS (short ST segment): hypercalcemia.' },
-    hypothermia: { group: 'electro', skill: 'conditions', rating: 140, id: 'hypothermia', elec: ['hypothermia', 1], struct: 'hypothermia', cold: true, optional: ['longqt', 'avb1'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V4', 'V5'], line: 'J (Osborn) waves at the end of the QRS with bradycardia and a long QT: hypothermia.' },
+    hypothermia: { group: 'electro', skill: 'conditions', rating: 140, adv: ADV, id: 'hypothermia', elec: ['hypothermia', 1], struct: 'hypothermia', cold: true, optional: ['longqt', 'avb1'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V4', 'V5'], line: 'J (Osborn) waves at the end of the QRS with bradycardia and a long QT: hypothermia.' },
     brugada: { group: 'brugada', skill: 'conditions', rating: 80, dx: 'Brugada type 1', brugada: true, struct: 'brugada', excl: ['isch', 'peri'], leads: ['V1', 'V2'], line: 'Coved ST elevation ≥ 2 mm in V1–V2 into a negative T: Brugada pattern.' },
   };
   // (testers' round 1: fewer hypertrophy, Brugada and atrial enlargement; more ST depression, T changes,
   // WPW and ectopy)
-  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, hyperK: 0.8, hyperK2: 0.4, hypoK: 0.8, hypoCa: 0.5, hyperCa: 0.4, hypothermia: 0.4, wellensA: 0.5, wellensB: 0.7 };
+  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, hyperK: 0.35, hyperK2: 0.15, hypoK: 0.3, hypoCa: 0.2, hyperCa: 0.15, hypothermia: 0.4, wellensA: 0.2, wellensB: 0.25 };   // (the electrolytes, Wellens and hypothermia: rare, about as often as atrial enlargement)
   const ITEM_BASE = 1200, PER_ABN = 180;
   // (difficulty above the base is stretched ×1.32: the hardest ECGs, four findings on a hard rhythm, reach ~2700
   // instead of ~2340, leaving headroom above the top title; the generator works on the unstretched scale)
@@ -155,7 +158,7 @@
   const ART_EL = [['RA', 2], ['LA', 2], ['LL', 2], ['V1', 0.5], ['V2', 0.5], ['V3', 0.5], ['V4', 0.5], ['V5', 0.5], ['V6', 0.5]];
   const artBonus = (art) => (art ? Math.round(ART_BONUS * art.level * (1 + 0.25 * (art.kinds.length - 1))) : 0);
   function sampleArt(rand, target, rhythm) {
-    if (target < ART_FROM || rhythm === 'vf') return null;
+    if (target < ART_FROM || ['vt', 'tdp', 'vf'].includes(rhythm)) return null;   // (ventricular tachyarrhythmias: alone, no artifact either)
     const x = Math.min(1, (target - ART_FROM) / ART_SPAN);
     if (rand() >= 0.35 + 0.25 * x) return null;
     const level = +Math.max(0.15, Math.min(1, 0.25 + 0.75 * x + (rand() - 0.5) * 0.3)).toFixed(2);
@@ -285,12 +288,20 @@
       if (art.kinds.includes('tremor')) {
         // muscle tremor: bursts of 0.6–2 s (2–4 of them) of a coarse 4–9 Hz shaking whose size and pace wander, with a
         // little low-passed muscle noise on top: slower than mains interference, which is a fine even 50 Hz band
-        const x = E[art.el.tremor], A = ART_MAX.tremor * lv, nb = 2 + Math.floor(r() * 3);
+        // duration varies too: a quarter of strips shake throughout (a shivering patient, the size swelling and easing
+        // over seconds); the rest have 1–4 bursts of 0.4–3.5 s, each of its own strength
+        const x = E[art.el.tremor], A = ART_MAX.tremor * lv;
         let w0 = 0, w1 = 0;
         const env = new Float32Array(n);
-        for (let b = 0; b < nb; b++) {
-          const len = (0.6 + 1.4 * r()) * hz, t0 = r() * (n - len), ramp = 0.15 * hz;
-          for (let i = Math.max(0, Math.floor(t0)); i < Math.min(n, t0 + len); i++) { const u = Math.min(1, (i - t0) / ramp, (t0 + len - i) / ramp); env[i] = Math.max(env[i], 0.5 - 0.5 * Math.cos(Math.PI * u)); }
+        if (r() < 0.25) {
+          const f = 0.08 + 0.12 * r(), p = 2 * Math.PI * r();
+          for (let i = 0; i < n; i++) env[i] = 0.7 + 0.3 * Math.sin(2 * Math.PI * f * i * dt + p);
+        } else {
+          const nb = 1 + Math.floor(r() * 4);
+          for (let b = 0; b < nb; b++) {
+            const len = Math.min(n, (0.4 + 3.1 * r() * r()) * hz), t0 = r() * (n - len), ramp = 0.15 * hz, g = 0.55 + 0.45 * r();
+            for (let i = Math.max(0, Math.floor(t0)); i < Math.min(n, t0 + len); i++) { const u = Math.min(1, (i - t0) / ramp, (t0 + len - i) / ramp); env[i] = Math.max(env[i], g * (0.5 - 0.5 * Math.cos(Math.PI * u))); }
+          }
         }
         const f0 = 4 + 5 * r(), v = new Float32Array(n); let ph = 2 * Math.PI * r(), am = 1, lp1 = 0, lp2 = 0, ss = 0;
         const k = 1 - Math.exp(-2 * Math.PI * 15 / hz);   // (muscle noise low-passed at ~15 Hz)
@@ -757,7 +768,7 @@
           // (STEMI in LBBB: answered as ST elevation, a finding of its own beside the LBBB; seen through the Sgarbossa
           // criteria, so the region asked is the artery's and every territory the criteria flag is accepted)
           const site = MI_SITES[a.site], ex = site.ste, terr = terrOf(c.leads);
-          findings.push({ id: 'ste', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
+          findings.push({ id: 'ste', skill: d.skill, adv: ADV, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
           mark('ste', c.leads);
           lines.ste = `${c.why}: Sgarbossa criteria (modified) positive, an acute ${ex.req.join('/')} STEMI despite the LBBB.`;
           ['std', 'reciprocal', 'hyperacute', 'posteriorMI'].forEach((x) => optional.add(x));
@@ -769,7 +780,7 @@
           // (Q waves can form within hours of a STEMI: named with the STEMI, they are true)
           if (acute) ['std', 'reciprocal', 'hyperacute', 'posteriorMI', 'twi', 'qwaves'].forEach((x) => optional.add(x));
         } else {
-          findings.push({ id: d.id || a.k, skill: d.skill });
+          findings.push(d.adv ? { id: d.id || a.k, skill: d.skill, adv: d.adv } : { id: d.id || a.k, skill: d.skill });
           // (the textbook leads, where the twin shows the change; else the leads that change most)
           const tl = tw ? d.leads.filter((l) => tw.per[l] >= 0.3 * tw.max) : d.leads;
           mark(d.id || a.k, c.leads || (tl.length ? tl : tw ? tw.top : d.leads));

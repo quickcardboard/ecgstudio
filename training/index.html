@@ -6,7 +6,8 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-09 (a593e27)">
+<meta name="version" content="2026-11-10 (482b92b)">
+<meta name="report-form" content="">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+CiAgPHBvbHlnb24gcG9pbnRzPSIxOTcuMCw0MTUuMSAyMzYuMyw0MzcuOCAyMzYuMyw0ODMuMyAxOTcuMCw0NjAuNSIgZmlsbD0iI2E2NmY4MSIvPjxwb2x5Z29uIHBvaW50cz0iMjM2LjMsNDM3LjggMjc1LjcsNDYwLjUgMjc1LjcsNTA2LjAgMjM2LjMsNDgzLjMiIGZpbGw9IiNhNjZmODEiLz48cG9seWdvbiBwb2ludHM9IjMxNS4wLDQzNy44IDI3NS43LDQ2MC41IDI3NS43LDUwNi4wIDMxNS4wLDQ4My4zIiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSIzNTQuNCwzNjkuNiAzMTUuMCwzOTIuNCAzMTUuMCw0MzcuOCAzNTQuNCw0MTUuMSIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsMzAxLjUgMzU0LjQsMzI0LjIgMzU0LjQsMzY5LjYgMzkzLjgsMzQ2LjkiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjQzMy4xLDIzMy4zIDM5My44LDI1Ni4wIDM5My44LDMwMS41IDQzMy4xLDI3OC43IiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSI0NzIuNSwxNjUuMSA0MzMuMSwxODcuOCA0MzMuMSwyMzMuMyA0NzIuNSwyMTAuNSIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMTU3LjYsMzkyLjQgMTk3LjAsNDE1LjEgMTk3LjAsNDYwLjUgMTU3LjYsNDM3LjgiIGZpbGw9IiNhNjZmODEiLz48cG9seWdvbiBwb2ludHM9IjMxNS4wLDM5Mi40IDI3NS43LDQxNS4xIDI3NS43LDQ2MC41IDMxNS4wLDQzNy44IiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSIzNTQuNCwzMjQuMiAzMTUuMCwzNDYuOSAzMTUuMCwzOTIuNCAzNTQuNCwzNjkuNiIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsMjU2LjAgMzU0LjQsMjc4LjcgMzU0LjQsMzI0LjIgMzkzLjgsMzAxLjUiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjQzMy4xLDE4Ny44IDM5My44LDIxMC41IDM5My44LDI1Ni4wIDQzMy4xLDIzMy4zIiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSI0NzIuNSwxMTkuNiA0MzMuMSwxNDIuNCA0MzMuMSwxODcuOCA0NzIuNSwxNjUuMSIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsMjguNyA0MzMuMSw1MS41IDM5My44LDc0LjIgMzU0LjQsNTEuNSIgZmlsbD0iI2Y4YzBkMiIvPjxwb2x5Z29uIHBvaW50cz0iMTk3LjAsNDE1LjEgMjM2LjMsNDM3LjggMjM2LjMsNDgzLjMgMTk3LjAsNDYwLjUiIGZpbGw9IiNhNjZmODEiLz48cG9seWdvbiBwb2ludHM9IjI3NS43LDQxNS4xIDIzNi4zLDQzNy44IDIzNi4zLDQ4My4zIDI3NS43LDQ2MC41IiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSIzMTUuMCwzNDYuOSAyNzUuNywzNjkuNiAyNzUuNyw0MTUuMSAzMTUuMCwzOTIuNCIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMzU0LjQsMjc4LjcgMzE1LjAsMzAxLjUgMzE1LjAsMzQ2LjkgMzU0LjQsMzI0LjIiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjM5My44LDIxMC41IDM1NC40LDIzMy4zIDM1NC40LDI3OC43IDM5My44LDI1Ni4wIiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSI0MzMuMSwxNDIuNCAzOTMuOCwxNjUuMSAzOTMuOCwyMTAuNSA0MzMuMSwxODcuOCIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iNDMzLjEsNTEuNSA0NzIuNSw3NC4yIDQzMy4xLDk2LjkgMzkzLjgsNzQuMiIgZmlsbD0iI2Y4YzBkMiIvPjxwb2x5Z29uIHBvaW50cz0iNDcyLjUsNzQuMiA0MzMuMSw5Ni45IDQzMy4xLDE0Mi40IDQ3Mi41LDExOS42IiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSIxMTguMiwzNjkuNiAxNTcuNiwzOTIuNCAxNTcuNiw0MzcuOCAxMTguMiw0MTUuMSIgZmlsbD0iIzIwNDlhZCIvPjxwb2x5Z29uIHBvaW50cz0iMjc1LjcsMzY5LjYgMjM2LjMsMzkyLjQgMjM2LjMsNDM3LjggMjc1LjcsNDE1LjEiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjMxNS4wLDMwMS41IDI3NS43LDMyNC4yIDI3NS43LDM2OS42IDMxNS4wLDM0Ni45IiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSIzNTQuNCwyMzMuMyAzMTUuMCwyNTYuMCAzMTUuMCwzMDEuNSAzNTQuNCwyNzguNyIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsMTY1LjEgMzU0LjQsMTg3LjggMzU0LjQsMjMzLjMgMzkzLjgsMjEwLjUiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjQzMy4xLDk2LjkgMzkzLjgsMTE5LjYgMzkzLjgsMTY1LjEgNDMzLjEsMTQyLjQiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjM1NC40LDYuMCAzOTMuOCwyOC43IDM1NC40LDUxLjUgMzE1LjAsMjguNyIgZmlsbD0iI2Y4YzBkMiIvPjxwb2x5Z29uIHBvaW50cz0iMTU3LjYsMzkyLjQgMTk3LjAsNDE1LjEgMTk3LjAsNDYwLjUgMTU3LjYsNDM3LjgiIGZpbGw9IiMyMDQ5YWQiLz48cG9seWdvbiBwb2ludHM9IjIzNi4zLDE2NS4xIDI3NS43LDE4Ny44IDIzNi4zLDIxMC41IDE5Ny4wLDE4Ny44IiBmaWxsPSIjYTVjMGZmIi8+PHBvbHlnb24gcG9pbnRzPSIyNzUuNyw5Ni45IDMxNS4wLDExOS42IDI3NS43LDE0Mi40IDIzNi4zLDExOS42IiBmaWxsPSIjNzI5YWZmIi8+PHBvbHlnb24gcG9pbnRzPSIyMzYuMywxMTkuNiAyNzUuNywxNDIuNCAyNzUuNywxODcuOCAyMzYuMywxNjUuMSIgZmlsbD0iIzIwNDlhZCIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsMTE5LjYgMzU0LjQsMTQyLjQgMzU0LjQsMTg3LjggMzkzLjgsMTY1LjEiIGZpbGw9IiNmNGEzYmQiLz48cG9seWdvbiBwb2ludHM9IjMxNS4wLDI4LjcgMzU0LjQsNTEuNSAzMTUuMCw3NC4yIDI3NS43LDUxLjUiIGZpbGw9IiNmOGMwZDIiLz48cG9seWdvbiBwb2ludHM9IjI3NS43LDUxLjUgMzE1LjAsNzQuMiAzMTUuMCwxMTkuNiAyNzUuNyw5Ni45IiBmaWxsPSIjYTY2ZjgxIi8+PHBvbHlnb24gcG9pbnRzPSIzOTMuOCwyOC43IDQzMy4xLDUxLjUgMzkzLjgsNzQuMiAzNTQuNCw1MS41IiBmaWxsPSIjZjhjMGQyIi8+PHBvbHlnb24gcG9pbnRzPSI0MzMuMSw1MS41IDM5My44LDc0LjIgMzkzLjgsMTE5LjYgNDMzLjEsOTYuOSIgZmlsbD0iI2Y0YTNiZCIvPjxwb2x5Z29uIHBvaW50cz0iMjM2LjMsMzkyLjQgMjc1LjcsNDE1LjEgMjM2LjMsNDM3LjggMTk3LjAsNDE1LjEiIGZpbGw9IiM3MjlhZmYiLz48cG9seWdvbiBwb2ludHM9IjE5Ny4wLDQxNS4xIDIzNi4zLDQzNy44IDIzNi4zLDQ4My4zIDE5Ny4wLDQ2MC41IiBmaWxsPSIjMjA0OWFkIi8+PHBvbHlnb24gcG9pbnRzPSIyNzUuNyw0MTUuMSAyMzYuMyw0MzcuOCAyMzYuMyw0ODMuMyAyNzUuNyw0NjAuNSIgZmlsbD0iIzJmNmJmZiIvPjxwb2x5Z29uIHBvaW50cz0iNzguOSwzNDYuOSAxMTguMiwzNjkuNiAxMTguMiw0MTUuMSA3OC45LDM5Mi40IiBmaWxsPSIjNTM2ZWFkIi8+PHBvbHlnb24gcG9pbnRzPSIyMzYuMywzNDYuOSAxOTcuMCwzNjkuNiAxOTcuMCw0MTUuMSAyMzYuMywzOTIuNCIgZmlsbD0iIzdhYTJmZiIvPjxwb2x5Z29uIHBvaW50cz0iMjc1LjcsMzI0LjIgMzE1LjAsMzQ2LjkgMjc1LjcsMzY5LjYgMjM2LjMsMzQ2LjkiIGZpbGw9IiM3MjlhZmYiLz48cG9seWdvbiBwb2ludHM9IjIzNi4zLDM0Ni45IDI3NS43LDM2OS42IDI3NS43LDQxNS4xIDIzNi4zLDM5Mi40IiBmaWxsPSIjMjA0OWFkIi8+PHBvbHlnb24gcG9pbnRzPSIzMTUuMCwzNDYuOSAyNzUuNywzNjkuNiAyNzUuNyw0MTUuMSAzMTUuMCwzOTIuNCIgZmlsbD0iIzJmNmJmZiIvPjxwb2x5Z29uIHBvaW50cz0iMjc1LjcsMjc4LjcgMjM2LjMsMzAxLjUgMjM2LjMsMzQ2LjkgMjc1LjcsMzI0LjIiIGZpbGw9IiM3YWEyZmYiLz48cG9seWdvbiBwb2ludHM9IjMxNS4wLDI1Ni4wIDM1NC40LDI3OC43IDMxNS4wLDMwMS41IDI3NS43LDI3OC43IiBmaWxsPSIjNzI5YWZmIi8+PHBvbHlnb24gcG9pbnRzPSIyNzUuNywyNzguNyAzMTUuMCwzMDEuNSAzMTUuMCwzNDYuOSAyNzUuNywzMjQuMiIgZmlsbD0iIzIwNDlhZCIvPjxwb2x5Z29uIHBvaW50cz0iMzU0LjQsMjc4LjcgMzE1LjAsMzAxLjUgMzE1LjAsMzQ2LjkgMzU0LjQsMzI0LjIiIGZpbGw9IiMyZjZiZmYiLz48cG9seWdvbiBwb2ludHM9IjI3NS43LDE4Ny44IDMxNS4wLDIxMC41IDI3NS43LDIzMy4zIDIzNi4zLDIxMC41IiBmaWxsPSIjYTVjMGZmIi8+PHBvbHlnb24gcG9pbnRzPSIzMTUuMCwyMTAuNSAyNzUuNywyMzMuMyAyNzUuNywyNzguNyAzMTUuMCwyNTYuMCIgZmlsbD0iIzdhYTJmZiIvPjxwb2x5Z29uIHBvaW50cz0iMzE1LjAsMjEwLjUgMzU0LjQsMjMzLjMgMzU0LjQsMjc4LjcgMzE1LjAsMjU2LjAiIGZpbGw9IiMyMDQ5YWQiLz48cG9seWdvbiBwb2ludHM9IjM5My44LDIxMC41IDM1NC40LDIzMy4zIDM1NC40LDI3OC43IDM5My44LDI1Ni4wIiBmaWxsPSIjMmY2YmZmIi8+PHBvbHlnb24gcG9pbnRzPSIzMTUuMCwxMTkuNiAzNTQuNCwxNDIuNCAzMTUuMCwxNjUuMSAyNzUuNywxNDIuNCIgZmlsbD0iIzcyOWFmZiIvPjxwb2x5Z29uIHBvaW50cz0iMjc1LjcsMTQyLjQgMzE1LjAsMTY1LjEgMzE1LjAsMjEwLjUgMjc1LjcsMTg3LjgiIGZpbGw9IiMyMDQ5YWQiLz48cG9seWdvbiBwb2ludHM9IjM1NC40LDUxLjUgMzkzLjgsNzQuMiAzNTQuNCw5Ni45IDMxNS4wLDc0LjIiIGZpbGw9IiNmOGMwZDIiLz48cG9seWdvbiBwb2ludHM9IjMxNS4wLDc0LjIgMzU0LjQsOTYuOSAzNTQuNCwxNDIuNCAzMTUuMCwxMTkuNiIgZmlsbD0iI2E2NmY4MSIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsNzQuMiAzNTQuNCw5Ni45IDM1NC40LDE0Mi40IDM5My44LDExOS42IiBmaWxsPSIjZjRhM2JkIi8+PHBvbHlnb24gcG9pbnRzPSIxMTguMiwzNjkuNiAxNTcuNiwzOTIuNCAxNTcuNiw0MzcuOCAxMTguMiw0MTUuMSIgZmlsbD0iIzUzNmVhZCIvPjxwb2x5Z29uIHBvaW50cz0iMTk3LjAsMzY5LjYgMTU3LjYsMzkyLjQgMTU3LjYsNDM3LjggMTk3LjAsNDE1LjEiIGZpbGw9IiM3YWEyZmYiLz48cG9seWdvbiBwb2ludHM9IjIzNi4zLDMwMS41IDE5Ny4wLDMyNC4yIDE5Ny4wLDM2OS42IDIzNi4zLDM0Ni45IiBmaWxsPSIjN2FhMmZmIi8+PHBvbHlnb24gcG9pbnRzPSIyNzUuNywyMzMuMyAyMzYuMywyNTYuMCAyMzYuMywzMDEuNSAyNzUuNywyNzguNyIgZmlsbD0iIzdhYTJmZiIvPjxwb2x5Z29uIHBvaW50cz0iMTk3LjAsMTQyLjQgMjM2LjMsMTY1LjEgMTk3LjAsMTg3LjggMTU3LjYsMTY1LjEiIGZpbGw9IiM4YmNmZDgiLz48cG9seWdvbiBwb2ludHM9IjM1NC40LDE0Mi40IDM5My44LDE2NS4xIDM1NC40LDE4Ny44IDMxNS4wLDE2NS4xIiBmaWxsPSIjNzI5YWZmIi8+PHBvbHlnb24gcG9pbnRzPSIzMTUuMCwxNjUuMSAzNTQuNCwxODcuOCAzNTQuNCwyMzMuMyAzMTUuMCwyMTAuNSIgZmlsbD0iIzIwNDlhZCIvPjxwb2x5Z29uIHBvaW50cz0iMzkzLjgsMTY1LjEgMzU0LjQsMTg3LjggMzU0LjQsMjMzLjMgMzkzLjgsMjEwLjUiIGZpbGw9IiMyZjZiZmYiLz48cG9seWdvbiBwb2ludHM9IjM5LjUsMzI0LjIgNzguOSwzNDYuOSA3OC45LDM5Mi40IDM5LjUsMzY5LjYiIGZpbGw9IiMzYTdlODYiLz48cG9seWdvbiBwb2ludHM9IjE5Ny4wLDMyNC4yIDE1Ny42LDM0Ni45IDE1Ny42LDM5Mi40IDE5Ny4wLDM2OS42IiBmaWxsPSIjNTViOWM1Ii8+PHBvbHlnb24gcG9pbnRzPSIyMzYuMywyNTYuMCAxOTcuMCwyNzguNyAxOTcuMCwzMjQuMiAyMzYuMywzMDEuNSIgZmlsbD0iIzU1YjljNSIvPjxwb2x5Z29uIHBvaW50cz0iMjM2LjMsMTY1LjEgMjc1LjcsMTg3LjggMjM2LjMsMjEwLjUgMTk3LjAsMTg3LjgiIGZpbGw9IiM4YmNmZDgiLz48cG9seWdvbiBwb2ludHM9IjI3NS43LDE4Ny44IDIzNi4zLDIxMC41IDIzNi4zLDI1Ni4wIDI3NS43LDIzMy4zIiBmaWxsPSIjNTViOWM1Ii8+PHBvbHlnb24gcG9pbnRzPSI3OC45LDM0Ni45IDExOC4yLDM2OS42IDExOC4yLDQxNS4xIDc4LjksMzkyLjQiIGZpbGw9IiMzYTdlODYiLz48cG9seWdvbiBwb2ludHM9IjE1Ny42LDM0Ni45IDExOC4yLDM2OS42IDExOC4yLDQxNS4xIDE1Ny42LDM5Mi40IiBmaWxsPSIjNTViOWM1Ii8+PHBvbHlnb24gcG9pbnRzPSIzOS41LDI3OC43IDc4LjksMzAxLjUgNzguOSwzNDYuOSAzOS41LDMyNC4yIiBmaWxsPSIjMjA4ZDVlIi8+PHBvbHlnb24gcG9pbnRzPSIxOTcuMCwyNzguNyAxNTcuNiwzMDEuNSAxNTcuNiwzNDYuOSAxOTcuMCwzMjQuMiIgZmlsbD0iIzJmY2Y4YSIvPjxwb2x5Z29uIHBvaW50cz0iMjM2LjMsMjEwLjUgMTk3LjAsMjMzLjMgMTk3LjAsMjc4LjcgMjM2LjMsMjU2LjAiIGZpbGw9IiMyZmNmOGEiLz48cG9seWdvbiBwb2ludHM9IjE1Ny42LDExOS42IDE5Ny4wLDE0Mi40IDE1Ny42LDE2NS4xIDExOC4yLDE0Mi40IiBmaWxsPSIjNzJkZWFmIi8+PHBvbHlnb24gcG9pbnRzPSI3OC45LDMwMS41IDExOC4yLDMyNC4yIDExOC4yLDM2OS42IDc4LjksMzQ2LjkiIGZpbGw9IiMyMDhkNWUiLz48cG9seWdvbiBwb2ludHM9IjE1Ny42LDMwMS41IDExOC4yLDMyNC4yIDExOC4yLDM2OS42IDE1Ny42LDM0Ni45IiBmaWxsPSIjMmZjZjhhIi8+PHBvbHlnb24gcG9pbnRzPSI3OC45LDIxMC41IDExOC4yLDIzMy4zIDc4LjksMjU2LjAgMzkuNSwyMzMuMyIgZmlsbD0iIzcyZGVhZiIvPjxwb2x5Z29uIHBvaW50cz0iMzkuNSwyMzMuMyA3OC45LDI1Ni4wIDc4LjksMzAxLjUgMzkuNSwyNzguNyIgZmlsbD0iIzIwOGQ1ZSIvPjxwb2x5Z29uIHBvaW50cz0iMTk3LjAsMjMzLjMgMTU3LjYsMjU2LjAgMTU3LjYsMzAxLjUgMTk3LjAsMjc4LjciIGZpbGw9IiMyZmNmOGEiLz48cG9seWdvbiBwb2ludHM9IjExOC4yLDE0Mi40IDE1Ny42LDE2NS4xIDExOC4yLDE4Ny44IDc4LjksMTY1LjEiIGZpbGw9IiM3MmRlYWYiLz48cG9seWdvbiBwb2ludHM9Ijc4LjksMTY1LjEgMTE4LjIsMTg3LjggMTE4LjIsMjMzLjMgNzguOSwyMTAuNSIgZmlsbD0iIzIwOGQ1ZSIvPjxwb2x5Z29uIHBvaW50cz0iMTk3LjAsMTQyLjQgMjM2LjMsMTY1LjEgMTk3LjAsMTg3LjggMTU3LjYsMTY1LjEiIGZpbGw9IiM3MmRlYWYiLz48cG9seWdvbiBwb2ludHM9IjIzNi4zLDE2NS4xIDE5Ny4wLDE4Ny44IDE5Ny4wLDIzMy4zIDIzNi4zLDIxMC41IiBmaWxsPSIjMmZjZjhhIi8+PHBvbHlnb24gcG9pbnRzPSIxMTguMiwyMzMuMyAxNTcuNiwyNTYuMCAxMTguMiwyNzguNyA3OC45LDI1Ni4wIiBmaWxsPSIjNzJkZWFmIi8+PHBvbHlnb24gcG9pbnRzPSI3OC45LDI1Ni4wIDExOC4yLDI3OC43IDExOC4yLDMyNC4yIDc4LjksMzAxLjUiIGZpbGw9IiMyMDhkNWUiLz48cG9seWdvbiBwb2ludHM9IjE1Ny42LDI1Ni4wIDExOC4yLDI3OC43IDExOC4yLDMyNC4yIDE1Ny42LDMwMS41IiBmaWxsPSIjMmZjZjhhIi8+PHBvbHlnb24gcG9pbnRzPSIxNTcuNiwxNjUuMSAxOTcuMCwxODcuOCAxNTcuNiwyMTAuNSAxMTguMiwxODcuOCIgZmlsbD0iIzcyZGVhZiIvPjxwb2x5Z29uIHBvaW50cz0iMTE4LjIsMTg3LjggMTU3LjYsMjEwLjUgMTU3LjYsMjU2LjAgMTE4LjIsMjMzLjMiIGZpbGw9IiMyMDhkNWUiLz48cG9seWdvbiBwb2ludHM9IjE5Ny4wLDE4Ny44IDE1Ny42LDIxMC41IDE1Ny42LDI1Ni4wIDE5Ny4wLDIzMy4zIiBmaWxsPSIjMmZjZjhhIi8+Cjwvc3ZnPg==">
@@ -146,6 +147,7 @@ header h1 span { color: var(--accent); }
 .achip.part { border-color: var(--part); background: rgba(255,154,61,0.14); }
 .achip.bad { border-color: var(--bad); background: rgba(255,90,100,0.12); text-decoration: line-through; text-decoration-color: rgba(255,90,100,0.8); }
 .achip.miss { border-style: dashed; border-color: var(--miss); color: var(--muted); background: transparent; }
+.achip.info { border-style: dotted; border-color: var(--line); color: var(--muted); background: transparent; }
 .achip.sel { outline: 2px solid var(--fg); outline-offset: 1px; }
 #rchips .achip { cursor: pointer; }
 .achip .tag { font-size: 10.5px; color: var(--muted); text-decoration: none; display: inline-block; }
@@ -288,7 +290,7 @@ body.land #fsClose { display: none; }
       </div>
       <button type="button" class="hcard daily" id="btnDaily"><span class="ht">Daily ECG <small id="hDailyDate"></small></span><span class="hs" id="hDailyState"></span></button>
       <button type="button" class="hcard main" id="btnTrain"><span class="ht">Train</span><span class="hs">ECGs chosen for your level, mixed skills</span></button>
-      <button type="button" class="hcard" id="btnReviews"><span class="ht">Reviews <small id="hReviews"></small></span><span class="hs">ECGs you missed, back after 1, 3, 7, 16 and 35 days</span></button>
+      <button type="button" class="hcard" id="btnReviews"><span class="ht">Reviews <small id="hReviews"></small></span><span class="hs">ECGs you missed</span></button>
       <h3>Practice by skill</h3>
       <div class="hskills" id="hSkills"></div>
       <div class="hmore"><button type="button" id="btnStats">Statistics</button><button type="button" id="btnHelp">How it works</button></div>
@@ -318,10 +320,12 @@ body.land #fsClose { display: none; }
       <ul>
         <li>The rhythm is 40% of the score; the findings share the other 60% (the location is half of a finding). When the rhythm is the only abnormality, it is the whole score.</li>
         <li>True but secondary findings earn a small bonus; findings that are not there cost 10%.</li>
+        <li>Advanced findings (Wellens pattern, the Osborn waves of hypothermia, a STEMI read through LBBB by the Sgarbossa criteria) can appear at any level, but are asked only from a rating of 1700 in their skill. Before that, naming one earns the bonus and leaving it out costs nothing.</li>
       </ul>
       <h3>Other</h3>
       <ul>
         <li><b>⚑ Report a problem</b> (under the result, or in the ⋯ menu) sends the author everything needed to check that ECG.</li>
+        <li><b>Reviews</b>: ECGs you missed or got partly right come back after 1, 3, 7, 16 and 35 days.</li>
         <li><b>Model</b> opens the simulator on the same heart, so you can see what produced the ECG.</li>
       </ul>
       <h3>About these ECGs</h3>
@@ -3780,7 +3784,7 @@ return module.exports; })();
     chb: { w: 0.9, open: true, rating: 120, rate: [60, 100], rateOk: (x) => ![1, 1.5, 2, 2.5].some((q) => Math.abs(x / 48 - q) < 0.04 * q), block: ['AVN', 'complete'], read: (r) => /complete AV block/.test(r) },
     vt: { w: 1.2, tachy: true, rating: 120, link: 'a=vt', vt: true, read: (r) => r === 'ventricular tachycardia' },
     // torsades de pointes (Round 53): polymorphic VT, the QRS axis twisting (a focus moving around the LV each beat)
-    tdp: { w: 0.6, tachy: true, rating: 180, link: 'a=tdp', poly: true, start: (S) => { S.run(2000); S.startArrhythmia('tdp'); }, read: (r) => /ventricular/.test(r) },
+    tdp: { w: 0.3, tachy: true, rating: 180, link: 'a=tdp', poly: true, start: (S) => { S.run(2000); S.startArrhythmia('tdp'); }, read: (r) => /ventricular/.test(r) },
     vf: { w: 0.8, tachy: true, rating: 40, link: 'a=vf', vf: true, start: (S) => { S.run(2000); S.startArrhythmia('vf'); }, read: (r) => r === 'ventricular fibrillation' },
     // sinus arrest for the whole strip with an escape rhythm: junctional (narrow, retrograde P hidden after the QRS)
     // or ventricular (block in the His bundle below it: wide); naming the sinus pause is true but not required
@@ -3812,6 +3816,9 @@ return module.exports; })();
   // ---------------------------------------------------------------- abnormalities
   // group: one per group; excl: groups it cannot be combined with (they hide each other);
   // needP: needs a 1:1 P-wave rhythm; dx: the reader's word for it
+  // advanced findings (adv: a rating): below it in the finding's skill the finding may appear but is not asked (no miss
+  // for leaving it out; credited when named). Wellens, hypothermia's Osborn waves and a STEMI read through LBBB (Sgarbossa)
+  const ADV = 1700;
   const MI_SITES = {
     pLAD: { f: (b) => b.LAD[0], name: 'proximal LAD', ste: { req: ['anterior'], ok: ['septal', 'lateral'] }, q: { req: ['anterior'], ok: ['septal', 'lateral'] } },
     mLAD: { f: (b) => b.LAD[Math.round(b.LAD.length * 0.22)], name: 'mid LAD', ste: { req: ['anterior'], ok: ['septal', 'lateral'] }, q: { req: ['anterior'], ok: ['septal', 'lateral'] } },
@@ -3865,20 +3872,20 @@ return module.exports; })();
     sinusPause: { group: 'ectopy', skill: 'rhythm', rating: 60, id: 'sinusPause', pause: true, linkBlock: 'SAN.pause', at: [[3000, (S, rec) => S.setBlock('SAN', 'pause', { ms: 2600, escape: !!rec.pauseEscape })]], leads: ['II'], line: 'A sudden pause with no P wave, not a multiple of the P–P interval, then sinus beats resume: sinus pause.' },
     couplet: { group: 'ectopy', skill: 'rhythm', rating: 60, ectopy: 'couplet', id: 'couplet', leads: ['II'], line: 'Two premature wide complexes in a row: a ventricular couplet (three or more would be non-sustained VT).' },
     // Wellens (Round 52; Sim.setWellens): a reperfused critical proximal LAD lesion, T changes over V2–V3, no Q waves
-    wellensA: { group: 'isch', skill: 'ischemia', rating: 180, id: 'wellens', wellens: 'A', link: 'wellens=A', optional: ['twi'], excl: ['peri', 'brugada', 'repol', 'bbb', 'hyp', 'wpw', 'electro', 'fasc'], leads: ['V2', 'V3'], line: 'Biphasic T waves (up, then down) in V2–V3 with no Q waves and the ST near baseline: Wellens type A, a critical proximal LAD stenosis.' },
-    wellensB: { group: 'isch', skill: 'ischemia', rating: 140, id: 'wellens', wellens: 'B', link: 'wellens=B', optional: ['twi'], excl: ['peri', 'brugada', 'repol', 'bbb', 'hyp', 'wpw', 'electro', 'fasc'], leads: ['V2', 'V3', 'V4'], line: 'Deep, symmetric T inversion in V2–V4 with no Q waves and the ST near baseline: Wellens type B, a critical proximal LAD stenosis.' },
+    wellensA: { group: 'isch', skill: 'ischemia', rating: 180, adv: ADV, id: 'wellens', wellens: 'A', link: 'wellens=A', optional: ['twi'], excl: ['peri', 'brugada', 'repol', 'bbb', 'hyp', 'wpw', 'electro', 'fasc'], leads: ['V2', 'V3'], line: 'Biphasic T waves (up, then down) in V2–V3 with no Q waves and the ST near baseline: Wellens type A, a critical proximal LAD stenosis.' },
+    wellensB: { group: 'isch', skill: 'ischemia', rating: 140, adv: ADV, id: 'wellens', wellens: 'B', link: 'wellens=B', optional: ['twi'], excl: ['peri', 'brugada', 'repol', 'bbb', 'hyp', 'wpw', 'electro', 'fasc'], leads: ['V2', 'V3', 'V4'], line: 'Deep, symmetric T inversion in V2–V4 with no Q waves and the ST near baseline: Wellens type B, a critical proximal LAD stenosis.' },
     // electrolytes and hypothermia (Round 51; Sim.setElectrolyte): one per ECG, not with ST-T disease or a wide QRS
     hyperK: { group: 'electro', skill: 'conditions', rating: 80, id: 'hyperK', elec: ['hyperK', 1], link: 'hyperK=mild', excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['V2', 'V3', 'V4', 'II'], line: 'Tall, narrow-based, peaked T waves: hyperkalemia (K about 6–7).' },
     hyperK2: { group: 'electro', skill: 'conditions', rating: 160, id: 'hyperK', elec: ['hyperK', 2], link: 'hyperK=severe', optional: ['avb1', 'ivcd'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V1', 'V3'], line: 'Peaked T waves with flattened P waves, a long PR and a wide QRS: severe hyperkalemia (K above 7). Treat now.' },
     hypoK: { group: 'electro', skill: 'conditions', rating: 120, id: 'hypoK', elec: ['hypoK', 1], struct: 'hypoK', optional: ['nsstt', 'longqt'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['V2', 'V3'], line: 'Flat T waves followed by prominent U waves in V2–V3: hypokalemia.' },
     hypoCa: { group: 'electro', skill: 'conditions', rating: 120, id: 'hypoCa', elec: ['hypoCa', 1], struct: 'hypoCa', optional: ['longqt'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V3'], caliper: 'qt', line: 'Long QTc from a long, flat ST segment with a normal T wave: hypocalcemia.' },
     hyperCa: { group: 'electro', skill: 'conditions', rating: 140, id: 'hyperCa', elec: ['hyperCa', 1], struct: 'hyperCa', excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V3'], caliper: 'qt', line: 'Short QTc: the T wave starts almost at the end of the QRS (short ST segment): hypercalcemia.' },
-    hypothermia: { group: 'electro', skill: 'conditions', rating: 140, id: 'hypothermia', elec: ['hypothermia', 1], struct: 'hypothermia', cold: true, optional: ['longqt', 'avb1'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V4', 'V5'], line: 'J (Osborn) waves at the end of the QRS with bradycardia and a long QT: hypothermia.' },
+    hypothermia: { group: 'electro', skill: 'conditions', rating: 140, adv: ADV, id: 'hypothermia', elec: ['hypothermia', 1], struct: 'hypothermia', cold: true, optional: ['longqt', 'avb1'], excl: ['isch', 'peri', 'brugada', 'repol', 'wpw', 'bbb', 'hyp'], leads: ['II', 'V4', 'V5'], line: 'J (Osborn) waves at the end of the QRS with bradycardia and a long QT: hypothermia.' },
     brugada: { group: 'brugada', skill: 'conditions', rating: 80, dx: 'Brugada type 1', brugada: true, struct: 'brugada', excl: ['isch', 'peri'], leads: ['V1', 'V2'], line: 'Coved ST elevation ≥ 2 mm in V1–V2 into a negative T: Brugada pattern.' },
   };
   // (testers' round 1: fewer hypertrophy, Brugada and atrial enlargement; more ST depression, T changes,
   // WPW and ectopy)
-  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, hyperK: 0.8, hyperK2: 0.4, hypoK: 0.8, hypoCa: 0.5, hyperCa: 0.4, hypothermia: 0.4, wellensA: 0.5, wellensB: 0.7 };
+  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, hyperK: 0.35, hyperK2: 0.15, hypoK: 0.3, hypoCa: 0.2, hyperCa: 0.15, hypothermia: 0.4, wellensA: 0.2, wellensB: 0.25 };   // (the electrolytes, Wellens and hypothermia: rare, about as often as atrial enlargement)
   const ITEM_BASE = 1200, PER_ABN = 180;
   // (difficulty above the base is stretched ×1.32: the hardest ECGs, four findings on a hard rhythm, reach ~2700
   // instead of ~2340, leaving headroom above the top title; the generator works on the unstretched scale)
@@ -3889,7 +3896,7 @@ return module.exports; })();
   const ART_EL = [['RA', 2], ['LA', 2], ['LL', 2], ['V1', 0.5], ['V2', 0.5], ['V3', 0.5], ['V4', 0.5], ['V5', 0.5], ['V6', 0.5]];
   const artBonus = (art) => (art ? Math.round(ART_BONUS * art.level * (1 + 0.25 * (art.kinds.length - 1))) : 0);
   function sampleArt(rand, target, rhythm) {
-    if (target < ART_FROM || rhythm === 'vf') return null;
+    if (target < ART_FROM || ['vt', 'tdp', 'vf'].includes(rhythm)) return null;   // (ventricular tachyarrhythmias: alone, no artifact either)
     const x = Math.min(1, (target - ART_FROM) / ART_SPAN);
     if (rand() >= 0.35 + 0.25 * x) return null;
     const level = +Math.max(0.15, Math.min(1, 0.25 + 0.75 * x + (rand() - 0.5) * 0.3)).toFixed(2);
@@ -4019,12 +4026,20 @@ return module.exports; })();
       if (art.kinds.includes('tremor')) {
         // muscle tremor: bursts of 0.6–2 s (2–4 of them) of a coarse 4–9 Hz shaking whose size and pace wander, with a
         // little low-passed muscle noise on top: slower than mains interference, which is a fine even 50 Hz band
-        const x = E[art.el.tremor], A = ART_MAX.tremor * lv, nb = 2 + Math.floor(r() * 3);
+        // duration varies too: a quarter of strips shake throughout (a shivering patient, the size swelling and easing
+        // over seconds); the rest have 1–4 bursts of 0.4–3.5 s, each of its own strength
+        const x = E[art.el.tremor], A = ART_MAX.tremor * lv;
         let w0 = 0, w1 = 0;
         const env = new Float32Array(n);
-        for (let b = 0; b < nb; b++) {
-          const len = (0.6 + 1.4 * r()) * hz, t0 = r() * (n - len), ramp = 0.15 * hz;
-          for (let i = Math.max(0, Math.floor(t0)); i < Math.min(n, t0 + len); i++) { const u = Math.min(1, (i - t0) / ramp, (t0 + len - i) / ramp); env[i] = Math.max(env[i], 0.5 - 0.5 * Math.cos(Math.PI * u)); }
+        if (r() < 0.25) {
+          const f = 0.08 + 0.12 * r(), p = 2 * Math.PI * r();
+          for (let i = 0; i < n; i++) env[i] = 0.7 + 0.3 * Math.sin(2 * Math.PI * f * i * dt + p);
+        } else {
+          const nb = 1 + Math.floor(r() * 4);
+          for (let b = 0; b < nb; b++) {
+            const len = Math.min(n, (0.4 + 3.1 * r() * r()) * hz), t0 = r() * (n - len), ramp = 0.15 * hz, g = 0.55 + 0.45 * r();
+            for (let i = Math.max(0, Math.floor(t0)); i < Math.min(n, t0 + len); i++) { const u = Math.min(1, (i - t0) / ramp, (t0 + len - i) / ramp); env[i] = Math.max(env[i], g * (0.5 - 0.5 * Math.cos(Math.PI * u))); }
+          }
         }
         const f0 = 4 + 5 * r(), v = new Float32Array(n); let ph = 2 * Math.PI * r(), am = 1, lp1 = 0, lp2 = 0, ss = 0;
         const k = 1 - Math.exp(-2 * Math.PI * 15 / hz);   // (muscle noise low-passed at ~15 Hz)
@@ -4491,7 +4506,7 @@ return module.exports; })();
           // (STEMI in LBBB: answered as ST elevation, a finding of its own beside the LBBB; seen through the Sgarbossa
           // criteria, so the region asked is the artery's and every territory the criteria flag is accepted)
           const site = MI_SITES[a.site], ex = site.ste, terr = terrOf(c.leads);
-          findings.push({ id: 'ste', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
+          findings.push({ id: 'ste', skill: d.skill, adv: ADV, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
           mark('ste', c.leads);
           lines.ste = `${c.why}: Sgarbossa criteria (modified) positive, an acute ${ex.req.join('/')} STEMI despite the LBBB.`;
           ['std', 'reciprocal', 'hyperacute', 'posteriorMI'].forEach((x) => optional.add(x));
@@ -4503,7 +4518,7 @@ return module.exports; })();
           // (Q waves can form within hours of a STEMI: named with the STEMI, they are true)
           if (acute) ['std', 'reciprocal', 'hyperacute', 'posteriorMI', 'twi', 'qwaves'].forEach((x) => optional.add(x));
         } else {
-          findings.push({ id: d.id || a.k, skill: d.skill });
+          findings.push(d.adv ? { id: d.id || a.k, skill: d.skill, adv: d.adv } : { id: d.id || a.k, skill: d.skill });
           // (the textbook leads, where the twin shows the change; else the leads that change most)
           const tl = tw ? d.leads.filter((l) => tw.per[l] >= 0.3 * tw.max) : d.leads;
           mark(d.id || a.k, c.leads || (tl.length ? tl : tw ? tw.top : d.leads));
@@ -5189,7 +5204,7 @@ self.onmessage = (e) => {
     if (st.phase !== 'answer' || !st.item) return;
     if (!rhythmPick()) { const f = $('field'); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); toast('Name the rhythm first'); return; }
     st.time = (performance.now() - st.t0) / 1000;
-    st.score = score(st.item.key, st.picked); st.selRow = null;
+    st.score = score(st.item.key, st.picked, (k) => (st.skills[k || 'conditions'] || { r: 1500 }).r); st.selRow = null;
     // Glicko-2 per skill against the item's rating (from its rhythm and the number and type of its
     // abnormalities): the rhythm skill on the rhythm, each other skill on its findings (location half)
     const before = overall(), opp = { r: st.item.rating, rd: 60 }, sub = st.score.skill;
@@ -5215,14 +5230,17 @@ self.onmessage = (e) => {
   // answers that count as the key's own (full credit): a more specific or more serious reading of the same thing
   const SAME_FINDING = { lvh: ['lvhStrain'], rbbb: ['bifascicular'], lafb: ['bifascicular'] };
   const SAME_RHYTHM = { avb2to1: ['mobitz2'] };   // (2:1 block: go with the more serious reading, Mobitz II)
-  function score(key, picked) {
+  // advanced findings (f.adv, a rating): below that rating in the finding's skill they are shown but not asked: no
+  // miss for leaving one out, credited (as a true extra) when named
+  function score(key, picked, ratingOf = () => 9999) {
     const out = { rows: [], total: 0, skill: {} }, rp = picked.find((p) => BY_ID[p.id].kind === 'rhythm'), fs = {};
     const credit = (f, v) => { const k = f.skill || 'conditions'; (fs[k] = fs[k] || []).push(v); };
     let s = 0;
     if (rp && (rp.id === key.rhythm || (SAME_RHYTHM[key.rhythm] || []).includes(rp.id))) { s += 0.4; out.rows.push({ id: rp.id, rhythm: true, cls: 'ok', label: BY_ID[rp.id].name }); out.rhythm = 'ok'; }
     else if (rp && (key.alt || []).includes(rp.id)) { s += 0.2; out.rows.push({ id: rp.id, rhythm: true, cls: 'part', label: BY_ID[rp.id].name, tag: `more exactly: ${BY_ID[key.rhythm].name}` }); out.rhythm = 'part'; }
     else { out.rows.push({ id: rp.id, rhythm: true, cls: 'bad', label: BY_ID[rp.id].name }); out.rows.push({ id: key.rhythm, rhythm: true, cls: 'miss', label: BY_ID[key.rhythm].name }); out.rhythm = 'bad'; out.wrongRhythm = rp.id; }
-    const req = key.findings, share = req.length ? 0.6 / req.length : 0, opt = key.optional || [];
+    const later = key.findings.filter((f) => f.adv && ratingOf(f.skill) < f.adv), req = key.findings.filter((f) => !later.includes(f));
+    const share = req.length ? 0.6 / req.length : 0, opt = key.optional || [];
     const fp = picked.filter((p) => BY_ID[p.id].kind === 'finding');
     let wrong = 0;
     for (const f of req) {
@@ -5234,6 +5252,11 @@ self.onmessage = (e) => {
       s += regOk ? share : share / 2; credit(f, regOk ? 1 : 0.5);
       out.rows.push({ id: f.id, cls: regOk ? 'ok' : 'part', label: chipLabel(p), tag: regOk ? '' : `leads: ${regionText(f.regions)}` });
       if (!regOk) out.regionMiss = out.regionMiss || f;
+    }
+    for (const f of later) {
+      const p = fp.find((x) => !x.matched && x.id === f.id);
+      if (p) { p.matched = true; s += 0.05; out.rows.push({ id: f.id, cls: 'ok', label: chipLabel(p), tag: 'advanced' }); }
+      else out.rows.push({ id: f.id, cls: 'info', label: f.regions ? `${BY_ID[f.id].name}, ${regionText(f.regions)}` : BY_ID[f.id].name, tag: `advanced: asked from ${f.adv}` });
     }
     for (const p of fp) {
       if (p.matched || req.some((f) => f.id === p.id)) { delete p.matched; continue; }
@@ -5318,6 +5341,7 @@ self.onmessage = (e) => {
   // ------------------------------------------------------------------ bug report (testers)
   // Opens the share sheet (or copies to the clipboard) with everything needed to rebuild and check the ECG:
   // the simulator link, the key, the tester's answer, the reader's checks and the generator recipe.
+  function openExternal(url) { window.open(url, '_blank', 'noopener'); }
   function reportProblem() {
     const it = st.item;
     if (!it) { toast('No ECG on screen to report'); return; }
@@ -5331,6 +5355,17 @@ self.onmessage = (e) => {
       `My answer: ${ans}${st.score ? ` (score ${Math.round(st.score.total * 100)}%)` : ''}`, `Measurements: ${JSON.stringify(it.m)}`,
       `Reader: ${it.read.rhythm}; ${(it.read.dx || []).join(', ') || 'no findings'}; ${(it.read.checks || []).join('; ')}`,
       `Recipe: ${JSON.stringify(it.recipe)}`, `Mode: ${st.mode}; version ${ver}`].join('\n');
+    // with a report form set (site.json reportForm: a Google Form's prefill link ending in "entry.<id>="), the report
+    // opens there, filled in: anyone can send one and no address is shown. The recipe and measurements are left out
+    // when the link would be too long (the scenario link rebuilds the ECG).
+    const form = ((document.querySelector('meta[name="report-form"]') || {}).content || '').trim();
+    if (/^https:\/\//.test(form)) {
+      let body = text.replace('What looks wrong: \n\n', '');   // (the form asks this in its own field)
+      if (encodeURIComponent(body).length > 6000) body = body.split('\n').filter((l) => !/^(Recipe|Measurements): /.test(l)).join('\n');
+      if (encodeURIComponent(body).length > 6000) body = body.slice(0, 1800);
+      openExternal(form + encodeURIComponent(body));
+      return;
+    }
     if (navigator.share) navigator.share({ title: 'ECG Studio Training: problem report', text }).catch(() => {});
     else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast('Report copied: paste it into a message to the author'), () => toast('Could not copy the report'));
     else toast('Sharing is not available in this browser');

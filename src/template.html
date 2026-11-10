@@ -453,6 +453,12 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
 </style>
 
 <div id="app">
+<script>
+// (inside #app: the body exists by now) phone layout from the first paint (app.js setMode() repeats this once the page has loaded, and moves the controls):
+// without it the desktop layout shows while the large scripts below are parsed
+(function () { var p = matchMedia('(max-width: 743px) and (orientation: portrait)').matches, l = matchMedia('(max-height: 500px) and (orientation: landscape) and (pointer: coarse)').matches;
+  if (p || l) document.body.classList.add('m'); if (l && !p) document.body.classList.add('ml'); })();
+</script>
   <header class="top">
     <div class="brand">{{LOGO_SVG}}<div class="brandtext"><h1>ECG <b>Studio</b></h1><span>Interactive 3D heart and 12-lead ECG simulator</span></div></div>
     <div class="spacer"></div>
@@ -611,7 +617,6 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         <span class="sval" id="mScrubVal" aria-hidden="true">1 h</span>
         <div class="strack"><input type="range" id="mScrubR" min="0" max="6" step="1" value="2" aria-label="Time since onset of ischemia"><div class="sticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
       </div>
-      <div class="press" id="press" hidden></div>
       <div class="live" id="liveWrap"><canvas id="clive" aria-hidden="true"></canvas><button type="button" class="leadbtn" id="leadBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Live lead: II. Change lead">II ▾</button></div>
       <div class="leadmenu" id="leadMenu" role="menu" aria-label="Live lead" hidden></div>
     </section>
@@ -728,7 +733,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
         </li>
         <li><b>Blocks:</b> opens the four-chamber cut. Tap the conduction system to cycle through its blocks.</li>
         <li><b>View:</b> External ↔ Cut slider, the Anterior / 4-chamber / Lateral / Apex views, and the Labels, Leads and Legend switches.</li>
-        <li><b>Ischemia:</b> hold a coronary artery: a short hold narrows it (partial flow: ST depression and T changes), a long hold, until the ring turns red, occludes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
+        <li><b>Ischemia:</b> opens the outside view. Tap a coronary artery to narrow it (partial flow: ST depression and T changes), double-tap to occlude it; each region (for example proximal, mid or distal LAD) holds one marker, and tapping it again removes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
         <li><b>Conditions:</b> add or remove chronic and acute heart conditions.</li>
       </ul>
     </section>
@@ -758,6 +763,7 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <ul>
         <li>Kligfield P, Gettes LS, Bailey JJ, et al. Recommendations for the standardization and interpretation of the electrocardiogram, part I. <i>Circulation</i> 2007;115:1306–1324.</li>
         <li>Surawicz B, Childers R, Deal BJ, Gettes LS. AHA/ACCF/HRS recommendations, part III: intraventricular conduction disturbances. <i>Circulation</i> 2009;119:e235–e240.</li>
+        <li>Rautaharju PM, Surawicz B, Gettes LS. AHA/ACCF/HRS recommendations, part IV: the ST segment, T and U waves, and the QT interval. <i>Circulation</i> 2009;119:e241–e250.</li>
         <li>Hancock EW, Deal BJ, Mirvis DM, et al. AHA/ACCF/HRS recommendations, part V: ECG changes associated with cardiac chamber hypertrophy. <i>Circulation</i> 2009;119:e251–e261.</li>
         <li>Sokolow M, Lyon TP. The ventricular complex in left ventricular hypertrophy as obtained by unipolar precordial and limb leads. <i>Am Heart J</i> 1949;37:161–186.</li>
         <li>Casale PN, Devereux RB, Alonso DR, Campo E, Kligfield P. Improved sex-specific criteria of left ventricular hypertrophy for clinical and computer interpretation of electrocardiograms (Cornell voltage). <i>Circulation</i> 1987;75:565–572.</li>
@@ -767,7 +773,21 @@ body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
       <ul>
         <li>Thygesen K, Alpert JS, Jaffe AS, et al. Fourth universal definition of myocardial infarction (2018). <i>Circulation</i> 2018;138:e618–e651.</li>
         <li>Bayés de Luna A, Wagner G, Birnbaum Y, et al. A new terminology for left ventricular walls and location of myocardial infarcts that present Q wave based on the standard of cardiac magnetic resonance imaging. <i>Circulation</i> 2006;114:1755–1760.</li>
+        <li>de Zwaan C, Bär FW, Wellens HJ. Characteristic electrocardiographic pattern indicating a critical stenosis high in left anterior descending coronary artery in patients admitted because of impending myocardial infarction (Wellens’ pattern). <i>Am Heart J</i> 1982;103:730–736.</li>
+        <li>Sgarbossa EB, Pinski SL, Barbagelata A, et al. Electrocardiographic diagnosis of evolving acute myocardial infarction in the presence of left bundle-branch block. <i>N Engl J Med</i> 1996;334:481–487.</li>
+        <li>Wang K, Asinger RW, Marriott HJL. ST-segment elevation in conditions other than acute myocardial infarction. <i>N Engl J Med</i> 2003;349:2128–2135.</li>
         <li>Reimer KA, Jennings RB. The “wavefront phenomenon” of myocardial ischemic cell death. II. Transmural progression of necrosis within the framework of ischemic bed size (myocardium at risk) and collateral flow. <i>Lab Invest</i> 1979;40:633–644.</li>
+      </ul>
+      <h4>Electrolytes and temperature</h4>
+      <ul>
+        <li>Diercks DB, Shumaik GM, Harrigan RA, Brady WJ, Chan TC. Electrocardiographic manifestations: electrolyte abnormalities. <i>J Emerg Med</i> 2004;27:153–160.</li>
+        <li>Osborn JJ. Experimental hypothermia: respiratory and blood pH changes in relation to cardiac function. <i>Am J Physiol</i> 1953;175:389–398.</li>
+      </ul>
+      <h4>Arrhythmias</h4>
+      <ul>
+        <li>Dessertenne F. La tachycardie ventriculaire à deux foyers opposés variables (torsades de pointes). <i>Arch Mal Coeur Vaiss</i> 1966;59:263–272.</li>
+        <li>Drew BJ, Ackerman MJ, Funk M, et al. Prevention of torsade de pointes in hospital settings: a scientific statement from the AHA and ACCF. <i>Circulation</i> 2010;121:1047–1060.</li>
+        <li>McCord J, Borzak S. Multifocal atrial tachycardia. <i>Chest</i> 1998;113:203–209.</li>
       </ul>
       <h4>Pericarditis and Brugada syndrome</h4>
       <ul>
