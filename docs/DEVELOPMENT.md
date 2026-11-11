@@ -2198,3 +2198,9 @@ From the problem-report form (7 reports, 2026-11-10; one "all good"):
 - Kept: atrial flutter with RVH, "inferior Q present": II, III and aVF have no Q (0 ms); the negative flutter wave
   before each QRS most likely looked like one. Old OM2 infarct, "no lateral Q in I": right (none in I); V5–V6 carry it.
   The tall T in V2–V4 there (up to 8 mm) is the known post-infarct T limitation.
+
+## Round 62: premium, first step (behind a switch)
+
+The author's model (docs/PREMIUM_PLAN.md): the simulator and a rated daily ECG free; Training $9.99 one-time; future
+modules as add-ons. This round: the locked states, the unlock page and the rated daily ECG, behind a switch that is off
+by default (`?premium=1` turns it on for a device), and a stand-in purchase that unlocks the device. Billing next.

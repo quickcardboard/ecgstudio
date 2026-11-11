@@ -155,7 +155,7 @@
   }
   function fill() {
     if (!gen.ready || gen.failed > 4) { if (gen.failed > 4) setLoading('Could not prepare an ECG. Reload the page to try again.'); return; }
-    const tag = practiceTag(); if (tag === null) return;
+    const tag = practiceTag(); if (tag === null || !ownsTraining()) return;   // (locked: no Train ECGs are made)
     gen.queue = gen.queue.filter((x) => x.tag === tag);
     let w;
     while (gen.queue.length + gen.pending < QUEUE_N && (w = pickWorker(true))) {
@@ -338,12 +338,28 @@
     }
     if (score < 0.8 && i < 0) st.reviews.push({ id: item.id, recipe: item.recipe, title: itemTitle(item.key), box: 0, due: Date.now() + DAY });
   }
-  // the daily ECG: the same for everyone on a date (seeded by the date, a mid-level target), not rated
+  // ------------------------------------------------------------------ premium (docs/PREMIUM_PLAN.md)
+  // The simulator and the daily ECG are free; Train, practice by skill and Reviews are unlocked by one purchase. While
+  // the switch is off (the default until billing is ready) everything stays as before: nothing locked, the daily ECG not
+  // rated. A preview turns it on for this device: ?premium=1 in the address (?premium=0 turns it off).
+  const PREMIUM_KEY = 'ecgstudio.premiumPreview', OWNED_KEY = 'ecgstudio.owned.training';
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* no storage */ } } };
+  { const q = /[?&]premium=([01])/.exec(location.search); if (q) store.set(PREMIUM_KEY, q[1] === '1' ? '1' : null); }
+  const premiumOn = () => store.get(PREMIUM_KEY) === '1';
+  const ownsTraining = () => !premiumOn() || store.get(OWNED_KEY) === '1';   // (the purchase: from Google Play, later)
+  const PRICE = '$9.99';
+  // the daily ECG is rated with the switch on: the first answer of the day counts, a second look does not
+  const dailyRated = () => premiumOn() && !(st.days[dayKey()] && st.days[dayKey()].daily !== undefined);
+  const PROVISIONAL_N = 20;   // (ratings settle after about 20 rated ECGs)
+  const ratedCount = () => st.hist.filter((h) => h.rated || (h.mode !== 'daily' && h.mode !== 'tutorial')).length;
+  // the daily ECG: the same for everyone on a date (seeded by the date, a mid-level target); rated with premium on
   const dailySeed = () => +dayKey().replace(/-/g, '');
   const rhythmPick = () => st.picked.find((p) => BY_ID[p.id].kind === 'rhythm');
 
   // start a mode from the home screen
   function startMode(mode, focus = null) {
+    if (['train', 'skill', 'review'].includes(mode) && !ownsTraining()) { showPaywall(); return; }
+    st.rateDaily = mode === 'daily' && dailyRated();
     st.mode = mode; st.focus = focus; st.reviewRun = mode === 'review' ? dueReviews().map((r) => r.id) : [];
     $('home').hidden = true; nextItem(); fill();
   }
@@ -461,7 +477,7 @@
     const h = st.hist, n = h.length, avg = (f) => (n ? h.reduce((a, x) => a + f(x), 0) / n : 0);
     const el = $('statsBody'), tile = (v, l) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`;
     const recent = h.slice(-5).reverse().map((x) => {
-      const d = x.mode === 'daily' || x.delta === undefined ? null : Math.round(x.delta);
+      const d = (x.mode === 'daily' && !x.rated) || x.delta === undefined ? null : Math.round(x.delta);
       return `<div><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="dl ${d === null ? '' : d >= 0 ? 'up' : 'down'}">${d === null ? 'daily' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`}</span></div>`;
     }).join('');
     el.innerHTML = `<div class="tiles">${tile(Math.round(overall()), 'Rating')}${tile(`<small>${title().name}</small>`, 'Title')}${tile(n, 'ECGs answered')}${tile(n ? `${Math.round(avg((x) => x.score) * 100)}%` : '—', 'Average score')}${tile(n ? `${Math.round(avg((x) => (x.rhythm === 'ok' ? 1 : 0)) * 100)}%` : '—', 'Rhythm correct')}${tile(streak(), 'Day streak')}</div>`
@@ -626,14 +642,15 @@
     // Glicko-2 per skill against the item's rating (from its rhythm and the number and type of its
     // abnormalities): the rhythm skill on the rhythm, each other skill on its findings (location half)
     const before = overall(), opp = { r: st.item.rating, rd: 60 }, sub = st.score.skill;
-    if (st.mode !== 'daily') for (const k of SKILLS) if (sub[k] !== undefined) st.skills[k] = glicko(st.skills[k], opp, sub[k]);   // (the daily ECG is not rated)
+    const rated = st.mode !== 'daily' || st.rateDaily; st.rated = rated;
+    if (rated) for (const k of SKILLS) if (sub[k] !== undefined) st.skills[k] = glicko(st.skills[k], opp, sub[k]);   // (the daily ECG: only with premium on, the day's first answer)
     st.delta = overall() - before;
     const d = today(); if (st.mode === 'daily') d.daily = st.score.total; else d.n++;
     scheduleReview(st.item, st.score.total);
     st.phase = 'result'; st.typed = ''; st.shownAt = performance.now();
     const rk = st.item.recipe || { rhythm: st.item.key.rhythm, abn: [] };
     st.hist.push({ id: st.item.id, title: itemTitle(st.item.key), score: st.score.total, time: st.time, rhythm: st.score.rhythm, delta: st.delta, at: Date.now(), mode: st.mode,
-      keys: [rk.rhythm, ...rk.abn.map((a) => a.k)], miss: st.score.rows.filter((r) => r.cls === 'miss' || r.cls === 'part').map((r) => r.id) });
+      rated, keys: [rk.rhythm, ...rk.abn.map((a) => a.k)], miss: st.score.rows.filter((r) => r.cls === 'miss' || r.cls === 'part').map((r) => r.id) });
     saveProgress();
     // show the half of the ECG that carries the answer
     const hl = st.item.highlight || [], chest = hl.filter((l) => l.startsWith('V')).length, limb = hl.length - chest;
@@ -711,9 +728,9 @@
     const sc = st.score, pct = Math.round(sc.total * 100);
     $('rscore').textContent = `${pct}%`;
     $('rbar').style.width = '0%'; requestAnimationFrame(() => { $('rbar').style.width = `${pct}%`; $('rbar').style.background = pct >= 80 ? 'var(--ok)' : pct >= 40 ? 'var(--part)' : 'var(--bad)'; });
-    const d = Math.round(st.delta), daily = st.mode === 'daily' || st.mode === 'tutorial';
+    const d = Math.round(st.delta), daily = st.mode === 'daily' || st.mode === 'tutorial', unrated = !st.rated;
     // the rating before this ECG, then the change ("1500+13")
-    $('rdelta').innerHTML = daily ? 'not rated' : `${Math.round(overall() - st.delta)}<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>`;
+    $('rdelta').innerHTML = unrated ? 'not rated' : `${Math.round(overall() - st.delta)}<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>`;
     $('share').hidden = st.mode !== 'daily';
     $('next').textContent = daily || (st.mode === 'review' && !st.reviewRun.length) ? 'Done' : 'Next';
     $('rtime').textContent = `${Math.round(st.time)} s`;
@@ -745,11 +762,28 @@
     $('hTitle').textContent = ti.name;
     $('hTitleNext').textContent = ti.next ? `${ti.toNext} points to ${ti.next}` : 'Highest title';
     $('hDailyDate').textContent = date;
-    $('hDailyState').textContent = daily === null ? 'Same ECG for everyone today · not rated' : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
+    $('hDailyState').textContent = daily === null ? `Same ECG for everyone today · ${premiumOn() ? 'rated' : 'not rated'}` : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
+    // locked: Train, Reviews and the skills show a lock and open the unlock page; the rating is provisional at first
+    const locked = !ownsTraining();
+    document.body.classList.toggle('locked', locked);
+    $('hTrainSub').textContent = locked ? `Unlock Training: ECGs at your level, practice by skill and reviews · ${PRICE}` : 'ECGs chosen for your level, mixed skills';
+    $('hRatingLabel').textContent = premiumOn() && ratedCount() < PROVISIONAL_N ? 'Rating · provisional' : 'Rating';
+    for (const b of document.querySelectorAll('#btnLockAgain')) b.hidden = !premiumOn() || locked;
     $('hReviews').textContent = due ? `${due} due` : st.reviews.length ? 'none due today' : 'none yet';
-    $('btnReviews').disabled = !due;
-    $('hSkills').innerHTML = SKILLS.map((k) => `<button type="button" data-skill="${k}"><b>${SKILL_NAME[k]}</b><small>${Math.round(st.skills[k].r)}</small></button>`).join('');
+    $('btnReviews').disabled = !due && ownsTraining();   // (locked: it opens the unlock page)
+    $('hSkills').innerHTML = SKILLS.map((k) => `<button type="button" data-skill="${k}"><b>${SKILL_NAME[k]}</b><small>${Math.round(st.skills[k].r)}</small>${LOCK}</button>`).join('');
   }
+  // the unlock page. The purchase itself comes with Google Play billing; until then, in the preview, it unlocks this device.
+  const LOCK = '<svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  function showPaywall() {
+    $('payPrice').textContent = PRICE; $('payBuy').textContent = `Unlock Training · ${PRICE}`;
+    $('paywall').hidden = false;
+  }
+  function buyTraining() {
+    store.set(OWNED_KEY, '1'); $('paywall').hidden = true; renderHome();
+    toast('Preview: Training unlocked on this device');
+  }
+  function restoreTraining() { toast('Restore will check your Google Play purchases (coming with billing)'); }
   function shareDaily() {
     const pct = Math.round(st.score.total * 100), text = `ECG Studio · Daily ECG ${new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}: ${pct}%${streak() > 1 ? ` · ${streak()}-day streak` : ''}\nhttps://ecgstudio.app/training`;
     if (navigator.share) navigator.share({ text }).catch(() => {});
@@ -838,6 +872,10 @@
     $('btnReviews').addEventListener('click', () => startMode('review'));
     $('hSkills').addEventListener('click', (e) => { const b = e.target.closest('[data-skill]'); if (b) startMode('skill', b.dataset.skill); });
     $('btnStats').addEventListener('click', () => { renderStats(); $('stats').hidden = false; });
+    $('payBuy').addEventListener('click', buyTraining);
+    $('payRestore').addEventListener('click', restoreTraining);
+    $('payLater').addEventListener('click', () => { $('paywall').hidden = true; });
+    $('btnLockAgain').addEventListener('click', () => { store.set(OWNED_KEY, null); renderHome(); toast('Preview: Training locked again'); });
     // Model ("show me why"): the simulator on the same scenario; coming back starts a new ECG (progress is saved).
     // In the app: the Simulator tab opens on it, and the Training tab still holds this ECG.
     $('why').addEventListener('click', () => {
@@ -876,7 +914,7 @@
     // (an installed iOS web app can settle its screen size and home-bar inset only after the first layout)
     addEventListener('pageshow', () => requestAnimationFrame(sizeBottom));
     if (window.visualViewport) visualViewport.addEventListener('resize', () => requestAnimationFrame(sizeBottom));
-    window.ECGTraining = { st, gen, tour, prepTour, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, startMode, goHome, VOCAB, BY_ID, suggest: () => suggestions().list.map((x) => x.t.name) };   // (automated tests)
+    window.ECGTraining = { st, gen, tour, prepTour, showPaywall, ownsTraining, premiumOn, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, startMode, goHome, VOCAB, BY_ID, suggest: () => suggestions().list.map((x) => x.t.name) };   // (automated tests)
     startWorker(); renderHome(); syncFs(); requestAnimationFrame(sizeBottom);   // (the heart is built in the background while the home screen shows)
     if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(drawAll));
   }

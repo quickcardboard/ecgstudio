@@ -90,6 +90,26 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .hcard.main { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .hcard.main .hs { color: rgba(22,10,13,0.75); }
 .hcard.daily { border-color: #f0b429; }
+/* premium: locked cards and the unlock page */
+.lock { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: none; align-self: center; }
+body.locked .lock { display: inline-block; }
+body.locked #btnReviews, body.locked .hskills button { opacity: 0.6; }
+.hskills button .lock { margin-left: 8px; }
+body.locked .hskills button { justify-content: flex-start; }
+body.locked .hskills button b { margin-right: auto; }
+.linkish { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 10px; font-size: 13px; }
+#btnLockAgain { display: block; margin: 14px auto 0; }
+.pay { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.payhero { display: flex; justify-content: center; padding: 6px 0 0; }
+.page .pbody h3.paytitle { margin: 4px 0 2px; font: 600 24px/1.2 var(--font-display); color: var(--fg); text-transform: none; letter-spacing: 0; text-align: center; }
+.page .pbody .paylist { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-direction: column; gap: 8px; }
+.page .pbody .paylist li { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; font-size: 14.5px; color: var(--fg); }
+.page .pbody .payprice { text-align: center; margin: 6px 0 0; color: var(--muted); }
+.payprice b { color: var(--fg); font: 600 22px/1 var(--font-data); margin-right: 4px; }
+.paybuy { padding: 14px; font-size: 16px; border-radius: 10px; }
+.payrestore { padding: 12px; border-radius: 10px; }
+#payLater { align-self: center; }
+.page .pbody .paynote { text-align: center; font-size: 12.5px; color: var(--muted); margin: 0; }
 .hskills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .hskills button { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 12px; }
 .hskills small { font: 500 12px/1 var(--font-data); color: var(--muted); }
@@ -298,16 +318,36 @@ body.land #fsClose { display: none; }
     <div class="phead app-bar"><h2><span class="tlogo">{{LOGO_SVG}}</span><span>ECG <span class="red">Studio</span> Training</span></h2><button type="button" id="homeMenuBtn" aria-label="Menu" aria-expanded="false">⋯</button></div>
     <div class="pbody hbody">
       <div class="hstats">
-        <div><b id="hRating">1500</b><span>Rating</span></div>
+        <div><b id="hRating">1500</b><span id="hRatingLabel">Rating</span></div>
         <div><b id="hStreak">0</b><span>Day streak</span></div>
         <div class="hlevel"><b id="hTitle">Medical student</b><span id="hTitleNext"></span></div>
       </div>
       <button type="button" class="hcard daily" id="btnDaily"><span class="ht">Daily ECG <small id="hDailyDate"></small></span><span class="hs" id="hDailyState"></span></button>
-      <button type="button" class="hcard main" id="btnTrain"><span class="ht">Train</span><span class="hs">ECGs chosen for your level, mixed skills</span></button>
-      <button type="button" class="hcard" id="btnReviews"><span class="ht">Reviews <small id="hReviews"></small></span><span class="hs">ECGs you missed</span></button>
+      <button type="button" class="hcard main" id="btnTrain"><span class="ht">Train <svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="hs" id="hTrainSub">ECGs chosen for your level, mixed skills</span></button>
+      <button type="button" class="hcard" id="btnReviews"><span class="ht">Reviews <small id="hReviews"></small><svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="hs">ECGs you missed</span></button>
       <button type="button" class="hcard" id="btnStats"><span class="ht">Statistics</span><span class="hs">Your ratings by skill, scores, speed and recent ECGs</span></button>
       <h3>Practice by skill</h3>
       <div class="hskills" id="hSkills"></div>
+      <button type="button" class="linkish" id="btnLockAgain" hidden>Preview: lock Training again</button>
+    </div>
+  </div>
+  <!-- the unlock page (premium): Training is one purchase; the simulator and the daily ECG stay free -->
+  <div class="page" id="paywall" hidden>
+    <div class="phead"><button type="button" data-close>‹ Back</button><h2>Unlock Training</h2></div>
+    <div class="pbody pay">
+      <div class="payhero"><div data-ecg-loader="88"></div></div>
+      <h3 class="paytitle">Read an ECG a day? Read hundreds.</h3>
+      <ul class="paylist">
+        <li><b>Train</b>: a new ECG every time, chosen for your level</li>
+        <li><b>Practice by skill</b>: rhythm, conduction, ischemia and conditions</li>
+        <li><b>Reviews</b>: the ECGs you missed come back until you get them</li>
+        <li><b>Ratings</b> for every skill, and full statistics</li>
+      </ul>
+      <p class="payprice"><b id="payPrice">$9.99</b> one-time purchase · yours to keep</p>
+      <button type="button" class="primary paybuy" id="payBuy">Unlock Training · $9.99</button>
+      <button type="button" class="payrestore" id="payRestore">Restore purchase</button>
+      <button type="button" class="linkish" id="payLater">Not now</button>
+      <p class="paynote">The simulator and the daily ECG stay free.</p>
     </div>
   </div>
   <div class="page" id="stats" hidden>
