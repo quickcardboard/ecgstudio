@@ -6,7 +6,8 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-11 (7372650)">
+<meta name="version" content="2026-11-11 (d3642cb)">
+<meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
@@ -5215,9 +5216,15 @@ self.onmessage = (e) => {
   const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* no storage */ } } };
   // (opening the preview link again also locks this device again, to try the purchase flow once more)
   { const q = /[?&]premium=([01])/.exec(location.search); if (q) { store.set(PREMIUM_KEY, q[1] === '1' ? '1' : null); store.set(OWNED_KEY, null); } }
-  const premiumOn = () => store.get(PREMIUM_KEY) === '1';
-  const ownsTraining = () => !premiumOn() || store.get(OWNED_KEY) === '1';   // (the purchase: from Google Play, later)
-  const PRICE = '$9.99';
+  // premium for everyone: site.json "premium" (the build's meta tag); a preview: this device only
+  const premiumLive = ((document.querySelector('meta[name="premium"]') || {}).content || '') === '1';
+  const premiumOn = () => premiumLive || store.get(PREMIUM_KEY) === '1';
+  // what is owned: in the app, from Google Play through the shell ('ents'); elsewhere (previews) the stand-in purchase
+  const shop = { app: false, dev: false, ents: {}, prices: {} };
+  const ownsTraining = () => !premiumOn() || (shop.app ? shop.dev || !!shop.ents.training : store.get(OWNED_KEY) === '1');
+  const PRICE = '$9.99', price = () => shop.prices.training || PRICE;   // (Play's price, in the local currency, once known)
+  const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.ecgstudio.app';
+  const webStore = () => !shop.app && premiumLive && !INAPP && store.get(PREMIUM_KEY) !== '1';   // (the website: Training is bought in the app)
   // the daily ECG is rated with the switch on: the first answer of the day counts, a second look does not
   const dailyRated = () => premiumOn() && !(st.days[dayKey()] && st.days[dayKey()].daily !== undefined);
   const PROVISIONAL_N = 20;   // (ratings settle after about 20 rated ECGs)
@@ -5655,7 +5662,7 @@ self.onmessage = (e) => {
     // locked: Train, Reviews and the skills show a lock and open the unlock page; the rating is provisional at first
     const locked = !ownsTraining();
     document.body.classList.toggle('locked', locked);
-    $('hTrainSub').textContent = locked ? `Unlock Training: ECGs at your level, practice by skill and reviews · ${PRICE}` : 'ECGs chosen for your level, mixed skills';
+    $('hTrainSub').textContent = locked ? `Unlock Training: ECGs at your level, practice by skill and reviews · ${price()}` : 'ECGs chosen for your level, mixed skills';
     $('hRatingLabel').textContent = premiumOn() && ratedCount() < PROVISIONAL_N ? 'Rating · provisional' : 'Rating';
     $('hStatsSub').textContent = locked ? 'Unlock Training for your ratings by skill' : 'Your ratings, statistics, and review recent ECGs';
     $('hReviews').textContent = due ? `${due} due` : st.reviews.length ? 'none due today' : 'none yet';
@@ -5664,15 +5671,37 @@ self.onmessage = (e) => {
   }
   // the unlock page. The purchase itself comes with Google Play billing; until then, in the preview, it unlocks this device.
   const LOCK = '<svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
-  function showPaywall() {
-    $('payPrice').textContent = PRICE; $('payBuy').textContent = `Unlock Training · ${PRICE}`;
-    $('paywall').hidden = false;
+  function payButtons(busy) {
+    const web = webStore();
+    $('payPrice').textContent = price();
+    $('payBuy').textContent = busy ? 'Opening Google Play…' : web ? 'Get ECG Studio on Google Play' : `Unlock Training · ${price()}`;
+    $('payBuy').disabled = !!busy; $('payRestore').hidden = web;
   }
+  function showPaywall() { payButtons(false); $('paywall').hidden = false; }
+  function unlocked() { $('paywall').hidden = true; renderHome(); }
   function buyTraining() {
-    store.set(OWNED_KEY, '1'); $('paywall').hidden = true; renderHome();
+    if (shop.app) { payButtons(true); window.ECGInApp.post('buy', { product: 'training' }); return; }   // (Google Play's own sheet)
+    if (webStore()) { window.open(PLAY_URL, '_blank', 'noopener'); return; }
+    store.set(OWNED_KEY, '1'); unlocked();
     toast('Preview: Training unlocked on this device');
   }
-  function restoreTraining() { toast('Restore will check your Google Play purchases (coming with billing)'); }
+  function restoreTraining() {
+    if (shop.app) { $('payRestore').disabled = true; window.ECGInApp.post('restore'); return; }
+    toast(store.get(OWNED_KEY) === '1' ? 'Purchase restored' : 'No purchase found on this device (preview)');
+  }
+  if (INAPP) {
+    window.ECGInApp.listen('ents', (d) => { shop.app = !!d.billing; shop.dev = !!d.dev; shop.ents = d.ents || {}; shop.prices = d.prices || {}; if (!$('home').hidden) renderHome(); if (!$('paywall').hidden) payButtons($('payBuy').disabled); });
+    window.ECGInApp.listen('bought', (d) => {
+      payButtons(false);
+      if (d.ok) { unlocked(); toast('Training unlocked. Thank you!'); }
+      else if (d.pending) toast('Payment pending: Training unlocks when Google Play confirms it');
+      else if (!d.cancelled) toast('The purchase did not go through. Please try again.');
+    });
+    window.ECGInApp.listen('restored', (d) => {
+      $('payRestore').disabled = false;
+      if (ownsTraining()) { unlocked(); toast('Purchase restored'); } else toast('No Training purchase found for this Google account');
+    });
+  }
   function shareDaily() {
     const pct = Math.round(st.score.total * 100), text = `ECG Studio · Daily ECG ${new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}: ${pct}%${streak() > 1 ? ` · ${streak()}-day streak` : ''}\nhttps://ecgstudio.app/training`;
     if (navigator.share) navigator.share({ text }).catch(() => {});

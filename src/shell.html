@@ -141,8 +141,10 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
     if (!d || !d.ecgApp) return;
     const id = Object.keys(frame).find((k) => frame[k].contentWindow === e.source);
     if (!id) return;
-    if (d.ecgApp === 'ready') { ready[id] = true; if (id === 'training' && tour.prep) post(id, 'tour', { step: 'prep' }); post(id, 'tabs', { w: tabsWidth() }); post(id, id === current ? 'show' : 'hide'); if (SharePlugin && FsPlugin) post(id, 'caps', { share: true }); }
+    if (d.ecgApp === 'ready') { ready[id] = true; sendEnts(id); if (id === 'training' && tour.prep) post(id, 'tour', { step: 'prep' }); post(id, 'tabs', { w: tabsWidth() }); post(id, id === current ? 'show' : 'hide'); if (SharePlugin && FsPlugin) post(id, 'caps', { share: true }); }
     if (d.ecgApp === 'share') share(id, d);
+    if (d.ecgApp === 'buy') buy(id, d);
+    if (d.ecgApp === 'restore') restore(id);
     if (d.ecgApp === 'open' && /^https:\/\//.test(d.url || '')) { if (AppPlugin) location.href = d.url; else window.open(d.url, '_blank', 'noopener'); }   // (an outside link: in the app, Capacitor hands the page's own navigation to the phone's browser)
     if (d.ecgApp === 'tour') {
       if (d.step === 'prep' && BY.training) { tour.prep = true; load('training'); if (ready.training) post('training', 'tour', { step: 'prep' }); }
@@ -166,6 +168,50 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
   // sharing from a module (src/inapp.js): files are written to the app's cache, then the system share sheet
   const plugin = (n) => CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (CAP.Plugins[n] || (CAP.registerPlugin && CAP.registerPlugin(n)));
   const SharePlugin = plugin('Share'), FsPlugin = plugin('Filesystem');
+  // Google Play billing (docs/PREMIUM_PLAN.md): one-time products, by module id → Play product id. The shell owns the
+  // purchases; the modules get what this Google account owns ('ents', with the local prices), and ask to buy ('buy') or
+  // to restore ('restore'). What is owned is kept on the phone too, for starts without a connection. A debug build
+  // (the marker file app/android/app/src/debug/assets/public/dev-unlock.json, absent from Play builds) owns everything.
+  const PRODUCTS = { training: 'training' };
+  const Billing = plugin('NativePurchases'), ENT_KEY = 'ecgApp.ents';
+  const shop = { billing: !!Billing, dev: false, prices: {}, ents: (() => { try { return JSON.parse(localStorage.getItem(ENT_KEY)) || {}; } catch (e) { return {}; } })() };
+  const entsMsg = () => ({ billing: shop.billing, dev: shop.dev, prices: shop.prices, ents: shop.dev ? Object.fromEntries(Object.keys(PRODUCTS).map((k) => [k, true])) : shop.ents });
+  function sendEnts(id) { if (id) post(id, 'ents', entsMsg()); else for (const k in frame) post(k, 'ents', entsMsg()); }
+  async function refreshEnts() {
+    if (!Billing) return;
+    try {
+      const { purchases } = await Billing.getPurchases({ productType: 'inapp' });
+      const owned = new Set((purchases || []).filter((x) => String(x.purchaseState) === '1').map((x) => x.productIdentifier));   // (1: purchased; 2: pending payment)
+      for (const [k, pid] of Object.entries(PRODUCTS)) shop.ents[k] = owned.has(pid);
+      try { localStorage.setItem(ENT_KEY, JSON.stringify(shop.ents)); } catch (e) { /* private mode */ }
+    } catch (e) { /* offline: what was owned last time stands */ }
+    sendEnts();
+  }
+  async function loadPrices() {
+    try {
+      const { products } = await Billing.getProducts({ productIdentifiers: Object.values(PRODUCTS), productType: 'inapp' });
+      for (const x of products || []) { const k = Object.keys(PRODUCTS).find((m) => PRODUCTS[m] === x.identifier); if (k && x.priceString) shop.prices[k] = x.priceString; }
+      sendEnts();
+    } catch (e) { /* no prices yet (no connection, or the product is not set up in the Play Console) */ }
+  }
+  async function buy(id, d) {
+    const pid = PRODUCTS[d.product];
+    if (!Billing || !pid) { post(id, 'bought', { product: d.product, ok: false, err: 'Purchases are not available here' }); return; }
+    try {
+      await Billing.purchaseProduct({ productIdentifier: pid, productType: 'inapp' });   // (acknowledged by the plugin)
+      await refreshEnts();
+      post(id, 'bought', { product: d.product, ok: !!shop.ents[d.product], pending: !shop.ents[d.product] });
+    } catch (e) {
+      const msg = String((e && e.message) || e);
+      post(id, 'bought', { product: d.product, ok: false, cancelled: /cancel/i.test(msg), err: msg });
+      refreshEnts();   // (an "already owned" error: the purchase exists, so restore it)
+    }
+  }
+  async function restore(id) {
+    if (Billing) { try { await Billing.restorePurchases(); } catch (e) { /* listed below anyway */ } }
+    await refreshEnts();
+    post(id, 'restored', entsMsg());
+  }
   async function share(id, d) {
     try {
       const files = [];
@@ -189,6 +235,11 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
     post(current, 'back');
   }
   if (AppPlugin) AppPlugin.addListener('backButton', onBack);
+  if (Billing) {
+    fetch('dev-unlock.json', { cache: 'no-store' }).then((r) => { if (r.ok) { shop.dev = true; sendEnts(); } }).catch(() => {});
+    refreshEnts(); loadPrices();
+    if (AppPlugin) AppPlugin.addListener('resume', refreshEnts);   // (a purchase finished or refunded while away)
+  }
   addEventListener('resize', sendWidth);
   if (document.fonts) document.fonts.ready.then(sendWidth);   // (the tab names are wider once the font is in)
 

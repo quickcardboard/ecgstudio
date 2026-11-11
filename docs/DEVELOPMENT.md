@@ -2210,3 +2210,10 @@ by default (`?premium=1` turns it on for a device), and a stand-in purchase that
   ECGs". The last 5 ECGs in Statistics open their result page again (`openPast`: rebuilt from the recipe, with the
   answer given then and the rating change then; Done returns to Statistics). The history now keeps each ECG's recipe
   and answer; older entries are not linked.
+
+## Round 63: Google Play billing
+
+`@capgo/native-purchases` in the app; the shell owns purchases and tells the modules what the account owns (local
+prices included); Training buys and restores through it; debug builds own everything (a debug-only marker file);
+`site.json` `"premium"` turns the lock on for everyone. Tested with a stand-in for Google Play in the shell (buy,
+cancel, owned elsewhere, debug build). Details and the Play Console steps: docs/PREMIUM_PLAN.md.
