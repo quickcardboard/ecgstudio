@@ -1,7 +1,7 @@
 <meta charset="utf-8">
 <meta name="author" content="{{AUTHOR}}">
 <title>ECG Studio · 3D Heart and 12-Lead ECG Simulator</title>
-<meta name="description" content="ECG Studio: a 3D beating heart that computes the 12-lead ECG from its own electrical activity. Explore rhythms, conduction blocks, ischemia and infarction, hypertrophy, WPW, pericarditis and Brugada in real time.">
+<meta name="description" content="ECG Studio: a 3D beating heart that computes the 12-lead ECG from its own electrical activity. Explore rhythms, conduction blocks, ischemia and infarction, hypertrophy, WPW, pericarditis, Brugada, electrolyte disturbances and hypothermia in real time.">
 <meta property="og:title" content="ECG Studio · 3D Heart and 12-Lead ECG Simulator">
 <meta property="og:url" content="https://ecgstudio.app/">
 <link rel="canonical" href="https://ecgstudio.app/">
@@ -235,6 +235,7 @@ body.m #controls .rlist button { padding: 12px 10px; font-size: 14.5px; }
 #pane3d { --vb: 44px; }
 .viewbar { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: var(--vb); box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 10px;
   background: var(--panel); border-top: 1px solid var(--panel-line); color: var(--viewport-fg); backdrop-filter: blur(6px); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.viewbar.more { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); }   /* (more to scroll: a fade at the right edge) */
 .viewbar .vcut { display: flex; align-items: center; gap: 6px; flex: 1 1 240px; min-width: 190px; max-width: 340px; }
 .viewbar .cutend { padding: 4px 6px; background: transparent; border-color: transparent; color: var(--panel-muted); }
 .viewbar .cutend[aria-pressed="true"] { color: var(--viewport-fg); border-color: var(--panel-line); background: rgba(255,255,255,0.06); }
@@ -295,6 +296,7 @@ body.m .vsum { display: none; }
 .sheet .close { float: right; font-size: 14px; padding: 8px 12px; border-radius: 8px; background: var(--raised); }   /* (the Help close button matches Training's) */
 .sheet .tourbtn { margin-right: 8px; display: none; }   /* (the interactive tutorial: the app's phone layout only) */
 html.inapp body.m .sheet .tourbtn { display: block; }
+@media (pointer: coarse) and (min-width: 900px) { html.inapp .sheet .tourbtn { display: block; } }   /* (tablets held sideways too) */
 html.inapp body.m #guide .toc { clear: both; padding-top: 6px; }   /* (room below the Tutorial and Close buttons) */
 .toc { display: flex; flex-wrap: nowrap; gap: 6px; margin: 10px 0 4px; overflow-x: auto; scrollbar-width: none; }
 .toc::-webkit-scrollbar { display: none; }
@@ -458,9 +460,23 @@ body.m.fs-ecg .fsbar { display: flex; gap: 6px; position: absolute; z-index: 2; 
 .fsbar button { padding: 7px 10px; font-size: 12.5px; }
 .fsbar button[aria-pressed="true"] { border-color: #c2304f; }
 body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
+/* the ECG alone (double tap on the ECG with a finger in this layout, i.e. a tablet held sideways) */
+body.ecgmax #pane3d, body.ecgmax #divider { display: none; }
+body.ecgmax #paneEcg { flex: 1 1 auto; }
+/* touch screens in the desktop layout (tablets held sideways): finger-sized controls (about 40 px) */
+@media (pointer: coarse) {
+  body:not(.m) #pane3d { --vb: 54px; }
+  body:not(.m) .pane-head .tabs button { padding: 10px 14px; font-size: 14px; }
+  body:not(.m) .pane-head button, body:not(.m) .simctl button, body:not(.m) #controls button { min-height: 40px; }
+  body:not(.m) .viewbar button, body:not(.m) .viewbar .tog { min-height: 38px; padding: 8px 12px; font-size: 13px; }
+  body:not(.m) #controls .rlist button, body:not(.m) #controls .rsel { padding: 11px 12px; font-size: 14px; }
+  body:not(.m) input[type=range] { height: 32px; }
+  body:not(.m) .strips button { min-height: 34px; min-width: 38px; }
+}
 /* tablets held upright (body.t, 744 px and wider): the phone layout with the full 12-lead sheet and a lead II rhythm strip
    in the ECG pane (the desktop canvas), and a little more room for the ECG */
 body.m.t #pane3d { flex: 0 0 50%; }
+body.m.t #controls, body.m.t.sheet-full #controls { left: 0; right: 0; width: auto; max-width: 680px; margin: 0 auto; }   /* (the control sheet: centred, not edge to edge) */
 body.m.t #cecg { display: block; width: 100%; height: 100%; }
 body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { display: none; }
 body.m.t #ghint { display: none; }
@@ -714,7 +730,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li><b>Rhythm:</b> adjust the heart rate and toggle persistent arrhythmias. Click on the heart to stimulate an ectopic beat.</li>
         <li><b>Blocks:</b> only useful during a cutaway view. Click on the conduction system to start a block.</li>
         <li><b>Ischemia:</b> click a coronary artery to narrow it there (partial flow: subendocardial ischemia, ST depression and T changes that resolve), or double-click to occlude it (STEMI, then infarction). Use the time slider to see progression of the injury.</li>
-        <li><b>Conditions:</b> add conditions such as chamber enlargement, WPW or pericarditis from the searchable list; remove them from the active list.</li>
+        <li><b>Conditions:</b> add conditions such as chamber enlargement, WPW, pericarditis, electrolyte disturbances, hypothermia or Wellens' pattern from the searchable list; remove them from the active list.</li>
         <li><b>Learn:</b> a review of the key features of this ECG and common pitfalls.</li>
       </ul>
     </section>

@@ -1,7 +1,7 @@
 <meta charset="utf-8">
 <meta name="author" content="Thomas Liou">
 <title>ECG Studio · 3D Heart and 12-Lead ECG Simulator</title>
-<meta name="description" content="ECG Studio: a 3D beating heart that computes the 12-lead ECG from its own electrical activity. Explore rhythms, conduction blocks, ischemia and infarction, hypertrophy, WPW, pericarditis and Brugada in real time.">
+<meta name="description" content="ECG Studio: a 3D beating heart that computes the 12-lead ECG from its own electrical activity. Explore rhythms, conduction blocks, ischemia and infarction, hypertrophy, WPW, pericarditis, Brugada, electrolyte disturbances and hypothermia in real time.">
 <meta property="og:title" content="ECG Studio · 3D Heart and 12-Lead ECG Simulator">
 <meta property="og:url" content="https://ecgstudio.app/">
 <link rel="canonical" href="https://ecgstudio.app/">
@@ -410,6 +410,7 @@ body.m #controls .rlist button { padding: 12px 10px; font-size: 14.5px; }
 #pane3d { --vb: 44px; }
 .viewbar { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: var(--vb); box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 10px;
   background: var(--panel); border-top: 1px solid var(--panel-line); color: var(--viewport-fg); backdrop-filter: blur(6px); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.viewbar.more { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); }   /* (more to scroll: a fade at the right edge) */
 .viewbar .vcut { display: flex; align-items: center; gap: 6px; flex: 1 1 240px; min-width: 190px; max-width: 340px; }
 .viewbar .cutend { padding: 4px 6px; background: transparent; border-color: transparent; color: var(--panel-muted); }
 .viewbar .cutend[aria-pressed="true"] { color: var(--viewport-fg); border-color: var(--panel-line); background: rgba(255,255,255,0.06); }
@@ -470,6 +471,7 @@ body.m .vsum { display: none; }
 .sheet .close { float: right; font-size: 14px; padding: 8px 12px; border-radius: 8px; background: var(--raised); }   /* (the Help close button matches Training's) */
 .sheet .tourbtn { margin-right: 8px; display: none; }   /* (the interactive tutorial: the app's phone layout only) */
 html.inapp body.m .sheet .tourbtn { display: block; }
+@media (pointer: coarse) and (min-width: 900px) { html.inapp .sheet .tourbtn { display: block; } }   /* (tablets held sideways too) */
 html.inapp body.m #guide .toc { clear: both; padding-top: 6px; }   /* (room below the Tutorial and Close buttons) */
 .toc { display: flex; flex-wrap: nowrap; gap: 6px; margin: 10px 0 4px; overflow-x: auto; scrollbar-width: none; }
 .toc::-webkit-scrollbar { display: none; }
@@ -633,9 +635,23 @@ body.m.fs-ecg .fsbar { display: flex; gap: 6px; position: absolute; z-index: 2; 
 .fsbar button { padding: 7px 10px; font-size: 12.5px; }
 .fsbar button[aria-pressed="true"] { border-color: #c2304f; }
 body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
+/* the ECG alone (double tap on the ECG with a finger in this layout, i.e. a tablet held sideways) */
+body.ecgmax #pane3d, body.ecgmax #divider { display: none; }
+body.ecgmax #paneEcg { flex: 1 1 auto; }
+/* touch screens in the desktop layout (tablets held sideways): finger-sized controls (about 40 px) */
+@media (pointer: coarse) {
+  body:not(.m) #pane3d { --vb: 54px; }
+  body:not(.m) .pane-head .tabs button { padding: 10px 14px; font-size: 14px; }
+  body:not(.m) .pane-head button, body:not(.m) .simctl button, body:not(.m) #controls button { min-height: 40px; }
+  body:not(.m) .viewbar button, body:not(.m) .viewbar .tog { min-height: 38px; padding: 8px 12px; font-size: 13px; }
+  body:not(.m) #controls .rlist button, body:not(.m) #controls .rsel { padding: 11px 12px; font-size: 14px; }
+  body:not(.m) input[type=range] { height: 32px; }
+  body:not(.m) .strips button { min-height: 34px; min-width: 38px; }
+}
 /* tablets held upright (body.t, 744 px and wider): the phone layout with the full 12-lead sheet and a lead II rhythm strip
    in the ECG pane (the desktop canvas), and a little more room for the ECG */
 body.m.t #pane3d { flex: 0 0 50%; }
+body.m.t #controls, body.m.t.sheet-full #controls { left: 0; right: 0; width: auto; max-width: 680px; margin: 0 auto; }   /* (the control sheet: centred, not edge to edge) */
 body.m.t #cecg { display: block; width: 100%; height: 100%; }
 body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { display: none; }
 body.m.t #ghint { display: none; }
@@ -891,7 +907,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li><b>Rhythm:</b> adjust the heart rate and toggle persistent arrhythmias. Click on the heart to stimulate an ectopic beat.</li>
         <li><b>Blocks:</b> only useful during a cutaway view. Click on the conduction system to start a block.</li>
         <li><b>Ischemia:</b> click a coronary artery to narrow it there (partial flow: subendocardial ischemia, ST depression and T changes that resolve), or double-click to occlude it (STEMI, then infarction). Use the time slider to see progression of the injury.</li>
-        <li><b>Conditions:</b> add conditions such as chamber enlargement, WPW or pericarditis from the searchable list; remove them from the active list.</li>
+        <li><b>Conditions:</b> add conditions such as chamber enlargement, WPW, pericarditis, electrolyte disturbances, hypothermia or Wellens' pattern from the searchable list; remove them from the active list.</li>
         <li><b>Learn:</b> a review of the key features of this ECG and common pitfalls.</li>
       </ul>
     </section>
@@ -905,7 +921,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-11 (f972b1b).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-11 (53b6b74).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -949,7 +965,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-11 (f972b1b).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-11 (53b6b74).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -6292,6 +6308,9 @@ THE SOFTWARE.
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > (e.pointerType === 'touch' ? 10 : 5)) { down = null; return; }   // (fingers wobble more than a mouse)
       down = null;
       const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      // a finger (a tablet held sideways, which has this layout): the phone's tap rules, as on phones (the conduction
+      // segment nearest the finger, blocks set at once, bursts start arrhythmias); a mouse: the rules below
+      if (e.pointerType === 'touch') { mobileTap(x, y, e.timeStamp); return; }
       ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
       hideBlockMenu();
       // what a click does depends only on where it lands, whatever tab is open (as on phones): the conduction system
@@ -7677,7 +7696,8 @@ THE SOFTWARE.
     return {
       on(type, fn) { (hub[type] = hub[type] || []).push(fn); },
       get phone() { return isM(); },
-      get fsEcg() { return document.body.classList.contains('fs-ecg'); },
+      get fsEcg() { return document.body.classList.contains('fs-ecg') || document.body.classList.contains('ecgmax'); },
+      get desktop() { return !isM(); },
       // the camera's direction from the target (a drag that turns the heart changes it)
       camDir() { return g3.camera.position.clone().sub(g3.controls.target).normalize().applyQuaternion(g3.world.quaternion.clone().invert()); },
       controls: () => g3.controls,
@@ -7685,7 +7705,7 @@ THE SOFTWARE.
       closeAll() {
         while (layers.length) layers.pop().close();   // (their history entries stay; going back over them does nothing)
         if (!$('guide').hidden) $('guide').hidden = true;
-        if (sheetOpen()) toggleControls(false);
+        if (isM() && sheetOpen()) toggleControls(false);   // (the desktop panel stays as the user left it)
         hideBlockMenu();
       },
       saveView() { saved = { pos: g3.camera.position.clone(), up: g3.camera.up.clone(), tgt: g3.controls.target.clone(), wp: g3.world.position.clone(), wq: g3.world.quaternion.clone(), cut: ui.cutFrac }; },
@@ -7743,7 +7763,7 @@ THE SOFTWARE.
       occlude(node) { captureRef(); S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); interpret(true); },
       clearIschemia() { S.clearIschemia(); setIschTime(0); recolorIschemia(); renderIschList(); interpret(true); },
       block(site) { setBlockFrom(site, 'complete'); renderBlockList(); interpret(true); },
-      setFsEcg(on) { setFsEcg(on); },
+      setFsEcg(on) { if (isM()) setFsEcg(on); else setEcgMax(on); },
       siteName: (s) => SITE_NAME[s] || s,
       segmentName: (n) => segmentName(n),
     };
@@ -7871,6 +7891,13 @@ THE SOFTWARE.
       openLayer('fs-ecg', () => { ph.fsEcg = false; fsClass(); });
       $('ghint').hidden = true; firstTime('ecgstudio.tipFsEcg');
     } else if (!on && ph.fsEcg) closeLayer('fs-ecg');
+  }
+  // the desktop layout (tablets held sideways): the ECG alone, the heart hidden (double tap on the ECG, or back)
+  function setEcgMax(on) {
+    if (on && !document.body.classList.contains('ecgmax')) {
+      document.body.classList.add('ecgmax'); resize3D(); buzz();
+      openLayer('ecgmax', () => { document.body.classList.remove('ecgmax'); resize3D(); });
+    } else if (!on) closeLayer('ecgmax');
   }
   function toggleFsHeart() {
     if (ph.fsHeart) { closeLayer('fs-heart'); return; }
@@ -8003,7 +8030,7 @@ THE SOFTWARE.
     const c = tissueAt(ray);
     if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }
     // empty space: a double-tap fills the screen with the heart (and back)
-    if (lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
+    if (isM() && lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
     else lastEmpty = { x, y, t: now };
   }
   const ischTap = { last: null };
@@ -8078,14 +8105,14 @@ THE SOFTWARE.
     const wrap = $('ecgWrap'), a = $('cgroup'), b2 = $('cgroup2');
     let down = null, lastTap = null;
     wrap.addEventListener('pointerdown', (e) => {
-      if (!isM() || e.target.closest('button')) return;
+      if ((!isM() && e.pointerType !== 'touch') || e.target.closest('button')) return;
       const r = wrap.getBoundingClientRect();
       down = { x: e.clientX, y: e.clientY, t: e.timeStamp, edge: e.clientX - r.left < 24 || r.right - e.clientX < 24, drag: 0 };
       try { wrap.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
     });
     wrap.addEventListener('pointermove', (e) => {
       const d = down;
-      if (!d || d.edge || isT() || document.body.classList.contains('fs-ecg')) return;   // (tablets: no lead groups to swipe)
+      if (!d || d.edge || !isM() || isT() || document.body.classList.contains('fs-ecg')) return;   // (tablets: no lead groups to swipe)
       const dx = e.clientX - d.x, dy = e.clientY - d.y;
       if (!d.drag && Math.abs(dx) > 8 && Math.abs(dx) > 1.2 * Math.abs(dy)) d.drag = dx < 0 ? 1 : -1;
       if (!d.drag) return;
@@ -8096,7 +8123,12 @@ THE SOFTWARE.
     });
     wrap.addEventListener('pointerup', (e) => {
       const d = down; down = null;
-      if (!d || !isM()) return;
+      if (!d) return;
+      if (!isM()) {   // (a finger on the desktop layout, a tablet held sideways: a double tap gives the ECG the whole width)
+        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) return;
+        if (lastTap && e.timeStamp - lastTap.t < DOUBLE_MS) { lastTap = null; setEcgMax(!document.body.classList.contains('ecgmax')); } else lastTap = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+        return;
+      }
       const dx = e.clientX - d.x, dy = e.clientY - d.y;
       if (d.drag) {
         // past a quarter of the width, or a quick flick: slide on; otherwise slide back
@@ -8269,6 +8301,10 @@ THE SOFTWARE.
     initPicking(); initTwist(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     $('cutDepth').addEventListener('input', (e) => setCut(+e.target.value));
+    { // the view bar scrolls sideways when the pane is narrow: a fade at the right edge says there is more
+      const vb = document.querySelector('.viewbar'), more = () => vb.classList.toggle('more', !isM() && vb.scrollLeft + vb.clientWidth < vb.scrollWidth - 2);
+      vb.addEventListener('scroll', more, { passive: true }); new ResizeObserver(more).observe(vb); more();
+    }
     $('cutExt').addEventListener('click', () => setCut(0));
     $('cutFull').addEventListener('click', () => setCut(100));
     initStrips();
@@ -8445,11 +8481,16 @@ THE SOFTWARE.
       Object.assign(ring.style, { left: `${t.x - r}px`, top: `${t.y - r}px`, width: `${2 * r}px`, height: `${2 * r}px` });
       ring.classList.remove('rect'); ty = t.y;
     }
-    // the card on the side away from the target (top: below the app's header bar)
-    const c = els.card, where = view.modal || ty === null ? (view.where || 'center') : view.where || (ty > H * 0.45 ? 'top' : 'bottom');
+    // the card on the side away from the target (top: below the app's header bar); on a wide screen (a tablet held
+    // sideways: the heart and the ECG, or the ECG and the panel, side by side) in the half away from the target
+    const c = els.card, wide = innerWidth >= 900 && innerWidth > innerHeight, tx = t ? (t.rect ? t.rect.left + t.rect.width / 2 : t.x) : null;
+    let where = view.modal || ty === null ? (view.where || 'center') : view.where || (ty > H * 0.45 ? 'top' : 'bottom');
+    if (wide && tx !== null && where !== 'center') where = 'top';
     c.classList.toggle('center', where === 'center');
     c.style.top = where === 'top' ? 'calc(env(safe-area-inset-top, 0px) + 58px)' : '';
     c.style.bottom = where === 'bottom' ? 'calc(env(safe-area-inset-bottom, 0px) + 12px)' : '';
+    const side = wide && tx !== null && where !== 'center' ? (tx < innerWidth / 2 ? 'right' : 'left') : '';
+    c.style.left = side === 'right' ? '52%' : ''; c.style.right = side === 'left' ? '52%' : '';
   }
   function show(view) {
     mount();
@@ -8576,7 +8617,7 @@ THE SOFTWARE.
           view() {
             if (T.fsEcg) { opened = true; return { where: 'top', text: TEXT.fullEcgOpen, next: () => T.setFsEcg(false) }; }
             if (opened) { run.next(); return {}; }
-            return { target: { rect: ecg() }, text: document.body.classList.contains('t') ? TEXT.fullEcgTablet : TEXT.fullEcg, next: () => T.setFsEcg(true) };
+            return { target: { rect: ecg() }, text: document.body.classList.contains('t') || T.desktop ? TEXT.fullEcgTablet : TEXT.fullEcg, next: () => T.setFsEcg(true) };
           } };
       })(),
     ];
@@ -8659,7 +8700,9 @@ THE SOFTWARE.
 
   // ------------------------------------------------------------------ start
   // first open: the simulator in the app, on a phone held upright, not opened on a scenario link
-  const upright = () => document.body.classList.contains('m') && !document.body.classList.contains('ml');
+  // (phones and tablets held upright: the phone layout; tablets held sideways: the desktop layout on a touch screen)
+  const upright = () => (document.body.classList.contains('m') && !document.body.classList.contains('ml'))
+    || (!document.body.classList.contains('m') && matchMedia('(pointer: coarse)').matches && innerWidth >= 900);
   let visible = true;
   if (INAPP) { window.ECGInApp.listen('hide', () => { visible = false; }); window.ECGInApp.listen('show', () => { visible = true; }); }
   const pending = () => INAPP && !seen() && !location.hash.slice(1) && !!$('pane3d');

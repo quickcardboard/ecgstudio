@@ -1267,6 +1267,9 @@
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > (e.pointerType === 'touch' ? 10 : 5)) { down = null; return; }   // (fingers wobble more than a mouse)
       down = null;
       const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      // a finger (a tablet held sideways, which has this layout): the phone's tap rules, as on phones (the conduction
+      // segment nearest the finger, blocks set at once, bursts start arrhythmias); a mouse: the rules below
+      if (e.pointerType === 'touch') { mobileTap(x, y, e.timeStamp); return; }
       ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
       hideBlockMenu();
       // what a click does depends only on where it lands, whatever tab is open (as on phones): the conduction system
@@ -2652,7 +2655,8 @@
     return {
       on(type, fn) { (hub[type] = hub[type] || []).push(fn); },
       get phone() { return isM(); },
-      get fsEcg() { return document.body.classList.contains('fs-ecg'); },
+      get fsEcg() { return document.body.classList.contains('fs-ecg') || document.body.classList.contains('ecgmax'); },
+      get desktop() { return !isM(); },
       // the camera's direction from the target (a drag that turns the heart changes it)
       camDir() { return g3.camera.position.clone().sub(g3.controls.target).normalize().applyQuaternion(g3.world.quaternion.clone().invert()); },
       controls: () => g3.controls,
@@ -2660,7 +2664,7 @@
       closeAll() {
         while (layers.length) layers.pop().close();   // (their history entries stay; going back over them does nothing)
         if (!$('guide').hidden) $('guide').hidden = true;
-        if (sheetOpen()) toggleControls(false);
+        if (isM() && sheetOpen()) toggleControls(false);   // (the desktop panel stays as the user left it)
         hideBlockMenu();
       },
       saveView() { saved = { pos: g3.camera.position.clone(), up: g3.camera.up.clone(), tgt: g3.controls.target.clone(), wp: g3.world.position.clone(), wq: g3.world.quaternion.clone(), cut: ui.cutFrac }; },
@@ -2718,7 +2722,7 @@
       occlude(node) { captureRef(); S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); interpret(true); },
       clearIschemia() { S.clearIschemia(); setIschTime(0); recolorIschemia(); renderIschList(); interpret(true); },
       block(site) { setBlockFrom(site, 'complete'); renderBlockList(); interpret(true); },
-      setFsEcg(on) { setFsEcg(on); },
+      setFsEcg(on) { if (isM()) setFsEcg(on); else setEcgMax(on); },
       siteName: (s) => SITE_NAME[s] || s,
       segmentName: (n) => segmentName(n),
     };
@@ -2846,6 +2850,13 @@
       openLayer('fs-ecg', () => { ph.fsEcg = false; fsClass(); });
       $('ghint').hidden = true; firstTime('ecgstudio.tipFsEcg');
     } else if (!on && ph.fsEcg) closeLayer('fs-ecg');
+  }
+  // the desktop layout (tablets held sideways): the ECG alone, the heart hidden (double tap on the ECG, or back)
+  function setEcgMax(on) {
+    if (on && !document.body.classList.contains('ecgmax')) {
+      document.body.classList.add('ecgmax'); resize3D(); buzz();
+      openLayer('ecgmax', () => { document.body.classList.remove('ecgmax'); resize3D(); });
+    } else if (!on) closeLayer('ecgmax');
   }
   function toggleFsHeart() {
     if (ph.fsHeart) { closeLayer('fs-heart'); return; }
@@ -2978,7 +2989,7 @@
     const c = tissueAt(ray);
     if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }
     // empty space: a double-tap fills the screen with the heart (and back)
-    if (lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
+    if (isM() && lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
     else lastEmpty = { x, y, t: now };
   }
   const ischTap = { last: null };
@@ -3053,14 +3064,14 @@
     const wrap = $('ecgWrap'), a = $('cgroup'), b2 = $('cgroup2');
     let down = null, lastTap = null;
     wrap.addEventListener('pointerdown', (e) => {
-      if (!isM() || e.target.closest('button')) return;
+      if ((!isM() && e.pointerType !== 'touch') || e.target.closest('button')) return;
       const r = wrap.getBoundingClientRect();
       down = { x: e.clientX, y: e.clientY, t: e.timeStamp, edge: e.clientX - r.left < 24 || r.right - e.clientX < 24, drag: 0 };
       try { wrap.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
     });
     wrap.addEventListener('pointermove', (e) => {
       const d = down;
-      if (!d || d.edge || isT() || document.body.classList.contains('fs-ecg')) return;   // (tablets: no lead groups to swipe)
+      if (!d || d.edge || !isM() || isT() || document.body.classList.contains('fs-ecg')) return;   // (tablets: no lead groups to swipe)
       const dx = e.clientX - d.x, dy = e.clientY - d.y;
       if (!d.drag && Math.abs(dx) > 8 && Math.abs(dx) > 1.2 * Math.abs(dy)) d.drag = dx < 0 ? 1 : -1;
       if (!d.drag) return;
@@ -3071,7 +3082,12 @@
     });
     wrap.addEventListener('pointerup', (e) => {
       const d = down; down = null;
-      if (!d || !isM()) return;
+      if (!d) return;
+      if (!isM()) {   // (a finger on the desktop layout, a tablet held sideways: a double tap gives the ECG the whole width)
+        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) return;
+        if (lastTap && e.timeStamp - lastTap.t < DOUBLE_MS) { lastTap = null; setEcgMax(!document.body.classList.contains('ecgmax')); } else lastTap = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+        return;
+      }
       const dx = e.clientX - d.x, dy = e.clientY - d.y;
       if (d.drag) {
         // past a quarter of the width, or a quick flick: slide on; otherwise slide back
@@ -3244,6 +3260,10 @@
     initPicking(); initTwist(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     $('cutDepth').addEventListener('input', (e) => setCut(+e.target.value));
+    { // the view bar scrolls sideways when the pane is narrow: a fade at the right edge says there is more
+      const vb = document.querySelector('.viewbar'), more = () => vb.classList.toggle('more', !isM() && vb.scrollLeft + vb.clientWidth < vb.scrollWidth - 2);
+      vb.addEventListener('scroll', more, { passive: true }); new ResizeObserver(more).observe(vb); more();
+    }
     $('cutExt').addEventListener('click', () => setCut(0));
     $('cutFull').addEventListener('click', () => setCut(100));
     initStrips();

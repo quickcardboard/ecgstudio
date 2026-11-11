@@ -118,11 +118,16 @@
       Object.assign(ring.style, { left: `${t.x - r}px`, top: `${t.y - r}px`, width: `${2 * r}px`, height: `${2 * r}px` });
       ring.classList.remove('rect'); ty = t.y;
     }
-    // the card on the side away from the target (top: below the app's header bar)
-    const c = els.card, where = view.modal || ty === null ? (view.where || 'center') : view.where || (ty > H * 0.45 ? 'top' : 'bottom');
+    // the card on the side away from the target (top: below the app's header bar); on a wide screen (a tablet held
+    // sideways: the heart and the ECG, or the ECG and the panel, side by side) in the half away from the target
+    const c = els.card, wide = innerWidth >= 900 && innerWidth > innerHeight, tx = t ? (t.rect ? t.rect.left + t.rect.width / 2 : t.x) : null;
+    let where = view.modal || ty === null ? (view.where || 'center') : view.where || (ty > H * 0.45 ? 'top' : 'bottom');
+    if (wide && tx !== null && where !== 'center') where = 'top';
     c.classList.toggle('center', where === 'center');
     c.style.top = where === 'top' ? 'calc(env(safe-area-inset-top, 0px) + 58px)' : '';
     c.style.bottom = where === 'bottom' ? 'calc(env(safe-area-inset-bottom, 0px) + 12px)' : '';
+    const side = wide && tx !== null && where !== 'center' ? (tx < innerWidth / 2 ? 'right' : 'left') : '';
+    c.style.left = side === 'right' ? '52%' : ''; c.style.right = side === 'left' ? '52%' : '';
   }
   function show(view) {
     mount();
@@ -249,7 +254,7 @@
           view() {
             if (T.fsEcg) { opened = true; return { where: 'top', text: TEXT.fullEcgOpen, next: () => T.setFsEcg(false) }; }
             if (opened) { run.next(); return {}; }
-            return { target: { rect: ecg() }, text: document.body.classList.contains('t') ? TEXT.fullEcgTablet : TEXT.fullEcg, next: () => T.setFsEcg(true) };
+            return { target: { rect: ecg() }, text: document.body.classList.contains('t') || T.desktop ? TEXT.fullEcgTablet : TEXT.fullEcg, next: () => T.setFsEcg(true) };
           } };
       })(),
     ];
@@ -332,7 +337,9 @@
 
   // ------------------------------------------------------------------ start
   // first open: the simulator in the app, on a phone held upright, not opened on a scenario link
-  const upright = () => document.body.classList.contains('m') && !document.body.classList.contains('ml');
+  // (phones and tablets held upright: the phone layout; tablets held sideways: the desktop layout on a touch screen)
+  const upright = () => (document.body.classList.contains('m') && !document.body.classList.contains('ml'))
+    || (!document.body.classList.contains('m') && matchMedia('(pointer: coarse)').matches && innerWidth >= 900);
   let visible = true;
   if (INAPP) { window.ECGInApp.listen('hide', () => { visible = false; }); window.ECGInApp.listen('show', () => { visible = true; }); }
   const pending = () => INAPP && !seen() && !location.hash.slice(1) && !!$('pane3d');

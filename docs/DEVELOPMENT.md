@@ -2248,3 +2248,21 @@ cancel, owned elsewhere, debug build). Details and the Play Console steps: docs/
   `ph-region`, `ph-result`) for these layouts.
 - Left-handed option (the author): ⋯ → "Keyboard on the left" / "Keyboard on the right" (shown only on a tablet held
   sideways) swaps the answer panel and the ECG (`body.lefty`), remembered on the device (`ecgTraining.hand`).
+
+## Round 65: tablet polish, privacy page, small things
+
+- **Tablets held sideways** (the desktop layout on a touch screen): finger taps on the heart follow the phone's rules (the
+  conduction segment nearest the finger, blocks set at once, bursts); mouse clicks are unchanged. A double tap on the
+  ECG gives it the whole width (`ecgmax`, the heart hidden; double tap or back to return). Controls are finger-sized
+  (about 40 px) on touch screens. Upright tablets: the control sheet is centred, at most 680 px wide. Full screen on
+  tablets stays the sideways ECG (the author: an upright one only adds empty space).
+- **Tutorial on tablets held sideways:** it starts there too (touch, 900 px and wider), and Help → Tutorial is offered.
+  Its card sits in the half away from what it points at; step 6 uses the whole-width ECG. Checked end to end at
+  1180×820.
+- **Privacy page** (11 November 2026): problem reports by Google Form; purchases through Google Play, restore, and what
+  is remembered on the device; the app's only network use is Google Play's purchase service.
+- **Small things:** the desktop Help's Conditions line and the website description name the newest findings (electrolyte
+  disturbances, hypothermia, Wellens' pattern); the store listing draft (`docs/PLAY_LISTING.md`) covers the newest
+  findings, the tutorial, the daily ECG and the Training purchase, tablets, and the forms for in-app purchases; tablet
+  listing screenshots were made (2560×1600, 1600×2560). The simulator's view bar fades at its right edge when there is
+  more to scroll.
