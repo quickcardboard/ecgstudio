@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-11 (4539f85)">
+<meta name="version" content="2026-11-11 (9c58c0a)">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
@@ -268,12 +268,12 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 /* premium: locked cards and the unlock page */
 .lock { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: none; align-self: center; }
 body.locked .lock { display: inline-block; }
-body.locked #btnReviews, body.locked .hskills button { opacity: 0.6; }
+body.locked #btnReviews, body.locked #btnStats, body.locked .hskills button { opacity: 0.6; }
 .hskills button .lock { margin-left: 8px; }
 body.locked .hskills button { justify-content: flex-start; }
 body.locked .hskills button b { margin-right: auto; }
 .linkish { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 10px; font-size: 13px; }
-#btnLockAgain { display: block; margin: 14px auto 0; }
+#paywall .payhero .logo { width: 96px; height: 96px; }
 .pay { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
 .payhero { display: flex; justify-content: center; padding: 6px 0 0; }
 .page .pbody h3.paytitle { margin: 4px 0 2px; font: 600 24px/1.2 var(--font-display); color: var(--fg); text-transform: none; letter-spacing: 0; text-align: center; }
@@ -504,17 +504,18 @@ body.land #fsClose { display: none; }
       <button type="button" class="hcard daily" id="btnDaily"><span class="ht">Daily ECG <small id="hDailyDate"></small></span><span class="hs" id="hDailyState"></span></button>
       <button type="button" class="hcard main" id="btnTrain"><span class="ht">Train <svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="hs" id="hTrainSub">ECGs chosen for your level, mixed skills</span></button>
       <button type="button" class="hcard" id="btnReviews"><span class="ht">Reviews <small id="hReviews"></small><svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="hs">ECGs you missed</span></button>
-      <button type="button" class="hcard" id="btnStats"><span class="ht">Statistics</span><span class="hs">Your ratings by skill, scores, speed and recent ECGs</span></button>
+      <button type="button" class="hcard" id="btnStats"><span class="ht">Statistics <svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="hs" id="hStatsSub">Your ratings by skill, scores, speed and recent ECGs</span></button>
       <h3>Practice by skill</h3>
       <div class="hskills" id="hSkills"></div>
-      <button type="button" class="linkish" id="btnLockAgain" hidden>Preview: lock Training again</button>
     </div>
   </div>
   <!-- the unlock page (premium): Training is one purchase; the simulator and the daily ECG stay free -->
   <div class="page" id="paywall" hidden>
     <div class="phead"><button type="button" data-close>‹ Back</button><h2>Unlock Training</h2></div>
     <div class="pbody pay">
-      <div class="payhero"><div data-ecg-loader="88"></div></div>
+      <div class="payhero"><svg class="logo" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <polygon points="197.0,415.1 236.3,437.8 236.3,483.3 197.0,460.5" fill="#a66f81"/><polygon points="236.3,437.8 275.7,460.5 275.7,506.0 236.3,483.3" fill="#a66f81"/><polygon points="315.0,437.8 275.7,460.5 275.7,506.0 315.0,483.3" fill="#f4a3bd"/><polygon points="354.4,369.6 315.0,392.4 315.0,437.8 354.4,415.1" fill="#f4a3bd"/><polygon points="393.8,301.5 354.4,324.2 354.4,369.6 393.8,346.9" fill="#f4a3bd"/><polygon points="433.1,233.3 393.8,256.0 393.8,301.5 433.1,278.7" fill="#f4a3bd"/><polygon points="472.5,165.1 433.1,187.8 433.1,233.3 472.5,210.5" fill="#f4a3bd"/><polygon points="157.6,392.4 197.0,415.1 197.0,460.5 157.6,437.8" fill="#a66f81"/><polygon points="315.0,392.4 275.7,415.1 275.7,460.5 315.0,437.8" fill="#f4a3bd"/><polygon points="354.4,324.2 315.0,346.9 315.0,392.4 354.4,369.6" fill="#f4a3bd"/><polygon points="393.8,256.0 354.4,278.7 354.4,324.2 393.8,301.5" fill="#f4a3bd"/><polygon points="433.1,187.8 393.8,210.5 393.8,256.0 433.1,233.3" fill="#f4a3bd"/><polygon points="472.5,119.6 433.1,142.4 433.1,187.8 472.5,165.1" fill="#f4a3bd"/><polygon points="393.8,28.7 433.1,51.5 393.8,74.2 354.4,51.5" fill="#f8c0d2"/><polygon points="197.0,415.1 236.3,437.8 236.3,483.3 197.0,460.5" fill="#a66f81"/><polygon points="275.7,415.1 236.3,437.8 236.3,483.3 275.7,460.5" fill="#f4a3bd"/><polygon points="315.0,346.9 275.7,369.6 275.7,415.1 315.0,392.4" fill="#f4a3bd"/><polygon points="354.4,278.7 315.0,301.5 315.0,346.9 354.4,324.2" fill="#f4a3bd"/><polygon points="393.8,210.5 354.4,233.3 354.4,278.7 393.8,256.0" fill="#f4a3bd"/><polygon points="433.1,142.4 393.8,165.1 393.8,210.5 433.1,187.8" fill="#f4a3bd"/><polygon points="433.1,51.5 472.5,74.2 433.1,96.9 393.8,74.2" fill="#f8c0d2"/><polygon points="472.5,74.2 433.1,96.9 433.1,142.4 472.5,119.6" fill="#f4a3bd"/><polygon points="118.2,369.6 157.6,392.4 157.6,437.8 118.2,415.1" fill="#2049ad"/><polygon points="275.7,369.6 236.3,392.4 236.3,437.8 275.7,415.1" fill="#f4a3bd"/><polygon points="315.0,301.5 275.7,324.2 275.7,369.6 315.0,346.9" fill="#f4a3bd"/><polygon points="354.4,233.3 315.0,256.0 315.0,301.5 354.4,278.7" fill="#f4a3bd"/><polygon points="393.8,165.1 354.4,187.8 354.4,233.3 393.8,210.5" fill="#f4a3bd"/><polygon points="433.1,96.9 393.8,119.6 393.8,165.1 433.1,142.4" fill="#f4a3bd"/><polygon points="354.4,6.0 393.8,28.7 354.4,51.5 315.0,28.7" fill="#f8c0d2"/><polygon points="157.6,392.4 197.0,415.1 197.0,460.5 157.6,437.8" fill="#2049ad"/><polygon points="236.3,165.1 275.7,187.8 236.3,210.5 197.0,187.8" fill="#a5c0ff"/><polygon points="275.7,96.9 315.0,119.6 275.7,142.4 236.3,119.6" fill="#729aff"/><polygon points="236.3,119.6 275.7,142.4 275.7,187.8 236.3,165.1" fill="#2049ad"/><polygon points="393.8,119.6 354.4,142.4 354.4,187.8 393.8,165.1" fill="#f4a3bd"/><polygon points="315.0,28.7 354.4,51.5 315.0,74.2 275.7,51.5" fill="#f8c0d2"/><polygon points="275.7,51.5 315.0,74.2 315.0,119.6 275.7,96.9" fill="#a66f81"/><polygon points="393.8,28.7 433.1,51.5 393.8,74.2 354.4,51.5" fill="#f8c0d2"/><polygon points="433.1,51.5 393.8,74.2 393.8,119.6 433.1,96.9" fill="#f4a3bd"/><polygon points="236.3,392.4 275.7,415.1 236.3,437.8 197.0,415.1" fill="#729aff"/><polygon points="197.0,415.1 236.3,437.8 236.3,483.3 197.0,460.5" fill="#2049ad"/><polygon points="275.7,415.1 236.3,437.8 236.3,483.3 275.7,460.5" fill="#2f6bff"/><polygon points="78.9,346.9 118.2,369.6 118.2,415.1 78.9,392.4" fill="#536ead"/><polygon points="236.3,346.9 197.0,369.6 197.0,415.1 236.3,392.4" fill="#7aa2ff"/><polygon points="275.7,324.2 315.0,346.9 275.7,369.6 236.3,346.9" fill="#729aff"/><polygon points="236.3,346.9 275.7,369.6 275.7,415.1 236.3,392.4" fill="#2049ad"/><polygon points="315.0,346.9 275.7,369.6 275.7,415.1 315.0,392.4" fill="#2f6bff"/><polygon points="275.7,278.7 236.3,301.5 236.3,346.9 275.7,324.2" fill="#7aa2ff"/><polygon points="315.0,256.0 354.4,278.7 315.0,301.5 275.7,278.7" fill="#729aff"/><polygon points="275.7,278.7 315.0,301.5 315.0,346.9 275.7,324.2" fill="#2049ad"/><polygon points="354.4,278.7 315.0,301.5 315.0,346.9 354.4,324.2" fill="#2f6bff"/><polygon points="275.7,187.8 315.0,210.5 275.7,233.3 236.3,210.5" fill="#a5c0ff"/><polygon points="315.0,210.5 275.7,233.3 275.7,278.7 315.0,256.0" fill="#7aa2ff"/><polygon points="315.0,210.5 354.4,233.3 354.4,278.7 315.0,256.0" fill="#2049ad"/><polygon points="393.8,210.5 354.4,233.3 354.4,278.7 393.8,256.0" fill="#2f6bff"/><polygon points="315.0,119.6 354.4,142.4 315.0,165.1 275.7,142.4" fill="#729aff"/><polygon points="275.7,142.4 315.0,165.1 315.0,210.5 275.7,187.8" fill="#2049ad"/><polygon points="354.4,51.5 393.8,74.2 354.4,96.9 315.0,74.2" fill="#f8c0d2"/><polygon points="315.0,74.2 354.4,96.9 354.4,142.4 315.0,119.6" fill="#a66f81"/><polygon points="393.8,74.2 354.4,96.9 354.4,142.4 393.8,119.6" fill="#f4a3bd"/><polygon points="118.2,369.6 157.6,392.4 157.6,437.8 118.2,415.1" fill="#536ead"/><polygon points="197.0,369.6 157.6,392.4 157.6,437.8 197.0,415.1" fill="#7aa2ff"/><polygon points="236.3,301.5 197.0,324.2 197.0,369.6 236.3,346.9" fill="#7aa2ff"/><polygon points="275.7,233.3 236.3,256.0 236.3,301.5 275.7,278.7" fill="#7aa2ff"/><polygon points="197.0,142.4 236.3,165.1 197.0,187.8 157.6,165.1" fill="#8bcfd8"/><polygon points="354.4,142.4 393.8,165.1 354.4,187.8 315.0,165.1" fill="#729aff"/><polygon points="315.0,165.1 354.4,187.8 354.4,233.3 315.0,210.5" fill="#2049ad"/><polygon points="393.8,165.1 354.4,187.8 354.4,233.3 393.8,210.5" fill="#2f6bff"/><polygon points="39.5,324.2 78.9,346.9 78.9,392.4 39.5,369.6" fill="#3a7e86"/><polygon points="197.0,324.2 157.6,346.9 157.6,392.4 197.0,369.6" fill="#55b9c5"/><polygon points="236.3,256.0 197.0,278.7 197.0,324.2 236.3,301.5" fill="#55b9c5"/><polygon points="236.3,165.1 275.7,187.8 236.3,210.5 197.0,187.8" fill="#8bcfd8"/><polygon points="275.7,187.8 236.3,210.5 236.3,256.0 275.7,233.3" fill="#55b9c5"/><polygon points="78.9,346.9 118.2,369.6 118.2,415.1 78.9,392.4" fill="#3a7e86"/><polygon points="157.6,346.9 118.2,369.6 118.2,415.1 157.6,392.4" fill="#55b9c5"/><polygon points="39.5,278.7 78.9,301.5 78.9,346.9 39.5,324.2" fill="#208d5e"/><polygon points="197.0,278.7 157.6,301.5 157.6,346.9 197.0,324.2" fill="#2fcf8a"/><polygon points="236.3,210.5 197.0,233.3 197.0,278.7 236.3,256.0" fill="#2fcf8a"/><polygon points="157.6,119.6 197.0,142.4 157.6,165.1 118.2,142.4" fill="#72deaf"/><polygon points="78.9,301.5 118.2,324.2 118.2,369.6 78.9,346.9" fill="#208d5e"/><polygon points="157.6,301.5 118.2,324.2 118.2,369.6 157.6,346.9" fill="#2fcf8a"/><polygon points="78.9,210.5 118.2,233.3 78.9,256.0 39.5,233.3" fill="#72deaf"/><polygon points="39.5,233.3 78.9,256.0 78.9,301.5 39.5,278.7" fill="#208d5e"/><polygon points="197.0,233.3 157.6,256.0 157.6,301.5 197.0,278.7" fill="#2fcf8a"/><polygon points="118.2,142.4 157.6,165.1 118.2,187.8 78.9,165.1" fill="#72deaf"/><polygon points="78.9,165.1 118.2,187.8 118.2,233.3 78.9,210.5" fill="#208d5e"/><polygon points="197.0,142.4 236.3,165.1 197.0,187.8 157.6,165.1" fill="#72deaf"/><polygon points="236.3,165.1 197.0,187.8 197.0,233.3 236.3,210.5" fill="#2fcf8a"/><polygon points="118.2,233.3 157.6,256.0 118.2,278.7 78.9,256.0" fill="#72deaf"/><polygon points="78.9,256.0 118.2,278.7 118.2,324.2 78.9,301.5" fill="#208d5e"/><polygon points="157.6,256.0 118.2,278.7 118.2,324.2 157.6,301.5" fill="#2fcf8a"/><polygon points="157.6,165.1 197.0,187.8 157.6,210.5 118.2,187.8" fill="#72deaf"/><polygon points="118.2,187.8 157.6,210.5 157.6,256.0 118.2,233.3" fill="#208d5e"/><polygon points="197.0,187.8 157.6,210.5 157.6,256.0 197.0,233.3" fill="#2fcf8a"/>
+</svg></div>
       <h3 class="paytitle">Read an ECG a day? Read hundreds.</h3>
       <ul class="paylist">
         <li><b>Train</b>: a new ECG every time, chosen for your level</li>
@@ -5210,7 +5211,8 @@ self.onmessage = (e) => {
   // rated. A preview turns it on for this device: ?premium=1 in the address (?premium=0 turns it off).
   const PREMIUM_KEY = 'ecgstudio.premiumPreview', OWNED_KEY = 'ecgstudio.owned.training';
   const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* no storage */ } } };
-  { const q = /[?&]premium=([01])/.exec(location.search); if (q) store.set(PREMIUM_KEY, q[1] === '1' ? '1' : null); }
+  // (opening the preview link again also locks this device again, to try the purchase flow once more)
+  { const q = /[?&]premium=([01])/.exec(location.search); if (q) { store.set(PREMIUM_KEY, q[1] === '1' ? '1' : null); store.set(OWNED_KEY, null); } }
   const premiumOn = () => store.get(PREMIUM_KEY) === '1';
   const ownsTraining = () => !premiumOn() || store.get(OWNED_KEY) === '1';   // (the purchase: from Google Play, later)
   const PRICE = '$9.99';
@@ -5634,10 +5636,10 @@ self.onmessage = (e) => {
     document.body.classList.toggle('locked', locked);
     $('hTrainSub').textContent = locked ? `Unlock Training: ECGs at your level, practice by skill and reviews · ${PRICE}` : 'ECGs chosen for your level, mixed skills';
     $('hRatingLabel').textContent = premiumOn() && ratedCount() < PROVISIONAL_N ? 'Rating · provisional' : 'Rating';
-    for (const b of document.querySelectorAll('#btnLockAgain')) b.hidden = !premiumOn() || locked;
+    $('hStatsSub').textContent = locked ? 'Unlock Training for your ratings by skill, scores, speed and recent ECGs' : 'Your ratings by skill, scores, speed and recent ECGs';
     $('hReviews').textContent = due ? `${due} due` : st.reviews.length ? 'none due today' : 'none yet';
     $('btnReviews').disabled = !due && ownsTraining();   // (locked: it opens the unlock page)
-    $('hSkills').innerHTML = SKILLS.map((k) => `<button type="button" data-skill="${k}"><b>${SKILL_NAME[k]}</b><small>${Math.round(st.skills[k].r)}</small>${LOCK}</button>`).join('');
+    $('hSkills').innerHTML = SKILLS.map((k) => `<button type="button" data-skill="${k}"><b>${SKILL_NAME[k]}</b>${locked ? LOCK : `<small>${Math.round(st.skills[k].r)}</small>`}</button>`).join('');   // (locked: no ratings shown)
   }
   // the unlock page. The purchase itself comes with Google Play billing; until then, in the preview, it unlocks this device.
   const LOCK = '<svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
@@ -5737,11 +5739,10 @@ self.onmessage = (e) => {
     $('btnDaily').addEventListener('click', () => startMode('daily'));
     $('btnReviews').addEventListener('click', () => startMode('review'));
     $('hSkills').addEventListener('click', (e) => { const b = e.target.closest('[data-skill]'); if (b) startMode('skill', b.dataset.skill); });
-    $('btnStats').addEventListener('click', () => { renderStats(); $('stats').hidden = false; });
+    $('btnStats').addEventListener('click', () => { if (!ownsTraining()) { showPaywall(); return; } renderStats(); $('stats').hidden = false; });
     $('payBuy').addEventListener('click', buyTraining);
     $('payRestore').addEventListener('click', restoreTraining);
     $('payLater').addEventListener('click', () => { $('paywall').hidden = true; });
-    $('btnLockAgain').addEventListener('click', () => { store.set(OWNED_KEY, null); renderHome(); toast('Preview: Training locked again'); });
     // Model ("show me why"): the simulator on the same scenario; coming back starts a new ECG (progress is saved).
     // In the app: the Simulator tab opens on it, and the Training tab still holds this ECG.
     $('why').addEventListener('click', () => {
@@ -5764,7 +5765,7 @@ self.onmessage = (e) => {
       showMenu(false);
       if (b.dataset.go === 'home') goHome();
       if (b.dataset.go === 'report') reportProblem();
-      if (b.dataset.go === 'stats') { renderStats(); $('stats').hidden = false; }
+      if (b.dataset.go === 'stats') { if (!ownsTraining()) { showPaywall(); return; } renderStats(); $('stats').hidden = false; }
       if (b.dataset.go === 'help') showHelp();
       if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {
         st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); st.reviews = []; st.days = {}; saveProgress(); goHome();

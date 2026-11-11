@@ -3,7 +3,7 @@
 Decided by the author (2026-11-11):
 
 - **Free:** the simulator, the tutorial, and the daily ECG (rated; the rating is shown as provisional until 20 rated
-  ECGs). Statistics show the rating and skills.
+  ECGs). Free users see their rating and title on Training's home only: Statistics and the skill ratings are locked.
 - **Training, $9.99 one-time** (a non-consumable Google Play product): Train, practice by skill, Reviews.
 - **Later add-ons**, each its own one-time product: pacemakers, pharmaceuticals, lessons.
 - **Website** (ecgstudio.app/training): locked the same way once billing is live; the daily ECG stays as the teaser that
@@ -14,11 +14,12 @@ Decided by the author (2026-11-11):
 - In `src/training.js`, behind a switch that is **off by default** (`ecgstudio.premiumPreview`; `?premium=1` in the
   address turns it on for that device, `?premium=0` off). Off: everything as before (nothing locked, the daily ECG not
   rated), so the branch can be merged at any time.
-- On: Train, the skills and Reviews show a lock and open the unlock page (`#paywall`); the daily ECG is rated (the day's
+- On: Train, the skills, Reviews and Statistics show a lock and open the unlock page (`#paywall`, with the logo); the
+  skill buttons show no ratings; the daily ECG is rated (the day's
   first answer only); the home rating reads "Rating · provisional" below 20 rated ECGs; no Train ECGs are made in the
   background while locked.
-- The purchase is a stand-in: "Unlock Training" unlocks this device (`ecgstudio.owned.training`); "Preview: lock
-  Training again" under the skills undoes it. "Restore purchase" is a placeholder.
+- The purchase is a stand-in: "Unlock Training" unlocks this device (`ecgstudio.owned.training`); opening the
+  `?premium=1` link again locks it again. "Restore purchase" is a placeholder.
 
 ## Next
 

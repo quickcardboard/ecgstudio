@@ -344,7 +344,8 @@
   // rated. A preview turns it on for this device: ?premium=1 in the address (?premium=0 turns it off).
   const PREMIUM_KEY = 'ecgstudio.premiumPreview', OWNED_KEY = 'ecgstudio.owned.training';
   const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* no storage */ } } };
-  { const q = /[?&]premium=([01])/.exec(location.search); if (q) store.set(PREMIUM_KEY, q[1] === '1' ? '1' : null); }
+  // (opening the preview link again also locks this device again, to try the purchase flow once more)
+  { const q = /[?&]premium=([01])/.exec(location.search); if (q) { store.set(PREMIUM_KEY, q[1] === '1' ? '1' : null); store.set(OWNED_KEY, null); } }
   const premiumOn = () => store.get(PREMIUM_KEY) === '1';
   const ownsTraining = () => !premiumOn() || store.get(OWNED_KEY) === '1';   // (the purchase: from Google Play, later)
   const PRICE = '$9.99';
@@ -768,10 +769,10 @@
     document.body.classList.toggle('locked', locked);
     $('hTrainSub').textContent = locked ? `Unlock Training: ECGs at your level, practice by skill and reviews · ${PRICE}` : 'ECGs chosen for your level, mixed skills';
     $('hRatingLabel').textContent = premiumOn() && ratedCount() < PROVISIONAL_N ? 'Rating · provisional' : 'Rating';
-    for (const b of document.querySelectorAll('#btnLockAgain')) b.hidden = !premiumOn() || locked;
+    $('hStatsSub').textContent = locked ? 'Unlock Training for your ratings by skill, scores, speed and recent ECGs' : 'Your ratings by skill, scores, speed and recent ECGs';
     $('hReviews').textContent = due ? `${due} due` : st.reviews.length ? 'none due today' : 'none yet';
     $('btnReviews').disabled = !due && ownsTraining();   // (locked: it opens the unlock page)
-    $('hSkills').innerHTML = SKILLS.map((k) => `<button type="button" data-skill="${k}"><b>${SKILL_NAME[k]}</b><small>${Math.round(st.skills[k].r)}</small>${LOCK}</button>`).join('');
+    $('hSkills').innerHTML = SKILLS.map((k) => `<button type="button" data-skill="${k}"><b>${SKILL_NAME[k]}</b>${locked ? LOCK : `<small>${Math.round(st.skills[k].r)}</small>`}</button>`).join('');   // (locked: no ratings shown)
   }
   // the unlock page. The purchase itself comes with Google Play billing; until then, in the preview, it unlocks this device.
   const LOCK = '<svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
@@ -871,11 +872,10 @@
     $('btnDaily').addEventListener('click', () => startMode('daily'));
     $('btnReviews').addEventListener('click', () => startMode('review'));
     $('hSkills').addEventListener('click', (e) => { const b = e.target.closest('[data-skill]'); if (b) startMode('skill', b.dataset.skill); });
-    $('btnStats').addEventListener('click', () => { renderStats(); $('stats').hidden = false; });
+    $('btnStats').addEventListener('click', () => { if (!ownsTraining()) { showPaywall(); return; } renderStats(); $('stats').hidden = false; });
     $('payBuy').addEventListener('click', buyTraining);
     $('payRestore').addEventListener('click', restoreTraining);
     $('payLater').addEventListener('click', () => { $('paywall').hidden = true; });
-    $('btnLockAgain').addEventListener('click', () => { store.set(OWNED_KEY, null); renderHome(); toast('Preview: Training locked again'); });
     // Model ("show me why"): the simulator on the same scenario; coming back starts a new ECG (progress is saved).
     // In the app: the Simulator tab opens on it, and the Training tab still holds this ECG.
     $('why').addEventListener('click', () => {
@@ -898,7 +898,7 @@
       showMenu(false);
       if (b.dataset.go === 'home') goHome();
       if (b.dataset.go === 'report') reportProblem();
-      if (b.dataset.go === 'stats') { renderStats(); $('stats').hidden = false; }
+      if (b.dataset.go === 'stats') { if (!ownsTraining()) { showPaywall(); return; } renderStats(); $('stats').hidden = false; }
       if (b.dataset.go === 'help') showHelp();
       if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {
         st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); st.reviews = []; st.days = {}; saveProgress(); goHome();
