@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-11 (ddfc059)">
+<meta name="version" content="2026-11-11 (e27f789)">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
@@ -4416,6 +4416,14 @@ return module.exports; })();
     const NEXT = { II: ['III', 'aVF'], III: ['II', 'aVF'], aVF: ['II', 'III'], I: ['aVL'], aVL: ['I'], V1: ['V2'], V2: ['V1', 'V3'], V3: ['V2', 'V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5'] };
     const GROUPS = { septal: ['V1', 'V2'], anterior: ['V3', 'V4'], lowLateral: ['V5', 'V6'], highLateral: ['I', 'aVL'], inferior: ['II', 'III', 'aVF'] };
     const contiguous = (set) => set.filter((n) => (NEXT[n] || []).some((m) => set.includes(m)));
+    // the infarct's wall in words, from the territories its Q waves reach (those the site allows): inferolateral, …
+    const wallName = (ex, terr) => {
+      const t = terr.filter((x) => ex.req.includes(x) || ex.ok.includes(x)), has = (x) => t.includes(x);
+      if (has('inferior') && has('lateral')) return 'inferolateral';
+      if (has('anterior') && has('lateral')) return has('septal') ? 'extensive anterior' : 'anterolateral';
+      if (has('anterior') && has('septal')) return 'anteroseptal';
+      return ex.req.join('/');
+    };
     const terrOf = (leads) => [...new Set(Object.entries(GROUPS).filter(([, g]) => g.some((n) => leads.includes(n))).map(([t]) => territory(t)))];
     const steLeads = (L) => contiguous(LEADS.filter((n) => n !== 'aVR' && L[n].stJ >= (n === 'V2' || n === 'V3' ? 0.2 : 0.1)));
     // ST depression (4th UDMI, at the stricter teaching threshold): ≥ 1 mm at J+80 ms, horizontal or
@@ -4621,14 +4629,18 @@ return module.exports; })();
         if (ks.includes('rbbb') && ks.includes('lafb')) optional.add('bifascicular');
       }
       const crits = new Map();
+      // (sinus tachycardia with a block or pre-excitation: the P sits on the previous T and the reader's PR is unreliable;
+      // the PR is taken from the engine, for the criteria and for the PR shown with the ECG and on its caliper)
+      let enginePR = null;
+      if (tachyHideP) {
+        const prs = V.map((v) => { const p = A.filter((x) => x.on < v.on - 30 && x.on > v.on - 400).pop(); return p ? v.on - p.on : null; }).filter((x) => x !== null).sort((x, y) => x - y);
+        if (prs.length) enginePR = Math.round(prs[prs.length >> 1]);
+      }
+      const shownPR = enginePR !== null ? enginePR : r && r.m.pr;
       for (const a of rec.abn) {
         const d = ABN[a.k]; if (d.sinusNode || d.pause || d.ectopy) continue;
-        // (sinus tachycardia: the P sits on the previous T and the reader's PR is unreliable; the PR is taken from the engine)
         let mm = r.m;
-        if (tachyHideP && (a.k === 'avb1' || a.k === 'wpw')) {
-          const prs = V.map((v) => { const p = A.filter((x) => x.on < v.on - 30 && x.on > v.on - 400).pop(); return p ? v.on - p.on : null; }).filter((x) => x !== null).sort((x, y) => x - y);
-          if (prs.length) mm = { ...r.m, pr: Math.round(prs[prs.length >> 1]) };
-        }
+        if (enginePR !== null && (a.k === 'avb1' || a.k === 'wpw')) mm = { ...r.m, pr: enginePR };
         const c = a.k === 'stemi' && rec.abn.some((x) => x.k === 'lbbb') ? sgarbossa(r.L) : criteria(a.k, R.pRhythm ? a : { ...a, noP: true }, mm, r.L);
         if (!c.ok) return fail(`${a.k}${a.site ? ' ' + a.site : ''} criteria not met (${c.why})`, 'criteria');
         crits.set(a, c);
@@ -4705,7 +4717,7 @@ return module.exports; })();
           const tReq = tt.filter((t) => ex.req.includes(t)).length ? tt.filter((t) => ex.req.includes(t)) : tt.slice(0, 1);
           findings.push({ id: 'twi', skill: d.skill, regions: tReq, okRegions: [...new Set([...tt, ...ex.req, ...ex.ok])].filter((t) => !tReq.includes(t)) });
           mark('qwaves', c.leads); mark('twi', c.leads2);
-          lines.qwaves = lines.twi = `Q waves in ${c.leads.join(', ')}, T inversion in ${c.leads2.join(', ')}: recent ${ex.req.join('/')} infarct (days old).`;
+          lines.qwaves = lines.twi = `Q waves in ${c.leads.join(', ')}, T inversion in ${c.leads2.join(', ')}: recent ${wallName(ex, terr)} infarct (days old).`;
           ['ste', 'poorR', 'longqt'].forEach((x) => optional.add(x));
         } else if (a.k === 'stemi' && rec.abn.some((x) => x.k === 'lbbb')) {
           // (STEMI in LBBB: answered as ST elevation, a finding of its own beside the LBBB; seen through the Sgarbossa
@@ -4719,7 +4731,7 @@ return module.exports; })();
           const site = MI_SITES[a.site], acute = d.isch < 24, ex = acute ? site.ste : site.q, terr = terrOf(c.leads);
           findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
           mark(d.id, c.leads);
-          lines[d.id] = acute ? `ST elevation in ${c.leads.join(', ')}: acute ${ex.req.join('/')} STEMI.` : `Q waves in ${c.leads.join(', ')}: old ${ex.req.join('/')} infarct.`;
+          lines[d.id] = acute ? `ST elevation in ${c.leads.join(', ')}: acute ${ex.req.join('/')} STEMI.` : `Q waves in ${c.leads.join(', ')}: old ${wallName(ex, terr)} infarct.`;
           // (Q waves can form within hours of a STEMI: named with the STEMI, they are true)
           if (acute) ['std', 'reciprocal', 'hyperacute', 'posteriorMI', 'twi', 'qwaves'].forEach((x) => optional.add(x));
         } else {
@@ -4731,17 +4743,30 @@ return module.exports; })();
         }
       }
       for (const x of findings) optional.delete(x.id);
+      // what the median beat measurably shows beyond the key (ST depression, Q waves, T inversion by the same criteria)
+      // is accepted as also true, with a line saying where (Round 61: testers named them and lost points). Not in LBBB,
+      // where Q waves and ST-T cannot be read for themselves, nor in ventricular rhythms.
+      if (r && !R.vt && !R.wide && !R.poly && !rec.abn.some((a) => a.k === 'lbbb')) {
+        const have = new Set(findings.map((f) => f.id)), ks = rec.abn.map((a) => a.k), rightAxis = ks.includes('rvh') || ks.includes('lpfb') || (b.f && b.f.axis === 'RAD');
+        const said = { std: (ls) => `ST depression in ${ls.join(', ')}${ks.includes('lvh') ? ', the strain pattern of LVH' : ''}: also true on this ECG.`,
+          qwaves: (ls) => (rightAxis && ls.every((n) => ['II', 'III', 'aVF'].includes(n)) ? `Q waves in ${ls.join(', ')}: a qR pattern from the right axis, not an infarct; also true on this ECG.` : `Q waves in ${ls.join(', ')}: also true on this ECG.`),
+          twi: (ls) => `T wave inversion in ${ls.join(', ')}: also true on this ECG.` };
+        for (const [id, ls] of [['std', stdLeads(r.L)], ['qwaves', qLeads(r.L)], ['twi', twiLeads(r.L)]]) {
+          if (ls.length < 2 || have.has(id)) continue;
+          optional.add(id); if (!lines[id]) lines[id] = said[id](ls);
+        }
+      }
       if (!R.pRhythm && lines.pericarditis) lines.pericarditis = 'Diffuse concave ST elevation with ST depression in aVR (no PR segment to read): pericarditis.';
       // measurements: rate from the engine; intervals and axis from the median beat
       const sm = R.vf ? null : R.tachy ? sinusRead(M).m : r.m;
-      const m = R.vf ? { rate: null, pr: null, qrs: null, qtc: null, axis: null } : { rate, pr: R.pRhythm ? r.m.pr : null, qrs: R.vt || R.poly ? null : sm.qrs, qtc: R.noP ? null : R.tachy || R.block || R.at || rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].ectopy || ABN[x.k].sinusNode) || ['af', 'flutter', 'mat'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt || R.wide || R.poly ? null : sm.axis };
+      const m = R.vf ? { rate: null, pr: null, qrs: null, qtc: null, axis: null } : { rate, pr: R.pRhythm ? shownPR : null, qrs: R.vt || R.poly ? null : sm.qrs, qtc: R.noP ? null : R.tachy || R.block || R.at || rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].ectopy || ABN[x.k].sinusNode) || ['af', 'flutter', 'mat'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt || R.wide || R.poly ? null : sm.axis };
       // caliper on the interval that decides it (engine timing)
       const within = (lo, hi) => V.filter((v) => v.on > lo && v.on < hi);
       let caliper = null;
       const calK = rec.abn.map((a) => ABN[a.k].caliper).find(Boolean);
       if (R.tachy) { const [a, c] = within(1500, 4600); if (a && c) caliper = { lead: 'rhythm', t0: Math.round(a.on), t1: Math.round(c.on), label: `RR ${Math.round(c.on - a.on)} ms = ${Math.round(60000 / (c.on - a.on))}/min` }; }
       else if (calK === 'qrs') { const [a] = within(5200, 7200); if (a) caliper = { lead: 'V1', t0: Math.round(a.on), t1: Math.round(a.on + r.m.qrs), label: `QRS ${r.m.qrs} ms` }; }
-      else if ((calK === 'pr' || rec.abn.some((a) => a.k === 'avb1')) && r.m.pr) { const [a] = within(1200, 4600); if (a) caliper = { lead: 'rhythm', t0: Math.round(a.on - r.m.pr), t1: Math.round(a.on), label: `PR ${r.m.pr} ms` }; }
+      else if ((calK === 'pr' || rec.abn.some((a) => a.k === 'avb1')) && shownPR) { const [a] = within(1200, 4600); if (a) caliper = { lead: 'rhythm', t0: Math.round(a.on - shownPR), t1: Math.round(a.on), label: `PR ${shownPR} ms` }; }
       const nS = STRIP / (1000 / HZ), art = rec.art ? artifactLeads(rec.art, rec.seed, nS) : null;
       const leads = LEADS.map((_, k) => { const x = new Int16Array(nS); for (let i = 0; i < x.length; i++) x[i] = Math.max(-32000, Math.min(32000, Math.round((rec12[i * (1000 / HZ)][k] + (art ? art[k][i] : 0)) * 1000))); return b64(x); });
       const key = { rhythm, alt: rhythmAlt || R.alt || (SINUS.includes(rhythm) && rhythm !== 'sinus' ? ['sinus'] : []), findings, optional: [...optional] };

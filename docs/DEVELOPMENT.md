@@ -2180,3 +2180,21 @@ the app only for now (tried at ecgstudio.app/app/); keep both the artery and the
   piece whose centre is nearest the LAA landmark (of the openings' landmarks) is drawn as atrial tissue; only the
   in-plane faces are smoothed, and the rest of the stub (much of it inside the heart; smoothing pulled it out through
   the surface) stays where it is.
+
+## Round 61: tester reports (Training)
+
+From the problem-report form (7 reports, 2026-11-10; one "all good"):
+- **PR shown at fast rates** (WPW at 122/min shown as PR 400; first-degree block at 125/min shown as PR 182, which
+  contradicted the key): with sinus tachycardia and a block or pre-excitation the P sits on the previous T, so the gate
+  already took the PR from the engine (76 and 242 ms), but the measurement chip and the PR caliper showed the reader's.
+  Now both show the engine's PR whenever the gate uses it.
+- **Findings present but not in the key** cost points: lateral ST depression (1.3–3.2 mm, LVH strain) with LVH and a
+  recent inferior infarct; Q waves of 41–42 ms in III and aVF (qR of the right axis) with RVH. Now ST depression, Q waves
+  and T inversion that meet the generator's own criteria on the median beat (`stdLeads`, `qLeads`, `twiLeads`) are
+  accepted as also true, with a line naming the leads (the right-axis qR is called that, "not an infarct"). Not in
+  LBBB or ventricular rhythms.
+- **Infarct wall in words:** the Q-wave lines name the wall from the territories the Q waves reach (`wallName`): a second
+  obtuse marginal infarct with Q waves in II, III, aVF, V5, V6 is an "old inferolateral infarct" (was "old lateral").
+- Kept: atrial flutter with RVH, "inferior Q present": II, III and aVF have no Q (0 ms); the negative flutter wave
+  before each QRS most likely looked like one. Old OM2 infarct, "no lateral Q in I": right (none in I); V5–V6 carry it.
+  The tall T in V2–V4 there (up to 8 mm) is the known post-infarct T limitation.
