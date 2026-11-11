@@ -2220,3 +2220,23 @@ cancel, owned elsewhere, debug build). Details and the Play Console steps: docs/
 - Premium on for everyone (`site.json` `"premium": true`, the author's request), before the next release build. Fixed
   first: without Google Play (the website's /app copy) Training fell back to the preview's stand-in purchase, so one tap
   unlocked it there; now only `?premium=1` previews have the stand-in, and elsewhere the unlock button opens the store page.
+
+## Round 64: tablets
+
+- **Which layout:** phones and 7" tablets (narrower than 744 px when upright) keep the phone layouts. Tablets held upright
+  (744 px and wider, the iPad mini up) get the tablet layouts below; tablets held sideways get the desktop simulator and
+  the sideways Training layout.
+- **Simulator, upright** (`MQ_TAB`, `body.t`, touch screens): the phone layout, with the full 12-lead sheet and a lead II
+  rhythm strip in the ECG pane (the desktop canvas `#cecg`) instead of one lead group; no group swiping or 5 s button; the
+  heart pane 50%. Double tap still opens the full screen view.
+- **Training** (`tabletMode`, `body.tabp` upright / `body.tabl` sideways 900 × 560 and up): one 3 × 4 sheet with a lead II
+  rhythm strip (no pages, no swiping; the author asked for no 6 × 2 format), lead groups tapped on the sheet. Upright:
+  the ECG above, the answer and a keyboard at most 720 px wide below; the bottom area keeps the typing view's height so
+  the ECG does not change size. Sideways: the ECG on the left, a panel (360–420 px) on the right with the answer and
+  suggestions at the top and the keyboard at the bottom; the lead groups and the result use the whole panel. Chips and
+  suggestions wrap on tablets. Home and the other pages: a 720 px column.
+- **Tutorial on tablets** (upright): the three sentences about swiping or expanding the ECG have tablet versions
+  (`fullEcgTablet`, `typeSinusTablet`, `anteriorTablet`). Its ring finder now retries at once while no spot is found
+  (after a drag the heart can still be coasting).
+- Checked (Playwright, touch): 600×960 (phone layout), 768×1024, 800×1280, 820×1180, 1024×768, 1180×820, 1280×800; the
+  whole tutorial on a Pixel 7 and on 820×1180.

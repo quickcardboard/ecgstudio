@@ -458,6 +458,12 @@ body.m.fs-ecg .fsbar { display: flex; gap: 6px; position: absolute; z-index: 2; 
 .fsbar button { padding: 7px 10px; font-size: 12.5px; }
 .fsbar button[aria-pressed="true"] { border-color: #c2304f; }
 body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
+/* tablets held upright (body.t, 744 px and wider): the phone layout with the full 12-lead sheet and a lead II rhythm strip
+   in the ECG pane (the desktop canvas), and a little more room for the ECG */
+body.m.t #pane3d { flex: 0 0 50%; }
+body.m.t #cecg { display: block; width: 100%; height: 100%; }
+body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { display: none; }
+body.m.t #ghint { display: none; }
 /* tablets held upright: heart above, ECG below */
 @media (min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (min-height: 501px) {
   #split { flex-direction: column; }

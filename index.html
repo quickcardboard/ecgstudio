@@ -633,6 +633,12 @@ body.m.fs-ecg .fsbar { display: flex; gap: 6px; position: absolute; z-index: 2; 
 .fsbar button { padding: 7px 10px; font-size: 12.5px; }
 .fsbar button[aria-pressed="true"] { border-color: #c2304f; }
 body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
+/* tablets held upright (body.t, 744 px and wider): the phone layout with the full 12-lead sheet and a lead II rhythm strip
+   in the ECG pane (the desktop canvas), and a little more room for the ECG */
+body.m.t #pane3d { flex: 0 0 50%; }
+body.m.t #cecg { display: block; width: 100%; height: 100%; }
+body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { display: none; }
+body.m.t #ghint { display: none; }
 /* tablets held upright: heart above, ECG below */
 @media (min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (min-height: 501px) {
   #split { flex-direction: column; }
@@ -899,7 +905,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-11 (015cf59).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-11 (930ce62).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -943,7 +949,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-11 (015cf59).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-11 (930ce62).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -7584,6 +7590,11 @@ THE SOFTWARE.
   // ---------------------------------------------------------------------------
   const MQ_PORT = matchMedia('(max-width: 743px) and (orientation: portrait)');
   const MQ_LAND = matchMedia('(max-height: 500px) and (orientation: landscape) and (pointer: coarse)');
+  // tablets held upright (744 px and wider: the iPad mini up): the phone layout, with the full 12-lead sheet and a lead II
+  // rhythm strip in the ECG pane instead of one lead group (body.t). Narrower tablets (7") keep the phone's lead groups;
+  // tablets held sideways get the desktop layout.
+  const MQ_TAB = matchMedia('(min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (pointer: coarse)');
+  const isT = () => document.body.classList.contains('t');
   const isM = () => document.body.classList.contains('m');
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
   const SECS = [2500, 5000, 10000];
@@ -7597,8 +7608,8 @@ THE SOFTWARE.
   }
 
   function setMode() {
-    const b = document.body, was = isM(), m = MQ_PORT.matches || MQ_LAND.matches;
-    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches);
+    const b = document.body, was = isM(), tab = MQ_TAB.matches, m = MQ_PORT.matches || MQ_LAND.matches || tab;
+    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab);
     // phones (website and app): dark only, as the app; desktop follows the system setting
     if (m) document.documentElement.dataset.theme = 'dark'; else if (!INAPP) delete document.documentElement.dataset.theme;
     const ctl = $('controls');
@@ -7845,7 +7856,7 @@ THE SOFTWARE.
     if (!isM()) return;
     const b = document.body.classList;
     if (b.contains('fs-heart')) drawLeads($('clive'), [ph.live], 5000, 'double-tap: back', true);
-    else if (!b.contains('fs-ecg')) {
+    else if (!b.contains('fs-ecg') && !b.contains('t')) {   // (tablets: the 12-lead sheet, drawn by drawECG)
       drawLeads($('cgroup'), GROUPS[ph.group], ph.win);
       if (ph.peek !== null) drawLeads($('cgroup2'), GROUPS[ph.peek], ph.win);
     }
@@ -8074,7 +8085,7 @@ THE SOFTWARE.
     });
     wrap.addEventListener('pointermove', (e) => {
       const d = down;
-      if (!d || d.edge || document.body.classList.contains('fs-ecg')) return;
+      if (!d || d.edge || isT() || document.body.classList.contains('fs-ecg')) return;   // (tablets: no lead groups to swipe)
       const dx = e.clientX - d.x, dy = e.clientY - d.y;
       if (!d.drag && Math.abs(dx) > 8 && Math.abs(dx) > 1.2 * Math.abs(dy)) d.drag = dx < 0 ? 1 : -1;
       if (!d.drag) return;
@@ -8138,7 +8149,7 @@ THE SOFTWARE.
   }
 
   function initPhone() {
-    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode);
+    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode); MQ_TAB.addEventListener('change', setMode);
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
     initTouch(); initEcgTouch(); initSheet(); initAlpha();
@@ -8210,7 +8221,7 @@ THE SOFTWARE.
     $('fsFlip').addEventListener('click', () => { ph.flip = !ph.flip; fsClass(); });
     $('fsInterp').addEventListener('click', () => { const off = document.body.classList.toggle('fs-nointerp'); $('fsInterp').setAttribute('aria-pressed', String(!off)); });
     try { if (localStorage.getItem('ecgstudio.tipFsEcg')) $('ghint').hidden = true; } catch (e) { /* no storage */ }
-    if (isM() && MQ_PORT.matches && !(window.ECGTour && window.ECGTour.pending()) && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
+    if (isM() && MQ_PORT.matches && !isT() && !(window.ECGTour && window.ECGTour.pending()) && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
   }
 
   function initUI() {
@@ -8362,6 +8373,10 @@ THE SOFTWARE.
     otherBlock: (name) => `That blocked the ${name}. Tap the ringed left bundle branch.`,
     end: 'Replay it any time: Simulator → Help → Tutorial. Have fun and explore!',
     endSim: 'Replay it any time: Help → Tutorial.',   // (without the app's Training step; not used yet)
+    // tablets show the whole 12-lead sheet: these replace the sentences about swiping and expanding there
+    fullEcgTablet: 'Double tap the ECG to see it full screen.',
+    typeSinusTablet: 'Read the ECG. Name the rhythm first: type S, I.',
+    anteriorTablet: 'Where is the elevation? Tap Anterior in the list, or tap those leads on the ECG',
   };
 
   // ------------------------------------------------------------------ overlay: dim with a ringed hole, and a card
@@ -8493,7 +8508,9 @@ THE SOFTWARE.
     const n = (k) => `${k} / ${total}`;
     const heart = () => $('pane3d').getBoundingClientRect(), ecg = () => $('paneEcg').getBoundingClientRect();
     const near = (a, b) => a.dot(b) > 0.9985;   // (the camera has not moved: about 3°)
-    const dirSpot = (fn) => { let at = 0, dir = null, spot = null; return () => { const d = T.camDir(); if (!dir || !near(d, dir) || performance.now() - at > 1500) { dir = d; at = performance.now(); spot = fn(); } return spot; }; };
+    // (a spot is looked for again when the view turns, every 1.5 s, and on every tick while none is found: the heart may
+    // still be coasting after a drag)
+    const dirSpot = (fn) => { let at = 0, dir = null, spot = null; return () => { const d = T.camDir(); if (!dir || !spot || !near(d, dir) || performance.now() - at > 1500) { dir = d; at = performance.now(); spot = fn(); } return spot; }; };
     let rect = null;   // (the Training tab, from the shell)
     if (INAPP) window.ECGInApp.listen('tour', (d) => { if (d.step === 'rect') rect = { left: d.x, top: d.y, width: d.w, height: d.h }; });
     const steps = [
@@ -8559,7 +8576,7 @@ THE SOFTWARE.
           view() {
             if (T.fsEcg) { opened = true; return { where: 'top', text: TEXT.fullEcgOpen, next: () => T.setFsEcg(false) }; }
             if (opened) { run.next(); return {}; }
-            return { target: { rect: ecg() }, text: TEXT.fullEcg, next: () => T.setFsEcg(true) };
+            return { target: { rect: ecg() }, text: document.body.classList.contains('t') ? TEXT.fullEcgTablet : TEXT.fullEcg, next: () => T.setFsEcg(true) };
           } };
       })(),
     ];
@@ -8592,7 +8609,7 @@ THE SOFTWARE.
     const vis = (el) => el && el.offsetParent !== null && el.getBoundingClientRect().width > 0;
     const R = (el, pad) => ({ rect: el.getBoundingClientRect(), pad });
     let answered = false;
-    const n = (k) => `${k} / ${TOTAL}`;
+    const n = (k) => `${k} / ${TOTAL}`, tab = () => document.body.classList.contains('tabp') || document.body.classList.contains('tabl');
     return [
       { view() {
         if (st.mode !== 'tutorial') { run.skip(); return {}; }   // (left for Training home or another mode)
@@ -8603,7 +8620,7 @@ THE SOFTWARE.
           const b = document.querySelector('#regionGrid button[data-r="anterior"]');
           // (the card at the bottom, below the list, and no dim: the ECG stays clear to swipe and tap)
           const lone = (el) => vis(el) && Object.assign(R(el, 3), { noDim: true });
-          if (!st.region.regions.includes('anterior')) return { target: lone(b), n: n(10), where: 'bottom', compact: true, text: TEXT.anterior, next: () => TR.toggleRegion('anterior') };
+          if (!st.region.regions.includes('anterior')) return { target: lone(b), n: n(10), where: 'bottom', compact: true, text: tab() ? TEXT.anteriorTablet : TEXT.anterior, next: () => TR.toggleRegion('anterior') };
           return { target: lone($('regionDone')), n: n(10), where: 'bottom', compact: true, text: TEXT.regionDone, next: () => TR.endRegion(true) };
         }
         const rhythm = st.picked.find((p) => kind(p) === 'rhythm'), finding = st.picked.find((p) => kind(p) === 'finding');
@@ -8611,7 +8628,7 @@ THE SOFTWARE.
         if (!rhythm) {
           const b = document.querySelector('#suggest button[data-id="sinus"]');
           if (vis(b)) return { target: R(b, 3), n: n(8), text: TEXT.tapSinus, next: () => TR.pick('sinus') };
-          return { target: vis(kbd) && R(kbd, 2), n: n(8), text: TEXT.typeSinus, next: () => TR.pick('sinus') };
+          return { target: vis(kbd) && R(kbd, 2), n: n(8), text: tab() ? TEXT.typeSinusTablet : TEXT.typeSinus, next: () => TR.pick('sinus') };
         }
         if (!finding) {
           const b = document.querySelector('#suggest button[data-id="ste"]');

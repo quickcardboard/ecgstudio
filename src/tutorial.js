@@ -46,6 +46,10 @@
     otherBlock: (name) => `That blocked the ${name}. Tap the ringed left bundle branch.`,
     end: 'Replay it any time: Simulator → Help → Tutorial. Have fun and explore!',
     endSim: 'Replay it any time: Help → Tutorial.',   // (without the app's Training step; not used yet)
+    // tablets show the whole 12-lead sheet: these replace the sentences about swiping and expanding there
+    fullEcgTablet: 'Double tap the ECG to see it full screen.',
+    typeSinusTablet: 'Read the ECG. Name the rhythm first: type S, I.',
+    anteriorTablet: 'Where is the elevation? Tap Anterior in the list, or tap those leads on the ECG',
   };
 
   // ------------------------------------------------------------------ overlay: dim with a ringed hole, and a card
@@ -177,7 +181,9 @@
     const n = (k) => `${k} / ${total}`;
     const heart = () => $('pane3d').getBoundingClientRect(), ecg = () => $('paneEcg').getBoundingClientRect();
     const near = (a, b) => a.dot(b) > 0.9985;   // (the camera has not moved: about 3°)
-    const dirSpot = (fn) => { let at = 0, dir = null, spot = null; return () => { const d = T.camDir(); if (!dir || !near(d, dir) || performance.now() - at > 1500) { dir = d; at = performance.now(); spot = fn(); } return spot; }; };
+    // (a spot is looked for again when the view turns, every 1.5 s, and on every tick while none is found: the heart may
+    // still be coasting after a drag)
+    const dirSpot = (fn) => { let at = 0, dir = null, spot = null; return () => { const d = T.camDir(); if (!dir || !spot || !near(d, dir) || performance.now() - at > 1500) { dir = d; at = performance.now(); spot = fn(); } return spot; }; };
     let rect = null;   // (the Training tab, from the shell)
     if (INAPP) window.ECGInApp.listen('tour', (d) => { if (d.step === 'rect') rect = { left: d.x, top: d.y, width: d.w, height: d.h }; });
     const steps = [
@@ -243,7 +249,7 @@
           view() {
             if (T.fsEcg) { opened = true; return { where: 'top', text: TEXT.fullEcgOpen, next: () => T.setFsEcg(false) }; }
             if (opened) { run.next(); return {}; }
-            return { target: { rect: ecg() }, text: TEXT.fullEcg, next: () => T.setFsEcg(true) };
+            return { target: { rect: ecg() }, text: document.body.classList.contains('t') ? TEXT.fullEcgTablet : TEXT.fullEcg, next: () => T.setFsEcg(true) };
           } };
       })(),
     ];
@@ -276,7 +282,7 @@
     const vis = (el) => el && el.offsetParent !== null && el.getBoundingClientRect().width > 0;
     const R = (el, pad) => ({ rect: el.getBoundingClientRect(), pad });
     let answered = false;
-    const n = (k) => `${k} / ${TOTAL}`;
+    const n = (k) => `${k} / ${TOTAL}`, tab = () => document.body.classList.contains('tabp') || document.body.classList.contains('tabl');
     return [
       { view() {
         if (st.mode !== 'tutorial') { run.skip(); return {}; }   // (left for Training home or another mode)
@@ -287,7 +293,7 @@
           const b = document.querySelector('#regionGrid button[data-r="anterior"]');
           // (the card at the bottom, below the list, and no dim: the ECG stays clear to swipe and tap)
           const lone = (el) => vis(el) && Object.assign(R(el, 3), { noDim: true });
-          if (!st.region.regions.includes('anterior')) return { target: lone(b), n: n(10), where: 'bottom', compact: true, text: TEXT.anterior, next: () => TR.toggleRegion('anterior') };
+          if (!st.region.regions.includes('anterior')) return { target: lone(b), n: n(10), where: 'bottom', compact: true, text: tab() ? TEXT.anteriorTablet : TEXT.anterior, next: () => TR.toggleRegion('anterior') };
           return { target: lone($('regionDone')), n: n(10), where: 'bottom', compact: true, text: TEXT.regionDone, next: () => TR.endRegion(true) };
         }
         const rhythm = st.picked.find((p) => kind(p) === 'rhythm'), finding = st.picked.find((p) => kind(p) === 'finding');
@@ -295,7 +301,7 @@
         if (!rhythm) {
           const b = document.querySelector('#suggest button[data-id="sinus"]');
           if (vis(b)) return { target: R(b, 3), n: n(8), text: TEXT.tapSinus, next: () => TR.pick('sinus') };
-          return { target: vis(kbd) && R(kbd, 2), n: n(8), text: TEXT.typeSinus, next: () => TR.pick('sinus') };
+          return { target: vis(kbd) && R(kbd, 2), n: n(8), text: tab() ? TEXT.typeSinusTablet : TEXT.typeSinus, next: () => TR.pick('sinus') };
         }
         if (!finding) {
           const b = document.querySelector('#suggest button[data-id="ste"]');

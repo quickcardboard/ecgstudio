@@ -219,9 +219,9 @@
   }
   // cells of a layout (canvas pixels): three rows of lead cells and the lead II rhythm strip
   function cellsOf(layout, w, h) {
-    const span = layout.cols.length * COL_MS, pxMs = w / span, rowH = h / 4, cells = [];
-    layout.cols.forEach((col, c) => col.forEach((lead, r) => cells.push({ lead, x0: c * COL_MS * pxMs, x1: (c + 1) * COL_MS * pxMs, y0: r * rowH, y1: (r + 1) * rowH, t0: layout.t0 + c * COL_MS, t1: layout.t0 + (c + 1) * COL_MS })));
-    cells.push({ lead: 'II', rhythm: true, x0: 0, x1: w, y0: 3 * rowH, y1: h, t0: layout.t0, t1: layout.t0 + span });
+    const cm = layout.colMs || COL_MS, nr = layout.cols[0].length, span = layout.cols.length * cm, pxMs = w / span, rowH = h / (nr + 1), cells = [];
+    layout.cols.forEach((col, c) => col.forEach((lead, r) => cells.push({ lead, x0: c * cm * pxMs, x1: (c + 1) * cm * pxMs, y0: r * rowH, y1: (r + 1) * rowH, t0: layout.t0 + c * cm, t1: layout.t0 + (c + 1) * cm })));
+    cells.push({ lead: 'II', rhythm: true, x0: 0, x1: w, y0: nr * rowH, y1: h, t0: layout.t0, t1: layout.t0 + span });
     return { cells, pxMs, rowH, span };
   }
   // opts: { regions: Set of selectable region ids or null, picked: Set, highlight: [leads], caliper }
@@ -448,22 +448,29 @@
   }
   function renderRegion() {
     const p = st.region, t = BY_ID[p.id];
-    $('regionTitle').innerHTML = `<b>${t.name}</b>: tap the lead groups on the ECG (swipe for the chest leads), or pick them here.`;
+    $('regionTitle').innerHTML = `<b>${t.name}</b>: tap the lead groups on the ECG${isTablet() ? '' : ' (swipe for the chest leads)'}, or pick them here.`;
     $('regionGrid').innerHTML = REGIONS.map((r) => `<button type="button" data-r="${r.id}" aria-pressed="${p.regions.includes(r.id)}" style="border-color:${p.regions.includes(r.id) ? r.colour : 'var(--line)'}">${p.regions.includes(r.id) ? '✓ ' : ''}${r.name}<small>${r.leads.join(' ')}</small></button>`).join('');
     $('regionDone').disabled = !p.regions.length;
   }
+  // tablets: the whole 12-lead and a lead II rhythm strip on one sheet (no pages to swipe). Upright (744 px and wider):
+  // the ECG above the answer and the keyboard; sideways (900 × 560 and up): the ECG on the left, the answer, keyboard,
+  // lead groups and result in a panel on the right. Narrower screens keep the phone layout.
+  const tabletMode = () => (innerWidth >= 744 && innerHeight >= innerWidth ? 'tabp' : innerWidth >= 900 && innerHeight >= 560 && innerWidth > innerHeight ? 'tabl' : '');
+  const isTablet = () => document.body.classList.contains('tabp') || document.body.classList.contains('tabl');
+  const sheetLayout = () => (isTablet() ? FULL : PAGES[st.page]);   // (tablets: always the standard 3 × 4 with a lead II strip)
   function drawAll() {
     if (!st.item) { for (const id of ['c0', 'c1']) { const c = $(id), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); } return; }
     const it = st.item, res = st.phase === 'result', reg = st.phase === 'region';
     // (a result chip tapped: only that finding's leads; the rhythm: the caliper alone)
     const sel = res && st.selRow, hlSel = sel ? (sel.rhythm ? [] : (it.hlBy || {})[sel.id] || []) : it.highlight;
     const opts = res ? { highlight: hlSel, caliper: !sel || sel.rhythm ? it.caliper : null } : reg ? { regions: true, picked: new Set(st.region.regions) } : {};
-    drawEcg($('c0'), it, PAGES[0], opts); drawEcg($('c1'), it, PAGES[1], opts);
+    if (isTablet()) drawEcg($('c0'), it, sheetLayout(), opts);
+    else { drawEcg($('c0'), it, PAGES[0], opts); drawEcg($('c1'), it, PAGES[1], opts); }
     if (st.fs || document.body.classList.contains('land')) drawEcg($('cfull'), it, FULL, res ? opts : {});
   }
   // the bottom area keeps the typing view's height (chips, field, keyboard) in every phase, so the ECG keeps its size
   function sizeBottom() {
-    if (st.phase !== 'answer' || $('kbd').hidden) return;
+    if (st.phase !== 'answer' || $('kbd').hidden || document.body.classList.contains('tabl')) return;   // (sideways: the panel)
     const b = $('bottom'); b.style.height = '';
     const h = $('answer').offsetHeight + $('kbd').offsetHeight; if (h > 100) b.style.height = `${h}px`;
   }
@@ -549,7 +556,7 @@
     $('pageName').textContent = PAGES[st.page].name;
   }
   function regionAt(e) {
-    const cv = st.page ? $('c1') : $('c0'), r = cv.getBoundingClientRect(), { cells } = cellsOf(PAGES[st.page], r.width, r.height);
+    const cv = st.page && !isTablet() ? $('c1') : $('c0'), r = cv.getBoundingClientRect(), { cells } = cellsOf(sheetLayout(), r.width, r.height);
     const x = e.clientX - r.left, y = e.clientY - r.top, c = cells.find((k) => !k.rhythm && x >= k.x0 && x < k.x1 && y >= k.y0 && y < k.y1);
     return c ? regionOf(c.lead) : null;
   }
@@ -560,7 +567,7 @@
     view.addEventListener('pointermove', (e) => {
       if (!down) return;
       const dx = e.clientX - down.x, dy = e.clientY - down.y;
-      if (!down.drag && Math.abs(dx) > 8 && Math.abs(dx) > 1.2 * Math.abs(dy)) down.drag = true;
+      if (!down.drag && !isTablet() && Math.abs(dx) > 8 && Math.abs(dx) > 1.2 * Math.abs(dy)) down.drag = true;   // (tablets: one sheet, no swiping)
       if (!down.drag) return;
       const W = view.clientWidth, edge = (st.page === 0 && dx > 0) || (st.page === 1 && dx < 0);
       tr.classList.remove('slide'); tr.style.transform = `translateX(${-st.page * W + (edge ? dx / 3 : dx)}px)`;
@@ -575,7 +582,7 @@
       }
       if (Math.hypot(dx, dy) > 10) return;
       if (st.phase === 'region') { const r = regionAt(e); if (r) toggleRegion(r.id); return; }
-      if (lastTap && e.timeStamp - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) { lastTap = null; setFs(true); }
+      if (!isTablet() && lastTap && e.timeStamp - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) { lastTap = null; setFs(true); }
       else lastTap = { x: e.clientX, y: e.clientY, t: e.timeStamp };
     });
     view.addEventListener('pointercancel', () => { if (down && down.drag) setPage(st.page); down = null; });
@@ -593,6 +600,10 @@
   function syncFs() {
     const land = innerWidth > innerHeight && innerHeight < 520;   // a phone held sideways: the full ECG upright, no keyboard
     document.body.classList.toggle('land', land);
+    const tm = land ? '' : tabletMode();
+    document.body.classList.toggle('tabp', tm === 'tabp'); document.body.classList.toggle('tabl', tm === 'tabl');
+    if (tm) st.fs = false;
+    if (tm === 'tabl') $('bottom').style.height = ''; else requestAnimationFrame(sizeBottom);
     $('fs').hidden = !(st.fs || land);
     requestAnimationFrame(drawAll);
   }

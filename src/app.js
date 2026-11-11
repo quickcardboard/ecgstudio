@@ -2565,6 +2565,11 @@
   // ---------------------------------------------------------------------------
   const MQ_PORT = matchMedia('(max-width: 743px) and (orientation: portrait)');
   const MQ_LAND = matchMedia('(max-height: 500px) and (orientation: landscape) and (pointer: coarse)');
+  // tablets held upright (744 px and wider: the iPad mini up): the phone layout, with the full 12-lead sheet and a lead II
+  // rhythm strip in the ECG pane instead of one lead group (body.t). Narrower tablets (7") keep the phone's lead groups;
+  // tablets held sideways get the desktop layout.
+  const MQ_TAB = matchMedia('(min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (pointer: coarse)');
+  const isT = () => document.body.classList.contains('t');
   const isM = () => document.body.classList.contains('m');
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
   const SECS = [2500, 5000, 10000];
@@ -2578,8 +2583,8 @@
   }
 
   function setMode() {
-    const b = document.body, was = isM(), m = MQ_PORT.matches || MQ_LAND.matches;
-    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches);
+    const b = document.body, was = isM(), tab = MQ_TAB.matches, m = MQ_PORT.matches || MQ_LAND.matches || tab;
+    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab);
     // phones (website and app): dark only, as the app; desktop follows the system setting
     if (m) document.documentElement.dataset.theme = 'dark'; else if (!INAPP) delete document.documentElement.dataset.theme;
     const ctl = $('controls');
@@ -2826,7 +2831,7 @@
     if (!isM()) return;
     const b = document.body.classList;
     if (b.contains('fs-heart')) drawLeads($('clive'), [ph.live], 5000, 'double-tap: back', true);
-    else if (!b.contains('fs-ecg')) {
+    else if (!b.contains('fs-ecg') && !b.contains('t')) {   // (tablets: the 12-lead sheet, drawn by drawECG)
       drawLeads($('cgroup'), GROUPS[ph.group], ph.win);
       if (ph.peek !== null) drawLeads($('cgroup2'), GROUPS[ph.peek], ph.win);
     }
@@ -3055,7 +3060,7 @@
     });
     wrap.addEventListener('pointermove', (e) => {
       const d = down;
-      if (!d || d.edge || document.body.classList.contains('fs-ecg')) return;
+      if (!d || d.edge || isT() || document.body.classList.contains('fs-ecg')) return;   // (tablets: no lead groups to swipe)
       const dx = e.clientX - d.x, dy = e.clientY - d.y;
       if (!d.drag && Math.abs(dx) > 8 && Math.abs(dx) > 1.2 * Math.abs(dy)) d.drag = dx < 0 ? 1 : -1;
       if (!d.drag) return;
@@ -3119,7 +3124,7 @@
   }
 
   function initPhone() {
-    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode);
+    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode); MQ_TAB.addEventListener('change', setMode);
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
     initTouch(); initEcgTouch(); initSheet(); initAlpha();
@@ -3191,7 +3196,7 @@
     $('fsFlip').addEventListener('click', () => { ph.flip = !ph.flip; fsClass(); });
     $('fsInterp').addEventListener('click', () => { const off = document.body.classList.toggle('fs-nointerp'); $('fsInterp').setAttribute('aria-pressed', String(!off)); });
     try { if (localStorage.getItem('ecgstudio.tipFsEcg')) $('ghint').hidden = true; } catch (e) { /* no storage */ }
-    if (isM() && MQ_PORT.matches && !(window.ECGTour && window.ECGTour.pending()) && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
+    if (isM() && MQ_PORT.matches && !isT() && !(window.ECGTour && window.ECGTour.pending()) && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
   }
 
   function initUI() {
