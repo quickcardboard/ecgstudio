@@ -369,7 +369,7 @@
     };
     const near = (pos, i) => Math.hypot(pos[3 * i] - c[0], pos[3 * i + 1] - c[1], pos[3 * i + 2] - c[2]) < R + 4;
     for (const s of parts) {
-      const pos = s.pos, idx = s.idx, lab = s.laaCap || s.label === 3 ? 'la' : s.label;
+      const pos = s.pos, idx = s.idx, lab = s.laaStub ? 'stub' : s.laaCap || s.label === 3 ? 'la' : s.label;   // (the stub's points stay)
       for (let f = 0; f < idx.length; f += 3) {
         const v = [idx[f], idx[f + 1], idx[f + 2]];
         if (!v.some((i) => near(pos, i))) continue;
@@ -407,13 +407,33 @@
     const otherVerts = othersOf(1), otherRV = A.rvWallLayers ? othersOf(2) : null, otherRA = A.raWallLayers ? othersOf(4) : null;
     g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = []; g3.pickTissue = [];
     // The source mesh trims the left atrial appendage and caps it, and the build puts that cap with the vessel caps
-    // (label 11, drawn lilac): its faces (near the LAA landmark) are drawn as left atrial tissue instead, so the model
-    // shows four pulmonary veins, not five
+    // (label 11, drawn lilac): its pieces are drawn as left atrial tissue instead, so the model shows four pulmonary
+    // veins, not five. Each opening is a disc and a short stub wall, separate pieces of the surface: the pieces whose
+    // centre is nearest the LAA landmark (of all the openings' landmarks) are the appendage's.
     const laa = A.landmarks && A.landmarks.LAA;
-    const onLAA = (pos, f) => {
-      let x = 0, y = 0, z = 0; for (let k = 0; k < 3; k++) { const v = 3 * f[k]; x += pos[v] / 3; y += pos[v + 1] / 3; z += pos[v + 2] / 3; }
-      const d = [x - laa.c[0], y - laa.c[1], z - laa.c[2]], along = d[0] * laa.n[0] + d[1] * laa.n[1] + d[2] * laa.n[2];
-      return Math.abs(along) < 4 && Math.hypot(...d) < laa.r * 1.6;
+    const laaFaces = (pos, idx) => {
+      const key = (i) => `${Math.round(pos[3 * i] * 100)},${Math.round(pos[3 * i + 1] * 100)},${Math.round(pos[3 * i + 2] * 100)}`;
+      const par = new Map(), find = (x) => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
+      const join = (a, b) => { a = find(a); b = find(b); if (a !== b) par.set(a, b); };
+      const fk = [];
+      for (let f = 0; f < idx.length; f += 3) {
+        const k = [key(idx[f]), key(idx[f + 1]), key(idx[f + 2])]; fk.push(k[0]);
+        for (const x of k) if (!par.has(x)) par.set(x, x);
+        join(k[0], k[1]); join(k[1], k[2]);
+      }
+      const sum = new Map();
+      for (let f = 0; f < idx.length; f += 3) {
+        const r = find(fk[f / 3]), e = sum.get(r) || { n: 0, c: [0, 0, 0] }; sum.set(r, e); e.n++;
+        for (let d = 0; d < 3; d++) e.c[d] += pos[3 * idx[f] + d];
+      }
+      const lms = Object.entries(A.landmarks).filter(([k]) => /^(LAA|[LR][SI]PV|SVC|IVC)$/.test(k)), mine = new Set();
+      for (const [r, e] of sum) {
+        const m = e.c.map((v) => v / e.n);
+        let best = null, bd = Infinity;
+        for (const [k, l] of lms) { const d = Math.hypot(m[0] - l.c[0], m[1] - l.c[1], m[2] - l.c[2]); if (d < bd) { bd = d; best = k; } }
+        if (best === 'LAA') mine.add(r);
+      }
+      return (f) => mine.has(find(fk[f / 3]));
     };
     const parts = [];
     for (const s of A.json.surfaces) {
@@ -421,10 +441,18 @@
       const pos = new Float32Array(q.length);
       for (let i = 0; i < q.length; i++) pos[i] = A.origin[i % 3] + (q[i] / 65535) * span[i % 3];
       if (s.label !== 11 || !laa) { parts.push({ label: s.label, pos, idx }); continue; }
-      const cap = [], rest = [];
-      for (let i = 0; i < idx.length; i += 3) (onLAA(pos, [idx[i], idx[i + 1], idx[i + 2]]) ? cap : rest).push(idx[i], idx[i + 1], idx[i + 2]);
+      // (the opening's own faces, within 4 mm of its plane and 1.6 cap radii, are smoothed with the atrial wall; the rest
+      // of the stub only takes the tissue colour and stays where it is: much of it lies inside the heart)
+      const cap = [], stub = [], rest = [], onLAA = laaFaces(pos, idx);
+      const inPlane = (f) => {
+        let x = 0, y = 0, z = 0; for (let k = 0; k < 3; k++) { const v = 3 * idx[f + k]; x += pos[v] / 3; y += pos[v + 1] / 3; z += pos[v + 2] / 3; }
+        const d = [x - laa.c[0], y - laa.c[1], z - laa.c[2]], along = d[0] * laa.n[0] + d[1] * laa.n[1] + d[2] * laa.n[2];
+        return Math.abs(along) < 4 && Math.hypot(...d) < laa.r * 1.6;
+      };
+      for (let i = 0; i < idx.length; i += 3) (onLAA(i) ? (inPlane(i) ? cap : stub) : rest).push(idx[i], idx[i + 1], idx[i + 2]);
       parts.push({ label: 11, pos, idx: new Uint32Array(rest) });
       if (cap.length) parts.push({ label: 3, pos, idx: new Uint32Array(cap), laaCap: true });
+      if (stub.length) parts.push({ label: 3, pos, idx: new Uint32Array(stub), laaCap: true, laaStub: true });
     }
     if (laa) smoothLAA(parts, laa);
     for (const s of parts) {

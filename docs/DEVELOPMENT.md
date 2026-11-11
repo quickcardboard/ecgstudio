@@ -2175,3 +2175,8 @@ the app only for now (tried at ecgstudio.app/app/); keep both the artery and the
   into a smooth patch (full strength within 1.15 radii, fading to none at the edge, which is held); points shared with
   any other structure stay, and copies of a point in different meshes move together, so the cut view's caps stay
   closed. Tissue grid, model and ECG unchanged.
+- Follow-up (the author): a lilac piece was left beside the smoothed opening: each opening is a disc and a short stub wall
+  (separate pieces of the surface), and part of the appendage's stub lay outside the band taken as its cap. Now every
+  piece whose centre is nearest the LAA landmark (of the openings' landmarks) is drawn as atrial tissue; only the
+  in-plane faces are smoothed, and the rest of the stub (much of it inside the heart; smoothing pulled it out through
+  the surface) stays where it is.
