@@ -33,8 +33,11 @@ Decided by the author (2026-11-11):
 - Training: in the app, what Play says decides; the price shown is Play's, in the local currency. On the website, with
   premium on for everyone, the unlock button reads "Get ECG Studio on Google Play" (the store page); previews
   (`?premium=1`) keep the stand-in purchase.
-- **Premium for everyone:** `"premium": true` in `site.json` (now false), then rebuild: the build writes it into
-  Training (`<meta name="premium">`).
+- **Premium for everyone:** `"premium": true` in `site.json` (**on since 2026-11-11**, at the author's request, before
+  the next release build), then rebuild: the build writes it into Training (`<meta name="premium">`). Without Google Play
+  (the website and its /app copy) Training is never owned there: the unlock button opens the app's store page; only
+  `?premium=1` previews keep the stand-in purchase.
+- **License testing: skipped** (the author's choice). Closed testers buying Training in the Play build pay for real.
 - **Debug builds own everything:** `app/android/app/src/debug/assets/public/dev-unlock.json` exists only in debug APKs;
   the shell finds it and treats every product as owned. Play builds (release AABs) never have it.
 - No server-side receipt check (a one-time purchase on one platform; Play's own records are the check).

@@ -6,8 +6,8 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-11 (d3642cb)">
-<meta name="premium" content="0">
+<meta name="version" content="2026-11-11 (015cf59)">
+<meta name="premium" content="1">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
@@ -5221,10 +5221,12 @@ self.onmessage = (e) => {
   const premiumOn = () => premiumLive || store.get(PREMIUM_KEY) === '1';
   // what is owned: in the app, from Google Play through the shell ('ents'); elsewhere (previews) the stand-in purchase
   const shop = { app: false, dev: false, ents: {}, prices: {} };
-  const ownsTraining = () => !premiumOn() || (shop.app ? shop.dev || !!shop.ents.training : store.get(OWNED_KEY) === '1');
+  // (a preview: the stand-in purchase on this device; the website with premium on for everyone: never owned, bought in the app)
+  const preview = () => store.get(PREMIUM_KEY) === '1';
+  const ownsTraining = () => !premiumOn() || (shop.app ? shop.dev || !!shop.ents.training : preview() && store.get(OWNED_KEY) === '1');
   const PRICE = '$9.99', price = () => shop.prices.training || PRICE;   // (Play's price, in the local currency, once known)
   const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.ecgstudio.app';
-  const webStore = () => !shop.app && premiumLive && !INAPP && store.get(PREMIUM_KEY) !== '1';   // (the website: Training is bought in the app)
+  const webStore = () => !shop.app && !preview();   // (no Google Play here, as on the website and its /app copy: Training is bought in the app)
   // the daily ECG is rated with the switch on: the first answer of the day counts, a second look does not
   const dailyRated = () => premiumOn() && !(st.days[dayKey()] && st.days[dayKey()].daily !== undefined);
   const PROVISIONAL_N = 20;   // (ratings settle after about 20 rated ECGs)

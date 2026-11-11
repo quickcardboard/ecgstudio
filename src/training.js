@@ -351,10 +351,12 @@
   const premiumOn = () => premiumLive || store.get(PREMIUM_KEY) === '1';
   // what is owned: in the app, from Google Play through the shell ('ents'); elsewhere (previews) the stand-in purchase
   const shop = { app: false, dev: false, ents: {}, prices: {} };
-  const ownsTraining = () => !premiumOn() || (shop.app ? shop.dev || !!shop.ents.training : store.get(OWNED_KEY) === '1');
+  // (a preview: the stand-in purchase on this device; the website with premium on for everyone: never owned, bought in the app)
+  const preview = () => store.get(PREMIUM_KEY) === '1';
+  const ownsTraining = () => !premiumOn() || (shop.app ? shop.dev || !!shop.ents.training : preview() && store.get(OWNED_KEY) === '1');
   const PRICE = '$9.99', price = () => shop.prices.training || PRICE;   // (Play's price, in the local currency, once known)
   const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.ecgstudio.app';
-  const webStore = () => !shop.app && premiumLive && !INAPP && store.get(PREMIUM_KEY) !== '1';   // (the website: Training is bought in the app)
+  const webStore = () => !shop.app && !preview();   // (no Google Play here, as on the website and its /app copy: Training is bought in the app)
   // the daily ECG is rated with the switch on: the first answer of the day counts, a second look does not
   const dailyRated = () => premiumOn() && !(st.days[dayKey()] && st.days[dayKey()].daily !== undefined);
   const PROVISIONAL_N = 20;   // (ratings settle after about 20 rated ECGs)

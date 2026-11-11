@@ -2217,3 +2217,6 @@ by default (`?premium=1` turns it on for a device), and a stand-in purchase that
 prices included); Training buys and restores through it; debug builds own everything (a debug-only marker file);
 `site.json` `"premium"` turns the lock on for everyone. Tested with a stand-in for Google Play in the shell (buy,
 cancel, owned elsewhere, debug build). Details and the Play Console steps: docs/PREMIUM_PLAN.md.
+- Premium on for everyone (`site.json` `"premium": true`, the author's request), before the next release build. Fixed
+  first: without Google Play (the website's /app copy) Training fell back to the preview's stand-in purchase, so one tap
+  unlocked it there; now only `?premium=1` previews have the stand-in, and elsewhere the unlock button opens the store page.
