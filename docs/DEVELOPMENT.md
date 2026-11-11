@@ -2246,3 +2246,5 @@ cancel, owned elsewhere, debug build). Details and the Play Console steps: docs/
   groups are chosen). Training home sideways is a two-column dashboard: the stats across the top; the daily ECG and a
   large Train card on the left; Reviews, Statistics and the skills on the right. The phase is on the body (`ph-answer`,
   `ph-region`, `ph-result`) for these layouts.
+- Left-handed option (the author): ⋯ → "Keyboard on the left" / "Keyboard on the right" (shown only on a tablet held
+  sideways) swaps the answer panel and the ECG (`body.lefty`), remembered on the device (`ecgTraining.hand`).

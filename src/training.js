@@ -601,6 +601,9 @@
   function setFs(on) {
     st.fs = on; syncFs();
   }
+  // left-handed: the keyboard and answer panel on the left of the ECG (tablets held sideways), kept on this device
+  const HAND_KEY = 'ecgTraining.hand';
+  try { if (localStorage.getItem(HAND_KEY) === 'left') document.body.classList.add('lefty'); } catch (e) { /* no storage */ }
   function syncFs() {
     const land = innerWidth > innerHeight && innerHeight < 520;   // a phone held sideways: the full ECG upright, no keyboard
     document.body.classList.toggle('land', land);
@@ -959,6 +962,9 @@
     const menu = $('menu'), showMenu = (on) => {
       const home = !$('home').hidden;
       for (const b of menu.querySelectorAll('[data-go="home"], [data-go="report"]')) b.hidden = home;
+      // (tablets held sideways: the answer panel and keyboard on the left or the right)
+      $('menuHand').hidden = !document.body.classList.contains('tabl');
+      $('menuHand').textContent = document.body.classList.contains('lefty') ? 'Keyboard on the right' : 'Keyboard on the left';
       menu.hidden = !on; for (const id of ['menuBtn', 'homeMenuBtn']) $(id).setAttribute('aria-expanded', String(on));
     };
     for (const id of ['menuBtn', 'homeMenuBtn']) $(id).addEventListener('click', (e) => { e.stopPropagation(); showMenu(menu.hidden); });
@@ -970,6 +976,7 @@
       if (b.dataset.go === 'report') reportProblem();
       if (b.dataset.go === 'stats') { if (!ownsTraining()) { showPaywall(); return; } renderStats(); $('stats').hidden = false; }
       if (b.dataset.go === 'help') showHelp();
+      if (b.dataset.go === 'hand') { const on = !document.body.classList.contains('lefty'); document.body.classList.toggle('lefty', on); try { localStorage.setItem(HAND_KEY, on ? 'left' : 'right'); } catch (e) { /* no storage */ } requestAnimationFrame(drawAll); }
       if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {
         st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); st.reviews = []; st.days = {}; saveProgress(); goHome();
       }

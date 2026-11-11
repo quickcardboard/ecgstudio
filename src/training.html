@@ -274,6 +274,11 @@ body.tabl #meas { grid-column: 1; grid-row: 2; }
 body.tabl #ecgView { grid-column: 1; grid-row: 3; margin: 0 4px 12px 12px; min-height: 0; }
 body.tabl #bottom { grid-column: 2; grid-row: 2 / 4; height: auto !important; min-height: 0; border-left: 1px solid var(--line); background: #0d161e; }
 body.tabl #answer { padding: 10px 12px 6px; }
+/* left-handed (⋯ → Keyboard on the left): the panel on the left, the ECG on the right */
+body.tabl.lefty #app { grid-template-columns: clamp(360px, 34vw, 420px) minmax(0, 1fr); }
+body.tabl.lefty #meas, body.tabl.lefty #ecgView { grid-column: 2; }
+body.tabl.lefty #ecgView { margin: 0 12px 12px 4px; }
+body.tabl.lefty #bottom { grid-column: 1; border-left: 0; border-right: 1px solid var(--line); }
 /* sideways, the answer panel from the bottom up, nothing floating: the keyboard; the field and Submit just above it; the
    suggestions as a list right above the field (close to the keys); "Your answer" filling the rest at the top */
 body.tabl #answer { flex: 1 1 auto; min-height: 0; padding: 12px 12px 10px; gap: 10px; }
@@ -354,6 +359,7 @@ body.land #fsClose { display: none; }
     <button type="button" data-go="report">Report a problem with this ECG</button>
     <button type="button" data-go="stats">Statistics</button>
     <button type="button" data-go="help">Help</button>
+    <button type="button" data-go="hand" id="menuHand" hidden>Keyboard on the left</button>
     <button type="button" data-go="restart">Reset progress</button>
     <hr>
     <a href="../index.html">ECG Studio simulator</a>

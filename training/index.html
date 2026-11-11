@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-11 (fd1b66b)">
+<meta name="version" content="2026-11-11 (f972b1b)">
 <meta name="premium" content="1">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -449,6 +449,11 @@ body.tabl #meas { grid-column: 1; grid-row: 2; }
 body.tabl #ecgView { grid-column: 1; grid-row: 3; margin: 0 4px 12px 12px; min-height: 0; }
 body.tabl #bottom { grid-column: 2; grid-row: 2 / 4; height: auto !important; min-height: 0; border-left: 1px solid var(--line); background: #0d161e; }
 body.tabl #answer { padding: 10px 12px 6px; }
+/* left-handed (⋯ → Keyboard on the left): the panel on the left, the ECG on the right */
+body.tabl.lefty #app { grid-template-columns: clamp(360px, 34vw, 420px) minmax(0, 1fr); }
+body.tabl.lefty #meas, body.tabl.lefty #ecgView { grid-column: 2; }
+body.tabl.lefty #ecgView { margin: 0 12px 12px 4px; }
+body.tabl.lefty #bottom { grid-column: 1; border-left: 0; border-right: 1px solid var(--line); }
 /* sideways, the answer panel from the bottom up, nothing floating: the keyboard; the field and Submit just above it; the
    suggestions as a list right above the field (close to the keys); "Your answer" filling the rest at the top */
 body.tabl #answer { flex: 1 1 auto; min-height: 0; padding: 12px 12px 10px; gap: 10px; }
@@ -531,6 +536,7 @@ body.land #fsClose { display: none; }
     <button type="button" data-go="report">Report a problem with this ECG</button>
     <button type="button" data-go="stats">Statistics</button>
     <button type="button" data-go="help">Help</button>
+    <button type="button" data-go="hand" id="menuHand" hidden>Keyboard on the left</button>
     <button type="button" data-go="restart">Reset progress</button>
     <hr>
     <a href="../index.html">ECG Studio simulator</a>
@@ -5544,6 +5550,9 @@ self.onmessage = (e) => {
   function setFs(on) {
     st.fs = on; syncFs();
   }
+  // left-handed: the keyboard and answer panel on the left of the ECG (tablets held sideways), kept on this device
+  const HAND_KEY = 'ecgTraining.hand';
+  try { if (localStorage.getItem(HAND_KEY) === 'left') document.body.classList.add('lefty'); } catch (e) { /* no storage */ }
   function syncFs() {
     const land = innerWidth > innerHeight && innerHeight < 520;   // a phone held sideways: the full ECG upright, no keyboard
     document.body.classList.toggle('land', land);
@@ -5902,6 +5911,9 @@ self.onmessage = (e) => {
     const menu = $('menu'), showMenu = (on) => {
       const home = !$('home').hidden;
       for (const b of menu.querySelectorAll('[data-go="home"], [data-go="report"]')) b.hidden = home;
+      // (tablets held sideways: the answer panel and keyboard on the left or the right)
+      $('menuHand').hidden = !document.body.classList.contains('tabl');
+      $('menuHand').textContent = document.body.classList.contains('lefty') ? 'Keyboard on the right' : 'Keyboard on the left';
       menu.hidden = !on; for (const id of ['menuBtn', 'homeMenuBtn']) $(id).setAttribute('aria-expanded', String(on));
     };
     for (const id of ['menuBtn', 'homeMenuBtn']) $(id).addEventListener('click', (e) => { e.stopPropagation(); showMenu(menu.hidden); });
@@ -5913,6 +5925,7 @@ self.onmessage = (e) => {
       if (b.dataset.go === 'report') reportProblem();
       if (b.dataset.go === 'stats') { if (!ownsTraining()) { showPaywall(); return; } renderStats(); $('stats').hidden = false; }
       if (b.dataset.go === 'help') showHelp();
+      if (b.dataset.go === 'hand') { const on = !document.body.classList.contains('lefty'); document.body.classList.toggle('lefty', on); try { localStorage.setItem(HAND_KEY, on ? 'left' : 'right'); } catch (e) { /* no storage */ } requestAnimationFrame(drawAll); }
       if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {
         st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); st.reviews = []; st.days = {}; saveProgress(); goHome();
       }
