@@ -2240,3 +2240,9 @@ cancel, owned elsewhere, debug build). Details and the Play Console steps: docs/
   (after a drag the heart can still be coasting).
 - Checked (Playwright, touch): 600×960 (phone layout), 768×1024, 800×1280, 820×1180, 1024×768, 1180×820, 1280×800; the
   whole tutorial on a Pixel 7 and on 820×1180.
+- Follow-up (the author: "not polished"): sideways, the answer panel is built from the bottom up with no gap: the keyboard
+  (larger keys), the field and Submit above it, the suggestions as a list right above the field (the best six), and a
+  "Your answer" card filling the top (with the four answering steps while it is empty; it shrinks to fit while the lead
+  groups are chosen). Training home sideways is a two-column dashboard: the stats across the top; the daily ECG and a
+  large Train card on the left; Reviews, Statistics and the skills on the right. The phase is on the body (`ph-answer`,
+  `ph-region`, `ph-result`) for these layouts.

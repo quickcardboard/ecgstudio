@@ -419,7 +419,10 @@
   }
   function renderPicked() {
     const el = $('picked');
-    if (!st.picked.length && st.phase === 'answer') { el.innerHTML = '<span class="prompt">Rhythm first, then every abnormality you see.</span>'; }
+    if (!st.picked.length && st.phase === 'answer') {
+      el.innerHTML = '<span class="prompt">Rhythm first, then every abnormality you see.</span>'
+        + '<ol class="steps"><li><b>Rhythm</b>: type its first letters, then tap it</li><li><b>Findings</b>: each abnormality, one at a time</li><li><b>Leads</b>: for ST, Q and T findings, tap the lead groups on the ECG</li><li><b>Submit</b> when you are done</li></ol>';
+    }
     else el.innerHTML = st.picked.map((p, i) => `<button type="button" class="achip${BY_ID[p.id].kind === 'rhythm' ? ' rhythm' : ''}${p.pending ? ' pending' : ''}" data-i="${i}">${chipLabel(p)}<span class="x">✕</span></button>`).join('');
     $('fsPicked').innerHTML = st.picked.length ? st.picked.map((p) => `<span class="achip">${chipLabel(p)}</span>`).join('') : '<span class="prompt">Nothing yet</span>';
   }
@@ -477,6 +480,7 @@
   function render() {
     measChips($('meas')); measChips($('fsMeas'));
     const ph = st.phase;
+    for (const k of ['answer', 'region', 'result']) document.body.classList.toggle(`ph-${k}`, ph === k);   // (layout by phase: tablets)
     $('answer').hidden = ph === 'result'; $('kbd').hidden = ph !== 'answer'; $('region').hidden = ph !== 'region'; $('result').hidden = ph !== 'result';
     renderPicked();
     if (ph === 'answer') renderField();

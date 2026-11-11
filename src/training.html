@@ -274,6 +274,53 @@ body.tabl #meas { grid-column: 1; grid-row: 2; }
 body.tabl #ecgView { grid-column: 1; grid-row: 3; margin: 0 4px 12px 12px; min-height: 0; }
 body.tabl #bottom { grid-column: 2; grid-row: 2 / 4; height: auto !important; min-height: 0; border-left: 1px solid var(--line); background: #0d161e; }
 body.tabl #answer { padding: 10px 12px 6px; }
+/* sideways, the answer panel from the bottom up, nothing floating: the keyboard; the field and Submit just above it; the
+   suggestions as a list right above the field (close to the keys); "Your answer" filling the rest at the top */
+body.tabl #answer { flex: 1 1 auto; min-height: 0; padding: 12px 12px 10px; gap: 10px; }
+body.tabl #slot { display: contents; }
+body.tabl #picked, body.tabl #picked[hidden] { display: flex !important; order: 1; flex: 1 1 auto; min-height: 0; flex-wrap: wrap; align-content: flex-start; gap: 8px;
+  overflow-y: auto; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+body.tabl #picked::before { content: "Your answer"; flex: 0 0 100%; font: 600 11px/1 var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+body.tabl #picked .prompt { flex: 0 0 100%; color: var(--muted); font-size: 14px; line-height: 1.4; }
+body.tabl #picked .achip { font-size: 14px; padding: 8px 12px; }
+#picked .steps { display: none; }
+body.tabl #picked .steps { display: block; flex: 0 0 100%; margin: 14px 0 0; padding-left: 20px; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+body.tabl #picked .steps li { margin-bottom: 6px; } body.tabl #picked .steps b { color: var(--fg); font-weight: 600; }
+body.tabl.ph-region #answer { flex: 0 0 auto; }
+body.tabl.ph-region #picked { flex: 0 0 auto; }
+body.tabl #region { padding: 4px 12px 12px; gap: 12px; }
+body.tabl #suggest { order: 2; flex: none; flex-direction: column; align-items: stretch; gap: 6px; padding: 0; overflow: visible; }
+body.tabl #suggest button { text-align: left; padding: 12px 14px; font-size: 15px; border-radius: 10px; display: flex; justify-content: space-between; gap: 10px; }
+body.tabl #suggest button small { color: var(--muted); font-size: 12px; }
+body.tabl #suggest .hint { padding: 4px 2px; color: var(--muted); }
+body.tabl #suggest button:nth-of-type(n+7) { display: none; }   /* (the best six; typing more narrows them) */
+body.tabl #fieldRow { order: 3; margin: 0; }
+body.tabl #field { height: 48px; font-size: 17px; }
+body.tabl #fieldRow #submit { height: 48px; padding: 0 20px; }
+body.tabl #kbd { margin-top: 0; padding: 10px 10px calc(env(safe-area-inset-bottom, 0px) + 12px); gap: 8px; }
+body.tabl #kbd .row { gap: 6px; }
+body.tabl #kbd button { height: 54px; font-size: 20px; border-radius: 8px; }
+body.tabl #kbd .wide, body.tabl #kbd .fn, body.tabl #kbd .space { font-size: 15px; }
+/* sideways, Training home: a dashboard in two columns (the day's ECG and Train on the left; reviews, statistics and the
+   skills on the right) */
+body.tabl #home .pbody.hbody { max-width: 1040px; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: min-content; gap: 14px 18px; align-content: start; padding-top: 22px; }
+body.tabl .hbody > .hstats { grid-column: 1 / -1; grid-template-columns: 1fr 1fr 2fr; gap: 14px; }
+body.tabl .hstats > div { padding: 14px 16px; border-radius: 12px; }
+body.tabl .hstats b { font-size: 26px; }
+body.tabl .hstats .hlevel b { font-size: 18px; }
+body.tabl .hstats span { font-size: 12.5px; }
+body.tabl .hbody > #btnDaily { grid-column: 1; grid-row: 2; }
+body.tabl .hbody > #btnTrain { grid-column: 1; grid-row: 3 / span 3; justify-content: flex-end; min-height: 200px; padding: 22px; }
+body.tabl .hbody > #btnTrain .ht { font-size: 30px; }
+body.tabl .hbody > #btnTrain .hs { font-size: 15px; max-width: 34ch; }
+body.tabl .hbody > #btnReviews { grid-column: 2; grid-row: 2; }
+body.tabl .hbody > #btnStats { grid-column: 2; grid-row: 3; }
+body.tabl .hbody > h3 { grid-column: 2; grid-row: 4; margin: 6px 0 0; }
+body.tabl .hbody > #hSkills { grid-column: 2; grid-row: 5; }
+body.tabl .hcard { padding: 18px 20px; }
+body.tabl .hcard .ht { font-size: 20px; }
+body.tabl .hcard .hs { font-size: 14px; }
+body.tabl .hskills button { padding: 16px 14px; }
 /* tablets: the chips and the suggestions wrap instead of scrolling sideways */
 body.tabp #slot, body.tabl #slot { height: auto; min-height: 42px; }
 body.tabp #picked, body.tabl #picked, body.tabp #suggest, body.tabl #suggest { flex-wrap: wrap; overflow: visible; row-gap: 6px; padding-top: 2px; padding-bottom: 2px; }
