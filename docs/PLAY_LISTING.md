@@ -42,8 +42,11 @@ the session that wrote this (phone screenshots 1080×1920; the 512×512 icon is 
 **App icon**: `icons/logo/play-store-512.png`.
 **Feature graphic** (1024×500): `feature-graphic.png` (from this session): logo, "ECG Studio", "3D Heart Simulator / Learn, Explore, Practice".
 **Phone screenshots** (2–8, 1080×1920): the six `1-…` to `6-…` PNGs (from this session).
-**Tablet screenshots** (Round 64 layouts, 2026-11-11): `tablet-1-…` to `tablet-4-…` (2560×1600 sideways and
-1600×2560 upright), from that session; upload them under both 7-inch and 10-inch tablets.
+**Tablet screenshots** (Round 64–65 layouts, 2026-11-11): `tablet-1-…` to `tablet-4-…` (2560×1600 sideways and
+1600×2560 upright), from that session, with headlines in the phone set's style (white IBM Plex Sans Condensed with one
+coloured word, a light subline, the app in a device frame running off the bottom): "The full **12-lead**" (blue),
+"Rated ECG **training**" (green), "Watch an infarct **evolve**" (pink), "A new 12-lead ECG / **every time**" (amber).
+Upload them under both 7-inch and 10-inch tablets.
 
 ## App category and contact (Store settings)
 
