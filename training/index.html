@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-11 (9c58c0a)">
+<meta name="version" content="2026-11-11 (49e3102)">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
@@ -239,6 +239,8 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .hist { display: flex; flex-direction: column; gap: 6px; }
 .hist div { display: flex; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
 .hist div span:first-child { flex: 1; }
+.hist div.open { cursor: pointer; } .hist div.open::after { content: '›'; color: var(--muted); font-size: 18px; line-height: 1; }
+.hist div.open:active { background: var(--raised); }
 .hist .pc { font: 600 14px/1 var(--font-data); min-width: 44px; text-align: right; }
 .hist .tm { font: 400 12px/1 var(--font-data); color: var(--muted); min-width: 34px; text-align: right; }
 .hist .dl { font: 500 12px/1 var(--font-data); color: var(--muted); min-width: 40px; text-align: right; }
@@ -504,7 +506,7 @@ body.land #fsClose { display: none; }
       <button type="button" class="hcard daily" id="btnDaily"><span class="ht">Daily ECG <small id="hDailyDate"></small></span><span class="hs" id="hDailyState"></span></button>
       <button type="button" class="hcard main" id="btnTrain"><span class="ht">Train <svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="hs" id="hTrainSub">ECGs chosen for your level, mixed skills</span></button>
       <button type="button" class="hcard" id="btnReviews"><span class="ht">Reviews <small id="hReviews"></small><svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="hs">ECGs you missed</span></button>
-      <button type="button" class="hcard" id="btnStats"><span class="ht">Statistics <svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="hs" id="hStatsSub">Your ratings by skill, scores, speed and recent ECGs</span></button>
+      <button type="button" class="hcard" id="btnStats"><span class="ht">Statistics <svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="hs" id="hStatsSub">Your ratings, statistics, and review recent ECGs</span></button>
       <h3>Practice by skill</h3>
       <div class="hskills" id="hSkills"></div>
     </div>
@@ -516,12 +518,12 @@ body.land #fsClose { display: none; }
       <div class="payhero"><svg class="logo" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <polygon points="197.0,415.1 236.3,437.8 236.3,483.3 197.0,460.5" fill="#a66f81"/><polygon points="236.3,437.8 275.7,460.5 275.7,506.0 236.3,483.3" fill="#a66f81"/><polygon points="315.0,437.8 275.7,460.5 275.7,506.0 315.0,483.3" fill="#f4a3bd"/><polygon points="354.4,369.6 315.0,392.4 315.0,437.8 354.4,415.1" fill="#f4a3bd"/><polygon points="393.8,301.5 354.4,324.2 354.4,369.6 393.8,346.9" fill="#f4a3bd"/><polygon points="433.1,233.3 393.8,256.0 393.8,301.5 433.1,278.7" fill="#f4a3bd"/><polygon points="472.5,165.1 433.1,187.8 433.1,233.3 472.5,210.5" fill="#f4a3bd"/><polygon points="157.6,392.4 197.0,415.1 197.0,460.5 157.6,437.8" fill="#a66f81"/><polygon points="315.0,392.4 275.7,415.1 275.7,460.5 315.0,437.8" fill="#f4a3bd"/><polygon points="354.4,324.2 315.0,346.9 315.0,392.4 354.4,369.6" fill="#f4a3bd"/><polygon points="393.8,256.0 354.4,278.7 354.4,324.2 393.8,301.5" fill="#f4a3bd"/><polygon points="433.1,187.8 393.8,210.5 393.8,256.0 433.1,233.3" fill="#f4a3bd"/><polygon points="472.5,119.6 433.1,142.4 433.1,187.8 472.5,165.1" fill="#f4a3bd"/><polygon points="393.8,28.7 433.1,51.5 393.8,74.2 354.4,51.5" fill="#f8c0d2"/><polygon points="197.0,415.1 236.3,437.8 236.3,483.3 197.0,460.5" fill="#a66f81"/><polygon points="275.7,415.1 236.3,437.8 236.3,483.3 275.7,460.5" fill="#f4a3bd"/><polygon points="315.0,346.9 275.7,369.6 275.7,415.1 315.0,392.4" fill="#f4a3bd"/><polygon points="354.4,278.7 315.0,301.5 315.0,346.9 354.4,324.2" fill="#f4a3bd"/><polygon points="393.8,210.5 354.4,233.3 354.4,278.7 393.8,256.0" fill="#f4a3bd"/><polygon points="433.1,142.4 393.8,165.1 393.8,210.5 433.1,187.8" fill="#f4a3bd"/><polygon points="433.1,51.5 472.5,74.2 433.1,96.9 393.8,74.2" fill="#f8c0d2"/><polygon points="472.5,74.2 433.1,96.9 433.1,142.4 472.5,119.6" fill="#f4a3bd"/><polygon points="118.2,369.6 157.6,392.4 157.6,437.8 118.2,415.1" fill="#2049ad"/><polygon points="275.7,369.6 236.3,392.4 236.3,437.8 275.7,415.1" fill="#f4a3bd"/><polygon points="315.0,301.5 275.7,324.2 275.7,369.6 315.0,346.9" fill="#f4a3bd"/><polygon points="354.4,233.3 315.0,256.0 315.0,301.5 354.4,278.7" fill="#f4a3bd"/><polygon points="393.8,165.1 354.4,187.8 354.4,233.3 393.8,210.5" fill="#f4a3bd"/><polygon points="433.1,96.9 393.8,119.6 393.8,165.1 433.1,142.4" fill="#f4a3bd"/><polygon points="354.4,6.0 393.8,28.7 354.4,51.5 315.0,28.7" fill="#f8c0d2"/><polygon points="157.6,392.4 197.0,415.1 197.0,460.5 157.6,437.8" fill="#2049ad"/><polygon points="236.3,165.1 275.7,187.8 236.3,210.5 197.0,187.8" fill="#a5c0ff"/><polygon points="275.7,96.9 315.0,119.6 275.7,142.4 236.3,119.6" fill="#729aff"/><polygon points="236.3,119.6 275.7,142.4 275.7,187.8 236.3,165.1" fill="#2049ad"/><polygon points="393.8,119.6 354.4,142.4 354.4,187.8 393.8,165.1" fill="#f4a3bd"/><polygon points="315.0,28.7 354.4,51.5 315.0,74.2 275.7,51.5" fill="#f8c0d2"/><polygon points="275.7,51.5 315.0,74.2 315.0,119.6 275.7,96.9" fill="#a66f81"/><polygon points="393.8,28.7 433.1,51.5 393.8,74.2 354.4,51.5" fill="#f8c0d2"/><polygon points="433.1,51.5 393.8,74.2 393.8,119.6 433.1,96.9" fill="#f4a3bd"/><polygon points="236.3,392.4 275.7,415.1 236.3,437.8 197.0,415.1" fill="#729aff"/><polygon points="197.0,415.1 236.3,437.8 236.3,483.3 197.0,460.5" fill="#2049ad"/><polygon points="275.7,415.1 236.3,437.8 236.3,483.3 275.7,460.5" fill="#2f6bff"/><polygon points="78.9,346.9 118.2,369.6 118.2,415.1 78.9,392.4" fill="#536ead"/><polygon points="236.3,346.9 197.0,369.6 197.0,415.1 236.3,392.4" fill="#7aa2ff"/><polygon points="275.7,324.2 315.0,346.9 275.7,369.6 236.3,346.9" fill="#729aff"/><polygon points="236.3,346.9 275.7,369.6 275.7,415.1 236.3,392.4" fill="#2049ad"/><polygon points="315.0,346.9 275.7,369.6 275.7,415.1 315.0,392.4" fill="#2f6bff"/><polygon points="275.7,278.7 236.3,301.5 236.3,346.9 275.7,324.2" fill="#7aa2ff"/><polygon points="315.0,256.0 354.4,278.7 315.0,301.5 275.7,278.7" fill="#729aff"/><polygon points="275.7,278.7 315.0,301.5 315.0,346.9 275.7,324.2" fill="#2049ad"/><polygon points="354.4,278.7 315.0,301.5 315.0,346.9 354.4,324.2" fill="#2f6bff"/><polygon points="275.7,187.8 315.0,210.5 275.7,233.3 236.3,210.5" fill="#a5c0ff"/><polygon points="315.0,210.5 275.7,233.3 275.7,278.7 315.0,256.0" fill="#7aa2ff"/><polygon points="315.0,210.5 354.4,233.3 354.4,278.7 315.0,256.0" fill="#2049ad"/><polygon points="393.8,210.5 354.4,233.3 354.4,278.7 393.8,256.0" fill="#2f6bff"/><polygon points="315.0,119.6 354.4,142.4 315.0,165.1 275.7,142.4" fill="#729aff"/><polygon points="275.7,142.4 315.0,165.1 315.0,210.5 275.7,187.8" fill="#2049ad"/><polygon points="354.4,51.5 393.8,74.2 354.4,96.9 315.0,74.2" fill="#f8c0d2"/><polygon points="315.0,74.2 354.4,96.9 354.4,142.4 315.0,119.6" fill="#a66f81"/><polygon points="393.8,74.2 354.4,96.9 354.4,142.4 393.8,119.6" fill="#f4a3bd"/><polygon points="118.2,369.6 157.6,392.4 157.6,437.8 118.2,415.1" fill="#536ead"/><polygon points="197.0,369.6 157.6,392.4 157.6,437.8 197.0,415.1" fill="#7aa2ff"/><polygon points="236.3,301.5 197.0,324.2 197.0,369.6 236.3,346.9" fill="#7aa2ff"/><polygon points="275.7,233.3 236.3,256.0 236.3,301.5 275.7,278.7" fill="#7aa2ff"/><polygon points="197.0,142.4 236.3,165.1 197.0,187.8 157.6,165.1" fill="#8bcfd8"/><polygon points="354.4,142.4 393.8,165.1 354.4,187.8 315.0,165.1" fill="#729aff"/><polygon points="315.0,165.1 354.4,187.8 354.4,233.3 315.0,210.5" fill="#2049ad"/><polygon points="393.8,165.1 354.4,187.8 354.4,233.3 393.8,210.5" fill="#2f6bff"/><polygon points="39.5,324.2 78.9,346.9 78.9,392.4 39.5,369.6" fill="#3a7e86"/><polygon points="197.0,324.2 157.6,346.9 157.6,392.4 197.0,369.6" fill="#55b9c5"/><polygon points="236.3,256.0 197.0,278.7 197.0,324.2 236.3,301.5" fill="#55b9c5"/><polygon points="236.3,165.1 275.7,187.8 236.3,210.5 197.0,187.8" fill="#8bcfd8"/><polygon points="275.7,187.8 236.3,210.5 236.3,256.0 275.7,233.3" fill="#55b9c5"/><polygon points="78.9,346.9 118.2,369.6 118.2,415.1 78.9,392.4" fill="#3a7e86"/><polygon points="157.6,346.9 118.2,369.6 118.2,415.1 157.6,392.4" fill="#55b9c5"/><polygon points="39.5,278.7 78.9,301.5 78.9,346.9 39.5,324.2" fill="#208d5e"/><polygon points="197.0,278.7 157.6,301.5 157.6,346.9 197.0,324.2" fill="#2fcf8a"/><polygon points="236.3,210.5 197.0,233.3 197.0,278.7 236.3,256.0" fill="#2fcf8a"/><polygon points="157.6,119.6 197.0,142.4 157.6,165.1 118.2,142.4" fill="#72deaf"/><polygon points="78.9,301.5 118.2,324.2 118.2,369.6 78.9,346.9" fill="#208d5e"/><polygon points="157.6,301.5 118.2,324.2 118.2,369.6 157.6,346.9" fill="#2fcf8a"/><polygon points="78.9,210.5 118.2,233.3 78.9,256.0 39.5,233.3" fill="#72deaf"/><polygon points="39.5,233.3 78.9,256.0 78.9,301.5 39.5,278.7" fill="#208d5e"/><polygon points="197.0,233.3 157.6,256.0 157.6,301.5 197.0,278.7" fill="#2fcf8a"/><polygon points="118.2,142.4 157.6,165.1 118.2,187.8 78.9,165.1" fill="#72deaf"/><polygon points="78.9,165.1 118.2,187.8 118.2,233.3 78.9,210.5" fill="#208d5e"/><polygon points="197.0,142.4 236.3,165.1 197.0,187.8 157.6,165.1" fill="#72deaf"/><polygon points="236.3,165.1 197.0,187.8 197.0,233.3 236.3,210.5" fill="#2fcf8a"/><polygon points="118.2,233.3 157.6,256.0 118.2,278.7 78.9,256.0" fill="#72deaf"/><polygon points="78.9,256.0 118.2,278.7 118.2,324.2 78.9,301.5" fill="#208d5e"/><polygon points="157.6,256.0 118.2,278.7 118.2,324.2 157.6,301.5" fill="#2fcf8a"/><polygon points="157.6,165.1 197.0,187.8 157.6,210.5 118.2,187.8" fill="#72deaf"/><polygon points="118.2,187.8 157.6,210.5 157.6,256.0 118.2,233.3" fill="#208d5e"/><polygon points="197.0,187.8 157.6,210.5 157.6,256.0 197.0,233.3" fill="#2fcf8a"/>
 </svg></div>
-      <h3 class="paytitle">Read an ECG a day? Read hundreds.</h3>
+      <h3 class="paytitle">Unlimited ECGs to read</h3>
       <ul class="paylist">
-        <li><b>Train</b>: a new ECG every time, chosen for your level</li>
+        <li><b>Train</b>: a fresh ECG every time, chosen for your level</li>
         <li><b>Practice by skill</b>: rhythm, conduction, ischemia and conditions</li>
-        <li><b>Reviews</b>: the ECGs you missed come back until you get them</li>
-        <li><b>Ratings</b> for every skill, and full statistics</li>
+        <li><b>Reviews</b>: spaced repetition drills in the findings you missed</li>
+        <li><b>Ratings</b> for every skill, and full statistics with review</li>
       </ul>
       <p class="payprice"><b id="payPrice">$9.99</b> one-time purchase · yours to keep</p>
       <button type="button" class="primary paybuy" id="payBuy">Unlock Training · $9.99</button>
@@ -5341,12 +5343,30 @@ self.onmessage = (e) => {
 
 
   // ------------------------------------------------------------------ statistics
+  // a past ECG from Statistics: rebuilt from its recipe and shown with the answer given then (not rated again)
+  function openPast(hi) {
+    const h = st.hist[hi]; if (!h || !h.recipe) return;
+    $('stats').hidden = true; $('home').hidden = true;
+    st.mode = 'view'; st.fromStats = true; st.item = null; st.phase = 'answer'; st.picked = []; st.score = null; setLoading('Recording the ECG…'); render();
+    request({ type: 'build', recipe: h.recipe }, (item) => {
+      if (st.mode !== 'view') return;
+      if (!item) { toast('Could not prepare that ECG'); goHome(); return; }
+      setLoading(null); st.item = item;
+      st.picked = (h.picked || []).filter((p) => BY_ID[p.id]).map((p) => ({ ...p }));
+      st.score = score(item.key, st.picked, (k) => (st.skills[k || 'conditions'] || { r: 1500 }).r); st.selRow = null;
+      st.delta = h.delta || 0; st.rated = h.rated !== undefined ? h.rated : h.mode !== 'daily'; st.time = h.time || 0;
+      st.phase = 'result'; st.shownAt = performance.now();
+      const hl = item.highlight || [], chest = hl.filter((l) => l.startsWith('V')).length;
+      setPage(chest > hl.length - chest ? 1 : 0, false); render();
+    });
+  }
   function renderStats() {
     const h = st.hist, n = h.length, avg = (f) => (n ? h.reduce((a, x) => a + f(x), 0) / n : 0);
     const el = $('statsBody'), tile = (v, l) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`;
-    const recent = h.slice(-5).reverse().map((x) => {
+    const recent = h.slice(-5).map((x, i) => [x, n - Math.min(5, n) + i]).reverse().map(([x, hi]) => {
       const d = (x.mode === 'daily' && !x.rated) || x.delta === undefined ? null : Math.round(x.delta);
-      return `<div><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="dl ${d === null ? '' : d >= 0 ? 'up' : 'down'}">${d === null ? 'daily' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`}</span></div>`;
+      // (an ECG answered since its recipe and answer are kept: tap to see its result again)
+      return `<div${x.recipe ? ` class="open" role="button" tabindex="0" data-h="${hi}"` : ''}><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="dl ${d === null ? '' : d >= 0 ? 'up' : 'down'}">${d === null ? 'daily' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`}</span></div>`;
     }).join('');
     el.innerHTML = `<div class="tiles">${tile(Math.round(overall()), 'Rating')}${tile(`<small>${title().name}</small>`, 'Title')}${tile(n, 'ECGs answered')}${tile(n ? `${Math.round(avg((x) => x.score) * 100)}%` : '—', 'Average score')}${tile(n ? `${Math.round(avg((x) => (x.rhythm === 'ok' ? 1 : 0)) * 100)}%` : '—', 'Rhythm correct')}${tile(streak(), 'Day streak')}</div>`
       + `<h3>Skills</h3>${radar()}`
@@ -5518,7 +5538,8 @@ self.onmessage = (e) => {
     st.phase = 'result'; st.typed = ''; st.shownAt = performance.now();
     const rk = st.item.recipe || { rhythm: st.item.key.rhythm, abn: [] };
     st.hist.push({ id: st.item.id, title: itemTitle(st.item.key), score: st.score.total, time: st.time, rhythm: st.score.rhythm, delta: st.delta, at: Date.now(), mode: st.mode,
-      rated, keys: [rk.rhythm, ...rk.abn.map((a) => a.k)], miss: st.score.rows.filter((r) => r.cls === 'miss' || r.cls === 'part').map((r) => r.id) });
+      rated, recipe: st.item.recipe, picked: st.picked.map((p) => (p.regions ? { id: p.id, regions: p.regions.slice() } : { id: p.id })),
+      keys: [rk.rhythm, ...rk.abn.map((a) => a.k)], miss: st.score.rows.filter((r) => r.cls === 'miss' || r.cls === 'part').map((r) => r.id) });
     saveProgress();
     // show the half of the ECG that carries the answer
     const hl = st.item.highlight || [], chest = hl.filter((l) => l.startsWith('V')).length, limb = hl.length - chest;
@@ -5598,9 +5619,9 @@ self.onmessage = (e) => {
     $('rbar').style.width = '0%'; requestAnimationFrame(() => { $('rbar').style.width = `${pct}%`; $('rbar').style.background = pct >= 80 ? 'var(--ok)' : pct >= 40 ? 'var(--part)' : 'var(--bad)'; });
     const d = Math.round(st.delta), daily = st.mode === 'daily' || st.mode === 'tutorial', unrated = !st.rated;
     // the rating before this ECG, then the change ("1500+13")
-    $('rdelta').innerHTML = unrated ? 'not rated' : `${Math.round(overall() - st.delta)}<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>`;
+    $('rdelta').innerHTML = unrated ? 'not rated' : st.mode === 'view' ? `<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>` : `${Math.round(overall() - st.delta)}<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>`;
     $('share').hidden = st.mode !== 'daily';
-    $('next').textContent = daily || (st.mode === 'review' && !st.reviewRun.length) ? 'Done' : 'Next';
+    $('next').textContent = daily || st.mode === 'view' || (st.mode === 'review' && !st.reviewRun.length) ? 'Done' : 'Next';
     $('rtime').textContent = `${Math.round(st.time)} s`;
     $('rchips').innerHTML = sc.rows.map((r, i) => `<button type="button" class="achip ${r.cls}${st.selRow === r ? ' sel' : ''}" data-i="${i}">${r.label}${r.tag ? ` <span class="tag">${r.tag}</span>` : ''}</button>`).join('');
     $('rline').textContent = st.selRow ? rowLine(st.selRow, st.item) : oneLine(sc, st.item);
@@ -5630,13 +5651,13 @@ self.onmessage = (e) => {
     $('hTitle').textContent = ti.name;
     $('hTitleNext').textContent = ti.next ? `${ti.toNext} points to ${ti.next}` : 'Highest title';
     $('hDailyDate').textContent = date;
-    $('hDailyState').textContent = daily === null ? `Same ECG for everyone today · ${premiumOn() ? 'rated' : 'not rated'}` : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
+    $('hDailyState').textContent = daily === null ? (premiumOn() ? 'Same ECGs for everyone today · rated' : 'Same ECG for everyone today · not rated') : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
     // locked: Train, Reviews and the skills show a lock and open the unlock page; the rating is provisional at first
     const locked = !ownsTraining();
     document.body.classList.toggle('locked', locked);
     $('hTrainSub').textContent = locked ? `Unlock Training: ECGs at your level, practice by skill and reviews · ${PRICE}` : 'ECGs chosen for your level, mixed skills';
     $('hRatingLabel').textContent = premiumOn() && ratedCount() < PROVISIONAL_N ? 'Rating · provisional' : 'Rating';
-    $('hStatsSub').textContent = locked ? 'Unlock Training for your ratings by skill, scores, speed and recent ECGs' : 'Your ratings by skill, scores, speed and recent ECGs';
+    $('hStatsSub').textContent = locked ? 'Unlock Training for your ratings by skill' : 'Your ratings, statistics, and review recent ECGs';
     $('hReviews').textContent = due ? `${due} due` : st.reviews.length ? 'none due today' : 'none yet';
     $('btnReviews').disabled = !due && ownsTraining();   // (locked: it opens the unlock page)
     $('hSkills').innerHTML = SKILLS.map((k) => `<button type="button" data-skill="${k}"><b>${SKILL_NAME[k]}</b>${locked ? LOCK : `<small>${Math.round(st.skills[k].r)}</small>`}</button>`).join('');   // (locked: no ratings shown)
@@ -5712,7 +5733,13 @@ self.onmessage = (e) => {
     $('regionCancel').addEventListener('click', () => endRegion(false));
     // (the tap that submitted must not land on the result's buttons, which open under the finger)
     const justShown = () => performance.now() - (st.shownAt || 0) < 450;
-    $('next').addEventListener('click', () => { if (justShown()) return; if ($('next').textContent === 'Done') goHome(); else nextItem(); });
+    $('next').addEventListener('click', () => {
+      if (justShown()) return;
+      if ($('next').textContent !== 'Done') { nextItem(); return; }
+      const back = st.mode === 'view' && st.fromStats; st.fromStats = false; goHome();
+      if (back) { renderStats(); $('stats').hidden = false; }   // (a past ECG: back to Statistics)
+    });
+    $('statsBody').addEventListener('click', (e) => { const r = e.target.closest('[data-h]'); if (r) openPast(+r.dataset.h); });
     $('share').addEventListener('click', () => { if (!justShown()) shareDaily(); });
     $('rchips').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b && !justShown()) selectRow(+b.dataset.i); });
     $('report').addEventListener('click', () => { if (!justShown()) reportProblem(); });

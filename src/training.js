@@ -474,12 +474,30 @@
 
 
   // ------------------------------------------------------------------ statistics
+  // a past ECG from Statistics: rebuilt from its recipe and shown with the answer given then (not rated again)
+  function openPast(hi) {
+    const h = st.hist[hi]; if (!h || !h.recipe) return;
+    $('stats').hidden = true; $('home').hidden = true;
+    st.mode = 'view'; st.fromStats = true; st.item = null; st.phase = 'answer'; st.picked = []; st.score = null; setLoading('Recording the ECG…'); render();
+    request({ type: 'build', recipe: h.recipe }, (item) => {
+      if (st.mode !== 'view') return;
+      if (!item) { toast('Could not prepare that ECG'); goHome(); return; }
+      setLoading(null); st.item = item;
+      st.picked = (h.picked || []).filter((p) => BY_ID[p.id]).map((p) => ({ ...p }));
+      st.score = score(item.key, st.picked, (k) => (st.skills[k || 'conditions'] || { r: 1500 }).r); st.selRow = null;
+      st.delta = h.delta || 0; st.rated = h.rated !== undefined ? h.rated : h.mode !== 'daily'; st.time = h.time || 0;
+      st.phase = 'result'; st.shownAt = performance.now();
+      const hl = item.highlight || [], chest = hl.filter((l) => l.startsWith('V')).length;
+      setPage(chest > hl.length - chest ? 1 : 0, false); render();
+    });
+  }
   function renderStats() {
     const h = st.hist, n = h.length, avg = (f) => (n ? h.reduce((a, x) => a + f(x), 0) / n : 0);
     const el = $('statsBody'), tile = (v, l) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`;
-    const recent = h.slice(-5).reverse().map((x) => {
+    const recent = h.slice(-5).map((x, i) => [x, n - Math.min(5, n) + i]).reverse().map(([x, hi]) => {
       const d = (x.mode === 'daily' && !x.rated) || x.delta === undefined ? null : Math.round(x.delta);
-      return `<div><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="dl ${d === null ? '' : d >= 0 ? 'up' : 'down'}">${d === null ? 'daily' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`}</span></div>`;
+      // (an ECG answered since its recipe and answer are kept: tap to see its result again)
+      return `<div${x.recipe ? ` class="open" role="button" tabindex="0" data-h="${hi}"` : ''}><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="dl ${d === null ? '' : d >= 0 ? 'up' : 'down'}">${d === null ? 'daily' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`}</span></div>`;
     }).join('');
     el.innerHTML = `<div class="tiles">${tile(Math.round(overall()), 'Rating')}${tile(`<small>${title().name}</small>`, 'Title')}${tile(n, 'ECGs answered')}${tile(n ? `${Math.round(avg((x) => x.score) * 100)}%` : '—', 'Average score')}${tile(n ? `${Math.round(avg((x) => (x.rhythm === 'ok' ? 1 : 0)) * 100)}%` : '—', 'Rhythm correct')}${tile(streak(), 'Day streak')}</div>`
       + `<h3>Skills</h3>${radar()}`
@@ -651,7 +669,8 @@
     st.phase = 'result'; st.typed = ''; st.shownAt = performance.now();
     const rk = st.item.recipe || { rhythm: st.item.key.rhythm, abn: [] };
     st.hist.push({ id: st.item.id, title: itemTitle(st.item.key), score: st.score.total, time: st.time, rhythm: st.score.rhythm, delta: st.delta, at: Date.now(), mode: st.mode,
-      rated, keys: [rk.rhythm, ...rk.abn.map((a) => a.k)], miss: st.score.rows.filter((r) => r.cls === 'miss' || r.cls === 'part').map((r) => r.id) });
+      rated, recipe: st.item.recipe, picked: st.picked.map((p) => (p.regions ? { id: p.id, regions: p.regions.slice() } : { id: p.id })),
+      keys: [rk.rhythm, ...rk.abn.map((a) => a.k)], miss: st.score.rows.filter((r) => r.cls === 'miss' || r.cls === 'part').map((r) => r.id) });
     saveProgress();
     // show the half of the ECG that carries the answer
     const hl = st.item.highlight || [], chest = hl.filter((l) => l.startsWith('V')).length, limb = hl.length - chest;
@@ -731,9 +750,9 @@
     $('rbar').style.width = '0%'; requestAnimationFrame(() => { $('rbar').style.width = `${pct}%`; $('rbar').style.background = pct >= 80 ? 'var(--ok)' : pct >= 40 ? 'var(--part)' : 'var(--bad)'; });
     const d = Math.round(st.delta), daily = st.mode === 'daily' || st.mode === 'tutorial', unrated = !st.rated;
     // the rating before this ECG, then the change ("1500+13")
-    $('rdelta').innerHTML = unrated ? 'not rated' : `${Math.round(overall() - st.delta)}<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>`;
+    $('rdelta').innerHTML = unrated ? 'not rated' : st.mode === 'view' ? `<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>` : `${Math.round(overall() - st.delta)}<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>`;
     $('share').hidden = st.mode !== 'daily';
-    $('next').textContent = daily || (st.mode === 'review' && !st.reviewRun.length) ? 'Done' : 'Next';
+    $('next').textContent = daily || st.mode === 'view' || (st.mode === 'review' && !st.reviewRun.length) ? 'Done' : 'Next';
     $('rtime').textContent = `${Math.round(st.time)} s`;
     $('rchips').innerHTML = sc.rows.map((r, i) => `<button type="button" class="achip ${r.cls}${st.selRow === r ? ' sel' : ''}" data-i="${i}">${r.label}${r.tag ? ` <span class="tag">${r.tag}</span>` : ''}</button>`).join('');
     $('rline').textContent = st.selRow ? rowLine(st.selRow, st.item) : oneLine(sc, st.item);
@@ -763,13 +782,13 @@
     $('hTitle').textContent = ti.name;
     $('hTitleNext').textContent = ti.next ? `${ti.toNext} points to ${ti.next}` : 'Highest title';
     $('hDailyDate').textContent = date;
-    $('hDailyState').textContent = daily === null ? `Same ECG for everyone today · ${premiumOn() ? 'rated' : 'not rated'}` : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
+    $('hDailyState').textContent = daily === null ? (premiumOn() ? 'Same ECGs for everyone today · rated' : 'Same ECG for everyone today · not rated') : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
     // locked: Train, Reviews and the skills show a lock and open the unlock page; the rating is provisional at first
     const locked = !ownsTraining();
     document.body.classList.toggle('locked', locked);
     $('hTrainSub').textContent = locked ? `Unlock Training: ECGs at your level, practice by skill and reviews · ${PRICE}` : 'ECGs chosen for your level, mixed skills';
     $('hRatingLabel').textContent = premiumOn() && ratedCount() < PROVISIONAL_N ? 'Rating · provisional' : 'Rating';
-    $('hStatsSub').textContent = locked ? 'Unlock Training for your ratings by skill, scores, speed and recent ECGs' : 'Your ratings by skill, scores, speed and recent ECGs';
+    $('hStatsSub').textContent = locked ? 'Unlock Training for your ratings by skill' : 'Your ratings, statistics, and review recent ECGs';
     $('hReviews').textContent = due ? `${due} due` : st.reviews.length ? 'none due today' : 'none yet';
     $('btnReviews').disabled = !due && ownsTraining();   // (locked: it opens the unlock page)
     $('hSkills').innerHTML = SKILLS.map((k) => `<button type="button" data-skill="${k}"><b>${SKILL_NAME[k]}</b>${locked ? LOCK : `<small>${Math.round(st.skills[k].r)}</small>`}</button>`).join('');   // (locked: no ratings shown)
@@ -845,7 +864,13 @@
     $('regionCancel').addEventListener('click', () => endRegion(false));
     // (the tap that submitted must not land on the result's buttons, which open under the finger)
     const justShown = () => performance.now() - (st.shownAt || 0) < 450;
-    $('next').addEventListener('click', () => { if (justShown()) return; if ($('next').textContent === 'Done') goHome(); else nextItem(); });
+    $('next').addEventListener('click', () => {
+      if (justShown()) return;
+      if ($('next').textContent !== 'Done') { nextItem(); return; }
+      const back = st.mode === 'view' && st.fromStats; st.fromStats = false; goHome();
+      if (back) { renderStats(); $('stats').hidden = false; }   // (a past ECG: back to Statistics)
+    });
+    $('statsBody').addEventListener('click', (e) => { const r = e.target.closest('[data-h]'); if (r) openPast(+r.dataset.h); });
     $('share').addEventListener('click', () => { if (!justShown()) shareDaily(); });
     $('rchips').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b && !justShown()) selectRow(+b.dataset.i); });
     $('report').addEventListener('click', () => { if (!justShown()) reportProblem(); });
