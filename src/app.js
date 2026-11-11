@@ -352,6 +352,47 @@
     } };
   }
 
+  // The ridge where the source mesh trimmed the appendage: the left atrial wall and the cap within about two cap radii
+  // of the opening are smoothed together into a smooth patch (the patch's edge is held, so the heart does not shrink);
+  // full strength near the opening, fading to none at the edge. Points shared with any other structure stay
+  // where they are, and copies of a point in different meshes move together, so the closed surfaces stay closed (the
+  // cut view's caps depend on it). Drawing only: the tissue grid, model and ECG are unchanged.
+  function smoothLAA(parts, laa) {
+    const R = laa.r * 1.9, R1 = laa.r * 1.15, c = laa.c, key = (x, y, z) => `${Math.round(x * 100)},${Math.round(y * 100)},${Math.round(z * 100)}`;
+    const pts = new Map();   // key → { p, refs: [[pos, i]], labels, nb }
+    const at = (pos, i) => {
+      const k = key(pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]);
+      let e = pts.get(k);
+      if (!e) { e = { p: [pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]], refs: [], labels: new Set(), nb: new Set() }; pts.set(k, e); }
+      if (!e.refs.some((r) => r[0] === pos && r[1] === i)) e.refs.push([pos, i]);
+      return e;
+    };
+    const near = (pos, i) => Math.hypot(pos[3 * i] - c[0], pos[3 * i + 1] - c[1], pos[3 * i + 2] - c[2]) < R + 4;
+    for (const s of parts) {
+      const pos = s.pos, idx = s.idx, lab = s.laaCap || s.label === 3 ? 'la' : s.label;
+      for (let f = 0; f < idx.length; f += 3) {
+        const v = [idx[f], idx[f + 1], idx[f + 2]];
+        if (!v.some((i) => near(pos, i))) continue;
+        const e = v.map((i) => at(pos, i));
+        for (const x of e) x.labels.add(lab);
+        for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) if (a !== b) e[a].nb.add(e[b]);
+      }
+    }
+    const move = [];
+    for (const e of pts.values()) {
+      if (e.labels.size !== 1 || !e.labels.has('la')) continue;   // (only the atrial wall and the cap; junctions stay)
+      const d = Math.hypot(e.p[0] - c[0], e.p[1] - c[1], e.p[2] - c[2]);
+      if (d >= R) continue;
+      const t = d <= R1 ? 1 : 1 - (d - R1) / (R - R1);
+      e.w = t * t * (3 - 2 * t); move.push(e);
+    }
+    const pass = (k) => {
+      const next = move.map((e) => { const m = [0, 0, 0]; for (const q of e.nb) { m[0] += q.p[0]; m[1] += q.p[1]; m[2] += q.p[2]; } const n = e.nb.size; return e.p.map((v, i) => v + k * e.w * (m[i] / n - v)); });
+      move.forEach((e, i) => { e.p = next[i]; });
+    };
+    for (let it = 0; it < 80; it++) pass(0.6);   // (the patch's edge is held, so it relaxes into a smooth surface without shrinking)
+    for (const e of move) for (const [pos, i] of e.refs) { pos[3 * i] = e.p[0]; pos[3 * i + 1] = e.p[1]; pos[3 * i + 2] = e.p[2]; }
+  }
   function buildSurfaces() {
     const span = A.dims.map((d) => d * A.h);
     const othersOf = (label) => {
@@ -385,6 +426,7 @@
       parts.push({ label: 11, pos, idx: new Uint32Array(rest) });
       if (cap.length) parts.push({ label: 3, pos, idx: new Uint32Array(cap), laaCap: true });
     }
+    if (laa) smoothLAA(parts, laa);
     for (const s of parts) {
       const pos = s.pos, idx = s.idx;
       const geo = new THREE.BufferGeometry();

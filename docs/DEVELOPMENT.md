@@ -2170,3 +2170,8 @@ the app only for now (tried at ecgstudio.app/app/); keep both the artery and the
   (`buildSurfaces`) the cap's faces, those near the `LAA` landmark (within 4 mm of its plane and 1.6 × its radius), are
   now drawn as left atrial tissue: live activation colours, and a tap there stimulates the atrium. The four pulmonary
   veins, the SVC and the IVC stay lilac. Anatomy, model and ECG unchanged.
+- Follow-up: a drawn appendage pouch was tried and dropped (it looked wrong). Instead, the ridge the trimmed appendage
+  left is smoothed (`smoothLAA`, 3D view only): the left atrial wall and the cap within 1.9 cap radii of the opening relax
+  into a smooth patch (full strength within 1.15 radii, fading to none at the edge, which is held); points shared with
+  any other structure stay, and copies of a point in different meshes move together, so the cut view's caps stay
+  closed. Tissue grid, model and ECG unchanged.
