@@ -2204,7 +2204,7 @@ From the problem-report form (7 reports, 2026-11-10; one "all good"):
 The author's model (docs/PREMIUM_PLAN.md): the simulator and a rated daily ECG free; Training $9.99 one-time; future
 modules as add-ons. This round: the locked states, the unlock page and the rated daily ECG, behind a switch that is off
 by default (`?premium=1` turns it on for a device), and a stand-in purchase that unlocks the device. Billing next.
-- Follow-up (the author): the premium wording is the author's (unlock page: "Unlimited ECGs to read", …). Statistics is
+- Follow-up (the author): the premium wording is the author's (unlock page: "Maximize your ECG training", …). Statistics is
   locked for free users (they see the rating and title on Training's home), the skill buttons show no ratings while
   locked, and the unlock page shows the logo. The Statistics card reads "Your ratings, statistics, and review recent
   ECGs". The last 5 ECGs in Statistics open their result page again (`openPast`: rebuilt from the recipe, with the

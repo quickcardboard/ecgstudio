@@ -782,7 +782,7 @@
     $('hTitle').textContent = ti.name;
     $('hTitleNext').textContent = ti.next ? `${ti.toNext} points to ${ti.next}` : 'Highest title';
     $('hDailyDate').textContent = date;
-    $('hDailyState').textContent = daily === null ? (premiumOn() ? 'Same ECGs for everyone today · rated' : 'Same ECG for everyone today · not rated') : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
+    $('hDailyState').textContent = daily === null ? (premiumOn() ? 'Same ECG for everyone today · rated' : 'Same ECG for everyone today · not rated') : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
     // locked: Train, Reviews and the skills show a lock and open the unlock page; the rating is provisional at first
     const locked = !ownsTraining();
     document.body.classList.toggle('locked', locked);
