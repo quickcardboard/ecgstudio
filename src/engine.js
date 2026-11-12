@@ -271,6 +271,7 @@
     septalPerf: [0.14, 0.3, 0.45, 0.6],      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
+    occlusionDeadS: null, occlusionBorderMm: null,  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
     pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.3, pericardSag: -0.55, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
@@ -1819,10 +1820,12 @@
     addOcclusion(node) {
       const M = this.M, A = M.A, vn = M.coronary.voxNode, aff = new Uint8Array(A.n);
       for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
-      const ins = this._makeInsult('occlusion', aff, this.P.ischBorderMm);
+      const fam0 = this._family(M.coronary.nodes[node].branch), ob = this.P.occlusionBorderMm;
+      const ins = this._makeInsult('occlusion', aff, ob && ob[fam0] !== undefined ? ob[fam0] : this.P.ischBorderMm);
       ins.node = node; ins.branch = M.coronary.nodes[node].branch;
       { const oi = this.P.occlusionInj, fam = this._family(ins.branch); ins.injScale = oi ? (typeof oi === 'number' ? oi : oi[fam] === undefined ? 1 : oi[fam]) : 1;
-        const ol = this.P.occlusionLate; ins.lateScale = ol ? (typeof ol === 'number' ? ol : ol[fam] === undefined ? 1 : ol[fam]) : 1; }
+        const ol = this.P.occlusionLate; ins.lateScale = ol ? (typeof ol === 'number' ? ol : ol[fam] === undefined ? 1 : ol[fam]) : 1;
+        const od = this.P.occlusionDeadS; ins.deadS = od && od[fam] !== undefined ? od[fam] : this.P.ischDeadS; }
       ins.nodal = { san: M.isDownstream(M.coronary.sanNode, node), avn: M.isDownstream(M.coronary.avnNode, node) };
       return this._addInsult(ins);
     }
@@ -2048,7 +2051,7 @@
 
     // Cell state h hours after onset for severity s and transmural depth tm.
     // Returns {apd, vRest, amp, cv, dead} multipliers/values.
-    _ischemicState(s, tm, h, kind, k = 1, kl = 1, hg = 1) {   // k: occlusionInj of the artery family (the early ST/T sources: injury current, K-ATP shortening)
+    _ischemicState(s, tm, h, kind, k = 1, kl = 1, hg = 1, ds = this.P.ischDeadS) {   // ds: the severity above which the cell dies (per artery family: occlusionDeadS)   // k: occlusionInj of the artery family (the early ST/T sources: injury current, K-ATP shortening)
       const P = this.P, sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
       if (kind === 'subendo') s *= 1 - sm((tm - 0.12) / 0.2);                // confined to the inner wall
       if (s <= 0.01) return null;
@@ -2066,13 +2069,13 @@
       // necrosis advances from endocardium to epicardium (wavefront phenomenon)
       // (the innermost layer, fed from the cavity blood, survives with the Purkinje junctions)
       const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : P.ischFrontMax);
-      const dead = s > P.ischDeadS && (tm > 0.06 || (h > 8 && kind !== 'subendo')) && tm < front;   // (the inner layer is lost too once a transmural infarct is complete; under a subendocardial one it survives on cavity blood)
+      const dead = s > ds && (tm > 0.06 || (h > 8 && kind !== 'subendo')) && tm < front;   // (the inner layer is lost too once a transmural infarct is complete; under a subendocardial one it survives on cavity blood)
       // the surviving epicardial rim over a completed infarct is drawn as part of
       // the infarct (it stays electrically alive)
-      const rim = !dead && kind !== 'subendo' && s > P.ischDeadS && tm >= front && sm((h - 0.4) / P.ischNecrosisH) > 0.98;
+      const rim = !dead && kind !== 'subendo' && s > ds && tm >= front && sm((h - 0.4) / P.ischNecrosisH) > 0.98;
       // severely injured (depolarised) muscle ahead of the necrosis front stops
       // conducting (sodium-channel inactivation) while it still drives injury current
-      const unexcitable = !dead && kind !== 'subendo' && h >= 2 && s > P.ischDeadS && inj > P.ischBlockInj;
+      const unexcitable = !dead && kind !== 'subendo' && h >= 2 && s > ds && inj > P.ischBlockInj;
       return {
         apd, dead, rim, unexcitable, level: Math.max(inj, 0.5 * s * katp), kind, decl: dead ? 0 : P.ischPlateauDrop * s * katp * kk,
         // necrotic muscle stays depolarised (and partly coupled, see _uncoupleDead) until it turns to scar
@@ -2099,7 +2102,7 @@
         if (ins.kind !== 'occlusion') continue;
         const depth = ins._depth || (ins._depth = this._territoryDepth(ins.cells));
         for (let q = 0; q < ins.cells.length; q++) {
-          const c = ins.cells[q], sv = ins.sev[q]; cover[c] = 1; if (sv <= P.ischDeadS) continue;
+          const c = ins.cells[q], sv = ins.sev[q]; cover[c] = 1; if (sv <= (ins.deadS === undefined ? P.ischDeadS : ins.deadS)) continue;
           const tm = A.label[c] === LAB.RV ? 0.5 : A.tm[c] < 0 ? 0.5 : A.tm[c];
           const n = (tm > 0.06 || h > 8) && tm < front ? 1 : sm((1.3 * g - (1 - depth[q])) / 0.3);
           if (n > out[c]) out[c] = n;
@@ -2138,7 +2141,7 @@
         // take its inner layers (everything off the epicardial surface)
         const c = ins.cells[q], rv = A.label[c] === LAB.RV, tm = rv ? (ins.kind === 'subendo' ? (A.epi[c] ? 1 : 0.05) : 0.5) : A.tm[c] < 0 ? 0.5 : A.tm[c];
         const hg = P.ischHypComp ? Math.pow(rv ? P.rvSourceGain : P.lvSourceGain, -P.ischHypComp) : 1;   // (hypertrophy: its source gain would multiply the injury current too)
-        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, (ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale) * hg, ins.lateScale === undefined ? 1 : ins.lateScale, hg);   // (RV muscle less reduced: the V1 elevation of RV involvement)
+        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, (ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale) * hg, ins.lateScale === undefined ? 1 : ins.lateScale, hg, ins.deadS === undefined ? this.P.ischDeadS : ins.deadS);   // (RV muscle less reduced: the V1 elevation of RV involvement)
         if (!st) continue;
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);

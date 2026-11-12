@@ -2301,3 +2301,20 @@ The author's list:
 - **⋯ off screen on narrow phones** (below ~370 px, or a large system font): the open module tab shows its icon only there.
 - **A past ECG from Statistics** no longer shows the answer field and keyboard while it is rebuilt (phase `wait`).
 - **LPFB voltages too large** (to do, engine): R in III 3.4 mV (34 mm) by `tools/fascsearch.js`; textbook about 1–2 mV.
+
+## Round 67: engine round, part 1 (fascicles, post-infarct T): findings, nothing adopted yet
+
+- **Fascicle search** (app config, solved torso). LPFB R III 34 mm / II 31 mm; LAFB S III 30 mm, R aVL 22.5 mm, QS V2–V4
+  (read LVH + old anterior MI). Territory parameters barely move them. Voltage falls to ~18–19 mm only with `cvPurkinje` 2.5,
+  `purkCrossSlow` 1.2, `fascConnectFrac` 0.9, but the axes go to −28° / +74° (criteria fail). `septalTerrHalf` 0.6 removes
+  the LAFB V2–V3 QS but reader 47 → 44/57 (pericarditis read old inferior MI, old inferior MIs read LVH, distal LCx 30 d
+  read LAFB; LAFB still read old anterior MI); fullcheck iErr 4 → 3. Not adopted. Root cause: the normal axis (~+12°) needs
+  a very large late force to reach the LPFB axis.
+- **Post-infarct T after a mid-RCA occlusion** (T mm, normal → 720 h): I 5.1 → 9.0, aVL 2.4 → 10.6, III 1.5 → −12.2,
+  aVF 3.3 → −7.7, V3 5.4 → 11.2, V4 6.1 → 10.3. Regional decomposition (230–330 ms): the change is the loss of the dead
+  inferior, septal, apical and inferior-RV T forces (III: inferior +0.43 → 0.04, apex +0.23 → 0.01, RV +0.18 → −0.10,
+  septum +0.18 → −0.03 mV); anterior and lateral are unchanged and are left uncancelled. Not the cause: `occlusionLate`
+  (RCA 0 gives −10.5), `scarWindow`, `cavityWindow`, `ischUncouple`, `ischFrontMax`, a torso with liver and spine
+  (`ORGANS=1`: III −10.6). A weaker transmural gradient (`apdVentEndoExtra` 55) shrinks normal and infarct T alike.
+- **Infarct size options (off):** `occlusionBorderMm` and `occlusionDeadS` per artery family. RCA border 25 mm / dead
+  threshold 0.7 halves the infarct (8687 → 4729 cells), Q III −13 → −6.3 mm, but T III only −12.2 → −9.2, aVL 10.6 → 8.9.
