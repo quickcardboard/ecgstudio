@@ -2419,3 +2419,20 @@ fascicle scorer at app gain):
   (no anterior QS), q I/aVL 33/39 → 30/33 ms (still read old high-lateral MI); normal axis 54 → 32°.
 - Moving the LAF/LPF boundary (`lpfTerrHi` 0.56–1.2, `lpfTerrLo` −1.54…−2.3) changes little: the early r in aVL comes
   from the LAF's own breakthrough on the anterolateral wall, which LAFB removes, not from the paraseptal edge.
+- **Fixed in the 48° variant** (`src/variants/48normalaxis.json`): `septalTerrHalf` 0.3, `purkCrossFastPhi`
+  [[0.56, 0.3], [−1.8, 0.15]], `purkCrossSlow` 4.5, `cvPurkinje` 2.1, `lsfZ` 0.35, `lsfPhi` −0.2, `lpfApexZ` 0.35,
+  `fascConnectFrac` 0.35, `lpfZ` 0.25, `rvCvMul` 0.8 (the septal fascicle stays tied to the LPF). Fascicle scorer at app
+  gain: LAFB −49°, q I/aVL 28/32 ms, r V2 3 mm, read "LAFB, poor R progression" (no old MI, no LVH); LPFB 92°, q II 27 ms,
+  read LPFB (R III still ~34 mm: untied or slowed septal fibres give 18–26 mm but an axis of 79–88°); RBBB QRS 122 ms, read
+  RBBB; complete His block: ventricular escape 120 ms. Reader 44/57 (11 partial; live 47/57), fullcheck iErr 6 (LAFB −43°
+  at fullcheck's calibrated gain), Training audit 113 → **126/180** (live 139). Remaining: inferior q read as old MI in
+  pericarditis and RVH, "LVH" after old inferior MIs (aVL R ≥ 11 mm with the axis swung left), right-axis reads after large
+  lateral infarcts.
+- `pmjRetroRV` 55 widened RBBB but split the late RV activation off the QRS (a quiet gap): the readers measured 68–78 ms.
+- **Reader fix** (`tools/reader.js`, `tools/rhythmread.js`, also used by Training's generator): the QRS goes on past a
+  pause of up to 25 ms when activity at QRS speed (≥ 12% of peak spatial velocity) resumes; a slow late activation had
+  been cut off (the His-block escape, 125 ms in the simulation, read 67 ms). Live model unchanged: reader 47/57, fullcheck
+  iErr 4, Training audit 139/180.
+- New options: `lsfTieDelay` (>0: the parent division's block slows the septal fascicle instead of cutting it),
+  `ventEscapeFrac` (position of the ventricular escape along the LPF; null: the muscle under the idioventricular Purkinje
+  node). The RVH preset's RV speed is now relative to the default (`rvCvMul` × 0.8).

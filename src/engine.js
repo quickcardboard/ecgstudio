@@ -139,6 +139,8 @@
     fascApexLafPhi: null, fascApexLpfPhi: null,   // rotational UVC of the extensions' ends (null = the fascicle's own)
     septalFascicle: true,   // left septal fascicle (Durrer's mid-septal root)
     lsfTie: 'LPF',          // the division whose block also blocks the septal fascicle (null: neither)
+    ventEscapeFrac: 0.3,    // where along the LPF the ventricular escape focus sits (0 origin … 1 terminal); null: in the muscle under the idioventricular Purkinje node (a wide escape)
+    lsfTieDelay: 0,         // >0: that block slows the septal fascicle by this conduction-time factor instead of cutting it
     fascConnectFrac: 0.45,  // distal fraction of LAF/LPF giving off Purkinje branches
     lbbSplitZ: 0.84, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
     septalTerrHalf: 0,    // half-width (rad) of the mid-septal Purkinje territory
@@ -806,12 +808,13 @@
 
       // ---- Escape pacemakers (overdrive-suppressed by faster rhythms)
       this.junctionalCell = his[1];                         // proximal His (junctional)
-      this.ventEscapeCell = this.lpf[Math.floor(this.lpf.length * 0.3)];  // fascicular/ventricular
+      this.ventEscapeCell = this.lpf[Math.min(this.lpf.length - 1, Math.floor(this.lpf.length * P.ventEscapeFrac))];  // fascicular/ventricular (ventEscapeFrac along the LPF)
       // idioventricular: an LV Purkinje node in the inferior wall, mid-level
       this.idioCell = this.purkLV.reduce((best, id) => {
         const c = A.nearest([this.x[id], this.y[id], this.z[id]]), sc = Math.abs(A.zuvc[c] - 0.5) + Math.abs(A.phi[c] + 1.5);
         return !best || sc < best.sc ? { id, sc } : best;
       }, null).id;
+      if (P.ventEscapeFrac === null) this.ventEscapeCell = A.nearest([this.x[this.idioCell], this.y[this.idioCell], this.z[this.idioCell]]);   // (the muscle under it: a myocardial exit)
 
       // fascicle extensions toward the apex: both divisions fan out to the apical
       // endocardium; the extension carries its fascicle's segment (blocked with it)
@@ -1692,7 +1695,7 @@
       if (site === 'SAN') { this.saExit = null; this.sinusArrest = false; this.sinusPauseUntil = -1; }
       if (site === 'AVN') { this.avnBlockMul = 1; for (const c of M.avn) { this.erpExtra[c] = P.avnErpExtra; this.cvK[c] = P.avnCvRestK; this.cvTau[c] = P.avnCvRestTau; } }
       delete this.blocks[site];
-      if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = 0;
+      if (site === M.lsfTie) for (const c of cs.LSF) { this.blocked[c] = 0; this.cvMul[c] = 1; }
       if (!type) { this._applyAvn(); return; }
       this.blocks[site] = { type, ...opts };
       const gate = (cell, mode, n) => this.gates.set(cell, { mode, n, count: 0, site });
@@ -1716,7 +1719,10 @@
       } else if (type === 'complete') for (const c of cells) this.blocked[c] = 1;
       // conduction delay (incomplete block): the bundle/fascicle conducts, slowed by opts.mul
       else if (type === 'delay') for (const c of cells) this.cvMul[c] = opts.mul || P.fascDelayMul;
-      if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = this.blocks[site] && this.blocks[site].type === 'complete' ? 1 : 0;   // septal fibres go with their parent division
+      if (site === M.lsfTie) {   // septal fibres go with their parent division: blocked, or (lsfTieDelay > 0) slowed by that factor
+        const cut = this.blocks[site] && this.blocks[site].type === 'complete';
+        for (const c of cs.LSF) { this.blocked[c] = cut && !(P.lsfTieDelay > 0) ? 1 : 0; this.cvMul[c] = cut && P.lsfTieDelay > 0 ? P.lsfTieDelay : 1; }
+      }
       this._applyAvn();
     }
     clearBlocks() { for (const s of Object.keys(this.blocks)) this.setBlock(s, null); }
@@ -2931,7 +2937,7 @@
       // RVH: free-wall hypertrophy (thickening centred on the free wall, sparing the septal insertions),
       // slower conduction in the hypertrophied RV muscle, stronger sources and a strain gradient
       anatomy: { lvWallLayers: lvh ? 6 : 2, rvWallLayers: rvh ? 6 : 0, ...(rvh ? { rvThickPhiC: 0.4, rvThickPhiW: 0.8 } : {}) },
-      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1, rvCvMul: rvh ? 0.8 : 1 },
+      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1, rvCvMul: (rvh ? 0.8 : 1) * DEFAULTS.rvCvMul },   // (relative to the default RV muscle speed)
     };
   }
 

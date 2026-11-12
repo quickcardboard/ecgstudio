@@ -37,6 +37,8 @@ function read(rec, hint, rr, opts = {}) {
   if (on === hint - 40) { on = tmaxV; while (on > hint - 120 && !quiet(on - 3, 3, 0.05)) on--; }
   // QRS end: the first point after the main activity where the signal stays quiet for 8 ms
   let off = tmaxV; while (off < on + 220 && !quiet(off, 8, 0.05)) off++;
+  // (a slow late activation can pause briefly: the QRS goes on if activity at QRS speed resumes within 25 ms)
+  for (let k = 0; k < 3; k++) { let u = off + 8; while (u < off + 33 && sv(u) < 0.12 * vmax) u++; if (u >= off + 33 || u >= on + 220) break; off = u; while (off < on + 220 && !quiet(off, 8, 0.05)) off++; }
   if (opts.minOff > off) off = Math.min(on + 220, Math.round(opts.minOff));
   // P wave: spatial magnitude above 0.02 mV before the QRS
   const mag = (t) => { let s = 0; for (let k = 0; k < NL; k++) s += x(t, k) ** 2; return Math.sqrt(s); };

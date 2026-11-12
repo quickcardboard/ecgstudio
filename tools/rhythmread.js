@@ -26,6 +26,8 @@ function readRhythm(rec) {
   const beats = peaks.map((p) => {
     let on = p; while (on > p - 120 && !quiet(on - 6, 6, 0.06)) on--;
     let off = p; while (off < p + 200 && !quiet(off, 8, 0.06)) off++;
+    // (a slow late activation can pause briefly: the QRS goes on if activity at QRS speed resumes within 25 ms)
+    for (let k = 0; k < 3; k++) { let u = off + 8; while (u < off + 33 && svs[u] < 0.12 * top) u++; if (u >= off + 33 || u >= p + 200) break; off = u; while (off < p + 200 && !quiet(off, 8, 0.06)) off++; }
     return { p, on, off, w: off - on };
   });
   const out = { beats: beats.length };

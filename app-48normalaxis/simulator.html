@@ -921,7 +921,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-12 (188ec5f).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-12 (8ad30d5).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -965,7 +965,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-12 (188ec5f).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-12 (8ad30d5).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -2244,6 +2244,8 @@ THE SOFTWARE.
     fascApexLafPhi: null, fascApexLpfPhi: null,   // rotational UVC of the extensions' ends (null = the fascicle's own)
     septalFascicle: true,   // left septal fascicle (Durrer's mid-septal root)
     lsfTie: 'LPF',          // the division whose block also blocks the septal fascicle (null: neither)
+    ventEscapeFrac: 0.3,    // where along the LPF the ventricular escape focus sits (0 origin … 1 terminal); null: in the muscle under the idioventricular Purkinje node (a wide escape)
+    lsfTieDelay: 0,         // >0: that block slows the septal fascicle by this conduction-time factor instead of cutting it
     fascConnectFrac: 0.45,  // distal fraction of LAF/LPF giving off Purkinje branches
     lbbSplitZ: 0.84, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
     septalTerrHalf: 0,    // half-width (rad) of the mid-septal Purkinje territory
@@ -2911,12 +2913,13 @@ THE SOFTWARE.
 
       // ---- Escape pacemakers (overdrive-suppressed by faster rhythms)
       this.junctionalCell = his[1];                         // proximal His (junctional)
-      this.ventEscapeCell = this.lpf[Math.floor(this.lpf.length * 0.3)];  // fascicular/ventricular
+      this.ventEscapeCell = this.lpf[Math.min(this.lpf.length - 1, Math.floor(this.lpf.length * P.ventEscapeFrac))];  // fascicular/ventricular (ventEscapeFrac along the LPF)
       // idioventricular: an LV Purkinje node in the inferior wall, mid-level
       this.idioCell = this.purkLV.reduce((best, id) => {
         const c = A.nearest([this.x[id], this.y[id], this.z[id]]), sc = Math.abs(A.zuvc[c] - 0.5) + Math.abs(A.phi[c] + 1.5);
         return !best || sc < best.sc ? { id, sc } : best;
       }, null).id;
+      if (P.ventEscapeFrac === null) this.ventEscapeCell = A.nearest([this.x[this.idioCell], this.y[this.idioCell], this.z[this.idioCell]]);   // (the muscle under it: a myocardial exit)
 
       // fascicle extensions toward the apex: both divisions fan out to the apical
       // endocardium; the extension carries its fascicle's segment (blocked with it)
@@ -3797,7 +3800,7 @@ THE SOFTWARE.
       if (site === 'SAN') { this.saExit = null; this.sinusArrest = false; this.sinusPauseUntil = -1; }
       if (site === 'AVN') { this.avnBlockMul = 1; for (const c of M.avn) { this.erpExtra[c] = P.avnErpExtra; this.cvK[c] = P.avnCvRestK; this.cvTau[c] = P.avnCvRestTau; } }
       delete this.blocks[site];
-      if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = 0;
+      if (site === M.lsfTie) for (const c of cs.LSF) { this.blocked[c] = 0; this.cvMul[c] = 1; }
       if (!type) { this._applyAvn(); return; }
       this.blocks[site] = { type, ...opts };
       const gate = (cell, mode, n) => this.gates.set(cell, { mode, n, count: 0, site });
@@ -3821,7 +3824,10 @@ THE SOFTWARE.
       } else if (type === 'complete') for (const c of cells) this.blocked[c] = 1;
       // conduction delay (incomplete block): the bundle/fascicle conducts, slowed by opts.mul
       else if (type === 'delay') for (const c of cells) this.cvMul[c] = opts.mul || P.fascDelayMul;
-      if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = this.blocks[site] && this.blocks[site].type === 'complete' ? 1 : 0;   // septal fibres go with their parent division
+      if (site === M.lsfTie) {   // septal fibres go with their parent division: blocked, or (lsfTieDelay > 0) slowed by that factor
+        const cut = this.blocks[site] && this.blocks[site].type === 'complete';
+        for (const c of cs.LSF) { this.blocked[c] = cut && !(P.lsfTieDelay > 0) ? 1 : 0; this.cvMul[c] = cut && P.lsfTieDelay > 0 ? P.lsfTieDelay : 1; }
+      }
       this._applyAvn();
     }
     clearBlocks() { for (const s of Object.keys(this.blocks)) this.setBlock(s, null); }
@@ -5036,7 +5042,7 @@ THE SOFTWARE.
       // RVH: free-wall hypertrophy (thickening centred on the free wall, sparing the septal insertions),
       // slower conduction in the hypertrophied RV muscle, stronger sources and a strain gradient
       anatomy: { lvWallLayers: lvh ? 6 : 2, rvWallLayers: rvh ? 6 : 0, ...(rvh ? { rvThickPhiC: 0.4, rvThickPhiW: 0.8 } : {}) },
-      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1, rvCvMul: rvh ? 0.8 : 1 },
+      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1, rvCvMul: (rvh ? 0.8 : 1) * DEFAULTS.rvCvMul },   // (relative to the default RV muscle speed)
     };
   }
 
@@ -5045,7 +5051,7 @@ THE SOFTWARE.
   else root.ECGStudio = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 
-;(function () { var E = (typeof window !== "undefined" ? window : globalThis).ECGStudio; if (E) Object.assign(E.DEFAULTS, {"heartPitch": -22, "heartYaw": 12, "ecgGain": 0.01108, "precordialGain": 0.8, "precordialDipoleW": 0.62, "precordialDipoleGain": 2.2, "dowerChest": 0.8, "atrialFrontalRot": 45, "atrialLimbGain": 2.15, "chestTorsoTGain": 1.4, "occlusionInj": {"LAD": 1, "LCx": 1.2, "RCA": 0.6, "LM": 1}, "occlusionBorderMm": {"LAD": 18}}); })();
+;(function () { var E = (typeof window !== "undefined" ? window : globalThis).ECGStudio; if (E) Object.assign(E.DEFAULTS, {"heartPitch": -22, "heartYaw": 12, "ecgGain": 0.01108, "precordialGain": 0.8, "precordialDipoleW": 0.62, "precordialDipoleGain": 2.2, "dowerChest": 0.8, "atrialFrontalRot": 45, "atrialLimbGain": 2.15, "chestTorsoTGain": 1.4, "occlusionInj": {"LAD": 1, "LCx": 1.2, "RCA": 0.6, "LM": 1}, "occlusionBorderMm": {"LAD": 18}, "septalTerrHalf": 0.3, "purkCrossFastPhi": [[0.56, 0.3], [-1.8, 0.15]], "purkCrossSlow": 4.5, "cvPurkinje": 2.1, "lsfZ": 0.35, "lsfPhi": -0.2, "lpfApexZ": 0.35, "fascConnectFrac": 0.35, "lpfZ": 0.25, "lafZ": 0.7, "rvCvMul": 0.8}); })();
 
 </script>
 <script>
