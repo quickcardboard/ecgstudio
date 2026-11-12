@@ -2407,3 +2407,15 @@ textbook (S III 16–19, R aVL 12–13 mm), but:
   LAFB (r V2 0.7 → 2–3.7 mm: the anterior QS goes), but not the long q in I/aVL.
 - Next step is structural: the Purkinje network's reach into a blocked division (anastomoses at the paraseptal
   break-through sites, so the blocked territory starts at ~15–20 ms and the deviation comes from the terminal forces).
+
+## Round 68 (started): Purkinje anastomoses for the fascicular blocks
+
+New options (defaults keep the old behaviour): `purkCrossFastPhi` ([[phi, halfWidth], …]: bands of rotational UVC where
+links between fascicle territories are not slowed by `purkCrossSlow`) and `lsfTie` (the division whose block takes the
+septal fascicle; 'LPF' as before, null: neither). First screen at the 48° candidate (`src/variants/48normalaxis.json`,
+fascicle scorer at app gain):
+- `septalTerrHalf` 0.3 + `lsfTie` null + fast bands at both territory boundaries ([[0.56, 0.3], [−1.54, 0.3]]):
+  LPFB R III 35 → 18 mm, inferior q 31 → 28 ms, no old-MI read, but axis 94 → 78°; LAFB −49°, r V2 0.7 → 3.1 mm
+  (no anterior QS), q I/aVL 33/39 → 30/33 ms (still read old high-lateral MI); normal axis 54 → 32°.
+- Moving the LAF/LPF boundary (`lpfTerrHi` 0.56–1.2, `lpfTerrLo` −1.54…−2.3) changes little: the early r in aVL comes
+  from the LAF's own breakthrough on the anterolateral wall, which LAFB removes, not from the paraseptal edge.

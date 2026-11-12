@@ -138,6 +138,7 @@
     fascApexFrom: 1,       // where along the fascicle the extension branches off (1 = terminal, 0.3 = a third of the way)
     fascApexLafPhi: null, fascApexLpfPhi: null,   // rotational UVC of the extensions' ends (null = the fascicle's own)
     septalFascicle: true,   // left septal fascicle (Durrer's mid-septal root)
+    lsfTie: 'LPF',          // the division whose block also blocks the septal fascicle (null: neither)
     fascConnectFrac: 0.45,  // distal fraction of LAF/LPF giving off Purkinje branches
     lbbSplitZ: 0.84, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
     septalTerrHalf: 0,    // half-width (rad) of the mid-septal Purkinje territory
@@ -146,6 +147,7 @@
     lpfTerrLo: -1.54, lpfTerrHi: 0.56,  // LPF territory in rotational UVC (inferior/posterior wall)
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
     purkCrossSlow: 3,       // conduction-time factor on Purkinje links between fascicle territories
+    purkCrossFastPhi: null,  // [[phi, halfWidth], …]: bands of rotational UVC where links between territories are not slowed
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
     precordialGain: 0.66,        // overall chest-lead gain
     sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
@@ -832,7 +834,7 @@
       };
       // the septal fibres are treated as part of the posterior division: a block of
       // the LPF takes them too (so RBB + LAF + LPF stays a complete block)
-      if (this.lsf.length) this.lsfTie = 'LPF';
+      if (this.lsf.length && P.lsfTie) this.lsfTie = P.lsfTie;   // (null: the septal fascicle is not blocked with either division)
     }
 
     // ---- Coronary arteries (right-dominant) and perfusion territories ----
@@ -1100,7 +1102,10 @@
           let f = 1;
           if (terr.get(c) !== terr.get(q)) {
             const apical = A.zuvc[c] >= 0 && A.zuvc[c] < P.purkCrossApexZ && A.zuvc[q] >= 0 && A.zuvc[q] < P.purkCrossApexZ;
-            f = apical ? 1 : P.purkCrossSlow;
+            // paraseptal anastomoses (purkCrossFastPhi: [[phi, halfWidth], …]): at the territory boundaries in these bands of
+            // the rotational UVC the networks are densely interconnected, so a blocked division's edge is reached at once
+            const fast = P.purkCrossFastPhi && P.purkCrossFastPhi.some(([ph, hw]) => Math.abs(A.phi[c] - ph) < hw && Math.abs(A.phi[q] - ph) < hw);
+            f = apical || fast ? 1 : P.purkCrossSlow;
           }
           // the apical network is the densest and best interconnected: faster effective conduction
           const inAp = (x) => A.zuvc[x] >= 0 && A.zuvc[x] < P.apexPurkZ && (!P.apexPurkPhi || A.zuvc[x] < 0.25 || Math.abs(A.phi[x]) < P.apexPurkPhi);
