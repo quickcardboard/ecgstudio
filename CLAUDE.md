@@ -10,6 +10,8 @@ all rights reserved (LICENSE).
   OrbitControls) + `src/engine.js` + `src/app.js` + `src/anatomy.json` + `src/torso_limb.json` (solved-torso limb-lead fields)
   into the single self-contained `index.html`. Commit the rebuilt `index.html` with source changes;
   it is what the site serves.
+  Variants (`src/variants/*.json`: other engine defaults and torso field) build to `<dir>/` (e.g. `app-48normalaxis/`, the
+  Round 67 orientation candidate) as a preview with its own shell, simulator and Training pages.
   It also writes `training/index.html` and the app shell `app/index.html` (`src/shell.html`, a preview framing both pages
   with `?app`; `src/inapp.js` handles that mode; `src/tutorial.js`, the interactive tutorial, goes into both pages); `--app` adds `app/www/` for the native app (not in git).
 - `src/engine.js`: anatomy, model, simulation and lead fields; runs in the browser
