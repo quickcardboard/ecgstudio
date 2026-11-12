@@ -2376,3 +2376,34 @@ V5 2.2–5.5, V6 1.5–4 mm …; old inferior MI III −0.5 to −5, I/aVL ≤ 5
   apex fire together unopposed (+1.7 mV at 40 ms and rising). QRS only 8 ms wider than normal. The voltage is the axis
   deviation itself; it falls only with the deviation.
 - LAFB pseudo-infarct (QS V2–V4) at every orientation and fibre ratio tried.
+
+## Round 67, part 4: heart-orientation round (candidate found, not adopted) and the fascicular blocks
+
+Tools (scratch, described for reproduction): a parallel blind reader over the 40 single-beat scenarios (4 processes,
+~25 s), a chest R/S scorer, and a fascicle scorer (normal/LAFB/LPFB at app gain: axes, q durations in I/aVL and
+II/aVF, R aVL, S III, R III, r V2–V3, the blind read).
+
+**Orientation candidate** (tilt 17, `heartPitch` −22, `heartYaw` 12; torso re-solved: `node tools/export_heart_torso.js
+h.json '{"heartRotation":17,"heartPitch":-22,"heartYaw":12}'` + `ANISO=1 python3 tools/torso_v2.py h.json tv.json 3`,
+packed as `src/torso_limb.json`, chestScale 1.8854): `ecgGain` 0.01108, `precordialGain` 0.8, `precordialDipoleW` 0.62,
+`precordialDipoleGain` 2.2, `dowerChest` 0.8, `atrialFrontalRot` 45, `atrialLimbGain` 2.15, `occlusionInj` LCx 1.2 /
+RCA 0.6, `chestTorsoTGain` 1.4, `occlusionBorderMm` { LAD: 18 }.
+- Normal axis +48 to +54°, T axis +39° (concordant), LAFB −48°, LPFB 94°, RVH 148°, P in II 0.23 mV, LAE notched.
+- Reader 46/57 (current 47), fullcheck iErr 4 (old apical infarct no longer shows inferior Q; new: PDA ST in V1–V2,
+  proximal LCx without Q in aVL), chest R V1–V6 2.7/4.5/4.6/3.5/8.7/8.0 mm.
+- **Training audit 113/180** (current 139): not adopted. The remaining misses are the fascicular ones below plus right-
+  axis reads (LPFB/RVH) after large anterior and lateral infarcts.
+
+**Fascicular blocks: not fixed by any parameter.** At the candidate orientation the axes and the LAFB limb voltages are
+textbook (S III 16–19, R aVL 12–13 mm), but:
+- the initial forces last too long: LAFB q in I/aVL 32–39 ms (read old high-lateral MI), LPFB and RBBB q in II/aVF
+  30–33 ms (read old inferior MI). Even an LAFB with no axis shift (`purkCrossSlow` 1, `cvPurkinje` 2.8) keeps a 29 ms q
+  in aVL: once the LAF is cut, the anterolateral wall is reached ~30–35 ms after QRS onset (real: ~15–20 ms).
+- LPFB R III stays 31–35 mm (textbook ~10–20).
+- Screened without effect on those: `purkCrossSlow` 1–3, `cvPurkinje` 1.8–2.8, `fascConnectFrac` 0.3–0.6,
+  `purkCrossApexZ` 0/0.4, `purkLinkR` 3.2–6, fascicle terminals (`lafZ`, `lpfZ`, `lpfPhi`, `lsfZ`, `lsfPhi`),
+  orientation (54 solved torsos), `sigmaRatio` 4, `brody` 0, a q measured against the PR segment.
+- `septalTerrHalf` 0.3–0.6 (the left septal fascicle's own mid-septal territory) restores the early septal force in
+  LAFB (r V2 0.7 → 2–3.7 mm: the anterior QS goes), but not the long q in I/aVL.
+- Next step is structural: the Purkinje network's reach into a blocked division (anastomoses at the paraseptal
+  break-through sites, so the blocked territory starts at ~15–20 ms and the deviation comes from the terminal forces).
