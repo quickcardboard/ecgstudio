@@ -84,6 +84,7 @@ self.onmessage = (e) => {
 };
 ''')
 t = with_logo((src / 'training.html').read_text()).replace('{{AUTHOR}}', htmlmod.escape(site['author'])).replace('{{VERSION}}', datetime.date.today().isoformat() + (f' ({rev})' if rev else ''))
+t = t.replace('{{PREMIUM}}', '1' if site.get('premium') else '0')   # (premium for everyone: docs/PREMIUM_PLAN.md)
 t = t.replace('{{REPORT_FORM}}', htmlmod.escape(site.get('reportForm', '').strip()))   # (Google Form prefill link: problem reports)
 for key, text in (('/*__INAPP__*/', inapp), ('/*__VOCAB__*/', json.dumps((src / 'training_vocab.txt').read_text())),
                   ('/*__ANATOMY__*/', anatomy), ('/*__TORSO__*/', torso), ('/*__WORKER__*/', worker),
@@ -130,3 +131,23 @@ if '--app' in sys.argv:
     (www / 'simulator.html').write_text(offline((root / 'index.html').read_text()))
     (www / 'training.html').write_text(offline((root / 'training' / 'index.html').read_text()))
     print('app/www/', sorted(p.name for p in www.iterdir()))
+
+# Variants (src/variants/*.json): a preview of other engine defaults at ecgstudio.app/<dir>/ — the app shell with its own
+# simulator and Training pages, built from the same sources with the variant's parameters (assigned to the engine's
+# DEFAULTS right after the engine is defined, in the pages and in Training's worker) and its own torso field.
+engine_src = (src / 'engine.js').read_text()
+for vf in sorted((src / 'variants').glob('*.json')) if (src / 'variants').is_dir() else []:
+    v = json.loads(vf.read_text())
+    if 'dir' not in v: continue
+    patch = ('\n;(function () { var E = (typeof window !== "undefined" ? window : globalThis).ECGStudio; if (E) Object.assign(E.DEFAULTS, '
+             + json.dumps(v['params']) + '); })();\n')
+    vtorso = (root / v['torso']).read_text() if v.get('torso') else torso
+    assert '</script' not in vtorso and engine_src in html and engine_src in t and torso in html and torso in t
+    def variant(h):
+        return h.replace(engine_src, engine_src + patch).replace(torso, vtorso)
+    vd = root / v['dir']
+    vd.mkdir(exist_ok=True)
+    (vd / 'simulator.html').write_text(variant(html))
+    (vd / 'training.html').write_text(variant(t))
+    (vd / 'index.html').write_text(shell({'simulator': 'simulator.html?app', 'training': 'training.html?app'}))
+    print(v['dir'] + '/ (variant: ' + vf.name + ')')

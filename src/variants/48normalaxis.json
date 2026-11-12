@@ -1,0 +1,11 @@
+{
+  "dir": "app-48normalaxis",
+  "about": "Round 67 orientation candidate (docs/DEVELOPMENT.md Round 67, part 4): normal axis ~+48 to +54 degrees, its own solved torso. A preview at ecgstudio.app/app-48normalaxis; the live defaults are unchanged.",
+  "torso": "src/variants/torso_48normalaxis.json",
+  "params": {
+    "heartPitch": -22, "heartYaw": 12, "ecgGain": 0.01108,
+    "precordialGain": 0.8, "precordialDipoleW": 0.62, "precordialDipoleGain": 2.2, "dowerChest": 0.8,
+    "atrialFrontalRot": 45, "atrialLimbGain": 2.15, "chestTorsoTGain": 1.4,
+    "occlusionInj": { "LAD": 1, "LCx": 1.2, "RCA": 0.6, "LM": 1 }, "occlusionBorderMm": { "LAD": 18 }
+  }
+}

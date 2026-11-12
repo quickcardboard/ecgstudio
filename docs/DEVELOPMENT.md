@@ -2162,3 +2162,248 @@ the app only for now (tried at ecgstudio.app/app/); keep both the artery and the
   0.25 s). `ECGLoader.at` draws a fixed moment of the cycle (for recording frames).
 - Follow-up (the author): the turn starts at 0.52 s, while the heart is still repolarising (frame 15 at 25 fps), and the
   next beat starts as soon as the landing bounce ends: one cycle is 1.31 s, with no pause.
+
+## Round 60: the left atrial appendage cap in tissue colour
+
+- The author asked about a fifth "pulmonary vein": it is the left atrial appendage, which the source mesh (Rodero et al.)
+  trims and caps; `tools/build_anatomy.py` puts that cap with the vessel caps (label 11, lilac). In the 3D view
+  (`buildSurfaces`) the cap's faces, those near the `LAA` landmark (within 4 mm of its plane and 1.6 × its radius), are
+  now drawn as left atrial tissue: live activation colours, and a tap there stimulates the atrium. The four pulmonary
+  veins, the SVC and the IVC stay lilac. Anatomy, model and ECG unchanged.
+- Follow-up: a drawn appendage pouch was tried and dropped (it looked wrong). Instead, the ridge the trimmed appendage
+  left is smoothed (`smoothLAA`, 3D view only): the left atrial wall and the cap within 1.9 cap radii of the opening relax
+  into a smooth patch (full strength within 1.15 radii, fading to none at the edge, which is held); points shared with
+  any other structure stay, and copies of a point in different meshes move together, so the cut view's caps stay
+  closed. Tissue grid, model and ECG unchanged.
+- Follow-up (the author): a lilac piece was left beside the smoothed opening: each opening is a disc and a short stub wall
+  (separate pieces of the surface), and part of the appendage's stub lay outside the band taken as its cap. Now every
+  piece whose centre is nearest the LAA landmark (of the openings' landmarks) is drawn as atrial tissue; only the
+  in-plane faces are smoothed, and the rest of the stub (much of it inside the heart; smoothing pulled it out through
+  the surface) stays where it is.
+
+## Round 61: tester reports (Training)
+
+From the problem-report form (7 reports, 2026-11-10; one "all good"):
+- **PR shown at fast rates** (WPW at 122/min shown as PR 400; first-degree block at 125/min shown as PR 182, which
+  contradicted the key): with sinus tachycardia and a block or pre-excitation the P sits on the previous T, so the gate
+  already took the PR from the engine (76 and 242 ms), but the measurement chip and the PR caliper showed the reader's.
+  Now both show the engine's PR whenever the gate uses it.
+- **Findings present but not in the key** cost points: lateral ST depression (1.3–3.2 mm, LVH strain) with LVH and a
+  recent inferior infarct; Q waves of 41–42 ms in III and aVF (qR of the right axis) with RVH. Now ST depression, Q waves
+  and T inversion that meet the generator's own criteria on the median beat (`stdLeads`, `qLeads`, `twiLeads`) are
+  accepted as also true, with a line naming the leads (the right-axis qR is called that, "not an infarct"). Not in
+  LBBB or ventricular rhythms.
+- **Infarct wall in words:** the Q-wave lines name the wall from the territories the Q waves reach (`wallName`): a second
+  obtuse marginal infarct with Q waves in II, III, aVF, V5, V6 is an "old inferolateral infarct" (was "old lateral").
+- Kept: atrial flutter with RVH, "inferior Q present": II, III and aVF have no Q (0 ms); the negative flutter wave
+  before each QRS most likely looked like one. Old OM2 infarct, "no lateral Q in I": right (none in I); V5–V6 carry it.
+  The tall T in V2–V4 there (up to 8 mm) is the known post-infarct T limitation.
+
+## Round 62: premium, first step (behind a switch)
+
+The author's model (docs/PREMIUM_PLAN.md): the simulator and a rated daily ECG free; Training $9.99 one-time; future
+modules as add-ons. This round: the locked states, the unlock page and the rated daily ECG, behind a switch that is off
+by default (`?premium=1` turns it on for a device), and a stand-in purchase that unlocks the device. Billing next.
+- Follow-up (the author): the premium wording is the author's (unlock page: "Maximize your ECG training", …). Statistics is
+  locked for free users (they see the rating and title on Training's home), the skill buttons show no ratings while
+  locked, and the unlock page shows the logo. The Statistics card reads "Your ratings, statistics, and review recent
+  ECGs". The last 5 ECGs in Statistics open their result page again (`openPast`: rebuilt from the recipe, with the
+  answer given then and the rating change then; Done returns to Statistics). The history now keeps each ECG's recipe
+  and answer; older entries are not linked.
+
+## Round 63: Google Play billing
+
+`@capgo/native-purchases` in the app; the shell owns purchases and tells the modules what the account owns (local
+prices included); Training buys and restores through it; debug builds own everything (a debug-only marker file);
+`site.json` `"premium"` turns the lock on for everyone. Tested with a stand-in for Google Play in the shell (buy,
+cancel, owned elsewhere, debug build). Details and the Play Console steps: docs/PREMIUM_PLAN.md.
+- Premium on for everyone (`site.json` `"premium": true`, the author's request), before the next release build. Fixed
+  first: without Google Play (the website's /app copy) Training fell back to the preview's stand-in purchase, so one tap
+  unlocked it there; now only `?premium=1` previews have the stand-in, and elsewhere the unlock button opens the store page.
+
+## Round 64: tablets
+
+- **Which layout:** phones and 7" tablets (narrower than 744 px when upright) keep the phone layouts. Tablets held upright
+  (744 px and wider, the iPad mini up) get the tablet layouts below; tablets held sideways get the desktop simulator and
+  the sideways Training layout.
+- **Simulator, upright** (`MQ_TAB`, `body.t`, touch screens): the phone layout, with the full 12-lead sheet and a lead II
+  rhythm strip in the ECG pane (the desktop canvas `#cecg`) instead of one lead group; no group swiping or 5 s button; the
+  heart pane 50%. Double tap still opens the full screen view.
+- **Training** (`tabletMode`, `body.tabp` upright / `body.tabl` sideways 900 × 560 and up): one 3 × 4 sheet with a lead II
+  rhythm strip (no pages, no swiping; the author asked for no 6 × 2 format), lead groups tapped on the sheet. Upright:
+  the ECG above, the answer and a keyboard at most 720 px wide below; the bottom area keeps the typing view's height so
+  the ECG does not change size. Sideways: the ECG on the left, a panel (360–420 px) on the right with the answer and
+  suggestions at the top and the keyboard at the bottom; the lead groups and the result use the whole panel. Chips and
+  suggestions wrap on tablets. Home and the other pages: a 720 px column.
+- **Tutorial on tablets** (upright): the three sentences about swiping or expanding the ECG have tablet versions
+  (`fullEcgTablet`, `typeSinusTablet`, `anteriorTablet`). Its ring finder now retries at once while no spot is found
+  (after a drag the heart can still be coasting).
+- Checked (Playwright, touch): 600×960 (phone layout), 768×1024, 800×1280, 820×1180, 1024×768, 1180×820, 1280×800; the
+  whole tutorial on a Pixel 7 and on 820×1180.
+- Follow-up (the author: "not polished"): sideways, the answer panel is built from the bottom up with no gap: the keyboard
+  (larger keys), the field and Submit above it, the suggestions as a list right above the field (the best six), and a
+  "Your answer" card filling the top (with the four answering steps while it is empty; it shrinks to fit while the lead
+  groups are chosen). Training home sideways is a two-column dashboard: the stats across the top; the daily ECG and a
+  large Train card on the left; Reviews, Statistics and the skills on the right. The phase is on the body (`ph-answer`,
+  `ph-region`, `ph-result`) for these layouts.
+- Left-handed option (the author): ⋯ → "Keyboard on the left" / "Keyboard on the right" (shown only on a tablet held
+  sideways) swaps the answer panel and the ECG (`body.lefty`), remembered on the device (`ecgTraining.hand`).
+
+## Round 65: tablet polish, privacy page, small things
+
+- **Tablets held sideways** (the desktop layout on a touch screen): finger taps on the heart follow the phone's rules (the
+  conduction segment nearest the finger, blocks set at once, bursts); mouse clicks are unchanged. A double tap on the
+  ECG gives it the whole width (`ecgmax`, the heart hidden; double tap or back to return). Controls are finger-sized
+  (about 40 px) on touch screens. Upright tablets: the control sheet is centred, at most 680 px wide. Full screen on
+  tablets stays the sideways ECG (the author: an upright one only adds empty space).
+- **Tutorial on tablets held sideways:** it starts there too (touch, 900 px and wider), and Help → Tutorial is offered.
+  Its card sits in the half away from what it points at; step 6 uses the whole-width ECG. Checked end to end at
+  1180×820.
+- **Privacy page** (11 November 2026): problem reports by Google Form; purchases through Google Play, restore, and what
+  is remembered on the device; the app's only network use is Google Play's purchase service.
+- **Small things:** the desktop Help's Conditions line and the website description name the newest findings (electrolyte
+  disturbances, hypothermia, Wellens' pattern); the store listing draft (`docs/PLAY_LISTING.md`) covers the newest
+  findings, the tutorial, the daily ECG and the Training purchase, tablets, and the forms for in-app purchases; tablet
+  listing screenshots were made (2560×1600, 1600×2560). The simulator's view bar fades at its right edge when there is
+  more to scroll.
+
+## Round 66: tester reports (Training) and the author's list
+
+Training reports (10, 11–12 November), each rebuilt from its recipe and measured:
+- **Q waves that nobody sees** (second obtuse marginal and distal circumflex infarcts, "no significant Q in V5", "Q only
+  in V6"): V5's q was 31–32 ms and 1.2–1.3 mm, the inferior ones 29 ms. A Q-wave lead now needs a QS, a Q of 40 ms or more,
+  or one of 30 ms or more that is at least 2 mm deep (V2–V3 unchanged: 20 ms or QS). Those items are now rejected.
+- **T inversion asked in the wrong territory** (recent left main infarct: T inversion in I, aVL, V5, V6 and only V4 of the
+  anterior pair, asked as anterior): the territory asked is now one where the inversion shows in at least two of the
+  territory's own leads (`terrStrong`), the site's own first, else the one with the most.
+- **"This is not Mobitz I"** (Mobitz I with a proximal RCA STEMI read blind as sinus bradycardia with first-degree block):
+  Mobitz I now needs the blind rhythm read (`gateRead`).
+- Kept: "anterior/lateral ST depression too" with subendocardial ischemia from the proximal RCA (V4–V5 −0.5 mm, below the
+  1 mm threshold); "inferior ST depression is true" with the left main infarct (J-point depression with an upsloping ST,
+  ST at J+80 above baseline). "V5 to V6 transition looks odd" (recent mid LAD): the chest-lead model limitation.
+- **Repeats** ("why so many duplicate ECGs?"): the history keeps each infarct's artery (`site:…`), and an artery seen
+  recently is drawn less often (as for rhythms and findings).
+
+The author's list:
+- **New rhythms:** ectopic atrial rhythm (62–95/min) and atrial tachycardia (112–150/min), rare (weights 0.7, 0.6): a low
+  right-atrial focus 38 mm from the AV node (`lowAtrialCell`; at 30 mm the short PR read as WPW, at 45 mm the P turned
+  upright), PR ~145 ms, P inverted in II, III, aVF; gated on the blind read. Vocabulary: "Ectopic atrial rhythm" (EAR, low
+  atrial rhythm, …), "Atrial tachycardia" (AT, focal atrial tachycardia, …). Note: the item's simulator link uses the
+  simulator's own ectopic focus (25 mm), whose PR is shorter.
+- **Less WPW:** the WPW pattern's weight 1.5 → 0.6, orthodromic AVRT 1.5 → 0.8 (missed findings still come back more).
+- **2:1 AV block** is no chip of its own: answered as Mobitz II ("2:1 …" synonyms), its line saying why.
+- **Extreme axis deviation** ("EAD", northwest axis, …): accepted as also true when the axis is beyond −90° (to ±180°).
+- **Initials:** a term of several words is found by its initials ("sp" → Sinus pause; the name's own initials before a
+  synonym's).
+- **Blocks and Ischemia tabs** only change the cut (cut open / outside); the heart keeps its rotation. Help: "Blocks:
+  opens the cut view".
+- **Result chip cut off** (Pixel 8): the result's scrolling area clipped the selected chip's outline; it has 4 px room now.
+- **⋯ off screen on narrow phones** (below ~370 px, or a large system font): the open module tab shows its icon only there.
+- **A past ECG from Statistics** no longer shows the answer field and keyboard while it is rebuilt (phase `wait`).
+- **LPFB voltages too large** (to do, engine): R in III 3.4 mV (34 mm) by `tools/fascsearch.js`; textbook about 1–2 mV.
+
+## Round 67: engine round, part 1 (fascicles, post-infarct T): findings, nothing adopted yet
+
+- **Fascicle search** (app config, solved torso). LPFB R III 34 mm / II 31 mm; LAFB S III 30 mm, R aVL 22.5 mm, QS V2–V4
+  (read LVH + old anterior MI). Territory parameters barely move them. Voltage falls to ~18–19 mm only with `cvPurkinje` 2.5,
+  `purkCrossSlow` 1.2, `fascConnectFrac` 0.9, but the axes go to −28° / +74° (criteria fail). `septalTerrHalf` 0.6 removes
+  the LAFB V2–V3 QS but reader 47 → 44/57 (pericarditis read old inferior MI, old inferior MIs read LVH, distal LCx 30 d
+  read LAFB; LAFB still read old anterior MI); fullcheck iErr 4 → 3. Not adopted. Root cause: the normal axis (~+12°) needs
+  a very large late force to reach the LPFB axis.
+- **Post-infarct T after a mid-RCA occlusion** (T mm, normal → 720 h): I 5.1 → 9.0, aVL 2.4 → 10.6, III 1.5 → −12.2,
+  aVF 3.3 → −7.7, V3 5.4 → 11.2, V4 6.1 → 10.3. Regional decomposition (230–330 ms): the change is the loss of the dead
+  inferior, septal, apical and inferior-RV T forces (III: inferior +0.43 → 0.04, apex +0.23 → 0.01, RV +0.18 → −0.10,
+  septum +0.18 → −0.03 mV); anterior and lateral are unchanged and are left uncancelled. Not the cause: `occlusionLate`
+  (RCA 0 gives −10.5), `scarWindow`, `cavityWindow`, `ischUncouple`, `ischFrontMax`, a torso with liver and spine
+  (`ORGANS=1`: III −10.6). A weaker transmural gradient (`apdVentEndoExtra` 55) shrinks normal and infarct T alike.
+- **Infarct size options (off):** `occlusionBorderMm` and `occlusionDeadS` per artery family. RCA border 25 mm / dead
+  threshold 0.7 halves the infarct (8687 → 4729 cells), Q III −13 → −6.3 mm, but T III only −12.2 → −9.2, aVL 10.6 → 8.9.
+
+## Round 67, part 2: chest-lead solve (ST-T share of the solved torso); cavityWindowT bandage removed
+
+- A full torso solve (all nine electrodes, `export_heart_torso.js` + `ANISO=1 torso_v2.py`, 57 s) reproduces the bundled
+  LA/LL/V3–V6 fields exactly, so V1/V2 could be tried.
+- **V1–V2 from the torso: not adopted.** Brugada gets a hump at J+80 in V2 (st40 0.31 → st80 0.40 mV) and reads STEMI
+  septal+anterior (reader 46/57, 2 wrong); at 0.3–0.5 of the torso it passes only on V1, by 0.01 mV. V1–V2 do not depend
+  on `cavityWindowT` (mid LAD 48 h V2 −5.2 / −5.3 mm either way), so they stay on the blend.
+- **V3 from the torso alone** stays upright after an LAD infarct (mid LAD 48 h +4.5 mm between −2.7 in V2 and −5.8 in V4);
+  at half weight the progression is smooth (−5.3 / −6.8 / −8.3).
+- **Adopted:** `chestTorsoTLead` [0, 0, 0.5, 0.75, 1, 1] (was [0, 0, 0, 0.5, 1, 1]) and `cavityWindowT` 1 (was 0.25, the
+  Round 47 bandage). V4 at 0.5 without the bandage gave −10.9 mm at 48 h; at 1, the hyperacute T fell 9.6 → 6.4 mm.
+- Results, T mm (before → after): normal V3/V4 5.4/6.1 → 5.3/5.6; mid LAD 1 h V3/V4 11.8/9.6 → 10.3/8.0; mid LAD 48 h
+  V3/V4 −9.1/−8.0 → −6.8/−8.3; 30 d −8.0/−7.7 → −6.4/−8.6; distal LAD 48 h V3/V4 −5.8/−6.5 → −4.0/−6.6. QRS unchanged.
+- Validation: reader 47/57 (proximal LCx 1 h partial → pass; acute marginal 1 h pass → partial on a borderline poor R
+  progression); fullcheck iErr 4, axErr 5.13 (identical lead groups); stcheck unchanged; evalecg only T V4 0.59 → 0.49.
+  Training audit (seeds 11–13, 60 each): 137 → 134/180: non-specific ST-T twice (V3 T no longer flat in some seeds), one
+  mid-LAD hyperacute T under the "tall" criterion.
+
+## Round 67, part 3: repolarisation refit; fascicles and heart orientation (investigation)
+
+**Repolarisation refit (adopted).** New fit tool (scratch, described here): T height per lead for normal, mid RCA 48 h and
+720 h, mid LAD 48 h and proximal LCx 48 h, scored against textbook ranges (normal T I 2–4.5, II 2–5.5, aVL 0.3–2.5,
+V5 2.2–5.5, V6 1.5–4 mm …; old inferior MI III −0.5 to −5, I/aVL ≤ 5–5.5 mm; anterior and lateral inversion), plus QTc
+380–440. ~6 s per candidate; grids of 192 + 200 + 108 over `apdVentEndoExtra`, `apdVentApexExtra`, `electrotonicK`,
+`apdRVoffset` and `occlusionLate.RCA`.
+- Adopted: `apdVentEndoExtra` 85 → **40**, `apdVentApexExtra` 20 → **−15** (base longer than apex, as measured),
+  `electrotonicK` 1.4 → **1.0**. Score 178 → 0.2. A smaller transmural gradient shrinks each wall's T force, so the T no
+  longer comes from the cancellation of large opposing forces, and an infarct no longer unmasks them.
+- `occlusionLate` RCA 0.1 is still needed (0.5: score 75; 1: 637).
+- Results, T mm (before → after): normal I/II/aVL/V5/V6 5.1/5.7/2.4/3.7/2.0 → 2.4/4.9/0.1/2.1/1.1; mid RCA 30 d I 9.0 → 4.7,
+  aVL 10.6 → 4.9, III −12.2 → −5.0, aVF −7.7 → −2.7, V3 11.2 → 7.0; mid LAD 48 h V2–V4 −5.3/−6.8/−8.3 → about the same;
+  proximal LCx 48 h V5/V6 −2.4/−3.1 → −2.6/−3.1. Normal T axis 26° → 56°, QTc 414 → 395.
+- Validation: reader 47/57 (unchanged count; pLAD 30 d no longer "long QT"; old inferior MIs lose the "T inversion" read,
+  their III T is −5 mm, aVF −2.7); fullcheck iErr 4, axErr 5.13 → 5.07; LVH strain T V6 −0.62 → −0.36 mV (still read LVH
+  with T inversion), RVH V2 T −0.43 → −0.15 mV; VF faster (V rate 52 → 143 in the 4 s strip); Training audit (seeds 11–13)
+  134 → **139/180**.
+- `tools/rhythmread.js`: complete AV block also when the P waves march through at > 1.3× the QRS rate with no fixed PR
+  and as many found as QRS complexes (sinus 72 against a 48/min escape is an exact 3:2: every third P hides in the T). The
+  junctional-escape scenario had passed on a spurious extra P.
+
+**Fascicles (investigation; nothing adopted).**
+- Heart orientation, every combination of tilt (`heartRotation` 10–35), pitch (`heartPitch` −30…+5) and yaw (`heartYaw`
+  −5…28), 54 orientations, each with its own solved torso (~1 min). Pitch and yaw move the normal axis far more than tilt
+  (tilt 17→35 at pitch −10/yaw 8: 13° → 32°; pitch −22/yaw 20 at tilt 17: 66°). Tilt 17 / pitch −22 / yaw 12–20: normal
+  52–66°, LAFB −46…−65° (S III 23–25, R aVL 15–18 mm at Kors-calibrated gain), LPFB 93–94°. The full reader there
+  (gain scaled to the same calibration): 30–33/57, fullcheck iErr 6–8: inferior STEMI invisible at 1 h (the RCA injury
+  scale was fitted for the inferior wall facing the leads squarely), poor R progression in most ECGs, old LAD infarcts read
+  LPFB. Adopting an orientation needs the ischaemia scales, chest blend and R progression refitted with it.
+- LPFB R III stays 37–55 mm (calibrated) at every orientation, at `sigmaRatio` 4 with `brody` 0 (which brings the RBBB
+  axis from −60° to ~0° but takes LAFB's deviation away), with liver and spine in the torso (44 mm) and with arms and legs
+  in the torso (lead III 3.2× lead I: worse). Slower Purkinje spread (`cvPurkinje` 0.9–1.2) worsens everything (normal
+  axis −32…−66°).
+- Mechanism (lead III, regional decomposition): in a normal beat the anterior wall gives −0.75 mV and the inferior wall
+  +0.68 mV at 20–25 ms, cancelling; with LPFB the anterior force runs alone (q in III), then the inferior wall, septum and
+  apex fire together unopposed (+1.7 mV at 40 ms and rising). QRS only 8 ms wider than normal. The voltage is the axis
+  deviation itself; it falls only with the deviation.
+- LAFB pseudo-infarct (QS V2–V4) at every orientation and fibre ratio tried.
+
+## Round 67, part 4: heart-orientation round (candidate found, not adopted) and the fascicular blocks
+
+Tools (scratch, described for reproduction): a parallel blind reader over the 40 single-beat scenarios (4 processes,
+~25 s), a chest R/S scorer, and a fascicle scorer (normal/LAFB/LPFB at app gain: axes, q durations in I/aVL and
+II/aVF, R aVL, S III, R III, r V2–V3, the blind read).
+
+**Orientation candidate** (tilt 17, `heartPitch` −22, `heartYaw` 12; torso re-solved: `node tools/export_heart_torso.js
+h.json '{"heartRotation":17,"heartPitch":-22,"heartYaw":12}'` + `ANISO=1 python3 tools/torso_v2.py h.json tv.json 3`,
+packed as `src/torso_limb.json`, chestScale 1.8854): `ecgGain` 0.01108, `precordialGain` 0.8, `precordialDipoleW` 0.62,
+`precordialDipoleGain` 2.2, `dowerChest` 0.8, `atrialFrontalRot` 45, `atrialLimbGain` 2.15, `occlusionInj` LCx 1.2 /
+RCA 0.6, `chestTorsoTGain` 1.4, `occlusionBorderMm` { LAD: 18 }.
+- Normal axis +48 to +54°, T axis +39° (concordant), LAFB −48°, LPFB 94°, RVH 148°, P in II 0.23 mV, LAE notched.
+- Reader 46/57 (current 47), fullcheck iErr 4 (old apical infarct no longer shows inferior Q; new: PDA ST in V1–V2,
+  proximal LCx without Q in aVL), chest R V1–V6 2.7/4.5/4.6/3.5/8.7/8.0 mm.
+- **Training audit 113/180** (current 139): not adopted. The remaining misses are the fascicular ones below plus right-
+  axis reads (LPFB/RVH) after large anterior and lateral infarcts.
+
+**Fascicular blocks: not fixed by any parameter.** At the candidate orientation the axes and the LAFB limb voltages are
+textbook (S III 16–19, R aVL 12–13 mm), but:
+- the initial forces last too long: LAFB q in I/aVL 32–39 ms (read old high-lateral MI), LPFB and RBBB q in II/aVF
+  30–33 ms (read old inferior MI). Even an LAFB with no axis shift (`purkCrossSlow` 1, `cvPurkinje` 2.8) keeps a 29 ms q
+  in aVL: once the LAF is cut, the anterolateral wall is reached ~30–35 ms after QRS onset (real: ~15–20 ms).
+- LPFB R III stays 31–35 mm (textbook ~10–20).
+- Screened without effect on those: `purkCrossSlow` 1–3, `cvPurkinje` 1.8–2.8, `fascConnectFrac` 0.3–0.6,
+  `purkCrossApexZ` 0/0.4, `purkLinkR` 3.2–6, fascicle terminals (`lafZ`, `lpfZ`, `lpfPhi`, `lsfZ`, `lsfPhi`),
+  orientation (54 solved torsos), `sigmaRatio` 4, `brody` 0, a q measured against the PR segment.
+- `septalTerrHalf` 0.3–0.6 (the left septal fascicle's own mid-septal territory) restores the early septal force in
+  LAFB (r V2 0.7 → 2–3.7 mm: the anterior QS goes), but not the long q in I/aVL.
+- Next step is structural: the Purkinje network's reach into a blocked division (anastomoses at the paraseptal
+  break-through sites, so the blocked territory starts at ~15–20 ms and the deviation comes from the terminal forces).

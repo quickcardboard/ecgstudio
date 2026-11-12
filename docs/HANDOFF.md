@@ -4,6 +4,7 @@ Read first, in this order:
 1. `CLAUDE.md`: build, validation and conventions.
 2. `docs/TUTORIAL_PLAN.md`: the interactive tutorial (built in Round 58; `src/tutorial.js`).
 3. `docs/APP_PLAN.md`: the Android app, releases and signing.
+4. `docs/PREMIUM_PLAN.md`: free vs paid, the state of the paywall, and how testers skip paying.
 
 The history of every change is in `docs/DEVELOPMENT.md` ("Round N"; the latest are Rounds 48–57).
 

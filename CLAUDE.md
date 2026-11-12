@@ -10,6 +10,8 @@ all rights reserved (LICENSE).
   OrbitControls) + `src/engine.js` + `src/app.js` + `src/anatomy.json` + `src/torso_limb.json` (solved-torso limb-lead fields)
   into the single self-contained `index.html`. Commit the rebuilt `index.html` with source changes;
   it is what the site serves.
+  Variants (`src/variants/*.json`: other engine defaults and torso field) build to `<dir>/` (e.g. `app-48normalaxis/`, the
+  Round 67 orientation candidate) as a preview with its own shell, simulator and Training pages.
   It also writes `training/index.html` and the app shell `app/index.html` (`src/shell.html`, a preview framing both pages
   with `?app`; `src/inapp.js` handles that mode; `src/tutorial.js`, the interactive tutorial, goes into both pages); `--app` adds `app/www/` for the native app (not in git).
 - `src/engine.js`: anatomy, model, simulation and lead fields; runs in the browser
@@ -59,10 +61,14 @@ Known limitations (rebuild-1 rounds 10–17 in docs/DEVELOPMENT.md):
 - acute marginal (RV branch) occlusion gives inferior ST elevation and, at 30 days, inferior Q instead of
   the V1/V4R pattern of isolated RV infarction
 - VT/VF slow the simulation on slower machines
-- chest leads: the QRS is a heart-vector + near-field blend (with the cavity window over a scar); the ST-T of V4–V6 comes
-  from the solved torso (`chestTorsoT`, Round 49; V3–V6 fields in `src/torso_limb.json`). V1–V3 ST-T stay on the blend
-  (Brugada, LAD T inversion in V3); `cavityWindowT` 0.25 is still a bandage there. After an inferior (RCA) infarct the T in
-  V3–V5 is too tall at 2–30 days (repolarisation model)
+- chest leads: the QRS is a heart-vector + near-field blend (with the cavity window over a scar); the ST-T comes from the
+  solved torso in V5–V6, 75% in V4, 50% in V3 (`chestTorsoTLead`, Round 67; V3–V6 fields in `src/torso_limb.json`). V1–V2
+  ST-T stay on the blend (the torso field breaks Brugada's coved ST). The `cavityWindowT` bandage is gone (1). A torso QRS
+  loses R progression and the infarct Q waves (Round 49). After the Round 67 repolarisation refit the
+  normal T axis is ~+56° against a QRS axis of ~+12°: aVL T flat, V5–V6 T low (the QRS axis is the outlier)
+- heart orientation: tilt 17 / pitch −22 / yaw 12–20 gives textbook normal, LAFB and LPFB axes (Round 67 scan, each with
+  its own solved torso), but the ischaemia scales, chest blend and R progression were fitted at the current orientation
+  (reader 47 → 33/57 without a refit); fascicular voltages stay ~2× textbook at every orientation, fibre ratio and Brody term
 
 ## Conventions
 

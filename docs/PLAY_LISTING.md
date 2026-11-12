@@ -18,20 +18,23 @@ the session that wrote this (phone screenshots 1080×1920; the 512×512 icon is 
 > field they produce. Change the heart and watch the ECG change with it.
 >
 > SIMULATOR (free)
-> • Rhythms: sinus, atrial fibrillation and flutter, ectopic beats, SVT, ventricular tachycardia and fibrillation, and more
+> • Rhythms: sinus, atrial fibrillation and flutter, ectopic beats, SVT, MAT, sinus pauses, ventricular tachycardia,
+>   torsades de pointes and ventricular fibrillation
 > • Conduction blocks: AV blocks, bundle branch and fascicular blocks, WPW
 > • Ischemia and infarction: block a coronary artery and follow the ECG from the first hour to an old infarct
-> • Conditions: hypertrophy, atrial enlargement, pericarditis, Brugada and others
+> • Conditions: hypertrophy, atrial enlargement, pericarditis, Brugada, Wellens' pattern, potassium and calcium
+>   disturbances, hypothermia and others
 > • Rotate the heart, look inside it, and see the wave of activation spread
 > • The full 12-lead on standard ECG paper, with measured intervals and axis
+> • A one-minute interactive tutorial on first open
 >
 > TRAINING
-> • Read freshly generated 12-lead ECGs and name the rhythm and every finding
-> • A rating for each skill: rhythm, conduction, ischemia and conditions
-> • ECGs chosen for your level, reviews of the ones you missed, and a daily ECG
-> • See what produced each ECG: open it in the simulator with one tap
+> • A daily ECG, free and rated: the same ECG for everyone each day
+> • Unlock Training (one-time purchase) for a fresh ECG every time, chosen for your level; practice by skill;
+>   spaced-repetition reviews of the findings you missed; and ratings with full statistics
+> • Name the rhythm and every finding, and see what produced each ECG: open it in the simulator with one tap
 >
-> Works offline. No account, no ads, and your progress stays on your phone.
+> Made for phones and tablets. Works offline. No account, no ads, and your progress stays on your device.
 >
 > For education only. ECG Studio is a teaching simulator, not a medical device: it is not for diagnosing or treating
 > patients.
@@ -39,7 +42,11 @@ the session that wrote this (phone screenshots 1080×1920; the 512×512 icon is 
 **App icon**: `icons/logo/play-store-512.png`.
 **Feature graphic** (1024×500): `feature-graphic.png` (from this session): logo, "ECG Studio", "3D Heart Simulator / Learn, Explore, Practice".
 **Phone screenshots** (2–8, 1080×1920): the six `1-…` to `6-…` PNGs (from this session).
-**Tablet screenshots**: optional; leave until the tablet layout (phase 4).
+**Tablet screenshots** (Round 64–65 layouts, 2026-11-11): `tablet-1-…` to `tablet-4-…` (2560×1600 sideways and
+1600×2560 upright), from that session, with headlines in the phone set's style (white IBM Plex Sans Condensed with one
+coloured word, a light subline, the app in a device frame running off the bottom): "The full **12-lead**" (blue),
+"Rated ECG **training**" (green), "Watch an infarct **evolve**" (pink), "A new 12-lead ECG / **every time**" (amber).
+Upload them under both 7-inch and 10-inch tablets.
 
 ## App category and contact (Store settings)
 
@@ -52,11 +59,11 @@ the session that wrote this (phone screenshots 1080×1920; the 512×512 icon is 
 | Form | Answer |
 |---|---|
 | **Privacy policy** | https://ecgstudio.app/privacy/ |
-| **App access** | **No** (nothing is restricted yet). **Change to Yes when the Training purchase ships**, before uploading that release, and give the reviewers a way in (e.g. a Play promo code for Training, or instructions to a tester-only unlock). |
+| **App access** | **No**: no login or account is needed (paid features behind an in-app purchase do not count as restricted access). If a reviewer asks to see Training, offer a Play promo code for the `training` product. |
 | **Ads** | No, the app does not contain ads. |
-| **Content rating** | Questionnaire category: *Reference, News, or Educational*. Answer **No** to everything (violence, sexuality, language, drugs, gambling, user interaction, sharing location, digital purchases: **No** for now; change to **Yes** when the Training purchase is added). Expected rating: Everyone / PEGI 3. |
+| **Content rating** | Questionnaire category: *Reference, News, or Educational*. Answer **No** to everything (violence, sexuality, language, drugs, gambling, user interaction, sharing location, digital purchases: **Yes**, the Training in-app purchase). Expected rating: Everyone / PEGI 3. |
 | **Target audience** | **18 and over** (medical students, nurses, doctors). Not designed for children; "Appeals to children": No. |
-| **Data safety** | Does the app collect or share user data? **No.** (Progress is stored only on the device; nothing is sent to the developer or third parties. Purchases, once added, are handled by Google Play.) Data encrypted in transit: not applicable. Deletion requests: not applicable (no data collected). |
+| **Data safety** | Does the app collect or share user data? **No.** (Progress is stored only on the device; nothing is sent to the developer or third parties. Purchases are handled by Google Play; the app keeps no purchase history of its own. Problem reports are sent by the user through a Google Form, optional and anonymous.) Data encrypted in transit: not applicable. Deletion requests: not applicable (no data collected). |
 | **Advertising ID** | No, the app does not use the advertising ID. |
 | **Government app** | No. |
 | **Financial features** | None. |

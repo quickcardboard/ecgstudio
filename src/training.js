@@ -41,6 +41,15 @@
     else if (name.replace(/ /g, '').startsWith(qs)) tier = 1;
     else if (nw.includes(qs)) tier = 2;
     else if (from(name).some((x) => x.startsWith(qs))) tier = 3;
+    // initials of a name or a synonym of several words ("sp" finds Sinus pause, "lbbb" Left bundle branch block): exactly,
+    // as good as the start of the name; the start of the initials, a little below (Round 66)
+    const ini = (x) => { const w = norm(x).split(' ').filter(Boolean); return w.length > 1 ? w.map((y) => y[0]).join('') : ''; };
+    if (qs.length >= 2) for (const x of [t.name, ...t.syn]) {
+      const i = ini(x); if (!i) continue;
+      const it = x === t.name ? 1 : 2;   // (the name's own initials before a synonym's)
+      if (i === qs && (tier === null || tier > it)) { tier = it; if (x !== t.name) via = x; }
+      else if (i.startsWith(qs) && (tier === null || tier > 3)) { tier = 3; if (x !== t.name) via = x; }
+    }
     for (const sy of t.syn) {
       const n = norm(sy), ns = n.replace(/ /g, '');
       if (ns === qs) return { tier: 0, via: sy, exact: true };
@@ -133,7 +142,7 @@
     const adj = {}, mul = (k, f) => { adj[k] = (adj[k] === undefined ? 1 : adj[k]) * f; };
     const SIN = ['sinus', 'sinusBrady', 'sinusTachy'];
     // (the ECG on screen and those queued count as just seen)
-    const inFlight = [st.item, ...gen.queue].filter((x) => x && x.recipe).map((x) => ({ keys: [x.recipe.rhythm, ...x.recipe.abn.map((a) => a.k)] }));
+    const inFlight = [st.item, ...gen.queue].filter((x) => x && x.recipe).map((x) => ({ keys: [x.recipe.rhythm, ...x.recipe.abn.map((a) => a.k), ...x.recipe.abn.filter((a) => a.site).map((a) => `site:${a.site}`)] }));
     const recent = [...st.hist.slice(-20), ...inFlight].slice(-20);
     recent.forEach((h, i) => {
       const near = recent.length - i <= 8, ks = h.keys || [];
@@ -155,7 +164,7 @@
   }
   function fill() {
     if (!gen.ready || gen.failed > 4) { if (gen.failed > 4) setLoading('Could not prepare an ECG. Reload the page to try again.'); return; }
-    const tag = practiceTag(); if (tag === null) return;
+    const tag = practiceTag(); if (tag === null || !ownsTraining()) return;   // (locked: no Train ECGs are made)
     gen.queue = gen.queue.filter((x) => x.tag === tag);
     let w;
     while (gen.queue.length + gen.pending < QUEUE_N && (w = pickWorker(true))) {
@@ -219,9 +228,9 @@
   }
   // cells of a layout (canvas pixels): three rows of lead cells and the lead II rhythm strip
   function cellsOf(layout, w, h) {
-    const span = layout.cols.length * COL_MS, pxMs = w / span, rowH = h / 4, cells = [];
-    layout.cols.forEach((col, c) => col.forEach((lead, r) => cells.push({ lead, x0: c * COL_MS * pxMs, x1: (c + 1) * COL_MS * pxMs, y0: r * rowH, y1: (r + 1) * rowH, t0: layout.t0 + c * COL_MS, t1: layout.t0 + (c + 1) * COL_MS })));
-    cells.push({ lead: 'II', rhythm: true, x0: 0, x1: w, y0: 3 * rowH, y1: h, t0: layout.t0, t1: layout.t0 + span });
+    const cm = layout.colMs || COL_MS, nr = layout.cols[0].length, span = layout.cols.length * cm, pxMs = w / span, rowH = h / (nr + 1), cells = [];
+    layout.cols.forEach((col, c) => col.forEach((lead, r) => cells.push({ lead, x0: c * cm * pxMs, x1: (c + 1) * cm * pxMs, y0: r * rowH, y1: (r + 1) * rowH, t0: layout.t0 + c * cm, t1: layout.t0 + (c + 1) * cm })));
+    cells.push({ lead: 'II', rhythm: true, x0: 0, x1: w, y0: nr * rowH, y1: h, t0: layout.t0, t1: layout.t0 + span });
     return { cells, pxMs, rowH, span };
   }
   // opts: { regions: Set of selectable region ids or null, picked: Set, highlight: [leads], caliper }
@@ -338,12 +347,37 @@
     }
     if (score < 0.8 && i < 0) st.reviews.push({ id: item.id, recipe: item.recipe, title: itemTitle(item.key), box: 0, due: Date.now() + DAY });
   }
-  // the daily ECG: the same for everyone on a date (seeded by the date, a mid-level target), not rated
+  // ------------------------------------------------------------------ premium (docs/PREMIUM_PLAN.md)
+  // The simulator and the daily ECG are free; Train, practice by skill and Reviews are unlocked by one purchase. While
+  // the switch is off (the default until billing is ready) everything stays as before: nothing locked, the daily ECG not
+  // rated. A preview turns it on for this device: ?premium=1 in the address (?premium=0 turns it off).
+  const PREMIUM_KEY = 'ecgstudio.premiumPreview', OWNED_KEY = 'ecgstudio.owned.training';
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* no storage */ } } };
+  // (opening the preview link again also locks this device again, to try the purchase flow once more)
+  { const q = /[?&]premium=([01])/.exec(location.search); if (q) { store.set(PREMIUM_KEY, q[1] === '1' ? '1' : null); store.set(OWNED_KEY, null); } }
+  // premium for everyone: site.json "premium" (the build's meta tag); a preview: this device only
+  const premiumLive = ((document.querySelector('meta[name="premium"]') || {}).content || '') === '1';
+  const premiumOn = () => premiumLive || store.get(PREMIUM_KEY) === '1';
+  // what is owned: in the app, from Google Play through the shell ('ents'); elsewhere (previews) the stand-in purchase
+  const shop = { app: false, dev: false, ents: {}, prices: {} };
+  // (a preview: the stand-in purchase on this device; the website with premium on for everyone: never owned, bought in the app)
+  const preview = () => store.get(PREMIUM_KEY) === '1';
+  const ownsTraining = () => !premiumOn() || (shop.app ? shop.dev || !!shop.ents.training : preview() && store.get(OWNED_KEY) === '1');
+  const PRICE = '$9.99', price = () => shop.prices.training || PRICE;   // (Play's price, in the local currency, once known)
+  const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.ecgstudio.app';
+  const webStore = () => !shop.app && !preview();   // (no Google Play here, as on the website and its /app copy: Training is bought in the app)
+  // the daily ECG is rated with the switch on: the first answer of the day counts, a second look does not
+  const dailyRated = () => premiumOn() && !(st.days[dayKey()] && st.days[dayKey()].daily !== undefined);
+  const PROVISIONAL_N = 20;   // (ratings settle after about 20 rated ECGs)
+  const ratedCount = () => st.hist.filter((h) => h.rated || (h.mode !== 'daily' && h.mode !== 'tutorial')).length;
+  // the daily ECG: the same for everyone on a date (seeded by the date, a mid-level target); rated with premium on
   const dailySeed = () => +dayKey().replace(/-/g, '');
   const rhythmPick = () => st.picked.find((p) => BY_ID[p.id].kind === 'rhythm');
 
   // start a mode from the home screen
   function startMode(mode, focus = null) {
+    if (['train', 'skill', 'review'].includes(mode) && !ownsTraining()) { showPaywall(); return; }
+    st.rateDaily = mode === 'daily' && dailyRated();
     st.mode = mode; st.focus = focus; st.reviewRun = mode === 'review' ? dueReviews().map((r) => r.id) : [];
     $('home').hidden = true; nextItem(); fill();
   }
@@ -394,7 +428,10 @@
   }
   function renderPicked() {
     const el = $('picked');
-    if (!st.picked.length && st.phase === 'answer') { el.innerHTML = '<span class="prompt">Rhythm first, then every abnormality you see.</span>'; }
+    if (!st.picked.length && st.phase === 'answer') {
+      el.innerHTML = '<span class="prompt">Rhythm first, then every abnormality you see.</span>'
+        + '<ol class="steps"><li><b>Rhythm</b>: type its first letters, then tap it</li><li><b>Findings</b>: each abnormality, one at a time</li><li><b>Leads</b>: for ST, Q and T findings, tap the lead groups on the ECG</li><li><b>Submit</b> when you are done</li></ol>';
+    }
     else el.innerHTML = st.picked.map((p, i) => `<button type="button" class="achip${BY_ID[p.id].kind === 'rhythm' ? ' rhythm' : ''}${p.pending ? ' pending' : ''}" data-i="${i}">${chipLabel(p)}<span class="x">✕</span></button>`).join('');
     $('fsPicked').innerHTML = st.picked.length ? st.picked.map((p) => `<span class="achip">${chipLabel(p)}</span>`).join('') : '<span class="prompt">Nothing yet</span>';
   }
@@ -423,29 +460,37 @@
   }
   function renderRegion() {
     const p = st.region, t = BY_ID[p.id];
-    $('regionTitle').innerHTML = `<b>${t.name}</b>: tap the lead groups on the ECG (swipe for the chest leads), or pick them here.`;
+    $('regionTitle').innerHTML = `<b>${t.name}</b>: tap the lead groups on the ECG${isTablet() ? '' : ' (swipe for the chest leads)'}, or pick them here.`;
     $('regionGrid').innerHTML = REGIONS.map((r) => `<button type="button" data-r="${r.id}" aria-pressed="${p.regions.includes(r.id)}" style="border-color:${p.regions.includes(r.id) ? r.colour : 'var(--line)'}">${p.regions.includes(r.id) ? '✓ ' : ''}${r.name}<small>${r.leads.join(' ')}</small></button>`).join('');
     $('regionDone').disabled = !p.regions.length;
   }
+  // tablets: the whole 12-lead and a lead II rhythm strip on one sheet (no pages to swipe). Upright (744 px and wider):
+  // the ECG above the answer and the keyboard; sideways (900 × 560 and up): the ECG on the left, the answer, keyboard,
+  // lead groups and result in a panel on the right. Narrower screens keep the phone layout.
+  const tabletMode = () => (innerWidth >= 744 && innerHeight >= innerWidth ? 'tabp' : innerWidth >= 900 && innerHeight >= 560 && innerWidth > innerHeight ? 'tabl' : '');
+  const isTablet = () => document.body.classList.contains('tabp') || document.body.classList.contains('tabl');
+  const sheetLayout = () => (isTablet() ? FULL : PAGES[st.page]);   // (tablets: always the standard 3 × 4 with a lead II strip)
   function drawAll() {
     if (!st.item) { for (const id of ['c0', 'c1']) { const c = $(id), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); } return; }
     const it = st.item, res = st.phase === 'result', reg = st.phase === 'region';
     // (a result chip tapped: only that finding's leads; the rhythm: the caliper alone)
     const sel = res && st.selRow, hlSel = sel ? (sel.rhythm ? [] : (it.hlBy || {})[sel.id] || []) : it.highlight;
     const opts = res ? { highlight: hlSel, caliper: !sel || sel.rhythm ? it.caliper : null } : reg ? { regions: true, picked: new Set(st.region.regions) } : {};
-    drawEcg($('c0'), it, PAGES[0], opts); drawEcg($('c1'), it, PAGES[1], opts);
+    if (isTablet()) drawEcg($('c0'), it, sheetLayout(), opts);
+    else { drawEcg($('c0'), it, PAGES[0], opts); drawEcg($('c1'), it, PAGES[1], opts); }
     if (st.fs || document.body.classList.contains('land')) drawEcg($('cfull'), it, FULL, res ? opts : {});
   }
   // the bottom area keeps the typing view's height (chips, field, keyboard) in every phase, so the ECG keeps its size
   function sizeBottom() {
-    if (st.phase !== 'answer' || $('kbd').hidden) return;
+    if (st.phase !== 'answer' || $('kbd').hidden || document.body.classList.contains('tabl')) return;   // (sideways: the panel)
     const b = $('bottom'); b.style.height = '';
     const h = $('answer').offsetHeight + $('kbd').offsetHeight; if (h > 100) b.style.height = `${h}px`;
   }
   function render() {
     measChips($('meas')); measChips($('fsMeas'));
     const ph = st.phase;
-    $('answer').hidden = ph === 'result'; $('kbd').hidden = ph !== 'answer'; $('region').hidden = ph !== 'region'; $('result').hidden = ph !== 'result';
+    for (const k of ['answer', 'region', 'result']) document.body.classList.toggle(`ph-${k}`, ph === k);   // (layout by phase: tablets)
+    $('answer').hidden = ph === 'result' || ph === 'wait'; $('kbd').hidden = ph !== 'answer'; $('region').hidden = ph !== 'region'; $('result').hidden = ph !== 'result';
     renderPicked();
     if (ph === 'answer') renderField();
     if (ph !== 'answer') { $('suggest').hidden = true; $('picked').hidden = false; }
@@ -457,12 +502,31 @@
 
 
   // ------------------------------------------------------------------ statistics
+  // a past ECG from Statistics: rebuilt from its recipe and shown with the answer given then (not rated again)
+  function openPast(hi) {
+    const h = st.hist[hi]; if (!h || !h.recipe) return;
+    $('stats').hidden = true; $('home').hidden = true;
+    // (phase 'wait': no answer field or keyboard while the ECG is rebuilt; this ECG is only looked at)
+    st.mode = 'view'; st.fromStats = true; st.item = null; st.phase = 'wait'; st.picked = []; st.score = null; setLoading('Recording the ECG…'); render();
+    request({ type: 'build', recipe: h.recipe }, (item) => {
+      if (st.mode !== 'view') return;
+      if (!item) { toast('Could not prepare that ECG'); goHome(); return; }
+      setLoading(null); st.item = item;
+      st.picked = (h.picked || []).filter((p) => BY_ID[p.id]).map((p) => ({ ...p }));
+      st.score = score(item.key, st.picked, (k) => (st.skills[k || 'conditions'] || { r: 1500 }).r); st.selRow = null;
+      st.delta = h.delta || 0; st.rated = h.rated !== undefined ? h.rated : h.mode !== 'daily'; st.time = h.time || 0;
+      st.phase = 'result'; st.shownAt = performance.now();
+      const hl = item.highlight || [], chest = hl.filter((l) => l.startsWith('V')).length;
+      setPage(chest > hl.length - chest ? 1 : 0, false); render();
+    });
+  }
   function renderStats() {
     const h = st.hist, n = h.length, avg = (f) => (n ? h.reduce((a, x) => a + f(x), 0) / n : 0);
     const el = $('statsBody'), tile = (v, l) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`;
-    const recent = h.slice(-5).reverse().map((x) => {
-      const d = x.mode === 'daily' || x.delta === undefined ? null : Math.round(x.delta);
-      return `<div><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="dl ${d === null ? '' : d >= 0 ? 'up' : 'down'}">${d === null ? 'daily' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`}</span></div>`;
+    const recent = h.slice(-5).map((x, i) => [x, n - Math.min(5, n) + i]).reverse().map(([x, hi]) => {
+      const d = (x.mode === 'daily' && !x.rated) || x.delta === undefined ? null : Math.round(x.delta);
+      // (an ECG answered since its recipe and answer are kept: tap to see its result again)
+      return `<div${x.recipe ? ` class="open" role="button" tabindex="0" data-h="${hi}"` : ''}><span>${x.title}</span><span class="pc" style="color:${x.score >= 0.8 ? 'var(--ok)' : x.score >= 0.4 ? 'var(--part)' : 'var(--bad)'}">${Math.round(x.score * 100)}%</span><span class="dl ${d === null ? '' : d >= 0 ? 'up' : 'down'}">${d === null ? 'daily' : `${d >= 0 ? '+' : '−'}${Math.abs(d)}`}</span></div>`;
     }).join('');
     el.innerHTML = `<div class="tiles">${tile(Math.round(overall()), 'Rating')}${tile(`<small>${title().name}</small>`, 'Title')}${tile(n, 'ECGs answered')}${tile(n ? `${Math.round(avg((x) => x.score) * 100)}%` : '—', 'Average score')}${tile(n ? `${Math.round(avg((x) => (x.rhythm === 'ok' ? 1 : 0)) * 100)}%` : '—', 'Rhythm correct')}${tile(streak(), 'Day streak')}</div>`
       + `<h3>Skills</h3>${radar()}`
@@ -506,7 +570,7 @@
     $('pageName').textContent = PAGES[st.page].name;
   }
   function regionAt(e) {
-    const cv = st.page ? $('c1') : $('c0'), r = cv.getBoundingClientRect(), { cells } = cellsOf(PAGES[st.page], r.width, r.height);
+    const cv = st.page && !isTablet() ? $('c1') : $('c0'), r = cv.getBoundingClientRect(), { cells } = cellsOf(sheetLayout(), r.width, r.height);
     const x = e.clientX - r.left, y = e.clientY - r.top, c = cells.find((k) => !k.rhythm && x >= k.x0 && x < k.x1 && y >= k.y0 && y < k.y1);
     return c ? regionOf(c.lead) : null;
   }
@@ -517,7 +581,7 @@
     view.addEventListener('pointermove', (e) => {
       if (!down) return;
       const dx = e.clientX - down.x, dy = e.clientY - down.y;
-      if (!down.drag && Math.abs(dx) > 8 && Math.abs(dx) > 1.2 * Math.abs(dy)) down.drag = true;
+      if (!down.drag && !isTablet() && Math.abs(dx) > 8 && Math.abs(dx) > 1.2 * Math.abs(dy)) down.drag = true;   // (tablets: one sheet, no swiping)
       if (!down.drag) return;
       const W = view.clientWidth, edge = (st.page === 0 && dx > 0) || (st.page === 1 && dx < 0);
       tr.classList.remove('slide'); tr.style.transform = `translateX(${-st.page * W + (edge ? dx / 3 : dx)}px)`;
@@ -532,7 +596,7 @@
       }
       if (Math.hypot(dx, dy) > 10) return;
       if (st.phase === 'region') { const r = regionAt(e); if (r) toggleRegion(r.id); return; }
-      if (lastTap && e.timeStamp - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) { lastTap = null; setFs(true); }
+      if (!isTablet() && lastTap && e.timeStamp - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) { lastTap = null; setFs(true); }
       else lastTap = { x: e.clientX, y: e.clientY, t: e.timeStamp };
     });
     view.addEventListener('pointercancel', () => { if (down && down.drag) setPage(st.page); down = null; });
@@ -547,9 +611,16 @@
   function setFs(on) {
     st.fs = on; syncFs();
   }
+  // left-handed: the keyboard and answer panel on the left of the ECG (tablets held sideways), kept on this device
+  const HAND_KEY = 'ecgTraining.hand';
+  try { if (localStorage.getItem(HAND_KEY) === 'left') document.body.classList.add('lefty'); } catch (e) { /* no storage */ }
   function syncFs() {
     const land = innerWidth > innerHeight && innerHeight < 520;   // a phone held sideways: the full ECG upright, no keyboard
     document.body.classList.toggle('land', land);
+    const tm = land ? '' : tabletMode();
+    document.body.classList.toggle('tabp', tm === 'tabp'); document.body.classList.toggle('tabl', tm === 'tabl');
+    if (tm) st.fs = false;
+    if (tm === 'tabl') $('bottom').style.height = ''; else requestAnimationFrame(sizeBottom);
     $('fs').hidden = !(st.fs || land);
     requestAnimationFrame(drawAll);
   }
@@ -626,14 +697,16 @@
     // Glicko-2 per skill against the item's rating (from its rhythm and the number and type of its
     // abnormalities): the rhythm skill on the rhythm, each other skill on its findings (location half)
     const before = overall(), opp = { r: st.item.rating, rd: 60 }, sub = st.score.skill;
-    if (st.mode !== 'daily') for (const k of SKILLS) if (sub[k] !== undefined) st.skills[k] = glicko(st.skills[k], opp, sub[k]);   // (the daily ECG is not rated)
+    const rated = st.mode !== 'daily' || st.rateDaily; st.rated = rated;
+    if (rated) for (const k of SKILLS) if (sub[k] !== undefined) st.skills[k] = glicko(st.skills[k], opp, sub[k]);   // (the daily ECG: only with premium on, the day's first answer)
     st.delta = overall() - before;
     const d = today(); if (st.mode === 'daily') d.daily = st.score.total; else d.n++;
     scheduleReview(st.item, st.score.total);
     st.phase = 'result'; st.typed = ''; st.shownAt = performance.now();
     const rk = st.item.recipe || { rhythm: st.item.key.rhythm, abn: [] };
     st.hist.push({ id: st.item.id, title: itemTitle(st.item.key), score: st.score.total, time: st.time, rhythm: st.score.rhythm, delta: st.delta, at: Date.now(), mode: st.mode,
-      keys: [rk.rhythm, ...rk.abn.map((a) => a.k)], miss: st.score.rows.filter((r) => r.cls === 'miss' || r.cls === 'part').map((r) => r.id) });
+      rated, recipe: st.item.recipe, picked: st.picked.map((p) => (p.regions ? { id: p.id, regions: p.regions.slice() } : { id: p.id })),
+      keys: [rk.rhythm, ...rk.abn.map((a) => a.k), ...rk.abn.filter((a) => a.site).map((a) => `site:${a.site}`)], miss: st.score.rows.filter((r) => r.cls === 'miss' || r.cls === 'part').map((r) => r.id) });
     saveProgress();
     // show the half of the ECG that carries the answer
     const hl = st.item.highlight || [], chest = hl.filter((l) => l.startsWith('V')).length, limb = hl.length - chest;
@@ -711,11 +784,11 @@
     const sc = st.score, pct = Math.round(sc.total * 100);
     $('rscore').textContent = `${pct}%`;
     $('rbar').style.width = '0%'; requestAnimationFrame(() => { $('rbar').style.width = `${pct}%`; $('rbar').style.background = pct >= 80 ? 'var(--ok)' : pct >= 40 ? 'var(--part)' : 'var(--bad)'; });
-    const d = Math.round(st.delta), daily = st.mode === 'daily' || st.mode === 'tutorial';
+    const d = Math.round(st.delta), daily = st.mode === 'daily' || st.mode === 'tutorial', unrated = !st.rated;
     // the rating before this ECG, then the change ("1500+13")
-    $('rdelta').innerHTML = daily ? 'not rated' : `${Math.round(overall() - st.delta)}<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>`;
+    $('rdelta').innerHTML = unrated ? 'not rated' : st.mode === 'view' ? `<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>` : `${Math.round(overall() - st.delta)}<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span>`;
     $('share').hidden = st.mode !== 'daily';
-    $('next').textContent = daily || (st.mode === 'review' && !st.reviewRun.length) ? 'Done' : 'Next';
+    $('next').textContent = daily || st.mode === 'view' || (st.mode === 'review' && !st.reviewRun.length) ? 'Done' : 'Next';
     $('rtime').textContent = `${Math.round(st.time)} s`;
     $('rchips').innerHTML = sc.rows.map((r, i) => `<button type="button" class="achip ${r.cls}${st.selRow === r ? ' sel' : ''}" data-i="${i}">${r.label}${r.tag ? ` <span class="tag">${r.tag}</span>` : ''}</button>`).join('');
     $('rline').textContent = st.selRow ? rowLine(st.selRow, st.item) : oneLine(sc, st.item);
@@ -745,10 +818,49 @@
     $('hTitle').textContent = ti.name;
     $('hTitleNext').textContent = ti.next ? `${ti.toNext} points to ${ti.next}` : 'Highest title';
     $('hDailyDate').textContent = date;
-    $('hDailyState').textContent = daily === null ? 'Same ECG for everyone today · not rated' : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
+    $('hDailyState').textContent = daily === null ? (premiumOn() ? 'Same ECG for everyone today · rated' : 'Same ECG for everyone today · not rated') : `Done today: ${Math.round(daily * 100)}% · tap to see it again`;
+    // locked: Train, Reviews and the skills show a lock and open the unlock page; the rating is provisional at first
+    const locked = !ownsTraining();
+    document.body.classList.toggle('locked', locked);
+    $('hTrainSub').textContent = locked ? `Unlock Training: ECGs at your level, practice by skill and reviews · ${price()}` : 'ECGs chosen for your level, mixed skills';
+    $('hRatingLabel').textContent = premiumOn() && ratedCount() < PROVISIONAL_N ? 'Rating · provisional' : 'Rating';
+    $('hStatsSub').textContent = locked ? 'Unlock Training for your ratings by skill' : 'Your ratings, statistics, and review recent ECGs';
     $('hReviews').textContent = due ? `${due} due` : st.reviews.length ? 'none due today' : 'none yet';
-    $('btnReviews').disabled = !due;
-    $('hSkills').innerHTML = SKILLS.map((k) => `<button type="button" data-skill="${k}"><b>${SKILL_NAME[k]}</b><small>${Math.round(st.skills[k].r)}</small></button>`).join('');
+    $('btnReviews').disabled = !due && ownsTraining();   // (locked: it opens the unlock page)
+    $('hSkills').innerHTML = SKILLS.map((k) => `<button type="button" data-skill="${k}"><b>${SKILL_NAME[k]}</b>${locked ? LOCK : `<small>${Math.round(st.skills[k].r)}</small>`}</button>`).join('');   // (locked: no ratings shown)
+  }
+  // the unlock page. The purchase itself comes with Google Play billing; until then, in the preview, it unlocks this device.
+  const LOCK = '<svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  function payButtons(busy) {
+    const web = webStore();
+    $('payPrice').textContent = price();
+    $('payBuy').textContent = busy ? 'Opening Google Play…' : web ? 'Get ECG Studio on Google Play' : `Unlock Training · ${price()}`;
+    $('payBuy').disabled = !!busy; $('payRestore').hidden = web;
+  }
+  function showPaywall() { payButtons(false); $('paywall').hidden = false; }
+  function unlocked() { $('paywall').hidden = true; renderHome(); }
+  function buyTraining() {
+    if (shop.app) { payButtons(true); window.ECGInApp.post('buy', { product: 'training' }); return; }   // (Google Play's own sheet)
+    if (webStore()) { window.open(PLAY_URL, '_blank', 'noopener'); return; }
+    store.set(OWNED_KEY, '1'); unlocked();
+    toast('Preview: Training unlocked on this device');
+  }
+  function restoreTraining() {
+    if (shop.app) { $('payRestore').disabled = true; window.ECGInApp.post('restore'); return; }
+    toast(store.get(OWNED_KEY) === '1' ? 'Purchase restored' : 'No purchase found on this device (preview)');
+  }
+  if (INAPP) {
+    window.ECGInApp.listen('ents', (d) => { shop.app = !!d.billing; shop.dev = !!d.dev; shop.ents = d.ents || {}; shop.prices = d.prices || {}; if (!$('home').hidden) renderHome(); if (!$('paywall').hidden) payButtons($('payBuy').disabled); });
+    window.ECGInApp.listen('bought', (d) => {
+      payButtons(false);
+      if (d.ok) { unlocked(); toast('Training unlocked. Thank you!'); }
+      else if (d.pending) toast('Payment pending: Training unlocks when Google Play confirms it');
+      else if (!d.cancelled) toast('The purchase did not go through. Please try again.');
+    });
+    window.ECGInApp.listen('restored', (d) => {
+      $('payRestore').disabled = false;
+      if (ownsTraining()) { unlocked(); toast('Purchase restored'); } else toast('No Training purchase found for this Google account');
+    });
   }
   function shareDaily() {
     const pct = Math.round(st.score.total * 100), text = `ECG Studio · Daily ECG ${new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}: ${pct}%${streak() > 1 ? ` · ${streak()}-day streak` : ''}\nhttps://ecgstudio.app/training`;
@@ -810,7 +922,13 @@
     $('regionCancel').addEventListener('click', () => endRegion(false));
     // (the tap that submitted must not land on the result's buttons, which open under the finger)
     const justShown = () => performance.now() - (st.shownAt || 0) < 450;
-    $('next').addEventListener('click', () => { if (justShown()) return; if ($('next').textContent === 'Done') goHome(); else nextItem(); });
+    $('next').addEventListener('click', () => {
+      if (justShown()) return;
+      if ($('next').textContent !== 'Done') { nextItem(); return; }
+      const back = st.mode === 'view' && st.fromStats; st.fromStats = false; goHome();
+      if (back) { renderStats(); $('stats').hidden = false; }   // (a past ECG: back to Statistics)
+    });
+    $('statsBody').addEventListener('click', (e) => { const r = e.target.closest('[data-h]'); if (r) openPast(+r.dataset.h); });
     $('share').addEventListener('click', () => { if (!justShown()) shareDaily(); });
     $('rchips').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b && !justShown()) selectRow(+b.dataset.i); });
     $('report').addEventListener('click', () => { if (!justShown()) reportProblem(); });
@@ -837,7 +955,10 @@
     $('btnDaily').addEventListener('click', () => startMode('daily'));
     $('btnReviews').addEventListener('click', () => startMode('review'));
     $('hSkills').addEventListener('click', (e) => { const b = e.target.closest('[data-skill]'); if (b) startMode('skill', b.dataset.skill); });
-    $('btnStats').addEventListener('click', () => { renderStats(); $('stats').hidden = false; });
+    $('btnStats').addEventListener('click', () => { if (!ownsTraining()) { showPaywall(); return; } renderStats(); $('stats').hidden = false; });
+    $('payBuy').addEventListener('click', buyTraining);
+    $('payRestore').addEventListener('click', restoreTraining);
+    $('payLater').addEventListener('click', () => { $('paywall').hidden = true; });
     // Model ("show me why"): the simulator on the same scenario; coming back starts a new ECG (progress is saved).
     // In the app: the Simulator tab opens on it, and the Training tab still holds this ECG.
     $('why').addEventListener('click', () => {
@@ -851,6 +972,9 @@
     const menu = $('menu'), showMenu = (on) => {
       const home = !$('home').hidden;
       for (const b of menu.querySelectorAll('[data-go="home"], [data-go="report"]')) b.hidden = home;
+      // (tablets held sideways: the answer panel and keyboard on the left or the right)
+      $('menuHand').hidden = !document.body.classList.contains('tabl');
+      $('menuHand').textContent = document.body.classList.contains('lefty') ? 'Keyboard on the right' : 'Keyboard on the left';
       menu.hidden = !on; for (const id of ['menuBtn', 'homeMenuBtn']) $(id).setAttribute('aria-expanded', String(on));
     };
     for (const id of ['menuBtn', 'homeMenuBtn']) $(id).addEventListener('click', (e) => { e.stopPropagation(); showMenu(menu.hidden); });
@@ -860,8 +984,9 @@
       showMenu(false);
       if (b.dataset.go === 'home') goHome();
       if (b.dataset.go === 'report') reportProblem();
-      if (b.dataset.go === 'stats') { renderStats(); $('stats').hidden = false; }
+      if (b.dataset.go === 'stats') { if (!ownsTraining()) { showPaywall(); return; } renderStats(); $('stats').hidden = false; }
       if (b.dataset.go === 'help') showHelp();
+      if (b.dataset.go === 'hand') { const on = !document.body.classList.contains('lefty'); document.body.classList.toggle('lefty', on); try { localStorage.setItem(HAND_KEY, on ? 'left' : 'right'); } catch (e) { /* no storage */ } requestAnimationFrame(drawAll); }
       if (b.dataset.go === 'restart' && confirm('Reset your progress? This clears your ratings and history on this phone.')) {
         st.hist = []; st.skills = Object.fromEntries(SKILLS.map((k) => [k, fresh()])); st.reviews = []; st.days = {}; saveProgress(); goHome();
       }
@@ -876,7 +1001,7 @@
     // (an installed iOS web app can settle its screen size and home-bar inset only after the first layout)
     addEventListener('pageshow', () => requestAnimationFrame(sizeBottom));
     if (window.visualViewport) visualViewport.addEventListener('resize', () => requestAnimationFrame(sizeBottom));
-    window.ECGTraining = { st, gen, tour, prepTour, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, startMode, goHome, VOCAB, BY_ID, suggest: () => suggestions().list.map((x) => x.t.name) };   // (automated tests)
+    window.ECGTraining = { st, gen, tour, prepTour, showPaywall, ownsTraining, premiumOn, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, startMode, goHome, VOCAB, BY_ID, suggest: () => suggestions().list.map((x) => x.t.name) };   // (automated tests)
     startWorker(); renderHome(); syncFs(); requestAnimationFrame(sizeBottom);   // (the heart is built in the background while the home screen shows)
     if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(drawAll));
   }

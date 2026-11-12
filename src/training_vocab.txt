@@ -24,9 +24,10 @@ vt | Ventricular tachycardia | VT, v tach, vtach, monomorphic VT, wide complex t
 tdp | Torsades de pointes | TdP, torsades, torsade, torsade de pointes, polymorphic VT, polymorphic ventricular tachycardia, PMVT
 chb | Complete AV block | third degree AV block, 3rd degree AV block, complete heart block, CHB, 3AVB, 3 AVB, AVB3, 3rd degree heart block, third degree heart block, 3HB, 3 HB, TCHB, AV dissociation block, AV dissociation, AVD, dissociation
 mobitz1 | Mobitz I | Wenckebach, Wenck, second degree AV block type 1, 2nd degree AV block type 1, Mobitz type 1, Mobitz 1, 2AVB type 1, 2 AVB 1, 2AVB1, type 1 second degree, 2nd degree type I
-mobitz2 | Mobitz II | second degree AV block type 2, 2nd degree AV block type 2, Mobitz type 2, Mobitz 2, 2AVB type 2, 2 AVB 2, 2AVB2, type 2 second degree, 2nd degree type II
-avb2to1 | 2:1 AV block | two to one AV block, 2 to 1 block, 21 block, 21 AVB, 2 1 AV block, second degree 2:1, 2nd degree 2 to 1, 2AVB 21
+mobitz2 | Mobitz II | second degree AV block type 2, 2nd degree AV block type 2, Mobitz type 2, Mobitz 2, 2AVB type 2, 2 AVB 2, 2AVB2, type 2 second degree, 2nd degree type II, 2:1 AV block, 2:1 block, 2 to 1 block, two to one AV block, 21 block, 21 AVB, 2:1
 vf | Ventricular fibrillation | VF, v fib, vfib, fibrillation ventricular
+ectopicAtrial | Ectopic atrial rhythm | EAR, ectopic atrial, low atrial rhythm, atrial rhythm, coronary sinus rhythm
+atrialTach | Atrial tachycardia | AT, focal atrial tachycardia, ectopic atrial tachycardia, FAT, EAT
 mat | Multifocal atrial tachycardia | MAT, chaotic atrial tachycardia, multifocal
 wap | Wandering atrial pacemaker | WAP, wandering pacemaker, multifocal atrial rhythm, WAP/MAT
 junctional | Junctional rhythm | nodal rhythm, junctional escape, junctional escape rhythm, JR
@@ -45,6 +46,7 @@ lvh | Left ventricular hypertrophy | LVH, left ventricular enlargement, LV hyper
 avb1 | First-degree AV block | 1st degree AV block, first degree heart block, 1AVB, 1 AVB, AVB1, 1st degree, first degree, 1HB, prolonged PR, long PR, PR prolongation
 lad | Left axis deviation | LAD, left axis, axis left
 rad | Right axis deviation | RAD, right axis, axis right
+ead | Extreme axis deviation | EAD, northwest axis, no man's land axis, extreme axis, indeterminate axis, extreme right axis
 pvc | Premature ventricular complexes | PVC, PVCs, VPC, VE, VEB, ventricular ectopic, ventricular ectopics, ventricular premature beats, ectopics
 pac | Premature atrial complexes | PAC, PACs, APC, atrial ectopic, atrial ectopics, atrial premature beats, SVE
 sinusPause | Sinus pause | sinus arrest, SA arrest, pause, sinus pauses

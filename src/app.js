@@ -352,6 +352,47 @@
     } };
   }
 
+  // The ridge where the source mesh trimmed the appendage: the left atrial wall and the cap within about two cap radii
+  // of the opening are smoothed together into a smooth patch (the patch's edge is held, so the heart does not shrink);
+  // full strength near the opening, fading to none at the edge. Points shared with any other structure stay
+  // where they are, and copies of a point in different meshes move together, so the closed surfaces stay closed (the
+  // cut view's caps depend on it). Drawing only: the tissue grid, model and ECG are unchanged.
+  function smoothLAA(parts, laa) {
+    const R = laa.r * 1.9, R1 = laa.r * 1.15, c = laa.c, key = (x, y, z) => `${Math.round(x * 100)},${Math.round(y * 100)},${Math.round(z * 100)}`;
+    const pts = new Map();   // key → { p, refs: [[pos, i]], labels, nb }
+    const at = (pos, i) => {
+      const k = key(pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]);
+      let e = pts.get(k);
+      if (!e) { e = { p: [pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]], refs: [], labels: new Set(), nb: new Set() }; pts.set(k, e); }
+      if (!e.refs.some((r) => r[0] === pos && r[1] === i)) e.refs.push([pos, i]);
+      return e;
+    };
+    const near = (pos, i) => Math.hypot(pos[3 * i] - c[0], pos[3 * i + 1] - c[1], pos[3 * i + 2] - c[2]) < R + 4;
+    for (const s of parts) {
+      const pos = s.pos, idx = s.idx, lab = s.laaStub ? 'stub' : s.laaCap || s.label === 3 ? 'la' : s.label;   // (the stub's points stay)
+      for (let f = 0; f < idx.length; f += 3) {
+        const v = [idx[f], idx[f + 1], idx[f + 2]];
+        if (!v.some((i) => near(pos, i))) continue;
+        const e = v.map((i) => at(pos, i));
+        for (const x of e) x.labels.add(lab);
+        for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) if (a !== b) e[a].nb.add(e[b]);
+      }
+    }
+    const move = [];
+    for (const e of pts.values()) {
+      if (e.labels.size !== 1 || !e.labels.has('la')) continue;   // (only the atrial wall and the cap; junctions stay)
+      const d = Math.hypot(e.p[0] - c[0], e.p[1] - c[1], e.p[2] - c[2]);
+      if (d >= R) continue;
+      const t = d <= R1 ? 1 : 1 - (d - R1) / (R - R1);
+      e.w = t * t * (3 - 2 * t); move.push(e);
+    }
+    const pass = (k) => {
+      const next = move.map((e) => { const m = [0, 0, 0]; for (const q of e.nb) { m[0] += q.p[0]; m[1] += q.p[1]; m[2] += q.p[2]; } const n = e.nb.size; return e.p.map((v, i) => v + k * e.w * (m[i] / n - v)); });
+      move.forEach((e, i) => { e.p = next[i]; });
+    };
+    for (let it = 0; it < 80; it++) pass(0.6);   // (the patch's edge is held, so it relaxes into a smooth surface without shrinking)
+    for (const e of move) for (const [pos, i] of e.refs) { pos[3 * i] = e.p[0]; pos[3 * i + 1] = e.p[1]; pos[3 * i + 2] = e.p[2]; }
+  }
   function buildSurfaces() {
     const span = A.dims.map((d) => d * A.h);
     const othersOf = (label) => {
@@ -365,10 +406,57 @@
     };
     const otherVerts = othersOf(1), otherRV = A.rvWallLayers ? othersOf(2) : null, otherRA = A.raWallLayers ? othersOf(4) : null;
     g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = []; g3.pickTissue = [];
+    // The source mesh trims the left atrial appendage and caps it, and the build puts that cap with the vessel caps
+    // (label 11, drawn lilac): its pieces are drawn as left atrial tissue instead, so the model shows four pulmonary
+    // veins, not five. Each opening is a disc and a short stub wall, separate pieces of the surface: the pieces whose
+    // centre is nearest the LAA landmark (of all the openings' landmarks) are the appendage's.
+    const laa = A.landmarks && A.landmarks.LAA;
+    const laaFaces = (pos, idx) => {
+      const key = (i) => `${Math.round(pos[3 * i] * 100)},${Math.round(pos[3 * i + 1] * 100)},${Math.round(pos[3 * i + 2] * 100)}`;
+      const par = new Map(), find = (x) => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
+      const join = (a, b) => { a = find(a); b = find(b); if (a !== b) par.set(a, b); };
+      const fk = [];
+      for (let f = 0; f < idx.length; f += 3) {
+        const k = [key(idx[f]), key(idx[f + 1]), key(idx[f + 2])]; fk.push(k[0]);
+        for (const x of k) if (!par.has(x)) par.set(x, x);
+        join(k[0], k[1]); join(k[1], k[2]);
+      }
+      const sum = new Map();
+      for (let f = 0; f < idx.length; f += 3) {
+        const r = find(fk[f / 3]), e = sum.get(r) || { n: 0, c: [0, 0, 0] }; sum.set(r, e); e.n++;
+        for (let d = 0; d < 3; d++) e.c[d] += pos[3 * idx[f] + d];
+      }
+      const lms = Object.entries(A.landmarks).filter(([k]) => /^(LAA|[LR][SI]PV|SVC|IVC)$/.test(k)), mine = new Set();
+      for (const [r, e] of sum) {
+        const m = e.c.map((v) => v / e.n);
+        let best = null, bd = Infinity;
+        for (const [k, l] of lms) { const d = Math.hypot(m[0] - l.c[0], m[1] - l.c[1], m[2] - l.c[2]); if (d < bd) { bd = d; best = k; } }
+        if (best === 'LAA') mine.add(r);
+      }
+      return (f) => mine.has(find(fk[f / 3]));
+    };
+    const parts = [];
     for (const s of A.json.surfaces) {
       const q = decodeB64(s.pos, Uint16Array), idx = decodeB64(s.idx, Uint32Array);
       const pos = new Float32Array(q.length);
       for (let i = 0; i < q.length; i++) pos[i] = A.origin[i % 3] + (q[i] / 65535) * span[i % 3];
+      if (s.label !== 11 || !laa) { parts.push({ label: s.label, pos, idx }); continue; }
+      // (the opening's own faces, within 4 mm of its plane and 1.6 cap radii, are smoothed with the atrial wall; the rest
+      // of the stub only takes the tissue colour and stays where it is: much of it lies inside the heart)
+      const cap = [], stub = [], rest = [], onLAA = laaFaces(pos, idx);
+      const inPlane = (f) => {
+        let x = 0, y = 0, z = 0; for (let k = 0; k < 3; k++) { const v = 3 * idx[f + k]; x += pos[v] / 3; y += pos[v + 1] / 3; z += pos[v + 2] / 3; }
+        const d = [x - laa.c[0], y - laa.c[1], z - laa.c[2]], along = d[0] * laa.n[0] + d[1] * laa.n[1] + d[2] * laa.n[2];
+        return Math.abs(along) < 4 && Math.hypot(...d) < laa.r * 1.6;
+      };
+      for (let i = 0; i < idx.length; i += 3) (onLAA(i) ? (inPlane(i) ? cap : stub) : rest).push(idx[i], idx[i + 1], idx[i + 2]);
+      parts.push({ label: 11, pos, idx: new Uint32Array(rest) });
+      if (cap.length) parts.push({ label: 3, pos, idx: new Uint32Array(cap), laaCap: true });
+      if (stub.length) parts.push({ label: 3, pos, idx: new Uint32Array(stub), laaCap: true, laaStub: true });
+    }
+    if (laa) smoothLAA(parts, laa);
+    for (const s of parts) {
+      const pos = s.pos, idx = s.idx;
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       geo.setIndex(new THREE.BufferAttribute(idx, 1));
@@ -382,6 +470,7 @@
         for (let v = 0; v < nv; v++) {
           vmap[v] = nearestTissue(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2]);
           if (vmap[v] < 0) vmap[v] = nearestTissue(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2], 4);
+          if (vmap[v] < 0 && s.laaCap) vmap[v] = nearestTissue(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2], 7);   // (the cap spans the opening)
         }
         geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
         mat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 22, specular: 0x222222, side: THREE.DoubleSide });
@@ -1178,6 +1267,9 @@
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > (e.pointerType === 'touch' ? 10 : 5)) { down = null; return; }   // (fingers wobble more than a mouse)
       down = null;
       const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      // a finger (a tablet held sideways, which has this layout): the phone's tap rules, as on phones (the conduction
+      // segment nearest the finger, blocks set at once, bursts start arrhythmias); a mouse: the rules below
+      if (e.pointerType === 'touch') { mobileTap(x, y, e.timeStamp); return; }
       ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
       hideBlockMenu();
       // what a click does depends only on where it lands, whatever tab is open (as on phones): the conduction system
@@ -1439,10 +1531,11 @@
     for (const p of document.querySelectorAll('#controls .tabpanel')) p.hidden = p.dataset.panel !== t;
     $('controls').classList.toggle('wide', t === 'learn' || (t === 'conditions' && !$('condCatalog').hidden));
     toggleControls(true);
-    // opening a tab shows the view it works in: blocks in the four-chamber cut, ischemia on the outside (the arteries)
+    // opening a tab shows the view it works in: blocks cut open (the conduction system), ischemia from the outside (the
+    // arteries). Only the cut changes: the heart keeps the way the user turned it (Round 66, the author)
     if (changed || fromClick) {
-      if (t === 'blocks' && ui.cutFrac < 100) { setCut(100); cameraPreset('front'); }
-      if (t === 'ischemia' && ui.cutFrac > 0) { setCut(0); cameraPreset('chest'); }
+      if (t === 'blocks' && ui.cutFrac < 100) setCut(100);
+      if (t === 'ischemia' && ui.cutFrac > 0) setCut(0);
     }
     if (t === 'learn') renderLearn();
     updateActionNote(); hideBlockMenu();
@@ -2476,6 +2569,11 @@
   // ---------------------------------------------------------------------------
   const MQ_PORT = matchMedia('(max-width: 743px) and (orientation: portrait)');
   const MQ_LAND = matchMedia('(max-height: 500px) and (orientation: landscape) and (pointer: coarse)');
+  // tablets held upright (744 px and wider: the iPad mini up): the phone layout, with the full 12-lead sheet and a lead II
+  // rhythm strip in the ECG pane instead of one lead group (body.t). Narrower tablets (7") keep the phone's lead groups;
+  // tablets held sideways get the desktop layout.
+  const MQ_TAB = matchMedia('(min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (pointer: coarse)');
+  const isT = () => document.body.classList.contains('t');
   const isM = () => document.body.classList.contains('m');
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
   const SECS = [2500, 5000, 10000];
@@ -2489,8 +2587,8 @@
   }
 
   function setMode() {
-    const b = document.body, was = isM(), m = MQ_PORT.matches || MQ_LAND.matches;
-    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches);
+    const b = document.body, was = isM(), tab = MQ_TAB.matches, m = MQ_PORT.matches || MQ_LAND.matches || tab;
+    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab);
     // phones (website and app): dark only, as the app; desktop follows the system setting
     if (m) document.documentElement.dataset.theme = 'dark'; else if (!INAPP) delete document.documentElement.dataset.theme;
     const ctl = $('controls');
@@ -2558,7 +2656,8 @@
     return {
       on(type, fn) { (hub[type] = hub[type] || []).push(fn); },
       get phone() { return isM(); },
-      get fsEcg() { return document.body.classList.contains('fs-ecg'); },
+      get fsEcg() { return document.body.classList.contains('fs-ecg') || document.body.classList.contains('ecgmax'); },
+      get desktop() { return !isM(); },
       // the camera's direction from the target (a drag that turns the heart changes it)
       camDir() { return g3.camera.position.clone().sub(g3.controls.target).normalize().applyQuaternion(g3.world.quaternion.clone().invert()); },
       controls: () => g3.controls,
@@ -2566,7 +2665,7 @@
       closeAll() {
         while (layers.length) layers.pop().close();   // (their history entries stay; going back over them does nothing)
         if (!$('guide').hidden) $('guide').hidden = true;
-        if (sheetOpen()) toggleControls(false);
+        if (isM() && sheetOpen()) toggleControls(false);   // (the desktop panel stays as the user left it)
         hideBlockMenu();
       },
       saveView() { saved = { pos: g3.camera.position.clone(), up: g3.camera.up.clone(), tgt: g3.controls.target.clone(), wp: g3.world.position.clone(), wq: g3.world.quaternion.clone(), cut: ui.cutFrac }; },
@@ -2624,7 +2723,7 @@
       occlude(node) { captureRef(); S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); interpret(true); },
       clearIschemia() { S.clearIschemia(); setIschTime(0); recolorIschemia(); renderIschList(); interpret(true); },
       block(site) { setBlockFrom(site, 'complete'); renderBlockList(); interpret(true); },
-      setFsEcg(on) { setFsEcg(on); },
+      setFsEcg(on) { if (isM()) setFsEcg(on); else setEcgMax(on); },
       siteName: (s) => SITE_NAME[s] || s,
       segmentName: (n) => segmentName(n),
     };
@@ -2737,7 +2836,7 @@
     if (!isM()) return;
     const b = document.body.classList;
     if (b.contains('fs-heart')) drawLeads($('clive'), [ph.live], 5000, 'double-tap: back', true);
-    else if (!b.contains('fs-ecg')) {
+    else if (!b.contains('fs-ecg') && !b.contains('t')) {   // (tablets: the 12-lead sheet, drawn by drawECG)
       drawLeads($('cgroup'), GROUPS[ph.group], ph.win);
       if (ph.peek !== null) drawLeads($('cgroup2'), GROUPS[ph.peek], ph.win);
     }
@@ -2752,6 +2851,13 @@
       openLayer('fs-ecg', () => { ph.fsEcg = false; fsClass(); });
       $('ghint').hidden = true; firstTime('ecgstudio.tipFsEcg');
     } else if (!on && ph.fsEcg) closeLayer('fs-ecg');
+  }
+  // the desktop layout (tablets held sideways): the ECG alone, the heart hidden (double tap on the ECG, or back)
+  function setEcgMax(on) {
+    if (on && !document.body.classList.contains('ecgmax')) {
+      document.body.classList.add('ecgmax'); resize3D(); buzz();
+      openLayer('ecgmax', () => { document.body.classList.remove('ecgmax'); resize3D(); });
+    } else if (!on) closeLayer('ecgmax');
   }
   function toggleFsHeart() {
     if (ph.fsHeart) { closeLayer('fs-heart'); return; }
@@ -2884,7 +2990,7 @@
     const c = tissueAt(ray);
     if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }
     // empty space: a double-tap fills the screen with the heart (and back)
-    if (lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
+    if (isM() && lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
     else lastEmpty = { x, y, t: now };
   }
   const ischTap = { last: null };
@@ -2959,14 +3065,14 @@
     const wrap = $('ecgWrap'), a = $('cgroup'), b2 = $('cgroup2');
     let down = null, lastTap = null;
     wrap.addEventListener('pointerdown', (e) => {
-      if (!isM() || e.target.closest('button')) return;
+      if ((!isM() && e.pointerType !== 'touch') || e.target.closest('button')) return;
       const r = wrap.getBoundingClientRect();
       down = { x: e.clientX, y: e.clientY, t: e.timeStamp, edge: e.clientX - r.left < 24 || r.right - e.clientX < 24, drag: 0 };
       try { wrap.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
     });
     wrap.addEventListener('pointermove', (e) => {
       const d = down;
-      if (!d || d.edge || document.body.classList.contains('fs-ecg')) return;
+      if (!d || d.edge || !isM() || isT() || document.body.classList.contains('fs-ecg')) return;   // (tablets: no lead groups to swipe)
       const dx = e.clientX - d.x, dy = e.clientY - d.y;
       if (!d.drag && Math.abs(dx) > 8 && Math.abs(dx) > 1.2 * Math.abs(dy)) d.drag = dx < 0 ? 1 : -1;
       if (!d.drag) return;
@@ -2977,7 +3083,12 @@
     });
     wrap.addEventListener('pointerup', (e) => {
       const d = down; down = null;
-      if (!d || !isM()) return;
+      if (!d) return;
+      if (!isM()) {   // (a finger on the desktop layout, a tablet held sideways: a double tap gives the ECG the whole width)
+        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) return;
+        if (lastTap && e.timeStamp - lastTap.t < DOUBLE_MS) { lastTap = null; setEcgMax(!document.body.classList.contains('ecgmax')); } else lastTap = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+        return;
+      }
       const dx = e.clientX - d.x, dy = e.clientY - d.y;
       if (d.drag) {
         // past a quarter of the width, or a quick flick: slide on; otherwise slide back
@@ -3030,7 +3141,7 @@
   }
 
   function initPhone() {
-    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode);
+    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode); MQ_TAB.addEventListener('change', setMode);
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
     initTouch(); initEcgTouch(); initSheet(); initAlpha();
@@ -3102,7 +3213,7 @@
     $('fsFlip').addEventListener('click', () => { ph.flip = !ph.flip; fsClass(); });
     $('fsInterp').addEventListener('click', () => { const off = document.body.classList.toggle('fs-nointerp'); $('fsInterp').setAttribute('aria-pressed', String(!off)); });
     try { if (localStorage.getItem('ecgstudio.tipFsEcg')) $('ghint').hidden = true; } catch (e) { /* no storage */ }
-    if (isM() && MQ_PORT.matches && !(window.ECGTour && window.ECGTour.pending()) && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
+    if (isM() && MQ_PORT.matches && !isT() && !(window.ECGTour && window.ECGTour.pending()) && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
   }
 
   function initUI() {
@@ -3150,6 +3261,10 @@
     initPicking(); initTwist(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     $('cutDepth').addEventListener('input', (e) => setCut(+e.target.value));
+    { // the view bar scrolls sideways when the pane is narrow: a fade at the right edge says there is more
+      const vb = document.querySelector('.viewbar'), more = () => vb.classList.toggle('more', !isM() && vb.scrollLeft + vb.clientWidth < vb.scrollWidth - 2);
+      vb.addEventListener('scroll', more, { passive: true }); new ResizeObserver(more).observe(vb); more();
+    }
     $('cutExt').addEventListener('click', () => setCut(0));
     $('cutFull').addEventListener('click', () => setCut(100));
     initStrips();

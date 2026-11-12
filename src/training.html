@@ -7,6 +7,7 @@
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
 <meta name="version" content="{{VERSION}}">
+<meta name="premium" content="{{PREMIUM}}">
 <meta name="report-form" content="{{REPORT_FORM}}">
 <meta name="theme-color" content="#0b131a">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
@@ -64,6 +65,8 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .hist { display: flex; flex-direction: column; gap: 6px; }
 .hist div { display: flex; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
 .hist div span:first-child { flex: 1; }
+.hist div.open { cursor: pointer; } .hist div.open::after { content: '›'; color: var(--muted); font-size: 18px; line-height: 1; }
+.hist div.open:active { background: var(--raised); }
 .hist .pc { font: 600 14px/1 var(--font-data); min-width: 44px; text-align: right; }
 .hist .tm { font: 400 12px/1 var(--font-data); color: var(--muted); min-width: 34px; text-align: right; }
 .hist .dl { font: 500 12px/1 var(--font-data); color: var(--muted); min-width: 40px; text-align: right; }
@@ -90,6 +93,26 @@ header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; m
 .hcard.main { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .hcard.main .hs { color: rgba(22,10,13,0.75); }
 .hcard.daily { border-color: #f0b429; }
+/* premium: locked cards and the unlock page */
+.lock { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: none; align-self: center; }
+body.locked .lock { display: inline-block; }
+body.locked #btnReviews, body.locked #btnStats, body.locked .hskills button { opacity: 0.6; }
+.hskills button .lock { margin-left: 8px; }
+body.locked .hskills button { justify-content: flex-start; }
+body.locked .hskills button b { margin-right: auto; }
+.linkish { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 10px; font-size: 13px; }
+#paywall .payhero .logo { width: 96px; height: 96px; }
+.pay { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.payhero { display: flex; justify-content: center; padding: 6px 0 0; }
+.page .pbody h3.paytitle { margin: 4px 0 2px; font: 600 24px/1.2 var(--font-display); color: var(--fg); text-transform: none; letter-spacing: 0; text-align: center; }
+.page .pbody .paylist { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-direction: column; gap: 8px; }
+.page .pbody .paylist li { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; font-size: 14.5px; color: var(--fg); }
+.page .pbody .payprice { text-align: center; margin: 6px 0 0; color: var(--muted); }
+.payprice b { color: var(--fg); font: 600 22px/1 var(--font-data); margin-right: 4px; }
+.paybuy { padding: 14px; font-size: 16px; border-radius: 10px; }
+.payrestore { padding: 12px; border-radius: 10px; }
+#payLater { align-self: center; }
+.page .pbody .paynote { text-align: center; font-size: 12.5px; color: var(--muted); margin: 0; }
 .hskills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .hskills button { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 12px; }
 .hskills small { font: 500 12px/1 var(--font-data); color: var(--muted); }
@@ -212,7 +235,7 @@ html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href], html.in
 #bottom { flex: none; display: flex; flex-direction: column; min-height: 0; }
 #bottom > #result, #bottom > #region { flex: 1 1 auto; min-height: 0; }
 #result { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px); }
-#result .rscroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+#result .rscroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; margin: -4px; }   /* (room for the selected chip's outline: a scrolling box clips what is drawn past its edge) */
 .scorebar { display: flex; align-items: center; gap: 10px; }
 .scorebar .bar { flex: 1; height: 10px; border-radius: 5px; background: var(--key); overflow: hidden; }
 .scorebar .bar i { display: block; height: 100%; border-radius: 5px; background: var(--ok); transition: width 0.5s; }
@@ -231,6 +254,84 @@ html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href], html.in
 .legend .l-ok::before { border-color: var(--ok); } .legend .l-part::before { border-color: var(--part); }
 .legend .l-miss::before { border-color: var(--miss); border-style: dashed; } .legend .l-bad::before { border-color: var(--bad); }
 
+/* tablets (body.tabp upright, body.tabl sideways; training.js tabletMode): the whole width, one 12-lead sheet with a
+   lead II rhythm strip, no pages */
+body.tabp #app, body.tabl #app { max-width: none; }
+body.tabp #track, body.tabl #track { width: 100%; transform: none !important; }
+body.tabp #track canvas, body.tabl #track canvas { width: 100%; }
+body.tabp #c1, body.tabl #c1, body.tabp #pager, body.tabl #pager { display: none; }
+body.tabp .page .pbody, body.tabl .page .pbody { width: 100%; max-width: 720px; margin-left: auto; margin-right: auto; box-sizing: border-box; }
+/* upright: the ECG takes the height left above the answer and a keyboard no wider than 720 px */
+body.tabp #ecgView { flex: 1 1 auto; margin: 4px 12px 8px; }
+body.tabp #bottom { margin-top: auto; }
+body.tabp #answer, body.tabp #kbd, body.tabp #result, body.tabp #region { width: 100%; max-width: 720px; margin-left: auto; margin-right: auto; box-sizing: border-box; }
+body.tabp #kbd { border-radius: 12px 12px 0 0; border: 1px solid var(--line); border-bottom: 0; }
+/* sideways: ECG on the left, a 420 px panel on the right (the answer above the keyboard; the lead groups and the result
+   take the whole panel) */
+body.tabl #app { display: grid; grid-template-columns: minmax(0, 1fr) clamp(360px, 34vw, 420px); grid-template-rows: auto auto minmax(0, 1fr); }
+body.tabl #app > header { grid-column: 1 / -1; }
+body.tabl #meas { grid-column: 1; grid-row: 2; }
+body.tabl #ecgView { grid-column: 1; grid-row: 3; margin: 0 4px 12px 12px; min-height: 0; }
+body.tabl #bottom { grid-column: 2; grid-row: 2 / 4; height: auto !important; min-height: 0; border-left: 1px solid var(--line); background: #0d161e; }
+body.tabl #answer { padding: 10px 12px 6px; }
+/* left-handed (⋯ → Keyboard on the left): the panel on the left, the ECG on the right */
+body.tabl.lefty #app { grid-template-columns: clamp(360px, 34vw, 420px) minmax(0, 1fr); }
+body.tabl.lefty #meas, body.tabl.lefty #ecgView { grid-column: 2; }
+body.tabl.lefty #ecgView { margin: 0 12px 12px 4px; }
+body.tabl.lefty #bottom { grid-column: 1; border-left: 0; border-right: 1px solid var(--line); }
+/* sideways, the answer panel from the bottom up, nothing floating: the keyboard; the field and Submit just above it; the
+   suggestions as a list right above the field (close to the keys); "Your answer" filling the rest at the top */
+body.tabl #answer { flex: 1 1 auto; min-height: 0; padding: 12px 12px 10px; gap: 10px; }
+body.tabl #slot { display: contents; }
+body.tabl #picked, body.tabl #picked[hidden] { display: flex !important; order: 1; flex: 1 1 auto; min-height: 0; flex-wrap: wrap; align-content: flex-start; gap: 8px;
+  overflow-y: auto; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+body.tabl #picked::before { content: "Your answer"; flex: 0 0 100%; font: 600 11px/1 var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+body.tabl #picked .prompt { flex: 0 0 100%; color: var(--muted); font-size: 14px; line-height: 1.4; }
+body.tabl #picked .achip { font-size: 14px; padding: 8px 12px; }
+#picked .steps { display: none; }
+body.tabl #picked .steps { display: block; flex: 0 0 100%; margin: 14px 0 0; padding-left: 20px; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+body.tabl #picked .steps li { margin-bottom: 6px; } body.tabl #picked .steps b { color: var(--fg); font-weight: 600; }
+body.tabl.ph-region #answer { flex: 0 0 auto; }
+body.tabl.ph-region #picked { flex: 0 0 auto; }
+body.tabl #region { padding: 4px 12px 12px; gap: 12px; }
+body.tabl #suggest { order: 2; flex: none; flex-direction: column; align-items: stretch; gap: 6px; padding: 0; overflow: visible; }
+body.tabl #suggest button { text-align: left; padding: 12px 14px; font-size: 15px; border-radius: 10px; display: flex; justify-content: space-between; gap: 10px; }
+body.tabl #suggest button small { color: var(--muted); font-size: 12px; }
+body.tabl #suggest .hint { padding: 4px 2px; color: var(--muted); }
+body.tabl #suggest button:nth-of-type(n+7) { display: none; }   /* (the best six; typing more narrows them) */
+body.tabl #fieldRow { order: 3; margin: 0; }
+body.tabl #field { height: 48px; font-size: 17px; }
+body.tabl #fieldRow #submit { height: 48px; padding: 0 20px; }
+body.tabl #kbd { margin-top: 0; padding: 10px 10px calc(env(safe-area-inset-bottom, 0px) + 12px); gap: 8px; }
+body.tabl #kbd .row { gap: 6px; }
+body.tabl #kbd button { height: 54px; font-size: 20px; border-radius: 8px; }
+body.tabl #kbd .wide, body.tabl #kbd .fn, body.tabl #kbd .space { font-size: 15px; }
+/* sideways, Training home: a dashboard in two columns (the day's ECG and Train on the left; reviews, statistics and the
+   skills on the right) */
+body.tabl #home .pbody.hbody { max-width: 1040px; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: min-content; gap: 14px 18px; align-content: start; padding-top: 22px; }
+body.tabl .hbody > .hstats { grid-column: 1 / -1; grid-template-columns: 1fr 1fr 2fr; gap: 14px; }
+body.tabl .hstats > div { padding: 14px 16px; border-radius: 12px; }
+body.tabl .hstats b { font-size: 26px; }
+body.tabl .hstats .hlevel b { font-size: 18px; }
+body.tabl .hstats span { font-size: 12.5px; }
+body.tabl .hbody > #btnDaily { grid-column: 1; grid-row: 2; }
+body.tabl .hbody > #btnTrain { grid-column: 1; grid-row: 3 / span 3; justify-content: flex-end; min-height: 200px; padding: 22px; }
+body.tabl .hbody > #btnTrain .ht { font-size: 30px; }
+body.tabl .hbody > #btnTrain .hs { font-size: 15px; max-width: 34ch; }
+body.tabl .hbody > #btnReviews { grid-column: 2; grid-row: 2; }
+body.tabl .hbody > #btnStats { grid-column: 2; grid-row: 3; }
+body.tabl .hbody > h3 { grid-column: 2; grid-row: 4; margin: 6px 0 0; }
+body.tabl .hbody > #hSkills { grid-column: 2; grid-row: 5; }
+body.tabl .hcard { padding: 18px 20px; }
+body.tabl .hcard .ht { font-size: 20px; }
+body.tabl .hcard .hs { font-size: 14px; }
+body.tabl .hskills button { padding: 16px 14px; }
+/* tablets: the chips and the suggestions wrap instead of scrolling sideways */
+body.tabp #slot, body.tabl #slot { height: auto; min-height: 42px; }
+body.tabp #picked, body.tabl #picked, body.tabp #suggest, body.tabl #suggest { flex-wrap: wrap; overflow: visible; row-gap: 6px; padding-top: 2px; padding-bottom: 2px; }
+body.tabl #kbd { margin-top: auto; }
+body.tabl #kbd button { height: 52px; }
+body.tabl #result, body.tabl #region { border-top: 0; }
 /* full 12-lead turned sideways (double-tap), or upright when the phone is held sideways (body.land) */
 #fs { position: fixed; inset: 0; z-index: 20; background: var(--bg); }
 #fs .inner { position: fixed; left: 50%; top: 50%; width: 100vh; width: 100dvh; height: 100vw; transform: translate(-50%, -50%) rotate(90deg);
@@ -258,6 +359,7 @@ body.land #fsClose { display: none; }
     <button type="button" data-go="report">Report a problem with this ECG</button>
     <button type="button" data-go="stats">Statistics</button>
     <button type="button" data-go="help">Help</button>
+    <button type="button" data-go="hand" id="menuHand" hidden>Keyboard on the left</button>
     <button type="button" data-go="restart">Reset progress</button>
     <hr>
     <a href="../index.html">ECG Studio simulator</a>
@@ -298,16 +400,35 @@ body.land #fsClose { display: none; }
     <div class="phead app-bar"><h2><span class="tlogo">{{LOGO_SVG}}</span><span>ECG <span class="red">Studio</span> Training</span></h2><button type="button" id="homeMenuBtn" aria-label="Menu" aria-expanded="false">⋯</button></div>
     <div class="pbody hbody">
       <div class="hstats">
-        <div><b id="hRating">1500</b><span>Rating</span></div>
+        <div><b id="hRating">1500</b><span id="hRatingLabel">Rating</span></div>
         <div><b id="hStreak">0</b><span>Day streak</span></div>
         <div class="hlevel"><b id="hTitle">Medical student</b><span id="hTitleNext"></span></div>
       </div>
       <button type="button" class="hcard daily" id="btnDaily"><span class="ht">Daily ECG <small id="hDailyDate"></small></span><span class="hs" id="hDailyState"></span></button>
-      <button type="button" class="hcard main" id="btnTrain"><span class="ht">Train</span><span class="hs">ECGs chosen for your level, mixed skills</span></button>
-      <button type="button" class="hcard" id="btnReviews"><span class="ht">Reviews <small id="hReviews"></small></span><span class="hs">ECGs you missed</span></button>
-      <button type="button" class="hcard" id="btnStats"><span class="ht">Statistics</span><span class="hs">Your ratings by skill, scores, speed and recent ECGs</span></button>
+      <button type="button" class="hcard main" id="btnTrain"><span class="ht">Train <svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="hs" id="hTrainSub">ECGs chosen for your level, mixed skills</span></button>
+      <button type="button" class="hcard" id="btnReviews"><span class="ht">Reviews <small id="hReviews"></small><svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="hs">ECGs you missed</span></button>
+      <button type="button" class="hcard" id="btnStats"><span class="ht">Statistics <svg class="lock" viewBox="0 0 24 24" aria-label="locked"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="hs" id="hStatsSub">Your ratings, statistics, and review recent ECGs</span></button>
       <h3>Practice by skill</h3>
       <div class="hskills" id="hSkills"></div>
+    </div>
+  </div>
+  <!-- the unlock page (premium): Training is one purchase; the simulator and the daily ECG stay free -->
+  <div class="page" id="paywall" hidden>
+    <div class="phead"><button type="button" data-close>‹ Back</button><h2>Unlock Training</h2></div>
+    <div class="pbody pay">
+      <div class="payhero">{{LOGO_SVG}}</div>
+      <h3 class="paytitle">Maximize your ECG training</h3>
+      <ul class="paylist">
+        <li><b>Train</b>: a fresh ECG every time, chosen for your level</li>
+        <li><b>Practice by skill</b>: rhythm, conduction, ischemia and conditions</li>
+        <li><b>Reviews</b>: spaced repetition drills in the findings you missed</li>
+        <li><b>Ratings</b> for every skill, and full statistics with review</li>
+      </ul>
+      <p class="payprice"><b id="payPrice">$9.99</b> one-time purchase · yours to keep</p>
+      <button type="button" class="primary paybuy" id="payBuy">Unlock Training · $9.99</button>
+      <button type="button" class="payrestore" id="payRestore">Restore purchase</button>
+      <button type="button" class="linkish" id="payLater">Not now</button>
+      <p class="paynote">The simulator and the daily ECG stay free.</p>
     </div>
   </div>
   <div class="page" id="stats" hidden>

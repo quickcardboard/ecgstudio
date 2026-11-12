@@ -1,7 +1,7 @@
 <meta charset="utf-8">
 <meta name="author" content="Thomas Liou">
 <title>ECG Studio · 3D Heart and 12-Lead ECG Simulator</title>
-<meta name="description" content="ECG Studio: a 3D beating heart that computes the 12-lead ECG from its own electrical activity. Explore rhythms, conduction blocks, ischemia and infarction, hypertrophy, WPW, pericarditis and Brugada in real time.">
+<meta name="description" content="ECG Studio: a 3D beating heart that computes the 12-lead ECG from its own electrical activity. Explore rhythms, conduction blocks, ischemia and infarction, hypertrophy, WPW, pericarditis, Brugada, electrolyte disturbances and hypothermia in real time.">
 <meta property="og:title" content="ECG Studio · 3D Heart and 12-Lead ECG Simulator">
 <meta property="og:url" content="https://ecgstudio.app/">
 <link rel="canonical" href="https://ecgstudio.app/">
@@ -410,6 +410,7 @@ body.m #controls .rlist button { padding: 12px 10px; font-size: 14.5px; }
 #pane3d { --vb: 44px; }
 .viewbar { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: var(--vb); box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 10px;
   background: var(--panel); border-top: 1px solid var(--panel-line); color: var(--viewport-fg); backdrop-filter: blur(6px); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.viewbar.more { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); }   /* (more to scroll: a fade at the right edge) */
 .viewbar .vcut { display: flex; align-items: center; gap: 6px; flex: 1 1 240px; min-width: 190px; max-width: 340px; }
 .viewbar .cutend { padding: 4px 6px; background: transparent; border-color: transparent; color: var(--panel-muted); }
 .viewbar .cutend[aria-pressed="true"] { color: var(--viewport-fg); border-color: var(--panel-line); background: rgba(255,255,255,0.06); }
@@ -470,6 +471,7 @@ body.m .vsum { display: none; }
 .sheet .close { float: right; font-size: 14px; padding: 8px 12px; border-radius: 8px; background: var(--raised); }   /* (the Help close button matches Training's) */
 .sheet .tourbtn { margin-right: 8px; display: none; }   /* (the interactive tutorial: the app's phone layout only) */
 html.inapp body.m .sheet .tourbtn { display: block; }
+@media (pointer: coarse) and (min-width: 900px) { html.inapp .sheet .tourbtn { display: block; } }   /* (tablets held sideways too) */
 html.inapp body.m #guide .toc { clear: both; padding-top: 6px; }   /* (room below the Tutorial and Close buttons) */
 .toc { display: flex; flex-wrap: nowrap; gap: 6px; margin: 10px 0 4px; overflow-x: auto; scrollbar-width: none; }
 .toc::-webkit-scrollbar { display: none; }
@@ -633,6 +635,26 @@ body.m.fs-ecg .fsbar { display: flex; gap: 6px; position: absolute; z-index: 2; 
 .fsbar button { padding: 7px 10px; font-size: 12.5px; }
 .fsbar button[aria-pressed="true"] { border-color: #c2304f; }
 body.m.fs-ecg.ml #fsFlip, body.m.fs-ecg.ml #fsExit { display: none; }
+/* the ECG alone (double tap on the ECG with a finger in this layout, i.e. a tablet held sideways) */
+body.ecgmax #pane3d, body.ecgmax #divider { display: none; }
+body.ecgmax #paneEcg { flex: 1 1 auto; }
+/* touch screens in the desktop layout (tablets held sideways): finger-sized controls (about 40 px) */
+@media (pointer: coarse) {
+  body:not(.m) #pane3d { --vb: 54px; }
+  body:not(.m) .pane-head .tabs button { padding: 10px 14px; font-size: 14px; }
+  body:not(.m) .pane-head button, body:not(.m) .simctl button, body:not(.m) #controls button { min-height: 40px; }
+  body:not(.m) .viewbar button, body:not(.m) .viewbar .tog { min-height: 38px; padding: 8px 12px; font-size: 13px; }
+  body:not(.m) #controls .rlist button, body:not(.m) #controls .rsel { padding: 11px 12px; font-size: 14px; }
+  body:not(.m) input[type=range] { height: 32px; }
+  body:not(.m) .strips button { min-height: 34px; min-width: 38px; }
+}
+/* tablets held upright (body.t, 744 px and wider): the phone layout with the full 12-lead sheet and a lead II rhythm strip
+   in the ECG pane (the desktop canvas), and a little more room for the ECG */
+body.m.t #pane3d { flex: 0 0 50%; }
+body.m.t #controls, body.m.t.sheet-full #controls { left: 0; right: 0; width: auto; max-width: 680px; margin: 0 auto; }   /* (the control sheet: centred, not edge to edge) */
+body.m.t #cecg { display: block; width: 100%; height: 100%; }
+body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { display: none; }
+body.m.t #ghint { display: none; }
 /* tablets held upright: heart above, ECG below */
 @media (min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (min-height: 501px) {
   #split { flex-direction: column; }
@@ -885,7 +907,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li><b>Rhythm:</b> adjust the heart rate and toggle persistent arrhythmias. Click on the heart to stimulate an ectopic beat.</li>
         <li><b>Blocks:</b> only useful during a cutaway view. Click on the conduction system to start a block.</li>
         <li><b>Ischemia:</b> click a coronary artery to narrow it there (partial flow: subendocardial ischemia, ST depression and T changes that resolve), or double-click to occlude it (STEMI, then infarction). Use the time slider to see progression of the injury.</li>
-        <li><b>Conditions:</b> add conditions such as chamber enlargement, WPW or pericarditis from the searchable list; remove them from the active list.</li>
+        <li><b>Conditions:</b> add conditions such as chamber enlargement, WPW, pericarditis, electrolyte disturbances, hypothermia or Wellens' pattern from the searchable list; remove them from the active list.</li>
         <li><b>Learn:</b> a review of the key features of this ECG and common pitfalls.</li>
       </ul>
     </section>
@@ -899,7 +921,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (b2d6f04).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-12 (580a7ea).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -930,7 +952,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
             <li>On the heart: tap an atrium or ventricle for an ectopic beat; three quick taps start flutter (atria) or VT (ventricles), four start AF or VF.</li>
           </ul>
         </li>
-        <li><b>Blocks:</b> opens the four-chamber cut. Tap the conduction system to cycle through its blocks.</li>
+        <li><b>Blocks:</b> opens the cut view. Tap the conduction system to cycle through its blocks.</li>
         <li><b>View:</b> External ↔ Cut slider, the Anterior / 4-chamber / Lateral / Apex views, and the Labels, Leads and Legend switches.</li>
         <li><b>Ischemia:</b> opens the outside view. From any tab, tap a coronary artery to narrow it (partial flow: ST depression and T changes) or double-tap to occlude it; taps elsewhere on the heart still give ectopic beats. Each region (for example proximal, mid or distal LAD) holds one marker, and one tap on it removes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
         <li><b>Conditions:</b> add or remove chronic and acute heart conditions.</li>
@@ -943,7 +965,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-10 (b2d6f04).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-12 (580a7ea).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -2254,8 +2276,8 @@ THE SOFTWARE.
     atrialSourceGain: 0.31, // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
     rvCvMul: 1,           // RV myocardial conduction speed factor (RVH option)
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
-    apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
-    apdVentApexExtra: 20,  // apicobasal APD gradient (+: apex longer; sized so limb-lead T stays within textbook height)
+    apdVentEndoExtra: 40,  // endocardium longer than epicardium (upright T waves); Round 67: 85 → 40 (repolarisation refit)
+    apdVentApexExtra: -15, // apicobasal APD gradient (+: apex longer); Round 67: 20 → −15 (base longer than apex, as measured)
     apdRVoffset: 0,        // RV and LV action potentials of similar length (a longer RV APD gave a dip before the T wave)
     apdAtrial: 190, apdMinAtrial: 135, flutterApdMin: 185,
     apdPurk: 340,
@@ -2268,7 +2290,7 @@ THE SOFTWARE.
     cvRestK: 0.6, cvRestTau: 30,
     avnCvRestK: 2.4, avnCvRestTau: 150,  // AV-node decremental conduction (2.4: AVNRT ~175 bpm, orthodromic AVRT > 200 bpm)
     avnErpExtra: 180,      // post-repolarisation refractoriness of AV node (ms)
-    electrotonicK: 1.4,    // APD shortening per ms of later activation (cardiac memory)
+    electrotonicK: 1.0,    // APD shortening per ms of later activation (cardiac memory); Round 67: 1.4 → 1.0
     erpFrac: 0.92,         // ERP as fraction of APD (myocardium)
 
     // Transmembrane potential shape
@@ -2342,7 +2364,7 @@ THE SOFTWARE.
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
-    cavityWindowT: 0.25,   // BANDAGE, not a fix: the cavity window's share during the ST-T (full during the QRS). See below and docs/DEVELOPMENT.md Round 47
+    cavityWindowT: 1,      // the cavity window's share during the ST-T (full during the QRS); was 0.25 (a bandage, Round 47) until V3 took half its ST-T from the solved torso (Round 67)
     cavityWindow: 0.45,    // >0: a chest electrode over a transmural scar sees the LV cavity potential through it (Wilson): V += k·Ω·(φ_cavity − V), Ω = scar share of the electrode's view of the LV epicardium
     scarWindow: 0.5,       // old scar as an electrical window: its would-be activation counted inverted (0 = silent scar)
     scarRefractory: 200,   // ms between phantom activations of a scar cell
@@ -2354,6 +2376,7 @@ THE SOFTWARE.
     septalPerf: [0.14, 0.3, 0.45, 0.6],      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
+    occlusionDeadS: null, occlusionBorderMm: null,  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
     pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.3, pericardSag: -0.55, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
@@ -2375,7 +2398,7 @@ THE SOFTWARE.
     atrialLimbGain: 1.85,      // atrial sources in the solved-torso limb leads: keeps the P-wave calibration made with the cylinder field (P in II 0.23 mV)
     limbTorso2: true,          // limb leads I, II from the solved torso (src/torso_limb.json: shoulder/axilla and hip contact patches) instead of the cylinder field
     fullTorso: false,          // with chestTorso: every lead from the solved torso's electrode potentials (limb LA−RA, LL−RA; chest V − WCT), no heart-vector blend
-    chestTorsoT: 1, chestTorsoT0: 40, chestTorsoTRamp: 80, chestTorsoTGain: 1, chestTorsoTCav: 0, chestTorsoTLead: [0, 0, 0, 0.5, 1, 1],   // ST-T of the chest leads from the solved torso (see the chest leads in Sim)
+    chestTorsoT: 1, chestTorsoT0: 40, chestTorsoTRamp: 80, chestTorsoTGain: 1, chestTorsoTCav: 0, chestTorsoTLead: [0, 0, 0.5, 0.75, 1, 1],   // ST-T of the chest leads from the solved torso (see the chest leads in Sim)
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
@@ -3902,10 +3925,12 @@ THE SOFTWARE.
     addOcclusion(node) {
       const M = this.M, A = M.A, vn = M.coronary.voxNode, aff = new Uint8Array(A.n);
       for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
-      const ins = this._makeInsult('occlusion', aff, this.P.ischBorderMm);
+      const fam0 = this._family(M.coronary.nodes[node].branch), ob = this.P.occlusionBorderMm;
+      const ins = this._makeInsult('occlusion', aff, ob && ob[fam0] !== undefined ? ob[fam0] : this.P.ischBorderMm);
       ins.node = node; ins.branch = M.coronary.nodes[node].branch;
       { const oi = this.P.occlusionInj, fam = this._family(ins.branch); ins.injScale = oi ? (typeof oi === 'number' ? oi : oi[fam] === undefined ? 1 : oi[fam]) : 1;
-        const ol = this.P.occlusionLate; ins.lateScale = ol ? (typeof ol === 'number' ? ol : ol[fam] === undefined ? 1 : ol[fam]) : 1; }
+        const ol = this.P.occlusionLate; ins.lateScale = ol ? (typeof ol === 'number' ? ol : ol[fam] === undefined ? 1 : ol[fam]) : 1;
+        const od = this.P.occlusionDeadS; ins.deadS = od && od[fam] !== undefined ? od[fam] : this.P.ischDeadS; }
       ins.nodal = { san: M.isDownstream(M.coronary.sanNode, node), avn: M.isDownstream(M.coronary.avnNode, node) };
       return this._addInsult(ins);
     }
@@ -4131,7 +4156,7 @@ THE SOFTWARE.
 
     // Cell state h hours after onset for severity s and transmural depth tm.
     // Returns {apd, vRest, amp, cv, dead} multipliers/values.
-    _ischemicState(s, tm, h, kind, k = 1, kl = 1, hg = 1) {   // k: occlusionInj of the artery family (the early ST/T sources: injury current, K-ATP shortening)
+    _ischemicState(s, tm, h, kind, k = 1, kl = 1, hg = 1, ds = this.P.ischDeadS) {   // ds: the severity above which the cell dies (per artery family: occlusionDeadS)   // k: occlusionInj of the artery family (the early ST/T sources: injury current, K-ATP shortening)
       const P = this.P, sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
       if (kind === 'subendo') s *= 1 - sm((tm - 0.12) / 0.2);                // confined to the inner wall
       if (s <= 0.01) return null;
@@ -4149,13 +4174,13 @@ THE SOFTWARE.
       // necrosis advances from endocardium to epicardium (wavefront phenomenon)
       // (the innermost layer, fed from the cavity blood, survives with the Purkinje junctions)
       const front = sm((h - 0.4) / P.ischNecrosisH) * (kind === 'subendo' ? 0.4 : P.ischFrontMax);
-      const dead = s > P.ischDeadS && (tm > 0.06 || (h > 8 && kind !== 'subendo')) && tm < front;   // (the inner layer is lost too once a transmural infarct is complete; under a subendocardial one it survives on cavity blood)
+      const dead = s > ds && (tm > 0.06 || (h > 8 && kind !== 'subendo')) && tm < front;   // (the inner layer is lost too once a transmural infarct is complete; under a subendocardial one it survives on cavity blood)
       // the surviving epicardial rim over a completed infarct is drawn as part of
       // the infarct (it stays electrically alive)
-      const rim = !dead && kind !== 'subendo' && s > P.ischDeadS && tm >= front && sm((h - 0.4) / P.ischNecrosisH) > 0.98;
+      const rim = !dead && kind !== 'subendo' && s > ds && tm >= front && sm((h - 0.4) / P.ischNecrosisH) > 0.98;
       // severely injured (depolarised) muscle ahead of the necrosis front stops
       // conducting (sodium-channel inactivation) while it still drives injury current
-      const unexcitable = !dead && kind !== 'subendo' && h >= 2 && s > P.ischDeadS && inj > P.ischBlockInj;
+      const unexcitable = !dead && kind !== 'subendo' && h >= 2 && s > ds && inj > P.ischBlockInj;
       return {
         apd, dead, rim, unexcitable, level: Math.max(inj, 0.5 * s * katp), kind, decl: dead ? 0 : P.ischPlateauDrop * s * katp * kk,
         // necrotic muscle stays depolarised (and partly coupled, see _uncoupleDead) until it turns to scar
@@ -4182,7 +4207,7 @@ THE SOFTWARE.
         if (ins.kind !== 'occlusion') continue;
         const depth = ins._depth || (ins._depth = this._territoryDepth(ins.cells));
         for (let q = 0; q < ins.cells.length; q++) {
-          const c = ins.cells[q], sv = ins.sev[q]; cover[c] = 1; if (sv <= P.ischDeadS) continue;
+          const c = ins.cells[q], sv = ins.sev[q]; cover[c] = 1; if (sv <= (ins.deadS === undefined ? P.ischDeadS : ins.deadS)) continue;
           const tm = A.label[c] === LAB.RV ? 0.5 : A.tm[c] < 0 ? 0.5 : A.tm[c];
           const n = (tm > 0.06 || h > 8) && tm < front ? 1 : sm((1.3 * g - (1 - depth[q])) / 0.3);
           if (n > out[c]) out[c] = n;
@@ -4221,7 +4246,7 @@ THE SOFTWARE.
         // take its inner layers (everything off the epicardial surface)
         const c = ins.cells[q], rv = A.label[c] === LAB.RV, tm = rv ? (ins.kind === 'subendo' ? (A.epi[c] ? 1 : 0.05) : 0.5) : A.tm[c] < 0 ? 0.5 : A.tm[c];
         const hg = P.ischHypComp ? Math.pow(rv ? P.rvSourceGain : P.lvSourceGain, -P.ischHypComp) : 1;   // (hypertrophy: its source gain would multiply the injury current too)
-        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, (ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale) * hg, ins.lateScale === undefined ? 1 : ins.lateScale, hg);   // (RV muscle less reduced: the V1 elevation of RV involvement)
+        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, (ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale) * hg, ins.lateScale === undefined ? 1 : ins.lateScale, hg, ins.deadS === undefined ? this.P.ischDeadS : ins.deadS);   // (RV muscle less reduced: the V1 elevation of RV involvement)
         if (!st) continue;
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);
@@ -5371,6 +5396,47 @@ THE SOFTWARE.
     } };
   }
 
+  // The ridge where the source mesh trimmed the appendage: the left atrial wall and the cap within about two cap radii
+  // of the opening are smoothed together into a smooth patch (the patch's edge is held, so the heart does not shrink);
+  // full strength near the opening, fading to none at the edge. Points shared with any other structure stay
+  // where they are, and copies of a point in different meshes move together, so the closed surfaces stay closed (the
+  // cut view's caps depend on it). Drawing only: the tissue grid, model and ECG are unchanged.
+  function smoothLAA(parts, laa) {
+    const R = laa.r * 1.9, R1 = laa.r * 1.15, c = laa.c, key = (x, y, z) => `${Math.round(x * 100)},${Math.round(y * 100)},${Math.round(z * 100)}`;
+    const pts = new Map();   // key → { p, refs: [[pos, i]], labels, nb }
+    const at = (pos, i) => {
+      const k = key(pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]);
+      let e = pts.get(k);
+      if (!e) { e = { p: [pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]], refs: [], labels: new Set(), nb: new Set() }; pts.set(k, e); }
+      if (!e.refs.some((r) => r[0] === pos && r[1] === i)) e.refs.push([pos, i]);
+      return e;
+    };
+    const near = (pos, i) => Math.hypot(pos[3 * i] - c[0], pos[3 * i + 1] - c[1], pos[3 * i + 2] - c[2]) < R + 4;
+    for (const s of parts) {
+      const pos = s.pos, idx = s.idx, lab = s.laaStub ? 'stub' : s.laaCap || s.label === 3 ? 'la' : s.label;   // (the stub's points stay)
+      for (let f = 0; f < idx.length; f += 3) {
+        const v = [idx[f], idx[f + 1], idx[f + 2]];
+        if (!v.some((i) => near(pos, i))) continue;
+        const e = v.map((i) => at(pos, i));
+        for (const x of e) x.labels.add(lab);
+        for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) if (a !== b) e[a].nb.add(e[b]);
+      }
+    }
+    const move = [];
+    for (const e of pts.values()) {
+      if (e.labels.size !== 1 || !e.labels.has('la')) continue;   // (only the atrial wall and the cap; junctions stay)
+      const d = Math.hypot(e.p[0] - c[0], e.p[1] - c[1], e.p[2] - c[2]);
+      if (d >= R) continue;
+      const t = d <= R1 ? 1 : 1 - (d - R1) / (R - R1);
+      e.w = t * t * (3 - 2 * t); move.push(e);
+    }
+    const pass = (k) => {
+      const next = move.map((e) => { const m = [0, 0, 0]; for (const q of e.nb) { m[0] += q.p[0]; m[1] += q.p[1]; m[2] += q.p[2]; } const n = e.nb.size; return e.p.map((v, i) => v + k * e.w * (m[i] / n - v)); });
+      move.forEach((e, i) => { e.p = next[i]; });
+    };
+    for (let it = 0; it < 80; it++) pass(0.6);   // (the patch's edge is held, so it relaxes into a smooth surface without shrinking)
+    for (const e of move) for (const [pos, i] of e.refs) { pos[3 * i] = e.p[0]; pos[3 * i + 1] = e.p[1]; pos[3 * i + 2] = e.p[2]; }
+  }
   function buildSurfaces() {
     const span = A.dims.map((d) => d * A.h);
     const othersOf = (label) => {
@@ -5384,10 +5450,57 @@ THE SOFTWARE.
     };
     const otherVerts = othersOf(1), otherRV = A.rvWallLayers ? othersOf(2) : null, otherRA = A.raWallLayers ? othersOf(4) : null;
     g3.tissueMeshes = []; g3.clipMats = []; g3.allGeos = []; g3.pickTissue = [];
+    // The source mesh trims the left atrial appendage and caps it, and the build puts that cap with the vessel caps
+    // (label 11, drawn lilac): its pieces are drawn as left atrial tissue instead, so the model shows four pulmonary
+    // veins, not five. Each opening is a disc and a short stub wall, separate pieces of the surface: the pieces whose
+    // centre is nearest the LAA landmark (of all the openings' landmarks) are the appendage's.
+    const laa = A.landmarks && A.landmarks.LAA;
+    const laaFaces = (pos, idx) => {
+      const key = (i) => `${Math.round(pos[3 * i] * 100)},${Math.round(pos[3 * i + 1] * 100)},${Math.round(pos[3 * i + 2] * 100)}`;
+      const par = new Map(), find = (x) => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
+      const join = (a, b) => { a = find(a); b = find(b); if (a !== b) par.set(a, b); };
+      const fk = [];
+      for (let f = 0; f < idx.length; f += 3) {
+        const k = [key(idx[f]), key(idx[f + 1]), key(idx[f + 2])]; fk.push(k[0]);
+        for (const x of k) if (!par.has(x)) par.set(x, x);
+        join(k[0], k[1]); join(k[1], k[2]);
+      }
+      const sum = new Map();
+      for (let f = 0; f < idx.length; f += 3) {
+        const r = find(fk[f / 3]), e = sum.get(r) || { n: 0, c: [0, 0, 0] }; sum.set(r, e); e.n++;
+        for (let d = 0; d < 3; d++) e.c[d] += pos[3 * idx[f] + d];
+      }
+      const lms = Object.entries(A.landmarks).filter(([k]) => /^(LAA|[LR][SI]PV|SVC|IVC)$/.test(k)), mine = new Set();
+      for (const [r, e] of sum) {
+        const m = e.c.map((v) => v / e.n);
+        let best = null, bd = Infinity;
+        for (const [k, l] of lms) { const d = Math.hypot(m[0] - l.c[0], m[1] - l.c[1], m[2] - l.c[2]); if (d < bd) { bd = d; best = k; } }
+        if (best === 'LAA') mine.add(r);
+      }
+      return (f) => mine.has(find(fk[f / 3]));
+    };
+    const parts = [];
     for (const s of A.json.surfaces) {
       const q = decodeB64(s.pos, Uint16Array), idx = decodeB64(s.idx, Uint32Array);
       const pos = new Float32Array(q.length);
       for (let i = 0; i < q.length; i++) pos[i] = A.origin[i % 3] + (q[i] / 65535) * span[i % 3];
+      if (s.label !== 11 || !laa) { parts.push({ label: s.label, pos, idx }); continue; }
+      // (the opening's own faces, within 4 mm of its plane and 1.6 cap radii, are smoothed with the atrial wall; the rest
+      // of the stub only takes the tissue colour and stays where it is: much of it lies inside the heart)
+      const cap = [], stub = [], rest = [], onLAA = laaFaces(pos, idx);
+      const inPlane = (f) => {
+        let x = 0, y = 0, z = 0; for (let k = 0; k < 3; k++) { const v = 3 * idx[f + k]; x += pos[v] / 3; y += pos[v + 1] / 3; z += pos[v + 2] / 3; }
+        const d = [x - laa.c[0], y - laa.c[1], z - laa.c[2]], along = d[0] * laa.n[0] + d[1] * laa.n[1] + d[2] * laa.n[2];
+        return Math.abs(along) < 4 && Math.hypot(...d) < laa.r * 1.6;
+      };
+      for (let i = 0; i < idx.length; i += 3) (onLAA(i) ? (inPlane(i) ? cap : stub) : rest).push(idx[i], idx[i + 1], idx[i + 2]);
+      parts.push({ label: 11, pos, idx: new Uint32Array(rest) });
+      if (cap.length) parts.push({ label: 3, pos, idx: new Uint32Array(cap), laaCap: true });
+      if (stub.length) parts.push({ label: 3, pos, idx: new Uint32Array(stub), laaCap: true, laaStub: true });
+    }
+    if (laa) smoothLAA(parts, laa);
+    for (const s of parts) {
+      const pos = s.pos, idx = s.idx;
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       geo.setIndex(new THREE.BufferAttribute(idx, 1));
@@ -5401,6 +5514,7 @@ THE SOFTWARE.
         for (let v = 0; v < nv; v++) {
           vmap[v] = nearestTissue(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2]);
           if (vmap[v] < 0) vmap[v] = nearestTissue(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2], 4);
+          if (vmap[v] < 0 && s.laaCap) vmap[v] = nearestTissue(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2], 7);   // (the cap spans the opening)
         }
         geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
         mat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 22, specular: 0x222222, side: THREE.DoubleSide });
@@ -6197,6 +6311,9 @@ THE SOFTWARE.
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > (e.pointerType === 'touch' ? 10 : 5)) { down = null; return; }   // (fingers wobble more than a mouse)
       down = null;
       const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      // a finger (a tablet held sideways, which has this layout): the phone's tap rules, as on phones (the conduction
+      // segment nearest the finger, blocks set at once, bursts start arrhythmias); a mouse: the rules below
+      if (e.pointerType === 'touch') { mobileTap(x, y, e.timeStamp); return; }
       ray.setFromCamera(new THREE.Vector2((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1), g3.camera);
       hideBlockMenu();
       // what a click does depends only on where it lands, whatever tab is open (as on phones): the conduction system
@@ -6458,10 +6575,11 @@ THE SOFTWARE.
     for (const p of document.querySelectorAll('#controls .tabpanel')) p.hidden = p.dataset.panel !== t;
     $('controls').classList.toggle('wide', t === 'learn' || (t === 'conditions' && !$('condCatalog').hidden));
     toggleControls(true);
-    // opening a tab shows the view it works in: blocks in the four-chamber cut, ischemia on the outside (the arteries)
+    // opening a tab shows the view it works in: blocks cut open (the conduction system), ischemia from the outside (the
+    // arteries). Only the cut changes: the heart keeps the way the user turned it (Round 66, the author)
     if (changed || fromClick) {
-      if (t === 'blocks' && ui.cutFrac < 100) { setCut(100); cameraPreset('front'); }
-      if (t === 'ischemia' && ui.cutFrac > 0) { setCut(0); cameraPreset('chest'); }
+      if (t === 'blocks' && ui.cutFrac < 100) setCut(100);
+      if (t === 'ischemia' && ui.cutFrac > 0) setCut(0);
     }
     if (t === 'learn') renderLearn();
     updateActionNote(); hideBlockMenu();
@@ -7495,6 +7613,11 @@ THE SOFTWARE.
   // ---------------------------------------------------------------------------
   const MQ_PORT = matchMedia('(max-width: 743px) and (orientation: portrait)');
   const MQ_LAND = matchMedia('(max-height: 500px) and (orientation: landscape) and (pointer: coarse)');
+  // tablets held upright (744 px and wider: the iPad mini up): the phone layout, with the full 12-lead sheet and a lead II
+  // rhythm strip in the ECG pane instead of one lead group (body.t). Narrower tablets (7") keep the phone's lead groups;
+  // tablets held sideways get the desktop layout.
+  const MQ_TAB = matchMedia('(min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (pointer: coarse)');
+  const isT = () => document.body.classList.contains('t');
   const isM = () => document.body.classList.contains('m');
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
   const SECS = [2500, 5000, 10000];
@@ -7508,8 +7631,8 @@ THE SOFTWARE.
   }
 
   function setMode() {
-    const b = document.body, was = isM(), m = MQ_PORT.matches || MQ_LAND.matches;
-    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches);
+    const b = document.body, was = isM(), tab = MQ_TAB.matches, m = MQ_PORT.matches || MQ_LAND.matches || tab;
+    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab);
     // phones (website and app): dark only, as the app; desktop follows the system setting
     if (m) document.documentElement.dataset.theme = 'dark'; else if (!INAPP) delete document.documentElement.dataset.theme;
     const ctl = $('controls');
@@ -7577,7 +7700,8 @@ THE SOFTWARE.
     return {
       on(type, fn) { (hub[type] = hub[type] || []).push(fn); },
       get phone() { return isM(); },
-      get fsEcg() { return document.body.classList.contains('fs-ecg'); },
+      get fsEcg() { return document.body.classList.contains('fs-ecg') || document.body.classList.contains('ecgmax'); },
+      get desktop() { return !isM(); },
       // the camera's direction from the target (a drag that turns the heart changes it)
       camDir() { return g3.camera.position.clone().sub(g3.controls.target).normalize().applyQuaternion(g3.world.quaternion.clone().invert()); },
       controls: () => g3.controls,
@@ -7585,7 +7709,7 @@ THE SOFTWARE.
       closeAll() {
         while (layers.length) layers.pop().close();   // (their history entries stay; going back over them does nothing)
         if (!$('guide').hidden) $('guide').hidden = true;
-        if (sheetOpen()) toggleControls(false);
+        if (isM() && sheetOpen()) toggleControls(false);   // (the desktop panel stays as the user left it)
         hideBlockMenu();
       },
       saveView() { saved = { pos: g3.camera.position.clone(), up: g3.camera.up.clone(), tgt: g3.controls.target.clone(), wp: g3.world.position.clone(), wq: g3.world.quaternion.clone(), cut: ui.cutFrac }; },
@@ -7643,7 +7767,7 @@ THE SOFTWARE.
       occlude(node) { captureRef(); S.addOcclusion(node); if (!ui.ischH) setIschTime(1); else S.setIschemiaTime(ui.ischH); recolorIschemia(); renderIschList(); interpret(true); },
       clearIschemia() { S.clearIschemia(); setIschTime(0); recolorIschemia(); renderIschList(); interpret(true); },
       block(site) { setBlockFrom(site, 'complete'); renderBlockList(); interpret(true); },
-      setFsEcg(on) { setFsEcg(on); },
+      setFsEcg(on) { if (isM()) setFsEcg(on); else setEcgMax(on); },
       siteName: (s) => SITE_NAME[s] || s,
       segmentName: (n) => segmentName(n),
     };
@@ -7756,7 +7880,7 @@ THE SOFTWARE.
     if (!isM()) return;
     const b = document.body.classList;
     if (b.contains('fs-heart')) drawLeads($('clive'), [ph.live], 5000, 'double-tap: back', true);
-    else if (!b.contains('fs-ecg')) {
+    else if (!b.contains('fs-ecg') && !b.contains('t')) {   // (tablets: the 12-lead sheet, drawn by drawECG)
       drawLeads($('cgroup'), GROUPS[ph.group], ph.win);
       if (ph.peek !== null) drawLeads($('cgroup2'), GROUPS[ph.peek], ph.win);
     }
@@ -7771,6 +7895,13 @@ THE SOFTWARE.
       openLayer('fs-ecg', () => { ph.fsEcg = false; fsClass(); });
       $('ghint').hidden = true; firstTime('ecgstudio.tipFsEcg');
     } else if (!on && ph.fsEcg) closeLayer('fs-ecg');
+  }
+  // the desktop layout (tablets held sideways): the ECG alone, the heart hidden (double tap on the ECG, or back)
+  function setEcgMax(on) {
+    if (on && !document.body.classList.contains('ecgmax')) {
+      document.body.classList.add('ecgmax'); resize3D(); buzz();
+      openLayer('ecgmax', () => { document.body.classList.remove('ecgmax'); resize3D(); });
+    } else if (!on) closeLayer('ecgmax');
   }
   function toggleFsHeart() {
     if (ph.fsHeart) { closeLayer('fs-heart'); return; }
@@ -7903,7 +8034,7 @@ THE SOFTWARE.
     const c = tissueAt(ray);
     if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }
     // empty space: a double-tap fills the screen with the heart (and back)
-    if (lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
+    if (isM() && lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
     else lastEmpty = { x, y, t: now };
   }
   const ischTap = { last: null };
@@ -7978,14 +8109,14 @@ THE SOFTWARE.
     const wrap = $('ecgWrap'), a = $('cgroup'), b2 = $('cgroup2');
     let down = null, lastTap = null;
     wrap.addEventListener('pointerdown', (e) => {
-      if (!isM() || e.target.closest('button')) return;
+      if ((!isM() && e.pointerType !== 'touch') || e.target.closest('button')) return;
       const r = wrap.getBoundingClientRect();
       down = { x: e.clientX, y: e.clientY, t: e.timeStamp, edge: e.clientX - r.left < 24 || r.right - e.clientX < 24, drag: 0 };
       try { wrap.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
     });
     wrap.addEventListener('pointermove', (e) => {
       const d = down;
-      if (!d || d.edge || document.body.classList.contains('fs-ecg')) return;
+      if (!d || d.edge || !isM() || isT() || document.body.classList.contains('fs-ecg')) return;   // (tablets: no lead groups to swipe)
       const dx = e.clientX - d.x, dy = e.clientY - d.y;
       if (!d.drag && Math.abs(dx) > 8 && Math.abs(dx) > 1.2 * Math.abs(dy)) d.drag = dx < 0 ? 1 : -1;
       if (!d.drag) return;
@@ -7996,7 +8127,12 @@ THE SOFTWARE.
     });
     wrap.addEventListener('pointerup', (e) => {
       const d = down; down = null;
-      if (!d || !isM()) return;
+      if (!d) return;
+      if (!isM()) {   // (a finger on the desktop layout, a tablet held sideways: a double tap gives the ECG the whole width)
+        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) return;
+        if (lastTap && e.timeStamp - lastTap.t < DOUBLE_MS) { lastTap = null; setEcgMax(!document.body.classList.contains('ecgmax')); } else lastTap = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+        return;
+      }
       const dx = e.clientX - d.x, dy = e.clientY - d.y;
       if (d.drag) {
         // past a quarter of the width, or a quick flick: slide on; otherwise slide back
@@ -8049,7 +8185,7 @@ THE SOFTWARE.
   }
 
   function initPhone() {
-    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode);
+    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode); MQ_TAB.addEventListener('change', setMode);
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
     initTouch(); initEcgTouch(); initSheet(); initAlpha();
@@ -8121,7 +8257,7 @@ THE SOFTWARE.
     $('fsFlip').addEventListener('click', () => { ph.flip = !ph.flip; fsClass(); });
     $('fsInterp').addEventListener('click', () => { const off = document.body.classList.toggle('fs-nointerp'); $('fsInterp').setAttribute('aria-pressed', String(!off)); });
     try { if (localStorage.getItem('ecgstudio.tipFsEcg')) $('ghint').hidden = true; } catch (e) { /* no storage */ }
-    if (isM() && MQ_PORT.matches && !(window.ECGTour && window.ECGTour.pending()) && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
+    if (isM() && MQ_PORT.matches && !isT() && !(window.ECGTour && window.ECGTour.pending()) && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
   }
 
   function initUI() {
@@ -8169,6 +8305,10 @@ THE SOFTWARE.
     initPicking(); initTwist(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     $('cutDepth').addEventListener('input', (e) => setCut(+e.target.value));
+    { // the view bar scrolls sideways when the pane is narrow: a fade at the right edge says there is more
+      const vb = document.querySelector('.viewbar'), more = () => vb.classList.toggle('more', !isM() && vb.scrollLeft + vb.clientWidth < vb.scrollWidth - 2);
+      vb.addEventListener('scroll', more, { passive: true }); new ResizeObserver(more).observe(vb); more();
+    }
     $('cutExt').addEventListener('click', () => setCut(0));
     $('cutFull').addEventListener('click', () => setCut(100));
     initStrips();
@@ -8273,6 +8413,10 @@ THE SOFTWARE.
     otherBlock: (name) => `That blocked the ${name}. Tap the ringed left bundle branch.`,
     end: 'Replay it any time: Simulator → Help → Tutorial. Have fun and explore!',
     endSim: 'Replay it any time: Help → Tutorial.',   // (without the app's Training step; not used yet)
+    // tablets show the whole 12-lead sheet: these replace the sentences about swiping and expanding there
+    fullEcgTablet: 'Double tap the ECG to see it full screen.',
+    typeSinusTablet: 'Read the ECG. Name the rhythm first: type S, I.',
+    anteriorTablet: 'Where is the elevation? Tap Anterior in the list, or tap those leads on the ECG',
   };
 
   // ------------------------------------------------------------------ overlay: dim with a ringed hole, and a card
@@ -8341,11 +8485,16 @@ THE SOFTWARE.
       Object.assign(ring.style, { left: `${t.x - r}px`, top: `${t.y - r}px`, width: `${2 * r}px`, height: `${2 * r}px` });
       ring.classList.remove('rect'); ty = t.y;
     }
-    // the card on the side away from the target (top: below the app's header bar)
-    const c = els.card, where = view.modal || ty === null ? (view.where || 'center') : view.where || (ty > H * 0.45 ? 'top' : 'bottom');
+    // the card on the side away from the target (top: below the app's header bar); on a wide screen (a tablet held
+    // sideways: the heart and the ECG, or the ECG and the panel, side by side) in the half away from the target
+    const c = els.card, wide = innerWidth >= 900 && innerWidth > innerHeight, tx = t ? (t.rect ? t.rect.left + t.rect.width / 2 : t.x) : null;
+    let where = view.modal || ty === null ? (view.where || 'center') : view.where || (ty > H * 0.45 ? 'top' : 'bottom');
+    if (wide && tx !== null && where !== 'center') where = 'top';
     c.classList.toggle('center', where === 'center');
     c.style.top = where === 'top' ? 'calc(env(safe-area-inset-top, 0px) + 58px)' : '';
     c.style.bottom = where === 'bottom' ? 'calc(env(safe-area-inset-bottom, 0px) + 12px)' : '';
+    const side = wide && tx !== null && where !== 'center' ? (tx < innerWidth / 2 ? 'right' : 'left') : '';
+    c.style.left = side === 'right' ? '52%' : ''; c.style.right = side === 'left' ? '52%' : '';
   }
   function show(view) {
     mount();
@@ -8404,7 +8553,9 @@ THE SOFTWARE.
     const n = (k) => `${k} / ${total}`;
     const heart = () => $('pane3d').getBoundingClientRect(), ecg = () => $('paneEcg').getBoundingClientRect();
     const near = (a, b) => a.dot(b) > 0.9985;   // (the camera has not moved: about 3°)
-    const dirSpot = (fn) => { let at = 0, dir = null, spot = null; return () => { const d = T.camDir(); if (!dir || !near(d, dir) || performance.now() - at > 1500) { dir = d; at = performance.now(); spot = fn(); } return spot; }; };
+    // (a spot is looked for again when the view turns, every 1.5 s, and on every tick while none is found: the heart may
+    // still be coasting after a drag)
+    const dirSpot = (fn) => { let at = 0, dir = null, spot = null; return () => { const d = T.camDir(); if (!dir || !spot || !near(d, dir) || performance.now() - at > 1500) { dir = d; at = performance.now(); spot = fn(); } return spot; }; };
     let rect = null;   // (the Training tab, from the shell)
     if (INAPP) window.ECGInApp.listen('tour', (d) => { if (d.step === 'rect') rect = { left: d.x, top: d.y, width: d.w, height: d.h }; });
     const steps = [
@@ -8470,7 +8621,7 @@ THE SOFTWARE.
           view() {
             if (T.fsEcg) { opened = true; return { where: 'top', text: TEXT.fullEcgOpen, next: () => T.setFsEcg(false) }; }
             if (opened) { run.next(); return {}; }
-            return { target: { rect: ecg() }, text: TEXT.fullEcg, next: () => T.setFsEcg(true) };
+            return { target: { rect: ecg() }, text: document.body.classList.contains('t') || T.desktop ? TEXT.fullEcgTablet : TEXT.fullEcg, next: () => T.setFsEcg(true) };
           } };
       })(),
     ];
@@ -8503,7 +8654,7 @@ THE SOFTWARE.
     const vis = (el) => el && el.offsetParent !== null && el.getBoundingClientRect().width > 0;
     const R = (el, pad) => ({ rect: el.getBoundingClientRect(), pad });
     let answered = false;
-    const n = (k) => `${k} / ${TOTAL}`;
+    const n = (k) => `${k} / ${TOTAL}`, tab = () => document.body.classList.contains('tabp') || document.body.classList.contains('tabl');
     return [
       { view() {
         if (st.mode !== 'tutorial') { run.skip(); return {}; }   // (left for Training home or another mode)
@@ -8514,7 +8665,7 @@ THE SOFTWARE.
           const b = document.querySelector('#regionGrid button[data-r="anterior"]');
           // (the card at the bottom, below the list, and no dim: the ECG stays clear to swipe and tap)
           const lone = (el) => vis(el) && Object.assign(R(el, 3), { noDim: true });
-          if (!st.region.regions.includes('anterior')) return { target: lone(b), n: n(10), where: 'bottom', compact: true, text: TEXT.anterior, next: () => TR.toggleRegion('anterior') };
+          if (!st.region.regions.includes('anterior')) return { target: lone(b), n: n(10), where: 'bottom', compact: true, text: tab() ? TEXT.anteriorTablet : TEXT.anterior, next: () => TR.toggleRegion('anterior') };
           return { target: lone($('regionDone')), n: n(10), where: 'bottom', compact: true, text: TEXT.regionDone, next: () => TR.endRegion(true) };
         }
         const rhythm = st.picked.find((p) => kind(p) === 'rhythm'), finding = st.picked.find((p) => kind(p) === 'finding');
@@ -8522,7 +8673,7 @@ THE SOFTWARE.
         if (!rhythm) {
           const b = document.querySelector('#suggest button[data-id="sinus"]');
           if (vis(b)) return { target: R(b, 3), n: n(8), text: TEXT.tapSinus, next: () => TR.pick('sinus') };
-          return { target: vis(kbd) && R(kbd, 2), n: n(8), text: TEXT.typeSinus, next: () => TR.pick('sinus') };
+          return { target: vis(kbd) && R(kbd, 2), n: n(8), text: tab() ? TEXT.typeSinusTablet : TEXT.typeSinus, next: () => TR.pick('sinus') };
         }
         if (!finding) {
           const b = document.querySelector('#suggest button[data-id="ste"]');
@@ -8553,7 +8704,9 @@ THE SOFTWARE.
 
   // ------------------------------------------------------------------ start
   // first open: the simulator in the app, on a phone held upright, not opened on a scenario link
-  const upright = () => document.body.classList.contains('m') && !document.body.classList.contains('ml');
+  // (phones and tablets held upright: the phone layout; tablets held sideways: the desktop layout on a touch screen)
+  const upright = () => (document.body.classList.contains('m') && !document.body.classList.contains('ml'))
+    || (!document.body.classList.contains('m') && matchMedia('(pointer: coarse)').matches && innerWidth >= 900);
   let visible = true;
   if (INAPP) { window.ECGInApp.listen('hide', () => { visible = false; }); window.ECGInApp.listen('show', () => { visible = true; }); }
   const pending = () => INAPP && !seen() && !location.hash.slice(1) && !!$('pane3d');

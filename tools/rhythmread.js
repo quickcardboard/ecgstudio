@@ -142,7 +142,9 @@ function classify(o, beats) {
   const rateTxt = (base) => (o.rate < 60 ? `${base} bradycardia` : o.rate > 100 ? `${base} tachycardia` : `${base} rhythm`);
   const regular = o.rrCv < 0.08, pOk = o.prAllShare >= 0.8 && o.prAllSd !== null && o.prAllSd <= 35;
   // more atrial waves than QRS complexes (counted, or the atrial rate from the shorter P–P intervals)
-  const dissoc = o.pCount >= beats.length * 1.25 || (o.aRate25 > o.rate * 1.2 && o.pCount > beats.length);
+  // (or as many found as QRS complexes but marching through at a faster rate with no fixed PR: the rest hide in the QRS/T)
+  const dissoc = o.pCount >= beats.length * 1.25 || (o.aRate25 > o.rate * 1.2 && o.pCount > beats.length)
+    || (o.aRate25 > o.rate * 1.3 && o.pCount >= beats.length && o.prAllShare < 0.8);
   const flutterWaves = o.flutterAc && o.flutterAc.r >= 0.6 && o.flutterAc.cl >= 170 && o.flutterAc.cl <= 280;
   if (o.width >= 120 && o.rate >= 100 && regular && !pOk) return 'ventricular tachycardia';
   if (flutterWaves) return 'atrial flutter';
