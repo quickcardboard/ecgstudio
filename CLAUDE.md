@@ -62,8 +62,11 @@ Known limitations (rebuild-1 rounds 10–17 in docs/DEVELOPMENT.md):
 - chest leads: the QRS is a heart-vector + near-field blend (with the cavity window over a scar); the ST-T comes from the
   solved torso in V5–V6, 75% in V4, 50% in V3 (`chestTorsoTLead`, Round 67; V3–V6 fields in `src/torso_limb.json`). V1–V2
   ST-T stay on the blend (the torso field breaks Brugada's coved ST). The `cavityWindowT` bandage is gone (1). A torso QRS
-  loses R progression and the infarct Q waves (Round 49). After an inferior (RCA) infarct the T in III/aVF is too deep and
-  in I/aVL/V3–V4 too tall: the loss of large, mutually cancelling regional T forces (Round 67; needs a repolarisation refit)
+  loses R progression and the infarct Q waves (Round 49). After the Round 67 repolarisation refit the
+  normal T axis is ~+56° against a QRS axis of ~+12°: aVL T flat, V5–V6 T low (the QRS axis is the outlier)
+- heart orientation: tilt 17 / pitch −22 / yaw 12–20 gives textbook normal, LAFB and LPFB axes (Round 67 scan, each with
+  its own solved torso), but the ischaemia scales, chest blend and R progression were fitted at the current orientation
+  (reader 47 → 33/57 without a refit); fascicular voltages stay ~2× textbook at every orientation, fibre ratio and Brody term
 
 ## Conventions
 

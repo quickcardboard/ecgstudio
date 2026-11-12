@@ -2336,3 +2336,43 @@ The author's list:
   progression); fullcheck iErr 4, axErr 5.13 (identical lead groups); stcheck unchanged; evalecg only T V4 0.59 → 0.49.
   Training audit (seeds 11–13, 60 each): 137 → 134/180: non-specific ST-T twice (V3 T no longer flat in some seeds), one
   mid-LAD hyperacute T under the "tall" criterion.
+
+## Round 67, part 3: repolarisation refit; fascicles and heart orientation (investigation)
+
+**Repolarisation refit (adopted).** New fit tool (scratch, described here): T height per lead for normal, mid RCA 48 h and
+720 h, mid LAD 48 h and proximal LCx 48 h, scored against textbook ranges (normal T I 2–4.5, II 2–5.5, aVL 0.3–2.5,
+V5 2.2–5.5, V6 1.5–4 mm …; old inferior MI III −0.5 to −5, I/aVL ≤ 5–5.5 mm; anterior and lateral inversion), plus QTc
+380–440. ~6 s per candidate; grids of 192 + 200 + 108 over `apdVentEndoExtra`, `apdVentApexExtra`, `electrotonicK`,
+`apdRVoffset` and `occlusionLate.RCA`.
+- Adopted: `apdVentEndoExtra` 85 → **40**, `apdVentApexExtra` 20 → **−15** (base longer than apex, as measured),
+  `electrotonicK` 1.4 → **1.0**. Score 178 → 0.2. A smaller transmural gradient shrinks each wall's T force, so the T no
+  longer comes from the cancellation of large opposing forces, and an infarct no longer unmasks them.
+- `occlusionLate` RCA 0.1 is still needed (0.5: score 75; 1: 637).
+- Results, T mm (before → after): normal I/II/aVL/V5/V6 5.1/5.7/2.4/3.7/2.0 → 2.4/4.9/0.1/2.1/1.1; mid RCA 30 d I 9.0 → 4.7,
+  aVL 10.6 → 4.9, III −12.2 → −5.0, aVF −7.7 → −2.7, V3 11.2 → 7.0; mid LAD 48 h V2–V4 −5.3/−6.8/−8.3 → about the same;
+  proximal LCx 48 h V5/V6 −2.4/−3.1 → −2.6/−3.1. Normal T axis 26° → 56°, QTc 414 → 395.
+- Validation: reader 47/57 (unchanged count; pLAD 30 d no longer "long QT"; old inferior MIs lose the "T inversion" read,
+  their III T is −5 mm, aVF −2.7); fullcheck iErr 4, axErr 5.13 → 5.07; LVH strain T V6 −0.62 → −0.36 mV (still read LVH
+  with T inversion), RVH V2 T −0.43 → −0.15 mV; VF faster (V rate 52 → 143 in the 4 s strip); Training audit (seeds 11–13)
+  134 → **139/180**.
+- `tools/rhythmread.js`: complete AV block also when the P waves march through at > 1.3× the QRS rate with no fixed PR
+  and as many found as QRS complexes (sinus 72 against a 48/min escape is an exact 3:2: every third P hides in the T). The
+  junctional-escape scenario had passed on a spurious extra P.
+
+**Fascicles (investigation; nothing adopted).**
+- Heart orientation, every combination of tilt (`heartRotation` 10–35), pitch (`heartPitch` −30…+5) and yaw (`heartYaw`
+  −5…28), 54 orientations, each with its own solved torso (~1 min). Pitch and yaw move the normal axis far more than tilt
+  (tilt 17→35 at pitch −10/yaw 8: 13° → 32°; pitch −22/yaw 20 at tilt 17: 66°). Tilt 17 / pitch −22 / yaw 12–20: normal
+  52–66°, LAFB −46…−65° (S III 23–25, R aVL 15–18 mm at Kors-calibrated gain), LPFB 93–94°. The full reader there
+  (gain scaled to the same calibration): 30–33/57, fullcheck iErr 6–8: inferior STEMI invisible at 1 h (the RCA injury
+  scale was fitted for the inferior wall facing the leads squarely), poor R progression in most ECGs, old LAD infarcts read
+  LPFB. Adopting an orientation needs the ischaemia scales, chest blend and R progression refitted with it.
+- LPFB R III stays 37–55 mm (calibrated) at every orientation, at `sigmaRatio` 4 with `brody` 0 (which brings the RBBB
+  axis from −60° to ~0° but takes LAFB's deviation away), with liver and spine in the torso (44 mm) and with arms and legs
+  in the torso (lead III 3.2× lead I: worse). Slower Purkinje spread (`cvPurkinje` 0.9–1.2) worsens everything (normal
+  axis −32…−66°).
+- Mechanism (lead III, regional decomposition): in a normal beat the anterior wall gives −0.75 mV and the inferior wall
+  +0.68 mV at 20–25 ms, cancelling; with LPFB the anterior force runs alone (q in III), then the inferior wall, septum and
+  apex fire together unopposed (+1.7 mV at 40 ms and rising). QRS only 8 ms wider than normal. The voltage is the axis
+  deviation itself; it falls only with the deviation.
+- LAFB pseudo-infarct (QS V2–V4) at every orientation and fibre ratio tried.

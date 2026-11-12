@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-12 (6560441)">
+<meta name="version" content="2026-11-12 (500ca33)">
 <meta name="premium" content="1">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -846,8 +846,8 @@ body.land #fsClose { display: none; }
     atrialSourceGain: 0.31, // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
     rvCvMul: 1,           // RV myocardial conduction speed factor (RVH option)
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
-    apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
-    apdVentApexExtra: 20,  // apicobasal APD gradient (+: apex longer; sized so limb-lead T stays within textbook height)
+    apdVentEndoExtra: 40,  // endocardium longer than epicardium (upright T waves); Round 67: 85 → 40 (repolarisation refit)
+    apdVentApexExtra: -15, // apicobasal APD gradient (+: apex longer); Round 67: 20 → −15 (base longer than apex, as measured)
     apdRVoffset: 0,        // RV and LV action potentials of similar length (a longer RV APD gave a dip before the T wave)
     apdAtrial: 190, apdMinAtrial: 135, flutterApdMin: 185,
     apdPurk: 340,
@@ -860,7 +860,7 @@ body.land #fsClose { display: none; }
     cvRestK: 0.6, cvRestTau: 30,
     avnCvRestK: 2.4, avnCvRestTau: 150,  // AV-node decremental conduction (2.4: AVNRT ~175 bpm, orthodromic AVRT > 200 bpm)
     avnErpExtra: 180,      // post-repolarisation refractoriness of AV node (ms)
-    electrotonicK: 1.4,    // APD shortening per ms of later activation (cardiac memory)
+    electrotonicK: 1.0,    // APD shortening per ms of later activation (cardiac memory); Round 67: 1.4 → 1.0
     erpFrac: 0.92,         // ERP as fraction of APD (myocardium)
 
     // Transmembrane potential shape
@@ -4036,7 +4036,9 @@ function classify(o, beats) {
   const rateTxt = (base) => (o.rate < 60 ? `${base} bradycardia` : o.rate > 100 ? `${base} tachycardia` : `${base} rhythm`);
   const regular = o.rrCv < 0.08, pOk = o.prAllShare >= 0.8 && o.prAllSd !== null && o.prAllSd <= 35;
   // more atrial waves than QRS complexes (counted, or the atrial rate from the shorter P–P intervals)
-  const dissoc = o.pCount >= beats.length * 1.25 || (o.aRate25 > o.rate * 1.2 && o.pCount > beats.length);
+  // (or as many found as QRS complexes but marching through at a faster rate with no fixed PR: the rest hide in the QRS/T)
+  const dissoc = o.pCount >= beats.length * 1.25 || (o.aRate25 > o.rate * 1.2 && o.pCount > beats.length)
+    || (o.aRate25 > o.rate * 1.3 && o.pCount >= beats.length && o.prAllShare < 0.8);
   const flutterWaves = o.flutterAc && o.flutterAc.r >= 0.6 && o.flutterAc.cl >= 170 && o.flutterAc.cl <= 280;
   if (o.width >= 120 && o.rate >= 100 && regular && !pOk) return 'ventricular tachycardia';
   if (flutterWaves) return 'atrial flutter';

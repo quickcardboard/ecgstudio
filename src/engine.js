@@ -171,8 +171,8 @@
     atrialSourceGain: 0.31, // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
     rvCvMul: 1,           // RV myocardial conduction speed factor (RVH option)
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
-    apdVentEndoExtra: 85,  // endocardium longer than epicardium (upright T waves)
-    apdVentApexExtra: 20,  // apicobasal APD gradient (+: apex longer; sized so limb-lead T stays within textbook height)
+    apdVentEndoExtra: 40,  // endocardium longer than epicardium (upright T waves); Round 67: 85 → 40 (repolarisation refit)
+    apdVentApexExtra: -15, // apicobasal APD gradient (+: apex longer); Round 67: 20 → −15 (base longer than apex, as measured)
     apdRVoffset: 0,        // RV and LV action potentials of similar length (a longer RV APD gave a dip before the T wave)
     apdAtrial: 190, apdMinAtrial: 135, flutterApdMin: 185,
     apdPurk: 340,
@@ -185,7 +185,7 @@
     cvRestK: 0.6, cvRestTau: 30,
     avnCvRestK: 2.4, avnCvRestTau: 150,  // AV-node decremental conduction (2.4: AVNRT ~175 bpm, orthodromic AVRT > 200 bpm)
     avnErpExtra: 180,      // post-repolarisation refractoriness of AV node (ms)
-    electrotonicK: 1.4,    // APD shortening per ms of later activation (cardiac memory)
+    electrotonicK: 1.0,    // APD shortening per ms of later activation (cardiac memory); Round 67: 1.4 → 1.0
     erpFrac: 0.92,         // ERP as fraction of APD (myocardium)
 
     // Transmembrane potential shape
