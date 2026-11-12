@@ -2318,3 +2318,21 @@ The author's list:
   (`ORGANS=1`: III −10.6). A weaker transmural gradient (`apdVentEndoExtra` 55) shrinks normal and infarct T alike.
 - **Infarct size options (off):** `occlusionBorderMm` and `occlusionDeadS` per artery family. RCA border 25 mm / dead
   threshold 0.7 halves the infarct (8687 → 4729 cells), Q III −13 → −6.3 mm, but T III only −12.2 → −9.2, aVL 10.6 → 8.9.
+
+## Round 67, part 2: chest-lead solve (ST-T share of the solved torso); cavityWindowT bandage removed
+
+- A full torso solve (all nine electrodes, `export_heart_torso.js` + `ANISO=1 torso_v2.py`, 57 s) reproduces the bundled
+  LA/LL/V3–V6 fields exactly, so V1/V2 could be tried.
+- **V1–V2 from the torso: not adopted.** Brugada gets a hump at J+80 in V2 (st40 0.31 → st80 0.40 mV) and reads STEMI
+  septal+anterior (reader 46/57, 2 wrong); at 0.3–0.5 of the torso it passes only on V1, by 0.01 mV. V1–V2 do not depend
+  on `cavityWindowT` (mid LAD 48 h V2 −5.2 / −5.3 mm either way), so they stay on the blend.
+- **V3 from the torso alone** stays upright after an LAD infarct (mid LAD 48 h +4.5 mm between −2.7 in V2 and −5.8 in V4);
+  at half weight the progression is smooth (−5.3 / −6.8 / −8.3).
+- **Adopted:** `chestTorsoTLead` [0, 0, 0.5, 0.75, 1, 1] (was [0, 0, 0, 0.5, 1, 1]) and `cavityWindowT` 1 (was 0.25, the
+  Round 47 bandage). V4 at 0.5 without the bandage gave −10.9 mm at 48 h; at 1, the hyperacute T fell 9.6 → 6.4 mm.
+- Results, T mm (before → after): normal V3/V4 5.4/6.1 → 5.3/5.6; mid LAD 1 h V3/V4 11.8/9.6 → 10.3/8.0; mid LAD 48 h
+  V3/V4 −9.1/−8.0 → −6.8/−8.3; 30 d −8.0/−7.7 → −6.4/−8.6; distal LAD 48 h V3/V4 −5.8/−6.5 → −4.0/−6.6. QRS unchanged.
+- Validation: reader 47/57 (proximal LCx 1 h partial → pass; acute marginal 1 h pass → partial on a borderline poor R
+  progression); fullcheck iErr 4, axErr 5.13 (identical lead groups); stcheck unchanged; evalecg only T V4 0.59 → 0.49.
+  Training audit (seeds 11–13, 60 each): 137 → 134/180: non-specific ST-T twice (V3 T no longer flat in some seeds), one
+  mid-LAD hyperacute T under the "tall" criterion.

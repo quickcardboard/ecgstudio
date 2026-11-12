@@ -59,10 +59,11 @@ Known limitations (rebuild-1 rounds 10–17 in docs/DEVELOPMENT.md):
 - acute marginal (RV branch) occlusion gives inferior ST elevation and, at 30 days, inferior Q instead of
   the V1/V4R pattern of isolated RV infarction
 - VT/VF slow the simulation on slower machines
-- chest leads: the QRS is a heart-vector + near-field blend (with the cavity window over a scar); the ST-T of V4–V6 comes
-  from the solved torso (`chestTorsoT`, Round 49; V3–V6 fields in `src/torso_limb.json`). V1–V3 ST-T stay on the blend
-  (Brugada, LAD T inversion in V3); `cavityWindowT` 0.25 is still a bandage there. After an inferior (RCA) infarct the T in
-  V3–V5 is too tall at 2–30 days (repolarisation model)
+- chest leads: the QRS is a heart-vector + near-field blend (with the cavity window over a scar); the ST-T comes from the
+  solved torso in V5–V6, 75% in V4, 50% in V3 (`chestTorsoTLead`, Round 67; V3–V6 fields in `src/torso_limb.json`). V1–V2
+  ST-T stay on the blend (the torso field breaks Brugada's coved ST). The `cavityWindowT` bandage is gone (1). A torso QRS
+  loses R progression and the infarct Q waves (Round 49). After an inferior (RCA) infarct the T in III/aVF is too deep and
+  in I/aVL/V3–V4 too tall: the loss of large, mutually cancelling regional T forces (Round 67; needs a repolarisation refit)
 
 ## Conventions
 

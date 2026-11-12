@@ -259,7 +259,7 @@
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
-    cavityWindowT: 0.25,   // BANDAGE, not a fix: the cavity window's share during the ST-T (full during the QRS). See below and docs/DEVELOPMENT.md Round 47
+    cavityWindowT: 1,      // the cavity window's share during the ST-T (full during the QRS); was 0.25 (a bandage, Round 47) until V3 took half its ST-T from the solved torso (Round 67)
     cavityWindow: 0.45,    // >0: a chest electrode over a transmural scar sees the LV cavity potential through it (Wilson): V += k·Ω·(φ_cavity − V), Ω = scar share of the electrode's view of the LV epicardium
     scarWindow: 0.5,       // old scar as an electrical window: its would-be activation counted inverted (0 = silent scar)
     scarRefractory: 200,   // ms between phantom activations of a scar cell
@@ -293,7 +293,7 @@
     atrialLimbGain: 1.85,      // atrial sources in the solved-torso limb leads: keeps the P-wave calibration made with the cylinder field (P in II 0.23 mV)
     limbTorso2: true,          // limb leads I, II from the solved torso (src/torso_limb.json: shoulder/axilla and hip contact patches) instead of the cylinder field
     fullTorso: false,          // with chestTorso: every lead from the solved torso's electrode potentials (limb LA−RA, LL−RA; chest V − WCT), no heart-vector blend
-    chestTorsoT: 1, chestTorsoT0: 40, chestTorsoTRamp: 80, chestTorsoTGain: 1, chestTorsoTCav: 0, chestTorsoTLead: [0, 0, 0, 0.5, 1, 1],   // ST-T of the chest leads from the solved torso (see the chest leads in Sim)
+    chestTorsoT: 1, chestTorsoT0: 40, chestTorsoTRamp: 80, chestTorsoTGain: 1, chestTorsoTCav: 0, chestTorsoTLead: [0, 0, 0.5, 0.75, 1, 1],   // ST-T of the chest leads from the solved torso (see the chest leads in Sim)
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
