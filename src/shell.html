@@ -51,6 +51,13 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
 #tabs button.tour svg { color: var(--accent); }
 @keyframes tourPulse { 50% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 9px rgba(239,91,122,0.22); } }
 @media (prefers-reduced-motion: reduce) { #tabs button.tour { animation: none; } }
+/* narrow phones (or a large system font): the open tab shows its icon only, so the module's own buttons (⋯ included)
+   keep their room on the right */
+@media (max-width: 379px) {
+  #tabs button.on .name { display: none; }
+  #tabs button.on { padding: 0 10px; }
+  #tabs { gap: 2px; padding-left: 6px; }
+}
 /* tablets: every tab named */
 @media (min-width: 600px) {
   #tabs button .name { display: inline; font-size: 16px; }

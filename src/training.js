@@ -41,6 +41,15 @@
     else if (name.replace(/ /g, '').startsWith(qs)) tier = 1;
     else if (nw.includes(qs)) tier = 2;
     else if (from(name).some((x) => x.startsWith(qs))) tier = 3;
+    // initials of a name or a synonym of several words ("sp" finds Sinus pause, "lbbb" Left bundle branch block): exactly,
+    // as good as the start of the name; the start of the initials, a little below (Round 66)
+    const ini = (x) => { const w = norm(x).split(' ').filter(Boolean); return w.length > 1 ? w.map((y) => y[0]).join('') : ''; };
+    if (qs.length >= 2) for (const x of [t.name, ...t.syn]) {
+      const i = ini(x); if (!i) continue;
+      const it = x === t.name ? 1 : 2;   // (the name's own initials before a synonym's)
+      if (i === qs && (tier === null || tier > it)) { tier = it; if (x !== t.name) via = x; }
+      else if (i.startsWith(qs) && (tier === null || tier > 3)) { tier = 3; if (x !== t.name) via = x; }
+    }
     for (const sy of t.syn) {
       const n = norm(sy), ns = n.replace(/ /g, '');
       if (ns === qs) return { tier: 0, via: sy, exact: true };
@@ -133,7 +142,7 @@
     const adj = {}, mul = (k, f) => { adj[k] = (adj[k] === undefined ? 1 : adj[k]) * f; };
     const SIN = ['sinus', 'sinusBrady', 'sinusTachy'];
     // (the ECG on screen and those queued count as just seen)
-    const inFlight = [st.item, ...gen.queue].filter((x) => x && x.recipe).map((x) => ({ keys: [x.recipe.rhythm, ...x.recipe.abn.map((a) => a.k)] }));
+    const inFlight = [st.item, ...gen.queue].filter((x) => x && x.recipe).map((x) => ({ keys: [x.recipe.rhythm, ...x.recipe.abn.map((a) => a.k), ...x.recipe.abn.filter((a) => a.site).map((a) => `site:${a.site}`)] }));
     const recent = [...st.hist.slice(-20), ...inFlight].slice(-20);
     recent.forEach((h, i) => {
       const near = recent.length - i <= 8, ks = h.keys || [];
@@ -481,7 +490,7 @@
     measChips($('meas')); measChips($('fsMeas'));
     const ph = st.phase;
     for (const k of ['answer', 'region', 'result']) document.body.classList.toggle(`ph-${k}`, ph === k);   // (layout by phase: tablets)
-    $('answer').hidden = ph === 'result'; $('kbd').hidden = ph !== 'answer'; $('region').hidden = ph !== 'region'; $('result').hidden = ph !== 'result';
+    $('answer').hidden = ph === 'result' || ph === 'wait'; $('kbd').hidden = ph !== 'answer'; $('region').hidden = ph !== 'region'; $('result').hidden = ph !== 'result';
     renderPicked();
     if (ph === 'answer') renderField();
     if (ph !== 'answer') { $('suggest').hidden = true; $('picked').hidden = false; }
@@ -497,7 +506,8 @@
   function openPast(hi) {
     const h = st.hist[hi]; if (!h || !h.recipe) return;
     $('stats').hidden = true; $('home').hidden = true;
-    st.mode = 'view'; st.fromStats = true; st.item = null; st.phase = 'answer'; st.picked = []; st.score = null; setLoading('Recording the ECG…'); render();
+    // (phase 'wait': no answer field or keyboard while the ECG is rebuilt; this ECG is only looked at)
+    st.mode = 'view'; st.fromStats = true; st.item = null; st.phase = 'wait'; st.picked = []; st.score = null; setLoading('Recording the ECG…'); render();
     request({ type: 'build', recipe: h.recipe }, (item) => {
       if (st.mode !== 'view') return;
       if (!item) { toast('Could not prepare that ECG'); goHome(); return; }
@@ -696,7 +706,7 @@
     const rk = st.item.recipe || { rhythm: st.item.key.rhythm, abn: [] };
     st.hist.push({ id: st.item.id, title: itemTitle(st.item.key), score: st.score.total, time: st.time, rhythm: st.score.rhythm, delta: st.delta, at: Date.now(), mode: st.mode,
       rated, recipe: st.item.recipe, picked: st.picked.map((p) => (p.regions ? { id: p.id, regions: p.regions.slice() } : { id: p.id })),
-      keys: [rk.rhythm, ...rk.abn.map((a) => a.k)], miss: st.score.rows.filter((r) => r.cls === 'miss' || r.cls === 'part').map((r) => r.id) });
+      keys: [rk.rhythm, ...rk.abn.map((a) => a.k), ...rk.abn.filter((a) => a.site).map((a) => `site:${a.site}`)], miss: st.score.rows.filter((r) => r.cls === 'miss' || r.cls === 'part').map((r) => r.id) });
     saveProgress();
     // show the half of the ECG that carries the answer
     const hl = st.item.highlight || [], chest = hl.filter((l) => l.startsWith('V')).length, limb = hl.length - chest;

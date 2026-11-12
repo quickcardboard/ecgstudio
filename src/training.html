@@ -235,7 +235,7 @@ html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href], html.in
 #bottom { flex: none; display: flex; flex-direction: column; min-height: 0; }
 #bottom > #result, #bottom > #region { flex: 1 1 auto; min-height: 0; }
 #result { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px); }
-#result .rscroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+#result .rscroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; margin: -4px; }   /* (room for the selected chip's outline: a scrolling box clips what is drawn past its edge) */
 .scorebar { display: flex; align-items: center; gap: 10px; }
 .scorebar .bar { flex: 1; height: 10px; border-radius: 5px; background: var(--key); overflow: hidden; }
 .scorebar .bar i { display: block; height: 100%; border-radius: 5px; background: var(--ok); transition: width 0.5s; }

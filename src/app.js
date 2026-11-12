@@ -1531,10 +1531,11 @@
     for (const p of document.querySelectorAll('#controls .tabpanel')) p.hidden = p.dataset.panel !== t;
     $('controls').classList.toggle('wide', t === 'learn' || (t === 'conditions' && !$('condCatalog').hidden));
     toggleControls(true);
-    // opening a tab shows the view it works in: blocks in the four-chamber cut, ischemia on the outside (the arteries)
+    // opening a tab shows the view it works in: blocks cut open (the conduction system), ischemia from the outside (the
+    // arteries). Only the cut changes: the heart keeps the way the user turned it (Round 66, the author)
     if (changed || fromClick) {
-      if (t === 'blocks' && ui.cutFrac < 100) { setCut(100); cameraPreset('front'); }
-      if (t === 'ischemia' && ui.cutFrac > 0) { setCut(0); cameraPreset('chest'); }
+      if (t === 'blocks' && ui.cutFrac < 100) setCut(100);
+      if (t === 'ischemia' && ui.cutFrac > 0) setCut(0);
     }
     if (t === 'learn') renderLearn();
     updateActionNote(); hideBlockMenu();

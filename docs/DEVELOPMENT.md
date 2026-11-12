@@ -2266,3 +2266,38 @@ cancel, owned elsewhere, debug build). Details and the Play Console steps: docs/
   findings, the tutorial, the daily ECG and the Training purchase, tablets, and the forms for in-app purchases; tablet
   listing screenshots were made (2560×1600, 1600×2560). The simulator's view bar fades at its right edge when there is
   more to scroll.
+
+## Round 66: tester reports (Training) and the author's list
+
+Training reports (10, 11–12 November), each rebuilt from its recipe and measured:
+- **Q waves that nobody sees** (second obtuse marginal and distal circumflex infarcts, "no significant Q in V5", "Q only
+  in V6"): V5's q was 31–32 ms and 1.2–1.3 mm, the inferior ones 29 ms. A Q-wave lead now needs a QS, a Q of 40 ms or more,
+  or one of 30 ms or more that is at least 2 mm deep (V2–V3 unchanged: 20 ms or QS). Those items are now rejected.
+- **T inversion asked in the wrong territory** (recent left main infarct: T inversion in I, aVL, V5, V6 and only V4 of the
+  anterior pair, asked as anterior): the territory asked is now one where the inversion shows in at least two of the
+  territory's own leads (`terrStrong`), the site's own first, else the one with the most.
+- **"This is not Mobitz I"** (Mobitz I with a proximal RCA STEMI read blind as sinus bradycardia with first-degree block):
+  Mobitz I now needs the blind rhythm read (`gateRead`).
+- Kept: "anterior/lateral ST depression too" with subendocardial ischemia from the proximal RCA (V4–V5 −0.5 mm, below the
+  1 mm threshold); "inferior ST depression is true" with the left main infarct (J-point depression with an upsloping ST,
+  ST at J+80 above baseline). "V5 to V6 transition looks odd" (recent mid LAD): the chest-lead model limitation.
+- **Repeats** ("why so many duplicate ECGs?"): the history keeps each infarct's artery (`site:…`), and an artery seen
+  recently is drawn less often (as for rhythms and findings).
+
+The author's list:
+- **New rhythms:** ectopic atrial rhythm (62–95/min) and atrial tachycardia (112–150/min), rare (weights 0.7, 0.6): a low
+  right-atrial focus 38 mm from the AV node (`lowAtrialCell`; at 30 mm the short PR read as WPW, at 45 mm the P turned
+  upright), PR ~145 ms, P inverted in II, III, aVF; gated on the blind read. Vocabulary: "Ectopic atrial rhythm" (EAR, low
+  atrial rhythm, …), "Atrial tachycardia" (AT, focal atrial tachycardia, …). Note: the item's simulator link uses the
+  simulator's own ectopic focus (25 mm), whose PR is shorter.
+- **Less WPW:** the WPW pattern's weight 1.5 → 0.6, orthodromic AVRT 1.5 → 0.8 (missed findings still come back more).
+- **2:1 AV block** is no chip of its own: answered as Mobitz II ("2:1 …" synonyms), its line saying why.
+- **Extreme axis deviation** ("EAD", northwest axis, …): accepted as also true when the axis is beyond −90° (to ±180°).
+- **Initials:** a term of several words is found by its initials ("sp" → Sinus pause; the name's own initials before a
+  synonym's).
+- **Blocks and Ischemia tabs** only change the cut (cut open / outside); the heart keeps its rotation. Help: "Blocks:
+  opens the cut view".
+- **Result chip cut off** (Pixel 8): the result's scrolling area clipped the selected chip's outline; it has 4 px room now.
+- **⋯ off screen on narrow phones** (below ~370 px, or a large system font): the open module tab shows its icon only there.
+- **A past ECG from Statistics** no longer shows the answer field and keyboard while it is rebuilt (phase `wait`).
+- **LPFB voltages too large** (to do, engine): R in III 3.4 mV (34 mm) by `tools/fascsearch.js`; textbook about 1–2 mV.

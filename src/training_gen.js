@@ -37,8 +37,10 @@
     // the blind rhythm read, which can take MAT for AF.
     mat: { w: 1, open: true, pVisible: true, foci: true, rating: 170, rate: [70, 130], link: 'a=mat', start: (S, rec, M, h) => { S.run(2000); S.startArrhythmia('mat', { cells: h.matFoci(M) }); }, read: (r) => /multifocal|wandering/.test(r) },
     avnrt: { w: 1.5, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
-    avrt: { w: 1.5, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
-    mobitz1: { w: 2, open: true, rating: 150, block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
+    avrt: { w: 0.8, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
+    // (Round 66: the blind read must see the Wenckebach pattern; a proximal RCA infarct slowing the node turned one into a
+    // steady first-degree block)
+    mobitz1: { w: 2, open: true, gateRead: true, rating: 150, block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
     mobitz2: { w: 1.2, open: true, rating: 180, block: ['HIS', 'mobitz2', { n: 4 }], read: (r) => /Mobitz II /.test(r) },
     avb2to1: { w: 0.6, open: true, rating: 200, block: ['AVN', 'two-to-one'], read: (r) => /2:1 AV block/.test(r) },
     // (the atrial rate must not be a whole or half multiple of the 48/min junctional escape: at 72 or 96 the P waves
@@ -50,14 +52,34 @@
     vf: { w: 0.8, tachy: true, rating: 40, link: 'a=vf', vf: true, start: (S) => { S.run(2000); S.startArrhythmia('vf'); }, read: (r) => r === 'ventricular fibrillation' },
     // sinus arrest for the whole strip with an escape rhythm: junctional (narrow, retrograde P hidden after the QRS)
     // or ventricular (block in the His bundle below it: wide); naming the sinus pause is true but not required
+    // ectopic atrial rhythm and atrial tachycardia (Round 66): a low right-atrial focus (the simulator's "Ectopic atrial
+    // rhythm"), P inverted in II, III and aVF before every QRS; the blind rhythm read must see it
+    ectopicAtrial: { w: 0.7, open: true, pRhythm: true, gateRead: true, rating: 130, rate: [62, 95], link: 'a=ectopic', notWith: ['rae', 'lae', 'bae', 'wpw', 'peri'],
+      start: (S, rec, M) => { S.run(2000); S.startArrhythmia('ectopic', { cell: lowAtrialCell(M) }); S.setRate(rec.rate); }, read: (r) => /ectopic atrial/.test(r) },
+    atrialTach: { w: 0.6, open: true, pRhythm: true, gateRead: true, rating: 170, rate: [112, 150], link: 'a=ectopic', alt: ['svt'], notWith: ['rae', 'lae', 'bae', 'wpw', 'peri'],
+      start: (S, rec, M) => { S.run(2000); S.startArrhythmia('ectopic', { cell: lowAtrialCell(M) }); S.setRate(rec.rate); }, read: (r) => /ectopic atrial|atrial tachycardia/.test(r) },
     junctional: { w: 0.8, open: true, noP: true, notWith: ['lbbb', 'rbbb', 'nsstt'],   // (a wide QRS would pass for a ventricular escape; the retrograde P sits on the ST-T)
       rating: 140, block: ['SAN', 'arrest'], optional: ['sinusPause'], read: () => true },
     idioventricular: { w: 0.5, noP: true, wide: true, rating: 160, block: ['SAN', 'arrest'], block2: ['HIS', 'complete'], optional: ['sinusPause'], read: () => true },
+  };
+  // the focus of the atrial rhythms: the right-atrial cell nearest the AV node at least ECT_MM from it (low in the right
+  // atrium, so the P is inverted in II, III and aVF; far enough for a normal PR)
+  let ECT_MM = 38;
+  const lowAtrialCell = (M) => {
+    const a0 = M.avn[0], A = M.A; let c = -1, best = Infinity;
+    for (let q = 0; q < M.nVox; q++) {
+      if (M.kind[q] !== 1 || A.label[q] !== 4) continue;
+      const d = Math.hypot(M.x[q] - M.x[a0], M.y[q] - M.y[a0], M.z[q] - M.z[a0]);
+      if (d >= ECT_MM && d < best) { best = d; c = q; }
+    }
+    return c;
   };
   const RHYTHM_LINE = {
     sinus: 'Regular, a P before every QRS at a normal rate: sinus rhythm.',
     sinusBrady: 'A P before every QRS, rate under 60: sinus bradycardia.',
     sinusTachy: 'A P before every QRS, rate over 100: sinus tachycardia.',
+    ectopicAtrial: 'A P before every QRS but inverted in II, III and aVF (a low atrial focus), rate under 100: ectopic atrial rhythm.',
+    atrialTach: 'Regular, rate over 100, an abnormal P (inverted in II, III and aVF) before every QRS: atrial tachycardia.',
     af: 'Irregularly irregular, no P waves: atrial fibrillation.',
     mat: 'Irregular, rate over 100, at least three different P-wave shapes with varying PR: multifocal atrial tachycardia.',
     wap: 'Irregular, rate under 100, at least three different P-wave shapes with varying PR: wandering atrial pacemaker (the slow form of MAT).',
@@ -66,7 +88,7 @@
     avrt: 'Regular narrow tachycardia above 200 with no visible P: AVRT, not AVNRT.',
     mobitz1: 'PR lengthens beat by beat until a P is not conducted: Mobitz I.',
     mobitz2: 'Constant PR, then a P suddenly not conducted: Mobitz II.',
-    avb2to1: 'Every second P is not conducted: 2:1 AV block (Mobitz I or II cannot be told apart).',
+    avb2to1: 'Every second P is not conducted: 2:1 AV block. 2:1 conduction cannot tell Mobitz I from II, so it is named as the more dangerous one: Mobitz II.',
     chb: 'P waves march through at their own rate, unrelated to a slow regular escape: complete AV block.',
     vt: 'Regular broad-complex tachycardia without related P waves: ventricular tachycardia.',
     tdp: 'Broad-complex tachycardia whose QRS axis twists around the baseline, the complexes growing and shrinking in spindles: torsades de pointes (polymorphic VT on a long QT).',
@@ -148,7 +170,7 @@
   };
   // (testers' round 1: fewer hypertrophy, Brugada and atrial enlargement; more ST depression, T changes,
   // WPW and ectopy)
-  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 1.5, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, hyperK: 0.35, hyperK2: 0.15, hypoK: 0.3, hypoCa: 0.2, hyperCa: 0.15, hypothermia: 0.4, wellensA: 0.2, wellensB: 0.25 };   // (the electrolytes, Wellens and hypothermia: rare, about as often as atrial enlargement)
+  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 0.6, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 3, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, hyperK: 0.35, hyperK2: 0.15, hypoK: 0.3, hypoCa: 0.2, hyperCa: 0.15, hypothermia: 0.4, wellensA: 0.2, wellensB: 0.25 };   // (the electrolytes, Wellens and hypothermia: rare, about as often as atrial enlargement)
   const ITEM_BASE = 1200, PER_ABN = 180;
   // (difficulty above the base is stretched ×1.32: the hardest ECGs, four findings on a hard rhythm, reach ~2700
   // instead of ~2340, leaving headroom above the top title; the generator works on the unstretched scale)
@@ -250,7 +272,7 @@
     const abn = list.map((k) => {
       const a = { k };
       // (a mid-LAD narrowing stays under 1 mm: not asked)
-      if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list, k) && !(k === 'hyper' && famOf(x) === 'LCx')); if (!sites.length) return null; a.site = sites[Math.floor(rand() * sites.length)]; }   // (no hyperacute T at a circumflex site: its T barely grows; nor at the proximal RCA, whose inferior T stays under 5 mm)
+      if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list, k) && !(k === 'hyper' && famOf(x) === 'LCx')); if (!sites.length) return null; a.site = pickW(rand, sites.map((x) => [x, adjust[`site:${x}`] === undefined ? 1 : adjust[`site:${x}`]])); }   // (no hyperacute T at a circumflex site: its T barely grows; nor at the proximal RCA, whose inferior T stays under 5 mm)
       return a;
     }).filter(Boolean);
     let rate = 72;
@@ -482,6 +504,9 @@
       if (has('anterior') && has('septal')) return 'anteroseptal';
       return ex.req.join('/');
     };
+    // (the territories where a change shows in at least two of the territory's own leads: one lead at a border, V4 beside
+    // V5–V6, does not make the anterior wall)
+    const terrStrong = (leads) => Object.keys(RL).filter((t) => RL[t].filter((n) => leads.includes(n)).length >= 2);
     const terrOf = (leads) => [...new Set(Object.entries(GROUPS).filter(([, g]) => g.some((n) => leads.includes(n))).map(([t]) => territory(t)))];
     const steLeads = (L) => contiguous(LEADS.filter((n) => n !== 'aVR' && L[n].stJ >= (n === 'V2' || n === 'V3' ? 0.2 : 0.1)));
     // ST depression (4th UDMI, at the stricter teaching threshold): ≥ 1 mm at J+80 ms, horizontal or
@@ -494,7 +519,9 @@
     // (lead III counts with aVF or II beside it, never alone: a lone inverted T in III is normal)
     const twiLeads = (L) => contiguous(LEADS.filter((n) => !['aVR', 'V1'].includes(n) && L[n].T <= -0.1 && (L[n].R > L[n].S || L[n].qs || L[n].q.dur >= 30)));
     // (4th UDMI: lead III counts with aVF or II beside it (contiguous), never alone)
-    const qLeads = (L) => contiguous(LEADS.filter((n) => (n === 'V2' || n === 'V3' ? L[n].q.dur >= 20 || L[n].qs : ['I', 'II', 'III', 'aVL', 'aVF', 'V4', 'V5', 'V6'].includes(n) && ((L[n].q.dur >= 30 && L[n].q.amp <= -0.1) || L[n].qs))));
+    // (Round 66, the author: a 30–32 ms, 1.3 mm q in V5 is not a Q wave anyone sees at 25 mm/s. Outside V2–V3 a lead counts
+    // with a QS, a Q of at least 40 ms (one small square), or a Q of at least 30 ms that is at least 2 mm deep)
+    const qLeads = (L) => contiguous(LEADS.filter((n) => (n === 'V2' || n === 'V3' ? L[n].q.dur >= 20 || L[n].qs : ['I', 'II', 'III', 'aVL', 'aVF', 'V4', 'V5', 'V6'].includes(n) && ((L[n].q.dur >= 40 && L[n].q.amp <= -0.1) || (L[n].q.dur >= 30 && L[n].q.amp <= -0.2) || L[n].qs))));
     // criteria (ACC/AHA 2009 conduction, Sokolow-Lyon/Cornell, 4th UDMI, the reader's P-wave and Brugada
     // rules; tools/reader.js has the sources) → { ok, why, leads }
     function criteria(k, a, m, L) {
@@ -682,6 +709,7 @@
         }
         if (b.f.axis === 'LAD') optional.add('lad');
         if (b.f.axis === 'RAD') optional.add('rad');
+        if (r.m.axis !== null && (r.m.axis < -90 || r.m.axis > 180)) optional.add('ead');   // (extreme axis, −90° to ±180°: Round 66)
         if (ks.includes('lvh')) optional.add('lvhStrain');
         if (ks.includes('lvh') || ks.includes('rvh')) optional.add('twi');   // (the strain pattern: lateral or right-precordial T inversion)
         if (ks.includes('rbbb') && ks.includes('lafb')) optional.add('bifascicular');
@@ -770,9 +798,11 @@
           lines.hyperacute = `Tall, broad T waves in ${c.leads.join(', ')}, no ST elevation yet: hyperacute ${req.join('/')} ischemia. Repeat the ECG.`;
           ['twi', 'reciprocal'].forEach((x) => optional.add(x));
         } else if (a.k === 'recent') {
-          const site = MI_SITES[a.site], ex = site.q, terr = terrOf(c.leads), tt = terrOf(c.leads2);
+          const site = MI_SITES[a.site], ex = site.q, terr = terrOf(c.leads), tt = terrOf(c.leads2), ts = terrStrong(c.leads2);
           findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr])].filter((t) => !ex.req.includes(t)) });
-          const tReq = tt.filter((t) => ex.req.includes(t)).length ? tt.filter((t) => ex.req.includes(t)) : tt.slice(0, 1);
+          // (T inversion asked where it is: a territory of the site's that shows it in two of its leads, else the territory with the most)
+          const most = (ts.length ? ts : tt).slice().sort((x, y) => RL[y].filter((n) => c.leads2.includes(n)).length - RL[x].filter((n) => c.leads2.includes(n)).length);
+          const tReq = ts.filter((t) => ex.req.includes(t)).length ? ts.filter((t) => ex.req.includes(t)) : most.slice(0, 1);
           findings.push({ id: 'twi', skill: d.skill, regions: tReq, okRegions: [...new Set([...tt, ...ex.req, ...ex.ok])].filter((t) => !tReq.includes(t)) });
           mark('qwaves', c.leads); mark('twi', c.leads2);
           lines.qwaves = lines.twi = `Q waves in ${c.leads.join(', ')}, T inversion in ${c.leads2.join(', ')}: recent ${wallName(ex, terr)} infarct (days old).`;
@@ -827,6 +857,8 @@
       else if ((calK === 'pr' || rec.abn.some((a) => a.k === 'avb1')) && shownPR) { const [a] = within(1200, 4600); if (a) caliper = { lead: 'rhythm', t0: Math.round(a.on - shownPR), t1: Math.round(a.on), label: `PR ${shownPR} ms` }; }
       const nS = STRIP / (1000 / HZ), art = rec.art ? artifactLeads(rec.art, rec.seed, nS) : null;
       const leads = LEADS.map((_, k) => { const x = new Int16Array(nS); for (let i = 0; i < x.length; i++) x[i] = Math.max(-32000, Math.min(32000, Math.round((rec12[i * (1000 / HZ)][k] + (art ? art[k][i] : 0)) * 1000))); return b64(x); });
+      // (2:1 AV block is answered as Mobitz II: no chip of its own (Round 66, the author))
+      if (rhythm === 'avb2to1') rhythm = 'mobitz2';
       const key = { rhythm, alt: rhythmAlt || R.alt || (SINUS.includes(rhythm) && rhythm !== 'sinus' ? ['sinus'] : []), findings, optional: [...optional] };
       const skills = { rhythm: true }; for (const a of rec.abn) skills[ABN[a.k].skill] = true;
       const title = [rhythm, ...rec.abn.map((a) => (ABN[a.k].isch ? `${a.k} (${a.site})` : a.k))].join(' + ');
@@ -835,7 +867,7 @@
       return {
         ok: true,
         item: { id: `${rec.rhythm}-${rec.seed}`, title, recipe: rec, hz: HZ, ms: STRIP, leads, m, read: { rhythm: rr.rhythm, dx: b.dx, checks, hiddenP: pv }, key, highlight: hl.size ? LEADS.filter((l) => hl.has(l)) : ['II'], hlBy, caliper,
-          lines: { rhythm: RHYTHM_LINE[rhythm], ...lines }, link: linkOf(rec), rating, skills: Object.keys(skills), n: rec.abn.length },
+          lines: { rhythm: RHYTHM_LINE[rec.rhythm === 'avb2to1' ? 'avb2to1' : rhythm], ...lines }, link: linkOf(rec), rating, skills: Object.keys(skills), n: rec.abn.length },
       };
     }
     // make: sample scenarios near the target until one passes the gate (or give up)
@@ -849,7 +881,7 @@
       }
       return null;
     }
-    return { make, build, sample, model, itemRating, artifactLeads, ART_MAX };
+    return { make, build, sample, model, itemRating, artifactLeads, ART_MAX, setEctMm: (x) => { ECT_MM = x; } };
   }
   TrainGen.RHYTHMS = RHYTHMS; TrainGen.ABN = ABN; TrainGen.SKILLS = SKILLS; TrainGen.itemRating = itemRating; TrainGen.sample = sample;
   if (typeof module !== 'undefined' && module.exports) module.exports = TrainGen; else root.TrainGen = TrainGen;
