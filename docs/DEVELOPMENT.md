@@ -2537,3 +2537,13 @@ over), RBBB axis −51°, mid-RCA 30 d Q III −20.5 mm and R aVL 16 mm, distal-
   normal axis to 14–20°, brings LAFB's q in aVL back to 31 ms and raises the infarct lead-group errors 4 → 6 (proximal
   LCx gains inferior Q): the territory decides which fascicle activates which wall in the normal beat too. With infarct
   localisation held at live's level, LPFB stops at 91–92° in this model. Not changed.
+- **No infarct-criteria Q in the blocks** (the author: a small q is fine, one that meets the old-infarct criteria is
+  not). LAFB's V5–V6 q (30 ms) went with `brody` 2 → 1 (gain recalibrated ×1.054 to keep the normal QRS, `atrialLimbGain`
+  2.0 → 1.897 to keep the P wave): LAFB 8/8 on the scorecard, reads "LAFB, poor R progression"; LPFB 92°, reads LPFB.
+- **Rhythm reader** (also Training's): complexes are aligned to the median beat (best match within ±30 ms) before the
+  shape-consistency measure (a wide slurred escape had its fastest point land elsewhere in two of five beats: 0.21
+  correlation, read VF); VF also needs little isoelectric time (iso < 0.4; VF ~0.1, a slow escape ~0.8). Live: rhythm
+  reads 16/17 (unchanged), Training audit 139/180 (unchanged).
+- Preview now: scorecard **59/66** (live 53), reader 47/57 (live 50), infarct lead groups iErr 4 (= live), Training audit
+  131/180 (live 139). Remaining Q that meets infarct criteria: pericarditis's inferior q (the reader's onset effect), the
+  RBBB QS in aVF.

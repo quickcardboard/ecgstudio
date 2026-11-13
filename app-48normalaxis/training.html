@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-13 (ea3b722)">
+<meta name="version" content="2026-11-13 (6307495)">
 <meta name="premium" content="1">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -3625,7 +3625,7 @@ body.land #fsClose { display: none; }
   else root.ECGStudio = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 
-;(function () { var E = (typeof window !== "undefined" ? window : globalThis).ECGStudio; if (E) Object.assign(E.DEFAULTS, {"heartPitch": -15, "heartYaw": 12, "ecgGain": 0.01167, "precordialGain": 0.8, "precordialDipoleW": 0.62, "precordialDipoleGain": 2.2, "dowerChest": 0.8, "atrialFrontalRot": 45, "atrialLimbGain": 2, "chestTorsoTGain": 1.4, "occlusionInj": {"LAD": 1, "LCx": 2, "RCA": 0.8, "LM": 1}, "occlusionBorderMm": {"LAD": 18}, "septalTerrHalf": 0.45, "purkCrossFastPhi": [[0.7, 0.3], [-1.8, 0.05]], "purkCrossSlow": 6, "cvPurkinje": 2.1, "lsfZ": 0.35, "lsfPhi": 0.3, "lpfApexZ": 0.35, "fascConnectFrac": 0.35, "lpfZ": 0.25, "lafZ": 0.7, "rvCvMul": 0.8, "heartRotation": 17, "lsfTieDelay": 3.0}); })();
+;(function () { var E = (typeof window !== "undefined" ? window : globalThis).ECGStudio; if (E) Object.assign(E.DEFAULTS, {"heartPitch": -15, "heartYaw": 12, "ecgGain": 0.0123, "precordialGain": 0.8, "precordialDipoleW": 0.62, "precordialDipoleGain": 2.2, "dowerChest": 0.8, "atrialFrontalRot": 45, "atrialLimbGain": 1.897, "chestTorsoTGain": 1.4, "occlusionInj": {"LAD": 1, "LCx": 2, "RCA": 0.8, "LM": 1}, "occlusionBorderMm": {"LAD": 18}, "septalTerrHalf": 0.45, "purkCrossFastPhi": [[0.7, 0.3], [-1.8, 0.05]], "purkCrossSlow": 6, "cvPurkinje": 2.1, "lsfZ": 0.35, "lsfPhi": 0.3, "lpfApexZ": 0.35, "fascConnectFrac": 0.35, "lpfZ": 0.25, "lafZ": 0.7, "rvCvMul": 0.8, "heartRotation": 17, "lsfTieDelay": 3.0, "brody": 1}); })();
 
 const TR_READER = (function () { const module = { exports: {} }, exports = module.exports, require = () => ({});
 // Blind 12-lead ECG reader and scenario scorer: "would a cardiologist's reading match the pathology?"
@@ -3958,11 +3958,16 @@ function readRhythm(rec) {
   const seg = (b) => { const v = []; for (let t = b.p - 40; t <= b.p + 80; t++) for (let k = 0; k < NL; k++) v.push(rec[Math.max(0, Math.min(N - 1, t))][k]); return v; };
   const segs = beats.map(seg), med = segs[0].map((_, i) => pct(segs.map((s) => s[i]), 0.5));
   const corr = (a, b) => { const ma = mean(a), mb = mean(b); let n = 0, da = 0, db = 0; for (let i = 0; i < a.length; i++) { n += (a[i] - ma) * (b[i] - mb); da += (a[i] - ma) ** 2; db += (b[i] - mb) ** 2; } return n / Math.sqrt(da * db || 1); };
-  const cors = segs.map((s) => corr(s, med)), morph = mean(cors);
+  // (each complex aligned to the median beat first: best match within ±30 ms, as a reader lines complexes up by eye;
+  // the fastest point can land elsewhere in a wide, slurred complex)
+  const segAt = (b, d) => { const v = []; for (let t = b.p - 40 + d; t <= b.p + 80 + d; t++) for (let k = 0; k < NL; k++) v.push(rec[Math.max(0, Math.min(N - 1, t))][k]); return v; };
+  const cors = beats.map((b, i) => { let best = corr(segs[i], med); for (let d = -30; d <= 30; d += 2) if (d) best = Math.max(best, corr(segAt(b, d), med)); return best; }), morph = mean(cors);
   // isoelectric share: time the signal is quiet (no activity) — VF has none
   let quietN = 0; for (let t = 0; t < N; t++) if (svs[t] < 0.04 * top) quietN++;
   Object.assign(out, { rate, rrCv: +rrCv.toFixed(3), width, morph: +morph.toFixed(2), iso: +(quietN / N).toFixed(2) });
-  if (morph < 0.7) return { ...out, rhythm: 'ventricular fibrillation' };   // (no consistent QRS shape)
+  // VF: no consistent QRS shape and no isoelectric baseline (a slow escape with P waves landing on some complexes
+  // keeps its baseline: iso ~0.8; VF ~0.1)
+  if (morph < 0.7 && out.iso < 0.4) return { ...out, rhythm: 'ventricular fibrillation' };
   // ---- QRST template subtraction → atrial residual
   // template window: from just before the QRS to the end of the T wave (from the median beat), so a
   // conducted P wave before the QRS, or the next beat's P after the T, is not part of it

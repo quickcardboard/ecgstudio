@@ -5,13 +5,13 @@
   "params": {
     "heartPitch": -15,
     "heartYaw": 12,
-    "ecgGain": 0.01167,
+    "ecgGain": 0.0123,
     "precordialGain": 0.8,
     "precordialDipoleW": 0.62,
     "precordialDipoleGain": 2.2,
     "dowerChest": 0.8,
     "atrialFrontalRot": 45,
-    "atrialLimbGain": 2,
+    "atrialLimbGain": 1.897,
     "chestTorsoTGain": 1.4,
     "occlusionInj": {
       "LAD": 1,
@@ -43,6 +43,7 @@
     "lafZ": 0.7,
     "rvCvMul": 0.8,
     "heartRotation": 17,
-    "lsfTieDelay": 3.0
+    "lsfTieDelay": 3.0,
+    "brody": 1
   }
 }
