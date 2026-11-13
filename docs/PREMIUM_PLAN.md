@@ -33,8 +33,8 @@ Decided by the author (2026-11-11):
 - Training: in the app, what Play says decides; the price shown is Play's, in the local currency. On the website, with
   premium on for everyone, the unlock button reads "Get ECG Studio on Google Play" (the store page); previews
   (`?premium=1`) keep the stand-in purchase.
-- **Premium for everyone:** `"premium": true` in `site.json` (**on since 2026-11-11**, at the author's request, before
-  the next release build), then rebuild: the build writes it into Training (`<meta name="premium">`). Without Google Play
+- **Premium for everyone:** `"premium": true` in `site.json` (**off again since 2026-11-13**, at the author's request, until the
+  release build; it was on 2026-11-11 to 13), then rebuild: the build writes it into Training (`<meta name="premium">`). Without Google Play
   (the website and its /app copy) Training is never owned there: the unlock button opens the app's store page; only
   `?premium=1` previews keep the stand-in purchase.
 - **License testing: skipped** (the author's choice). Closed testers buying Training in the Play build pay for real.
