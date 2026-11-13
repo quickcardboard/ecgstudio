@@ -1,21 +1,21 @@
 {
   "dir": "app-48normalaxis",
-  "about": "Round 67 orientation candidate (docs/DEVELOPMENT.md Round 67, part 4): normal axis ~+48 to +54 degrees, its own solved torso. A preview at ecgstudio.app/app-48normalaxis; the live defaults are unchanged. Round 68: Purkinje anastomoses for the fascicular blocks (LAFB, LPFB and RBBB read correctly). Round 68: tilt 24 / pitch -15 / yaw 20 and the septal fascicle slowed (x1.7) with an LPF block: LPFB R III 34 -> 27 mm.",
+  "about": "Round 68 candidate (docs/DEVELOPMENT.md Round 68 part 4): tilt 17 / pitch -15 / yaw 12 with its own solved torso, Purkinje settings for the fascicular blocks. Ischaemia localisation as live; a preview, the live defaults are unchanged.",
   "torso": "src/variants/torso_48normalaxis.json",
   "params": {
     "heartPitch": -15,
-    "heartYaw": 20,
-    "ecgGain": 0.01176,
+    "heartYaw": 12,
+    "ecgGain": 0.01167,
     "precordialGain": 0.8,
     "precordialDipoleW": 0.62,
     "precordialDipoleGain": 2.2,
     "dowerChest": 0.8,
     "atrialFrontalRot": 45,
-    "atrialLimbGain": 2.0,
+    "atrialLimbGain": 2,
     "chestTorsoTGain": 1.4,
     "occlusionInj": {
       "LAD": 1,
-      "LCx": 2.0,
+      "LCx": 2,
       "RCA": 0.8,
       "LM": 1
     },
@@ -30,10 +30,10 @@
       ],
       [
         -1.8,
-        0.15
+        0.05
       ]
     ],
-    "purkCrossSlow": 4.5,
+    "purkCrossSlow": 6,
     "cvPurkinje": 2.1,
     "lsfZ": 0.35,
     "lsfPhi": 0.3,
@@ -42,7 +42,7 @@
     "lpfZ": 0.25,
     "lafZ": 0.7,
     "rvCvMul": 0.8,
-    "heartRotation": 24,
-    "lsfTieDelay": 1.8
+    "heartRotation": 17,
+    "lsfTieDelay": 2.2
   }
 }

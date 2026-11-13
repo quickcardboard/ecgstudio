@@ -2502,3 +2502,26 @@ All steps judged by `tools/scorecard.js` (the 41 block/normal checks per candida
   Q III size (scorecard infarcts 14 → 16/17) but costs the reader 4 (the smaller inferior Q is no longer read).
 - Best candidate in full: scorecard 56/66 (= preview), reader 44/57 (preview 50), fullcheck iErr 10, Training audit
   107/180 (preview 116): not adopted. Best scorecard: the deployed preview, 56/66; live 53/66.
+
+## Round 68, part 4: ischaemia-first orientation (the 48° preview updated)
+
+The author's priorities: ischaemia detection first; LAFB/LPFB acceptable; bundle-branch axes low priority. Quick checks:
+the infarct lead groups of fullcheck alone (scratch copy, 13 s, reproduces fullcheck's iErr exactly) and the block
+scorecard subset (15 s).
+- Injury scales and the chest dipole weight at the yaw-20 preview: iErr 10 → 8 at best; its misses (mid-LAD high-lateral
+  ST, proximal-LCx lateral Q, PDA V1–V2 ST) follow the orientation.
+- All 55 solved orientations scored on both: the apex swung far left (yaw 20) costs infarct localisation; yaw ≤ 12
+  restores it (tilt 10 / pitch −15 / yaw 12: iErr 3; tilt 17 / −15 / 12: iErr 4), but LPFB stops at 85–89°. Yaw 16
+  (solved for tilt 10/17/24): iErr 5–8.
+- Adopted for the preview: tilt 17 / pitch −15 / yaw 12, `ecgGain` 0.01167, `purkCrossSlow` 6, `purkCrossFastPhi`
+  [[0.7, 0.3], [−1.8, 0.05]], `lsfTieDelay` 2.2 (the rest as part 3).
+
+| | live | preview (yaw 20) | **preview (yaw 12)** |
+|---|---|---|---|
+| scorecard | 53/66 | 56/66 | **57/66** |
+| blind reader | 50/57 | 50/57 | 47/57 |
+| infarct lead groups (fullcheck iErr) | 4 | 10 | **4** |
+| Training audit | 139/180 | 116/180 | 131/180 |
+
+Its misses: LPFB 89° (reads normal, 1° short; R III 29.5 mm), LAFB's 30 ms q in V5–V6 (read old low-lateral MI, 1 ms
+over), RBBB axis −51°, mid-RCA 30 d Q III −20.5 mm and R aVL 16 mm, distal-LCx 30 d lateral Q.
