@@ -2488,3 +2488,17 @@ measurements and not from the reader's verdicts; ~1 min per model. Generous rang
 
 The misses left in both: the fascicular block voltages (LPFB), the RBBB superior axis (a known limitation since
 rebuild-1), and the size of the inferior infarct's Q and its aVL R.
+
+## Round 68, part 3: scorecard-driven search (conduction system, orientation, infarct layer)
+
+All steps judged by `tools/scorecard.js` (the 41 block/normal checks per candidate, ~15 s), then the full suites.
+- RBBB's superior axis: weaker RV sources help steadily (`rvSourceGain` 1 → 0.75: −53 → −34°) but do not reach −30°;
+  an earlier right-septal Purkinje (`rbbSeptalDelay` 10) fixes LBBB in the preview (5/5) but costs LAFB and LPFB.
+- Joint random search (120 candidates: the solved orientations × RV source, right-septal delay, septal-fascicle slowing,
+  septal territory, Purkinje speed and cross-territory slowing): plateau at 35/41 (preview 34). The same four misses in
+  every candidate: LPFB R III 26–31 mm, RBBB axis −34 … −53°, LBBB swinging right (96–100°) wherever the fascicular
+  blocks work, RBBB inferior q 30–33 ms. This is the limit of the present conduction system.
+- Infarct layer on the best candidate: LCx injury 2.6 drops beats (discarded); an RCA rim (3–5 mm) gives the textbook
+  Q III size (scorecard infarcts 14 → 16/17) but costs the reader 4 (the smaller inferior Q is no longer read).
+- Best candidate in full: scorecard 56/66 (= preview), reader 44/57 (preview 50), fullcheck iErr 10, Training audit
+  107/180 (preview 116): not adopted. Best scorecard: the deployed preview, 56/66; live 53/66.
