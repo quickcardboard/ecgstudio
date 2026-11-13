@@ -522,7 +522,7 @@
     // (Round 66, the author: a 30–32 ms, 1.3 mm q in V5 is not a Q wave anyone sees at 25 mm/s. Outside V2–V3 a lead counts
     // with a QS, a Q of at least 40 ms (one small square), or a Q of at least 30 ms that is at least 2 mm deep)
     const qLeads = (L) => contiguous(LEADS.filter((n) => (n === 'V2' || n === 'V3' ? L[n].q.dur >= 20 || L[n].qs : ['I', 'II', 'III', 'aVL', 'aVF', 'V4', 'V5', 'V6'].includes(n) && ((L[n].q.dur >= 40 && L[n].q.amp <= -0.1) || (L[n].q.dur >= 30 && L[n].q.amp <= -0.2) || L[n].qs))));
-    // criteria (ACC/AHA 2009 conduction, Sokolow-Lyon/Cornell, 4th UDMI, the reader's P-wave and Brugada
+    // criteria (ACC/AHA 2009 conduction, Sokolow-Lyon, 4th UDMI, the reader's P-wave and Brugada
     // rules; tools/reader.js has the sources) → { ok, why, leads }
     function criteria(k, a, m, L) {
       const yes = (ok, why, leads, leads2) => ({ ok: !!ok, why, leads, leads2 });
@@ -537,7 +537,7 @@
         case 'lbbb': return yes(m.qrs >= 120 && (latR('V6') || latR('I')) && Math.max(L.V6.rpt, L.I.rpt) > 60 && (L.V1.qs || L.V1.R < L.V1.neg), `QRS ${m.qrs} ms`);
         case 'rbbb': return yes(m.qrs >= 120 && ((L.V1.rPrime > 0 && L.V1.rPrime > L.V1.rFirst) || (L.V2.rPrime > 0 && L.V2.rPrime > L.V2.rFirst) || (L.V1.R > L.V1.S && L.V1.rpt > 50)) && (L.I.sWide >= 40 || L.V6.sWide >= 40 || L.I.S > L.I.R || L.V6.S > L.V6.R), `QRS ${m.qrs} ms`);
         case 'wpw': return yes(m.pr !== null && m.pr < 120 && m.qrs >= 110 && m.upstroke >= 50, `PR ${m.pr}, QRS ${m.qrs}, upstroke ${m.upstroke}`);
-        case 'lvh': { const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S; return yes(sok >= 3.5 || corn > 2.8 || L.aVL.R >= 1.1, `Sokolow ${sok.toFixed(2)}, Cornell ${corn.toFixed(2)}`); }
+        case 'lvh': { const sok = L.V1.S + Math.max(L.V5.R, L.V6.R); return yes(sok >= 3.5, `Sokolow ${sok.toFixed(2)}`); }   // (Sokolow-Lyon only, as the reader)
         case 'rvh': return yes((m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7), `axis ${m.axis}°, R V1 ${L.V1.R}`);
         case 'nsstt': {
           // flat T (within ±0.5 mm) in two contiguous leads where T is normally upright, and neither the

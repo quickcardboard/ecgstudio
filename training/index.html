@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-12 (580a7ea)">
+<meta name="version" content="2026-11-13 (a9d4b9b)">
 <meta name="premium" content="1">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -813,6 +813,9 @@ body.land #fsClose { display: none; }
     fascApexFrom: 1,       // where along the fascicle the extension branches off (1 = terminal, 0.3 = a third of the way)
     fascApexLafPhi: null, fascApexLpfPhi: null,   // rotational UVC of the extensions' ends (null = the fascicle's own)
     septalFascicle: true,   // left septal fascicle (Durrer's mid-septal root)
+    lsfTie: 'LPF',          // the division whose block also blocks the septal fascicle (null: neither)
+    ventEscapeFrac: 0.3,    // where along the LPF the ventricular escape focus sits (0 origin … 1 terminal); null: in the muscle under the idioventricular Purkinje node (a wide escape)
+    lsfTieDelay: 0,         // >0: that block slows the septal fascicle by this conduction-time factor instead of cutting it
     fascConnectFrac: 0.45,  // distal fraction of LAF/LPF giving off Purkinje branches
     lbbSplitZ: 0.84, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
     septalTerrHalf: 0,    // half-width (rad) of the mid-septal Purkinje territory
@@ -821,6 +824,7 @@ body.land #fsClose { display: none; }
     lpfTerrLo: -1.54, lpfTerrHi: 0.56,  // LPF territory in rotational UVC (inferior/posterior wall)
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
     purkCrossSlow: 3,       // conduction-time factor on Purkinje links between fascicle territories
+    purkCrossFastPhi: null,  // [[phi, halfWidth], …]: bands of rotational UVC where links between territories are not slowed
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
     precordialGain: 0.66,        // overall chest-lead gain
     sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
@@ -946,7 +950,7 @@ body.land #fsClose { display: none; }
     septalPerf: [0.14, 0.3, 0.45, 0.6],      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
-    occlusionDeadS: null, occlusionBorderMm: null,  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
+    occlusionDeadS: null, occlusionBorderMm: null, occlusionMarginMm: null,   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
     pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.3, pericardSag: -0.55, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
@@ -1479,12 +1483,13 @@ body.land #fsClose { display: none; }
 
       // ---- Escape pacemakers (overdrive-suppressed by faster rhythms)
       this.junctionalCell = his[1];                         // proximal His (junctional)
-      this.ventEscapeCell = this.lpf[Math.floor(this.lpf.length * 0.3)];  // fascicular/ventricular
+      this.ventEscapeCell = this.lpf[Math.min(this.lpf.length - 1, Math.floor(this.lpf.length * P.ventEscapeFrac))];  // fascicular/ventricular (ventEscapeFrac along the LPF)
       // idioventricular: an LV Purkinje node in the inferior wall, mid-level
       this.idioCell = this.purkLV.reduce((best, id) => {
         const c = A.nearest([this.x[id], this.y[id], this.z[id]]), sc = Math.abs(A.zuvc[c] - 0.5) + Math.abs(A.phi[c] + 1.5);
         return !best || sc < best.sc ? { id, sc } : best;
       }, null).id;
+      if (P.ventEscapeFrac === null) this.ventEscapeCell = A.nearest([this.x[this.idioCell], this.y[this.idioCell], this.z[this.idioCell]]);   // (the muscle under it: a myocardial exit)
 
       // fascicle extensions toward the apex: both divisions fan out to the apical
       // endocardium; the extension carries its fascicle's segment (blocked with it)
@@ -1507,7 +1512,7 @@ body.land #fsClose { display: none; }
       };
       // the septal fibres are treated as part of the posterior division: a block of
       // the LPF takes them too (so RBB + LAF + LPF stays a complete block)
-      if (this.lsf.length) this.lsfTie = 'LPF';
+      if (this.lsf.length && P.lsfTie) this.lsfTie = P.lsfTie;   // (null: the septal fascicle is not blocked with either division)
     }
 
     // ---- Coronary arteries (right-dominant) and perfusion territories ----
@@ -1775,7 +1780,10 @@ body.land #fsClose { display: none; }
           let f = 1;
           if (terr.get(c) !== terr.get(q)) {
             const apical = A.zuvc[c] >= 0 && A.zuvc[c] < P.purkCrossApexZ && A.zuvc[q] >= 0 && A.zuvc[q] < P.purkCrossApexZ;
-            f = apical ? 1 : P.purkCrossSlow;
+            // paraseptal anastomoses (purkCrossFastPhi: [[phi, halfWidth], …]): at the territory boundaries in these bands of
+            // the rotational UVC the networks are densely interconnected, so a blocked division's edge is reached at once
+            const fast = P.purkCrossFastPhi && P.purkCrossFastPhi.some(([ph, hw]) => Math.abs(A.phi[c] - ph) < hw && Math.abs(A.phi[q] - ph) < hw);
+            f = apical || fast ? 1 : P.purkCrossSlow;
           }
           // the apical network is the densest and best interconnected: faster effective conduction
           const inAp = (x) => A.zuvc[x] >= 0 && A.zuvc[x] < P.apexPurkZ && (!P.apexPurkPhi || A.zuvc[x] < 0.25 || Math.abs(A.phi[x]) < P.apexPurkPhi);
@@ -2362,7 +2370,7 @@ body.land #fsClose { display: none; }
       if (site === 'SAN') { this.saExit = null; this.sinusArrest = false; this.sinusPauseUntil = -1; }
       if (site === 'AVN') { this.avnBlockMul = 1; for (const c of M.avn) { this.erpExtra[c] = P.avnErpExtra; this.cvK[c] = P.avnCvRestK; this.cvTau[c] = P.avnCvRestTau; } }
       delete this.blocks[site];
-      if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = 0;
+      if (site === M.lsfTie) for (const c of cs.LSF) { this.blocked[c] = 0; this.cvMul[c] = 1; }
       if (!type) { this._applyAvn(); return; }
       this.blocks[site] = { type, ...opts };
       const gate = (cell, mode, n) => this.gates.set(cell, { mode, n, count: 0, site });
@@ -2386,7 +2394,10 @@ body.land #fsClose { display: none; }
       } else if (type === 'complete') for (const c of cells) this.blocked[c] = 1;
       // conduction delay (incomplete block): the bundle/fascicle conducts, slowed by opts.mul
       else if (type === 'delay') for (const c of cells) this.cvMul[c] = opts.mul || P.fascDelayMul;
-      if (site === M.lsfTie) for (const c of cs.LSF) this.blocked[c] = this.blocks[site] && this.blocks[site].type === 'complete' ? 1 : 0;   // septal fibres go with their parent division
+      if (site === M.lsfTie) {   // septal fibres go with their parent division: blocked, or (lsfTieDelay > 0) slowed by that factor
+        const cut = this.blocks[site] && this.blocks[site].type === 'complete';
+        for (const c of cs.LSF) { this.blocked[c] = cut && !(P.lsfTieDelay > 0) ? 1 : 0; this.cvMul[c] = cut && P.lsfTieDelay > 0 ? P.lsfTieDelay : 1; }
+      }
       this._applyAvn();
     }
     clearBlocks() { for (const s of Object.keys(this.blocks)) this.setBlock(s, null); }
@@ -2500,7 +2511,8 @@ body.land #fsClose { display: none; }
       ins.node = node; ins.branch = M.coronary.nodes[node].branch;
       { const oi = this.P.occlusionInj, fam = this._family(ins.branch); ins.injScale = oi ? (typeof oi === 'number' ? oi : oi[fam] === undefined ? 1 : oi[fam]) : 1;
         const ol = this.P.occlusionLate; ins.lateScale = ol ? (typeof ol === 'number' ? ol : ol[fam] === undefined ? 1 : ol[fam]) : 1;
-        const od = this.P.occlusionDeadS; ins.deadS = od && od[fam] !== undefined ? od[fam] : this.P.ischDeadS; }
+        const od = this.P.occlusionDeadS; ins.deadS = od && od[fam] !== undefined ? od[fam] : this.P.ischDeadS;
+        const om = this.P.occlusionMarginMm; ins.marginMm = om && om[fam] ? om[fam] : 0; }
       ins.nodal = { san: M.isDownstream(M.coronary.sanNode, node), avn: M.isDownstream(M.coronary.avnNode, node) };
       return this._addInsult(ins);
     }
@@ -2777,7 +2789,7 @@ body.land #fsClose { display: none; }
         if (ins.kind !== 'occlusion') continue;
         const depth = ins._depth || (ins._depth = this._territoryDepth(ins.cells));
         for (let q = 0; q < ins.cells.length; q++) {
-          const c = ins.cells[q], sv = ins.sev[q]; cover[c] = 1; if (sv <= (ins.deadS === undefined ? P.ischDeadS : ins.deadS)) continue;
+          const c = ins.cells[q], sv = ins.sev[q]; cover[c] = 1; if (sv <= (ins.deadS === undefined ? P.ischDeadS : ins.deadS) || (ins.marginMm > 0 && depth.hops[q] * A.h < ins.marginMm)) continue;
           const tm = A.label[c] === LAB.RV ? 0.5 : A.tm[c] < 0 ? 0.5 : A.tm[c];
           const n = (tm > 0.06 || h > 8) && tm < front ? 1 : sm((1.3 * g - (1 - depth[q])) / 0.3);
           if (n > out[c]) out[c] = n;
@@ -2797,7 +2809,9 @@ body.land #fsClose { display: none; }
         for (let e = M.start[c]; e < M.start[c + 1]; e++) { const j = idx.get(M.nbr[e]); if (j !== undefined && d[j] < 0) { d[j] = d[q[k]] + 1; q.push(j); } }
       }
       let mx = 1; for (const v of d) if (v > mx) mx = v;
+      const hops = Float32Array.from(d, (v) => (v < 0 ? mx : v));   // (graph steps from the territory's edge: ≥ hops·h mm)
       for (let i = 0; i < d.length; i++) d[i] = d[i] < 0 ? 1 : d[i] / mx;
+      d.hops = hops;
       return d;
     }
 
@@ -2816,7 +2830,8 @@ body.land #fsClose { display: none; }
         // take its inner layers (everything off the epicardial surface)
         const c = ins.cells[q], rv = A.label[c] === LAB.RV, tm = rv ? (ins.kind === 'subendo' ? (A.epi[c] ? 1 : 0.05) : 0.5) : A.tm[c] < 0 ? 0.5 : A.tm[c];
         const hg = P.ischHypComp ? Math.pow(rv ? P.rvSourceGain : P.lvSourceGain, -P.ischHypComp) : 1;   // (hypertrophy: its source gain would multiply the injury current too)
-        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, (ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale) * hg, ins.lateScale === undefined ? 1 : ins.lateScale, hg, ins.deadS === undefined ? this.P.ischDeadS : ins.deadS);   // (RV muscle less reduced: the V1 elevation of RV involvement)
+        const salv = ins.marginMm > 0 && (ins._depth || (ins._depth = this._territoryDepth(ins.cells))).hops[q] * A.h < ins.marginMm;   // (occlusionMarginMm: the salvaged rim)
+        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, (ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale) * hg, ins.lateScale === undefined ? 1 : ins.lateScale, hg, salv ? Infinity : ins.deadS === undefined ? this.P.ischDeadS : ins.deadS);   // (RV muscle less reduced: the V1 elevation of RV involvement)
         if (!st) continue;
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);
@@ -3601,7 +3616,7 @@ body.land #fsClose { display: none; }
       // RVH: free-wall hypertrophy (thickening centred on the free wall, sparing the septal insertions),
       // slower conduction in the hypertrophied RV muscle, stronger sources and a strain gradient
       anatomy: { lvWallLayers: lvh ? 6 : 2, rvWallLayers: rvh ? 6 : 0, ...(rvh ? { rvThickPhiC: 0.4, rvThickPhiW: 0.8 } : {}) },
-      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1, rvCvMul: rvh ? 0.8 : 1 },
+      params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1, rvCvMul: (rvh ? 0.8 : 1) * DEFAULTS.rvCvMul },   // (relative to the default RV muscle speed)
     };
   }
 
@@ -3618,7 +3633,7 @@ const TR_READER = (function () { const module = { exports: {} }, exports = modul
 // simulated pathology (required / allowed / unexpected findings).
 //   node tools/reader.js [engine.js path] ['{params}'] [scenario,...]
 // Criteria: ACC/AHA/HRS 2009 intraventricular conduction (LAFB, LPFB, LBBB, RBBB, IVCD); Sokolow-Lyon
-// and Cornell (men) LVH; RVH (RAD with R/S V1 > 1 or R V1 ≥ 0.7 mV); Fourth Universal Definition of
+// LVH (only: no Cornell or aVL criterion); LPFB and RVH not called with an old lateral MI; RVH (RAD with R/S V1 > 1 or R V1 ≥ 0.7 mV); Fourth Universal Definition of
 // MI (STEMI: J point ≥ 0.1 mV, V2–V3 ≥ 0.2 mV, two contiguous leads; pathological Q: V2–V3 ≥ 20 ms
 // or QS, I/II/aVL/aVF/V4–V6 ≥ 30 ms and ≥ 0.1 mV deep or QS, two contiguous leads; III, aVR and V1
 // are not used for Q); QTc (Bazett) > 460 ms long; PR > 200 ms first-degree AV block.
@@ -3650,6 +3665,8 @@ function read(rec, hint, rr, opts = {}) {
   if (on === hint - 40) { on = tmaxV; while (on > hint - 120 && !quiet(on - 3, 3, 0.05)) on--; }
   // QRS end: the first point after the main activity where the signal stays quiet for 8 ms
   let off = tmaxV; while (off < on + 220 && !quiet(off, 8, 0.05)) off++;
+  // (a slow late activation can pause briefly: the QRS goes on if activity at QRS speed resumes within 25 ms)
+  for (let k = 0; k < 3; k++) { let u = off + 8; while (u < off + 33 && sv(u) < 0.2 * vmax) u++; if (u >= off + 33 || u >= on + 220) break; off = u; while (off < on + 220 && !quiet(off, 8, 0.05)) off++; }
   if (opts.minOff > off) off = Math.min(on + 220, Math.round(opts.minOff));
   // P wave: spatial magnitude above 0.02 mV before the QRS
   const mag = (t) => { let s = 0; for (let k = 0; k < NL; k++) s += x(t, k) ** 2; return Math.sqrt(s); };
@@ -3690,9 +3707,11 @@ function read(rec, hint, rr, opts = {}) {
   const L = {};
   for (const n of LEADS) {
     const k = K(n), s = []; for (let t = on; t <= off; t++) s.push(x(t, k));
-    const thr = 0.025; let i0 = 0; while (i0 < s.length && Math.abs(s[i0]) < thr) i0++;
+    // Q wave against the level at QRS onset (the PR segment, as in the Minnesota code), not the TP baseline: a depressed
+    // PR segment (pericarditis, atrial repolarisation) would otherwise lengthen every q in the leads facing it
+    const thr = 0.025, s0 = s[0]; let i0 = 0; while (i0 < s.length && Math.abs(s[i0] - s0) < thr) i0++;
     let qDur = 0, qAmp = 0;
-    if (i0 < s.length && s[i0] < 0) { let i = i0; while (i < s.length && s[i] < 0) { qAmp = Math.min(qAmp, s[i]); i++; } qDur = i; }
+    if (i0 < s.length && s[i0] < s0) { let i = i0; while (i < s.length && s[i] < s0) { qAmp = Math.min(qAmp, s[i] - s0); i++; } qDur = i; }
     const maxP = Math.max(0, ...s), minN = Math.min(0, ...s), rpt = s.indexOf(Math.max(...s));
     // R and S: the largest positive peak and the most negative point after it; R′: a second positive peak after an S
     let S = 0; for (let i = rpt; i < s.length; i++) S = Math.min(S, s[i]);
@@ -3712,7 +3731,7 @@ function read(rec, hint, rr, opts = {}) {
   const qrs = off - on, axis = Math.round(Math.atan2((2 / Math.sqrt(3)) * L.aVF.net, L.I.net) * 180 / Math.PI);
   // delta wave: slow initial QRS (largest-R lead: time from QRS onset to half its R peak)
   const big = LEADS.reduce((b, n) => (L[n].R > L[b].R ? n : b), 'I'), kb = K(big); let up = 0; while (up < 120 && x(on + up, kb) < 0.5 * L[big].R) up++;
-  const m = { qrs, pr, pdur, qt, qtc: Math.round(qtc), axis, rate: Math.round(60000 / (rr || 833)), pAmp, prSeg, ptfV1: +ptfV1.toFixed(3), pNotch, upstroke: up, upLead: big };
+  const m = { on, qrs, pr, pdur, qt, qtc: Math.round(qtc), axis, rate: Math.round(60000 / (rr || 833)), pAmp, prSeg, ptfV1: +ptfV1.toFixed(3), pNotch, upstroke: up, upLead: big };
   return { m, L, interpret };
   function interpret() { return diagnose(m, L); }
 }
@@ -3747,13 +3766,18 @@ function diagnose(m, L) {
   const narrow = m.qrs < 120;
   if (narrow && m.axis <= -45 && m.axis >= -90 && L.aVL.q.dur > 0 && L.aVL.R > L.aVL.S && ['II', 'III', 'aVF'].every((n) => L[n].S > L[n].R) && L.aVL.rpt >= 45) dx.push('LAFB');
   else if (narrow && m.axis <= -45 && m.axis >= -90) f.lafbIncomplete = true;
+  // an old lateral infarct (Q in two contiguous lateral leads) explains a right axis and a tall R in V1 (posterolateral):
+  // LPFB and RVH are not called alongside it, as a clinician would exclude them
+  const qLat = (n) => (L[n].q.dur >= 30 && L[n].q.amp <= -0.1) || L[n].qs;
+  const latMI = (qLat('I') && qLat('aVL')) || (qLat('V5') && qLat('V6'));
   // RVH: right or extreme (northwest, severe RVH) axis with a dominant or tall R in V1
-  const rvh = (m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7);
-  if (narrow && m.axis > 90 && m.axis <= 180 && L.I.S > L.I.R && L.aVL.S > L.aVL.R && L.III.q.dur > 0 && L.III.R > L.III.S && L.aVF.R > L.aVF.S && !rvh) dx.push('LPFB');
+  const rvh = !latMI && (m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7);
+  if (narrow && m.axis > 90 && m.axis <= 180 && L.I.S > L.I.R && L.aVL.S > L.aVL.R && L.III.q.dur > 0 && L.III.R > L.III.S && L.aVF.R > L.aVF.S && !rvh && !latMI) dx.push('LPFB');
   // hypertrophy
   const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S;
-  // (LVH criteria are not used in bundle-branch block; with RVH only Sokolow-Lyon counts)
-  if (!lbbb && !rbbb && (sok >= 3.5 || (!rvh && (corn > 2.8 || L.aVL.R >= 1.1)))) dx.push('LVH');
+  // LVH: Sokolow-Lyon only (S V1 + R V5/V6 ≥ 3.5 mV; the author's choice: the aVL and Cornell criteria fire on a left-swung
+  // axis after an inferior infarct or with LAFB); not read in bundle-branch block
+  if (!lbbb && !rbbb && sok >= 3.5) dx.push('LVH');
   if (rvh) dx.push('RVH');
   // poor R-wave progression (R in V3 <= 0.3 mV, narrow QRS); read as possible old anterior MI when not otherwise explained
   f.rV3 = +L.V3.R.toFixed(2);
@@ -3920,6 +3944,8 @@ function readRhythm(rec) {
   const beats = peaks.map((p) => {
     let on = p; while (on > p - 120 && !quiet(on - 6, 6, 0.06)) on--;
     let off = p; while (off < p + 200 && !quiet(off, 8, 0.06)) off++;
+    // (a slow late activation can pause briefly: the QRS goes on if activity at QRS speed resumes within 25 ms)
+    for (let k = 0; k < 3; k++) { let u = off + 8; while (u < off + 33 && svs[u] < 0.2 * top) u++; if (u >= off + 33 || u >= p + 200) break; off = u; while (off < p + 200 && !quiet(off, 8, 0.06)) off++; }
     return { p, on, off, w: off - on };
   });
   const out = { beats: beats.length };
@@ -4592,7 +4618,7 @@ return module.exports; })();
     // (Round 66, the author: a 30–32 ms, 1.3 mm q in V5 is not a Q wave anyone sees at 25 mm/s. Outside V2–V3 a lead counts
     // with a QS, a Q of at least 40 ms (one small square), or a Q of at least 30 ms that is at least 2 mm deep)
     const qLeads = (L) => contiguous(LEADS.filter((n) => (n === 'V2' || n === 'V3' ? L[n].q.dur >= 20 || L[n].qs : ['I', 'II', 'III', 'aVL', 'aVF', 'V4', 'V5', 'V6'].includes(n) && ((L[n].q.dur >= 40 && L[n].q.amp <= -0.1) || (L[n].q.dur >= 30 && L[n].q.amp <= -0.2) || L[n].qs))));
-    // criteria (ACC/AHA 2009 conduction, Sokolow-Lyon/Cornell, 4th UDMI, the reader's P-wave and Brugada
+    // criteria (ACC/AHA 2009 conduction, Sokolow-Lyon, 4th UDMI, the reader's P-wave and Brugada
     // rules; tools/reader.js has the sources) → { ok, why, leads }
     function criteria(k, a, m, L) {
       const yes = (ok, why, leads, leads2) => ({ ok: !!ok, why, leads, leads2 });
@@ -4607,7 +4633,7 @@ return module.exports; })();
         case 'lbbb': return yes(m.qrs >= 120 && (latR('V6') || latR('I')) && Math.max(L.V6.rpt, L.I.rpt) > 60 && (L.V1.qs || L.V1.R < L.V1.neg), `QRS ${m.qrs} ms`);
         case 'rbbb': return yes(m.qrs >= 120 && ((L.V1.rPrime > 0 && L.V1.rPrime > L.V1.rFirst) || (L.V2.rPrime > 0 && L.V2.rPrime > L.V2.rFirst) || (L.V1.R > L.V1.S && L.V1.rpt > 50)) && (L.I.sWide >= 40 || L.V6.sWide >= 40 || L.I.S > L.I.R || L.V6.S > L.V6.R), `QRS ${m.qrs} ms`);
         case 'wpw': return yes(m.pr !== null && m.pr < 120 && m.qrs >= 110 && m.upstroke >= 50, `PR ${m.pr}, QRS ${m.qrs}, upstroke ${m.upstroke}`);
-        case 'lvh': { const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S; return yes(sok >= 3.5 || corn > 2.8 || L.aVL.R >= 1.1, `Sokolow ${sok.toFixed(2)}, Cornell ${corn.toFixed(2)}`); }
+        case 'lvh': { const sok = L.V1.S + Math.max(L.V5.R, L.V6.R); return yes(sok >= 3.5, `Sokolow ${sok.toFixed(2)}`); }   // (Sokolow-Lyon only, as the reader)
         case 'rvh': return yes((m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7), `axis ${m.axis}°, R V1 ${L.V1.R}`);
         case 'nsstt': {
           // flat T (within ±0.5 mm) in two contiguous leads where T is normally upright, and neither the
