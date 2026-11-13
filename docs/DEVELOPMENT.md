@@ -2447,3 +2447,10 @@ fascicle scorer at app gain):
   the fibre ratio (`sigmaRatio` < 10 removes the LAFB deviation; aVL R after a mid-RCA infarct stays 15–16 mm). The LPFB
   R III stays 32–34 mm with a correct read; pericarditis's inferior q is a reader onset effect (the smaller QRS moves the
   detected onset ~6 ms earlier; the normal inferior q is ~29 ms from the true onset).
+- **"LVH" after old inferior MIs** (aVL R 13–16 mm at 30 days): infarct size is the lever, but no setting fixes it
+  without losing inferior Q elsewhere. `occlusionBorderMm`/`occlusionDeadS` for the RCA also shrink the acute injury
+  (proximal RCA loses its inferior STEMI at 1 h). New option `occlusionMarginMm` (per family; off): a rim of the
+  territory, in mm from its edge, survives (scar only; the 1-hour injury is unchanged). RCA 5 mm: mid RCA aVL R 16 → 9.3 mm,
+  Q III 46 ms / −9 mm, no LVH read; but proximal RCA's q in II falls to 28 ms and the thin PDA territory loses its Q at any
+  rim (3 mm: q II 26 ms). RCA 4 mm on the 26 infarct scenarios: 20.5 → 20.5 (proximal RCA fixed, PDA lost).
+- Small q waves below the infarct criteria are acceptable (the author): LAFB's V4 q (17 ms, −0.7 mm) stays.

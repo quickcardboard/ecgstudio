@@ -275,7 +275,7 @@
     septalPerf: [0.14, 0.3, 0.45, 0.6],      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
-    occlusionDeadS: null, occlusionBorderMm: null,  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
+    occlusionDeadS: null, occlusionBorderMm: null, occlusionMarginMm: null,   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
     pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.3, pericardSag: -0.55, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
@@ -1836,7 +1836,8 @@
       ins.node = node; ins.branch = M.coronary.nodes[node].branch;
       { const oi = this.P.occlusionInj, fam = this._family(ins.branch); ins.injScale = oi ? (typeof oi === 'number' ? oi : oi[fam] === undefined ? 1 : oi[fam]) : 1;
         const ol = this.P.occlusionLate; ins.lateScale = ol ? (typeof ol === 'number' ? ol : ol[fam] === undefined ? 1 : ol[fam]) : 1;
-        const od = this.P.occlusionDeadS; ins.deadS = od && od[fam] !== undefined ? od[fam] : this.P.ischDeadS; }
+        const od = this.P.occlusionDeadS; ins.deadS = od && od[fam] !== undefined ? od[fam] : this.P.ischDeadS;
+        const om = this.P.occlusionMarginMm; ins.marginMm = om && om[fam] ? om[fam] : 0; }
       ins.nodal = { san: M.isDownstream(M.coronary.sanNode, node), avn: M.isDownstream(M.coronary.avnNode, node) };
       return this._addInsult(ins);
     }
@@ -2113,7 +2114,7 @@
         if (ins.kind !== 'occlusion') continue;
         const depth = ins._depth || (ins._depth = this._territoryDepth(ins.cells));
         for (let q = 0; q < ins.cells.length; q++) {
-          const c = ins.cells[q], sv = ins.sev[q]; cover[c] = 1; if (sv <= (ins.deadS === undefined ? P.ischDeadS : ins.deadS)) continue;
+          const c = ins.cells[q], sv = ins.sev[q]; cover[c] = 1; if (sv <= (ins.deadS === undefined ? P.ischDeadS : ins.deadS) || (ins.marginMm > 0 && depth.hops[q] * A.h < ins.marginMm)) continue;
           const tm = A.label[c] === LAB.RV ? 0.5 : A.tm[c] < 0 ? 0.5 : A.tm[c];
           const n = (tm > 0.06 || h > 8) && tm < front ? 1 : sm((1.3 * g - (1 - depth[q])) / 0.3);
           if (n > out[c]) out[c] = n;
@@ -2133,7 +2134,9 @@
         for (let e = M.start[c]; e < M.start[c + 1]; e++) { const j = idx.get(M.nbr[e]); if (j !== undefined && d[j] < 0) { d[j] = d[q[k]] + 1; q.push(j); } }
       }
       let mx = 1; for (const v of d) if (v > mx) mx = v;
+      const hops = Float32Array.from(d, (v) => (v < 0 ? mx : v));   // (graph steps from the territory's edge: ≥ hops·h mm)
       for (let i = 0; i < d.length; i++) d[i] = d[i] < 0 ? 1 : d[i] / mx;
+      d.hops = hops;
       return d;
     }
 
@@ -2152,7 +2155,8 @@
         // take its inner layers (everything off the epicardial surface)
         const c = ins.cells[q], rv = A.label[c] === LAB.RV, tm = rv ? (ins.kind === 'subendo' ? (A.epi[c] ? 1 : 0.05) : 0.5) : A.tm[c] < 0 ? 0.5 : A.tm[c];
         const hg = P.ischHypComp ? Math.pow(rv ? P.rvSourceGain : P.lvSourceGain, -P.ischHypComp) : 1;   // (hypertrophy: its source gain would multiply the injury current too)
-        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, (ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale) * hg, ins.lateScale === undefined ? 1 : ins.lateScale, hg, ins.deadS === undefined ? this.P.ischDeadS : ins.deadS);   // (RV muscle less reduced: the V1 elevation of RV involvement)
+        const salv = ins.marginMm > 0 && (ins._depth || (ins._depth = this._territoryDepth(ins.cells))).hops[q] * A.h < ins.marginMm;   // (occlusionMarginMm: the salvaged rim)
+        const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, (ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale) * hg, ins.lateScale === undefined ? 1 : ins.lateScale, hg, salv ? Infinity : ins.deadS === undefined ? this.P.ischDeadS : ins.deadS);   // (RV muscle less reduced: the V1 elevation of RV involvement)
         if (!st) continue;
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);
