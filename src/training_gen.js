@@ -29,15 +29,16 @@
     af: { w: 3, open: true, rating: 60, rate: [60, 150], vLink: true, link: 'a=af', struct: 'fib', start: (S, rec) => { S.setAtrialFibrosis(true); S.run(2000); S.startArrhythmia('af'); S.setVentricularResponse(rec.rate); },   // (AF on its substrate, as in the app)
     read: (r) => r === 'atrial fibrillation' },
     flutter: { w: 2.5, open: true, notWith: ['stemi', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt', 'wellensA', 'wellensB'],   // (flutter waves sit on the ST segment)
-      rating: 150, rate: [60, 100], vLink: true, link: 'a=flutter', start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate); }, read: (r) => r === 'atrial flutter' },
+      rating: 150, rate: [60, 150], vLink: true, link: 'a=flutter',   // (above ~115/min the response is 2:1: flutter waves hidden in the QRS/T)
+      start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate); }, read: (r) => r === 'atrial flutter' },
     // multifocal atrial tachycardia: four atrial foci taking turns (±25% cycle), so ≥ 3 P shapes with varying PR and RR;
     // the blind rhythm read must see it (gateRead), and the P waves must be visible
     // WAP/MAT: below 100/min a wandering atrial pacemaker, above it multifocal atrial tachycardia (key: 'wap' or 'mat', both
     // accepted at 95–105). Gated on the engine's own record (≥ 3 different foci fired in the strip, P waves visible), not on
     // the blind rhythm read, which can take MAT for AF.
     mat: { w: 1, open: true, pVisible: true, foci: true, rating: 170, rate: [70, 130], link: 'a=mat', start: (S, rec, M, h) => { S.run(2000); S.startArrhythmia('mat', { cells: h.matFoci(M) }); }, read: (r) => /multifocal|wandering/.test(r) },
-    avnrt: { w: 1.5, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
-    avrt: { w: 0.8, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
+    avnrt: { w: 1.5, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt', 'flutter'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
+    avrt: { w: 0.8, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt', 'flutter', 'avnrt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
     // (Round 66: the blind read must see the Wenckebach pattern; a proximal RCA infarct slowing the node turned one into a
     // steady first-degree block)
     mobitz1: { w: 2, open: true, gateRead: true, rating: 150, block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
@@ -84,6 +85,7 @@
     mat: 'Irregular, rate over 100, at least three different P-wave shapes with varying PR: multifocal atrial tachycardia.',
     wap: 'Irregular, rate under 100, at least three different P-wave shapes with varying PR: wandering atrial pacemaker (the slow form of MAT).',
     flutter: 'Sawtooth flutter waves at about 300/min, every fourth one conducted: atrial flutter.',
+    flutter21: 'Regular narrow tachycardia near 150 with flutter waves hidden in the QRS and T: atrial flutter with 2:1 conduction. Without visible flutter waves it cannot be told from other SVTs, so SVT and AVNRT count too.',
     avnrt: 'Regular narrow tachycardia under 200 with no visible P: AVNRT.',
     avrt: 'Regular narrow tachycardia above 200 with no visible P: AVRT, not AVNRT.',
     mobitz1: 'PR lengthens beat by beat until a P is not conducted: Mobitz I.',
@@ -677,7 +679,7 @@
           if (words.some((w) => dx === w || dx.startsWith(w + ' '))) continue;
           if (!R.pRhythm && ['RAE', 'LAE', 'biatrial enlargement', '1st-degree AVB'].includes(dx)) { if (dx === '1st-degree AVB' && rec.rhythm === 'mobitz1') optional.add('avb1'); continue; }
           if (dx === 'long QT' && ['af', 'flutter', 'mat'].includes(rec.rhythm)) continue;
-          if (rec.rhythm === 'flutter' && /^(STEMI|old MI)/.test(dx)) continue;
+          if (rec.rhythm === 'flutter' && /^(STEMI|old MI|T inversion)/.test(dx)) continue;   // (flutter waves on the ST-T; at 2:1 they deform the T too)
           if (ks.includes('peri') && /^STEMI/.test(dx)) continue;   // (AF pericarditis: without a PR segment the reader cannot tell it from STEMI)   // (flutter waves on the ST segment; flutter carries no ischemia)
           if (dx === 'long QT' && (R.block || R.at || rec.abn.some((x) => ABN[x.k].ectopy || ABN[x.k].pause || ABN[x.k].sinusNode))) continue;   // (QT after a pause is longer: QTc is not read across pauses)
           if (dx === 'poor R progression') { optional.add('poorR'); continue; }
@@ -859,6 +861,9 @@
       const leads = LEADS.map((_, k) => { const x = new Int16Array(nS); for (let i = 0; i < x.length; i++) x[i] = Math.max(-32000, Math.min(32000, Math.round((rec12[i * (1000 / HZ)][k] + (art ? art[k][i] : 0)) * 1000))); return b64(x); });
       // (2:1 AV block is answered as Mobitz II: no chip of its own (Round 66, the author))
       if (rhythm === 'avb2to1') rhythm = 'mobitz2';
+      // (2:1 flutter, the author: SVT, atrial flutter and AVNRT are all correct; the narrow regular tachycardias accept each other)
+      const flutter21 = rhythm === 'flutter' && rate > 120;
+      if (flutter21) rhythmAlt = ['svt', 'avnrt'];
       const key = { rhythm, alt: rhythmAlt || R.alt || (SINUS.includes(rhythm) && rhythm !== 'sinus' ? ['sinus'] : []), findings, optional: [...optional] };
       const skills = { rhythm: true }; for (const a of rec.abn) skills[ABN[a.k].skill] = true;
       const title = [rhythm, ...rec.abn.map((a) => (ABN[a.k].isch ? `${a.k} (${a.site})` : a.k))].join(' + ');
@@ -867,7 +872,7 @@
       return {
         ok: true,
         item: { id: `${rec.rhythm}-${rec.seed}`, title, recipe: rec, hz: HZ, ms: STRIP, leads, m, read: { rhythm: rr.rhythm, dx: b.dx, checks, hiddenP: pv }, key, highlight: hl.size ? LEADS.filter((l) => hl.has(l)) : ['II'], hlBy, caliper,
-          lines: { rhythm: RHYTHM_LINE[rec.rhythm === 'avb2to1' ? 'avb2to1' : rhythm], ...lines }, link: linkOf(rec), rating, skills: Object.keys(skills), n: rec.abn.length },
+          lines: { rhythm: RHYTHM_LINE[rec.rhythm === 'avb2to1' ? 'avb2to1' : flutter21 ? 'flutter21' : rhythm], ...lines }, link: linkOf(rec), rating, skills: Object.keys(skills), n: rec.abn.length },
       };
     }
     // make: sample scenarios near the target until one passes the gate (or give up)

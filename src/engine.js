@@ -121,7 +121,7 @@
     cvHis: 1.50,
     cvBundle: 3.03,        // bundle branches and fascicles
     // Spec: conduction system ~3x faster than ventricular myocardium
-    cvPurkinje: 1.8,
+    cvPurkinje: 2.1,
     avnSegDelay: 17,       // ms per AV-node segment (5 segments ≈ 85 ms AH)
     avnSegments: 5,
     slowPathSegments: 4, slowPathSegDelay: 50, slowPathErpExtra: 20, slowPathCvK: 1,   // dual AV-node pathways (AVNRT)
@@ -132,7 +132,7 @@
     rbbSeptalFrac: 0.3,   // distal fraction of septal RBB giving off RV septal Purkinje (right septal face ~10 ms after the left, Durrer)
     rbbSeptalDelay: 25,    // ms extra delay into the RV septal Purkinje
 
-    lafPhi: 1.8, lafZ: 0.7, lpfPhi: -1.8, lpfZ: 0.3, lsfPhi: 0.05, lsfZ: 0.42,
+    lafPhi: 1.8, lafZ: 0.7, lpfPhi: -1.8, lpfZ: 0.25, lsfPhi: 0.3, lsfZ: 0.35,
     fascDelayMul: 2,       // conduction-time factor of a fascicle under a 'delay' block (incomplete fascicular block)
     fascApexZ: 0,          // >0: LAF and LPF continue from their terminals toward the apex (to this apicobasal UVC), giving off Purkinje branches in their own territories (0 = off)
     fascApexFrom: 1,       // where along the fascicle the extension branches off (1 = terminal, 0.3 = a third of the way)
@@ -140,23 +140,23 @@
     septalFascicle: true,   // left septal fascicle (Durrer's mid-septal root)
     lsfTie: 'LPF',          // the division whose block also blocks the septal fascicle (null: neither)
     ventEscapeFrac: 0.3,    // where along the LPF the ventricular escape focus sits (0 origin … 1 terminal); null: in the muscle under the idioventricular Purkinje node (a wide escape)
-    lsfTieDelay: 0,         // >0: that block slows the septal fascicle by this conduction-time factor instead of cutting it
-    fascConnectFrac: 0.45,  // distal fraction of LAF/LPF giving off Purkinje branches
+    lsfTieDelay: 3,         // >0: that block slows the septal fascicle by this conduction-time factor instead of cutting it
+    fascConnectFrac: 0.35,  // distal fraction of LAF/LPF giving off Purkinje branches
     lbbSplitZ: 0.84, lbbSplitPhi: 0.0,  // where the LBB divides (apicobasal / rotational UVC)
-    septalTerrHalf: 0,    // half-width (rad) of the mid-septal Purkinje territory
+    septalTerrHalf: 0.45,    // half-width (rad) of the mid-septal Purkinje territory
     lbbSeptalFrac: 0,           // distal fraction of the LBB trunk giving off septal Purkinje
-    lpfApexZ: 0.25,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
+    lpfApexZ: 0.35,            // apical cap (apicobasal UVC below this) belongs to the LPF territory
     lpfTerrLo: -1.54, lpfTerrHi: 0.56,  // LPF territory in rotational UVC (inferior/posterior wall)
     purkCrossApexZ: 0,      // cross-territory links below this apicobasal level are unslowed
-    purkCrossSlow: 3,       // conduction-time factor on Purkinje links between fascicle territories
-    purkCrossFastPhi: null,  // [[phi, halfWidth], …]: bands of rotational UVC where links between territories are not slowed
+    purkCrossSlow: 6,       // conduction-time factor on Purkinje links between fascicle territories
+    purkCrossFastPhi: [[0.7, 0.3], [-1.8, 0.05]],  // [[phi, halfWidth], …]: bands of rotational UVC where links between territories are not slowed
     ventSourceGain: 1.6,        // ventricular source strength relative to atrial (restores QRS:P ratio with anisotropy)
-    precordialGain: 0.66,        // overall chest-lead gain
+    precordialGain: 1,        // overall chest-lead gain
     sigmaRatio: 10,          // intracellular conductivity along:across fibres (1 = isotropic sources)
-    brody: 2,               // radial source enhancement by intracavitary blood (Brody effect)
+    brody: 1,               // radial source enhancement by intracavitary blood (Brody effect)
     brodyFade: 0.25,        // >0: the enhancement falls off as exp(−depth/brodyFade) from the cavity (depth = transmural UVC, 0 endo … 1 epi); 0 = uniform
-    heartPitch: -10,          // degrees about the left–right axis (+ tips the anterior wall upward)
-    heartYaw: 8,           // degrees about the vertical axis (+ = apex swung from anterior toward the left)
+    heartPitch: -15,          // degrees about the left–right axis (+ tips the anterior wall upward)
+    heartYaw: 12,           // degrees about the vertical axis (+ = apex swung from anterior toward the left)
     heartRotation: 17,    // degrees about the AP axis (+ = more vertical heart)
     apexX: 72, apexY: -34.83,  // apex position in the chest (mm from midline / from V4 level)
     chestGap: 15,          // closest heart–anterior chest wall distance (mm)
@@ -171,9 +171,9 @@
 
     // Action potential durations (ms) at long diastolic interval
     apdVent: 295,          // modulated by transmural / apicobasal gradients below
-    atrialFrontalRot: 30,   // degrees the atrial sources are turned back (frontal plane) against the ventricular rotation
+    atrialFrontalRot: 45,   // degrees the atrial sources are turned back (frontal plane) against the ventricular rotation
     atrialSourceGain: 0.31, // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
-    rvCvMul: 1,           // RV myocardial conduction speed factor (RVH option)
+    rvCvMul: 0.8,           // RV myocardial conduction speed factor (RVH option)
     lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 40,  // endocardium longer than epicardium (upright T waves); Round 67: 85 → 40 (repolarisation refit)
     apdVentApexExtra: -15, // apicobasal APD gradient (+: apex longer); Round 67: 20 → −15 (base longer than apex, as measured)
@@ -231,12 +231,13 @@
     ischInjuryH: 0.6,      // hours for the injury current (resting depolarisation) to develop
     ischApdShort: 0.35, ischApdLate: 0.9, ischLateH: 3,
     ischPlateauDrop: 0.25, ischKatpFloor: 0.7,    // minutes (with the K-ATP shortening): extra fall of the plateau over the APD in the ischaemic zone (a broad T rising from the ST)
+    subendoQRS: 0.3,       // (Round 68: 1 → 0.3, left-main narrowing had swung the QRS axis by 60–80°) share of the occlusion's QRS effects (amplitude drop, slowing) in subendocardial ischaemia
     ischSubendoGain: 1.6, subendoInj: 0.6, subendoRVGain: 0.5, subendoSpanPhi: 1.6, subendoSpanZ: 0.5,  // demand ischaemia: the inner wall is the most severely injured
     ischStResolve: 0.6,    // subendocardial: fraction of the injury current gone by 8 h
     // narrowing (Sim.addStenosis): severity of the partial-flow ischaemia in the territory's inner wall, per
     // artery family (the injury of a territory saturates: these give 1.5–2 mm of horizontal ST depression at
     // J+80 in two contiguous leads at 1 h for the proximal artery; a mid-LAD territory reaches ~1 mm at most)
-    stenosisSev: { LAD: 0.65, LCx: 0.55, RCA: 0.17, LM: 0.5 },
+    stenosisSev: { LAD: 0.65, LCx: 0.8, RCA: 0.45, LM: 0.5 },   // (Round 68: LCx 0.55 → 0.8, RCA 0.17 → 0.45 with subendoQRS 0.3)
     // electrolytes and hypothermia (Sim.setElectrolyte): factors on the healthy values
     elecHyperKRepW: 0.5, elecHyperKApd: 0.85, elecHyperKGrad: 0.3, elecHyperKSync: 0, elecHyperKCv: 2.6, elecHyperKCvAtrial: 1.8, elecHyperKPAmp: 0.4,
     elecHypoKRepW: 1.2, elecHypoKSag: 0.05, elecHypoKMid: 0, elecHypoKLayer: 0.5, elecHypoKLayerW: 0.25, elecHypoKTail: 0.18, elecHypoKTailMs: 230, elecHypoKTailW: 90,
@@ -249,8 +250,8 @@
     // the inferior limb leads squarely in this torso: at full strength an RCA STEMI gave 12–15 mm in III. The scale
     // keeps III at most ~5–6 mm, aVF ~4–5, II ~3–4 at 1 h (and less R loss in the injured wall). It applies to LV
     // muscle only (the RV keeps its V1 elevation). Necrosis, Q waves and the time course are unchanged.
-    occlusionInj: { LAD: 1, LCx: 1, RCA: 0.33, LM: 1 },
-    occlusionInjRV: 1.8,
+    occlusionInj: { LAD: 1, LCx: 2, RCA: 0.65, LM: 1 },
+    occlusionInjRV: 0.8,
     ischHypComp: 1,        // hypertrophy: the injury current divided by (source gain)^ischHypComp (1: as in a normal heart)
     // BANDAGE, not a fix (with cavityWindowT): the late T inversion (APD prolongation in and around the infarct, from ~6 h)
     // per artery family; see cavityWindowT and docs/DEVELOPMENT.md Round 47
@@ -259,13 +260,13 @@
     // T wave upright is reduced in patches that follow no artery (a smooth pattern from the Sim's seed), by up
     // to nssttGrad of it, and the plateau sags a little (nssttSag): flat or slightly inverted T waves and
     // minimal ST sagging in some lead groups, as with electrolytes, drugs, rate or autonomic tone
-    nssttGrad: 1.0, nssttSag: 0.06, nssttPatch: 0.4,   // (testers: T waves must look flat, ±0.5 mm, in the leads called flat)
+    nssttGrad: 1.5, nssttSag: 0.06, nssttPatch: 0.4,   // (Round 68: nssttGrad 1 → 1.5, the T is less transmural since Round 67) (testers: T waves must look flat, ±0.5 mm, in the leads called flat)
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
     cavityWindowT: 1,      // the cavity window's share during the ST-T (full during the QRS); was 0.25 (a bandage, Round 47) until V3 took half its ST-T from the solved torso (Round 67)
-    cavityWindow: 0.45,    // >0: a chest electrode over a transmural scar sees the LV cavity potential through it (Wilson): V += k·Ω·(φ_cavity − V), Ω = scar share of the electrode's view of the LV epicardium
-    scarWindow: 0.5,       // old scar as an electrical window: its would-be activation counted inverted (0 = silent scar)
+    cavityWindow: 0.8,    // >0: a chest electrode over a transmural scar sees the LV cavity potential through it (Wilson): V += k·Ω·(φ_cavity − V), Ω = scar share of the electrode's view of the LV epicardium
+    scarWindow: 0.8,       // old scar as an electrical window: its would-be activation counted inverted (0 = silent scar)
     scarRefractory: 200,   // ms between phantom activations of a scar cell
     ladProxFreeWallPhi: 2.0,
     apexTipZ: 0.06,           // apical tip (apicobasal UVC below this) is LAD; the apical inferior wall above it is PDA  // proximal-LAD nodes lateral of this (rotational UVC) supply no free wall
@@ -275,7 +276,8 @@
     septalPerf: [0.14, 0.3, 0.45, 0.6],      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
-    occlusionDeadS: null, occlusionBorderMm: null, occlusionMarginMm: null,   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
+    occlusionDeadS: null, occlusionBorderMm: { LAD: 18 }, occlusionScarWindow: { RCA: 0 },   // occlusionScarWindow: per family, the scar window instead of scarWindow
+    occlusionMarginMm: { RCA: 2 },   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
     pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.3, pericardSag: -0.55, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
@@ -292,16 +294,16 @@
     idioventricularRate: 34,
 
     // ECG
-    ecgGain: 0.01348,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm; rescaled for the rebuild-1 heart and torso-field limb leads)
-    precordialDipoleW: 0.55,
-    atrialLimbGain: 1.85,      // atrial sources in the solved-torso limb leads: keeps the P-wave calibration made with the cylinder field (P in II 0.23 mV)
+    ecgGain: 0.0123,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm; rescaled for the rebuild-1 heart and torso-field limb leads)
+    precordialDipoleW: 0.4,
+    atrialLimbGain: 1.897,      // atrial sources in the solved-torso limb leads: keeps the P-wave calibration made with the cylinder field (P in II 0.23 mV)
     limbTorso2: true,          // limb leads I, II from the solved torso (src/torso_limb.json: shoulder/axilla and hip contact patches) instead of the cylinder field
     fullTorso: false,          // with chestTorso: every lead from the solved torso's electrode potentials (limb LA−RA, LL−RA; chest V − WCT), no heart-vector blend
-    chestTorsoT: 1, chestTorsoT0: 40, chestTorsoTRamp: 80, chestTorsoTGain: 1, chestTorsoTCav: 0, chestTorsoTLead: [0, 0, 0.5, 0.75, 1, 1],   // ST-T of the chest leads from the solved torso (see the chest leads in Sim)
+    chestTorsoT: 1, chestTorsoT0: 40, chestTorsoTRamp: 80, chestTorsoTGain: 1.4, chestTorsoTCav: 0, chestTorsoTLead: [0, 0, 0.5, 0.75, 1, 1],   // ST-T of the chest leads from the solved torso (see the chest leads in Sim)
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
-    precordialDipoleGain: 1.7,  // precordial lead-vector length relative to the limb leads
+    precordialDipoleGain: 2.2,  // precordial lead-vector length relative to the limb leads
     leadDistExp: 1.5,           // lead-vector length ∝ (mean distance / distance)^exp
-    dowerChest: 0.5,            // chest dipole directions blended this far toward Dower's measured lead vectors (Frank torso)
+    dowerChest: 0.8,            // chest dipole directions blended this far toward Dower's measured lead vectors (Frank torso)
     chestLeadY: 0,              // all chest electrodes this much higher (mm; negative = lower)
     v12Y: 24,                   // V1/V2 this much (mm) higher above V4-V6 (4th ICS at the sternal edge; ribs slope down laterally)
     ecgHighpass: 0.05,          // Hz, diagnostic-ECG high-pass (baseline restoration)
@@ -1837,7 +1839,8 @@
       { const oi = this.P.occlusionInj, fam = this._family(ins.branch); ins.injScale = oi ? (typeof oi === 'number' ? oi : oi[fam] === undefined ? 1 : oi[fam]) : 1;
         const ol = this.P.occlusionLate; ins.lateScale = ol ? (typeof ol === 'number' ? ol : ol[fam] === undefined ? 1 : ol[fam]) : 1;
         const od = this.P.occlusionDeadS; ins.deadS = od && od[fam] !== undefined ? od[fam] : this.P.ischDeadS;
-        const om = this.P.occlusionMarginMm; ins.marginMm = om && om[fam] ? om[fam] : 0; }
+        const om = this.P.occlusionMarginMm; ins.marginMm = om && om[fam] ? om[fam] : 0;
+        const osw = this.P.occlusionScarWindow; ins.scarK = osw && osw[fam] !== undefined ? osw[fam] : null; }
       ins.nodal = { san: M.isDownstream(M.coronary.sanNode, node), avn: M.isDownstream(M.coronary.avnNode, node) };
       return this._addInsult(ins);
     }
@@ -2092,8 +2095,9 @@
         apd, dead, rim, unexcitable, level: Math.max(inj, 0.5 * s * katp), kind, decl: dead ? 0 : P.ischPlateauDrop * s * katp * kk,
         // necrotic muscle stays depolarised (and partly coupled, see _uncoupleDead) until it turns to scar
         vRest: dead ? P.vRest + P.ischDvRest * k * (kind === 'subendo' ? 0 : stResidual(h)) : P.vRest + P.ischDvRest * inj * k,
-        amp: dead ? 0 : 1 - P.ischAmpDrop * inj * k,
-        cv: 1 + P.ischCvSlow * inj,
+        // (subendoQRS < 1: subendocardial ischaemia changes the QRS less: its amplitude drop and slowing scaled down)
+        amp: dead ? 0 : 1 - P.ischAmpDrop * inj * k * (kind === 'subendo' ? P.subendoQRS : 1),
+        cv: 1 + P.ischCvSlow * inj * (kind === 'subendo' ? P.subendoQRS : 1),
       };
     }
 
@@ -2158,6 +2162,7 @@
         const salv = ins.marginMm > 0 && (ins._depth || (ins._depth = this._territoryDepth(ins.cells))).hops[q] * A.h < ins.marginMm;   // (occlusionMarginMm: the salvaged rim)
         const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, (ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale) * hg, ins.lateScale === undefined ? 1 : ins.lateScale, hg, salv ? Infinity : ins.deadS === undefined ? this.P.ischDeadS : ins.deadS);   // (RV muscle less reduced: the V1 elevation of RV involvement)
         if (!st) continue;
+        st.scarK = ins.scarK;   // (occlusionScarWindow: this artery's scar window)
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);
       }
@@ -2178,9 +2183,9 @@
         for (const [c, st] of best) if (!st.dead && !reach[c] && M.kind[c] === KIND.VENT) { st.dead = true; st.vRest = P.vRest; st.amp = 0; }
       }
       let nDead = 0;
-      const ph = this.phantom = new Uint8Array(M.nCells);
+      const ph = this.phantom = new Uint8Array(M.nCells), phK = this.phantomK = new Float32Array(M.nCells);
       for (const [c, st] of best) {
-        if (st.dead && st.kind !== 'subendo' && M.kind[c] === KIND.VENT) ph[c] = 1;   // (a subendocardial scar is covered by living muscle: no window)
+        if (st.dead && st.kind !== 'subendo' && M.kind[c] === KIND.VENT) { ph[c] = 1; phK[c] = st.scarK === null || st.scarK === undefined ? P.scarWindow : st.scarK; }   // (a subendocardial scar is covered by living muscle: no window)
         this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = this.vAmp0[c] * st.amp;
         this.cvMul[c] = st.cv; this.blocked[c] = st.dead || st.unexcitable ? 1 : 0; this._ischCells.add(c);
         if (st.decl > 0) { const sv = this._pDeclSave || (this._pDeclSave = new Map()); if (!sv.has(c)) sv.set(c, this.pDecl[c]); this.pDecl[c] = Math.min(0.9, sv.get(c) + st.decl); }
@@ -2286,8 +2291,8 @@
           const w = A.at(i + (a === 0), j + (a === 1), kk + (a === 2));
           if (w < 0 || !ph[w]) continue;
           M.pairCoef(c, w, a, cc);                                // pair stored low (c) → high (w)
-          const oh = idx[w] * NE, ol = idx[c] * NE;
-          for (let e = 0; e < NE; e++) { Wp[oh + e] += cc[e]; Wp[ol + e] -= cc[e]; }
+          const oh = idx[w] * NE, ol = idx[c] * NE, rk = this.phantomK ? 0.5 * (this.phantomK[c] + this.phantomK[w]) / k : 1;   // (per-artery window relative to scarWindow)
+          for (let e = 0; e < NE; e++) { Wp[oh + e] += rk * cc[e]; Wp[ol + e] -= rk * cc[e]; }
         }
       }
       this._pAct = new Float64Array(M.nCells).fill(-1e9);

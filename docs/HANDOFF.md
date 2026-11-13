@@ -71,6 +71,27 @@ Other recent UI:
   Combinations of findings start around 1700.
 - VT, torsades and VF never have other abnormalities, but can have artifacts. Tremor varies in length and strength.
 
+## Settled questions (check here before proposing a rebuild)
+
+The author asked: remember what has been tried before suggesting full rebuilds. Each of these was tried and documented
+in docs/DEVELOPMENT.md; do not propose it again without new evidence.
+- **Another 3D heart / mesh**: earlier hearts (refine-2's CT heart and others) had the same weaknesses; the LPFB ceiling
+  is the same in the hybrid and the solved-torso forward models (rebuild-1 round 8), so it is not the mesh or torso.
+- **Conduction-system rebuild from the literature** (Durrer roots on a fast endocardial layer, Cardone-Noott 2016):
+  done in rebuild-1 round 9; LPFB ~90° with lead I equiphasic, LPFB and LBBB trade within a degree of tilt. The
+  published root-node model has the same LPFB.
+- **Fibre ratio of the sources** (`sigmaRatio`): 10 is physiological for the intracellular (source) tensor (Clerc
+  ~9, rebuild-1 round 8); the ~3 often quoted is the bulk tissue ratio, used in the torso. Lowering it removes the
+  fascicular deviation.
+- **Brody factor, torso organs, arms/legs, orientation alone**: none shrinks the LPFB R (Round 67 part 4, Round 68).
+- **Over-cancellation** (large regional forces, small net normal QRS) is the model's character; the fascicular block R,
+  inferior-MI unmasking and post-infarct T sizes follow from it. Round 67's repolarisation refit fixed the T part.
+- **Priorities (the author, Round 68)**: ischaemia detection matters most; LBBB/RBBB axes are low priority; LAFB/LPFB
+  look acceptable (more deviation welcome); small Q waves below the infarct criteria are fine; V5–V6 q in LAFB is lateral
+  and fine; LVH by Sokolow-Lyon only.
+- **Measure with** `tools/scorecard.js` (textbook targets) plus the reader, fullcheck and the Training audit; the quick
+  scratch checks of Round 68 (block scorecard subset ~15 s, infarct lead groups ~13 s) before any full run.
+
 ## Working with the author
 
 - The author is a UI designer, not a coder: explain choices in plain clinical and visual terms, and give recommendations, not

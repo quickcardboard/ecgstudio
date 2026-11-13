@@ -255,7 +255,8 @@ function run(LH, JA, params, names) {
     const got = got0.some((t) => t.endsWith('ateral')) ? [...got0, 'lateral'] : got0;   // 'lateral' = either lateral group
     const alt = (t) => t.split('|');                                   // 'lateral|posterior': either
     const miss = ex.req.filter((t) => !alt(t).some((a) => got.includes(a))), extra = got0.filter((t) => !ex.req.some((r) => alt(r).includes(t)) && !ex.ok.includes(t));
-    const okDx = [...MI_OK.all, ...(site.includes('LAD') ? ['poor R progression'] : []), ...(site.includes('LAD') && site !== 'dLAD' ? MI_OK.LAD : []), ...(/RCA|PDA/.test(site) ? MI_OK.RCA : [])];
+    // (poor R progression is expected after an LAD or left-main infarct: the whole LAD territory)
+    const okDx = [...MI_OK.all, ...(site.includes('LAD') || site === 'LM' ? ['poor R progression'] : []), ...(site.includes('LAD') && site !== 'dLAD' ? MI_OK.LAD : []), ...(/RCA|PDA/.test(site) ? MI_OK.RCA : [])];
     for (const d of dx) if (!d.startsWith('STEMI') && !d.startsWith('old MI') && !okDx.includes(d)) extra.push(d);
     out.push({ scen: `${site} ${label}`, pass: !miss.length && !extra.length, grade: miss.length ? 'fail' : extra.length ? 'partial' : 'pass', dx, axis: r.m.axis, qrs: r.m.qrs, simQRS: r.simQRS, miss, extra, leads: key === 'ste' ? f.ste : f.Q });
   }
@@ -266,7 +267,7 @@ function run(LH, JA, params, names) {
     const S = sc.make(LH, M0, M0.A);
     if (!S) { out.push({ scen: name, grade: 'fail', dx: ['(not induced)'], miss: [sc.expect.rhythm], extra: [] }); continue; }
     S.run(SETTLE); const rec = []; S.onSample((t, v) => rec.push(Array.from(v))); S.run(STRIP);
-    const r = readRhythm(rec), e = sc.expect, ok = r.rhythm.includes(e.rhythm), ideal = !e.ideal || r.rhythm.startsWith(e.ideal);
+    const r = readRhythm(rec), e = sc.expect, ok = [].concat(e.rhythm).some((x) => r.rhythm.includes(x)), ideal = !e.ideal || r.rhythm.startsWith(e.ideal);   // (expect.rhythm: one read or a list of acceptable ones)
     out.push({ scen: name, grade: ok ? (ideal ? 'pass' : 'partial') : 'fail', dx: [r.rhythm], rate: r.rate, qrs: r.width, miss: ok ? (ideal ? [] : [e.ideal]) : [e.rhythm], extra: [], hard: e.hard });
   }
   return out;

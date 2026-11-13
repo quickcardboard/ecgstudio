@@ -10,8 +10,8 @@ all rights reserved (LICENSE).
   OrbitControls) + `src/engine.js` + `src/app.js` + `src/anatomy.json` + `src/torso_limb.json` (solved-torso limb-lead fields)
   into the single self-contained `index.html`. Commit the rebuilt `index.html` with source changes;
   it is what the site serves.
-  Variants (`src/variants/*.json`: other engine defaults and torso field) build to `<dir>/` (e.g. `app-48normalaxis/`, the
-  Round 67 orientation candidate) as a preview with its own shell, simulator and Training pages.
+  Variants (`src/variants/*.json`: other engine defaults and torso field) build to `<dir>/` as a preview with its own shell,
+  simulator and Training pages: `app-oldmodel/` is the model live until Round 69 (`app-48normalaxis/` now redirects to /app).
   It also writes `training/index.html` and the app shell `app/index.html` (`src/shell.html`, a preview framing both pages
   with `?app`; `src/inapp.js` handles that mode; `src/tutorial.js`, the interactive tutorial, goes into both pages); `--app` adds `app/www/` for the native app (not in git).
 - `src/engine.js`: anatomy, model, simulation and lead fields; runs in the browser
@@ -34,6 +34,9 @@ Run before and after any engine change and compare:
   WPW, pericarditis, Brugada, atrial enlargement, thirteen occlusion sites at 1 h and 30 days) and 10 s rhythm
   reads (`tools/rhythmread.js` on the strips of `tools/rhythmscen.js`: sinus, AF, flutter, ectopic, MAT,
   AVNRT, AVRT, VT, VF, AV and SA blocks); `tools/physfit.js` is the joint refit that set the current defaults
+- `node tools/scorecard.js ['{params}'] [scenarios]`: textbook scorecard (66 checks over normal, the blocks, LVH/RVH and
+  infarcts: intervals, axes, amplitudes, morphology), independent of the reader's verdicts; `TV2=` for a variant's torso.
+  Round 69 live model 61/66 (the old model 53/66)
 - `node tools/hyper.js '[{"lv":6,"P":{"lvStrain":1,"lvSourceGain":1.5}},{"lv":2,"rv":6,"an":{"rvThickPhiC":0.4,"rvThickPhiW":0.8},"P":{"rvStrain":0.7,"rvSourceGain":1.8,"rvCvMul":0.8}}]'` (the LVH and RVH presets of `hypertrophyOptions`)
 - `node tools/ischaudit.js [sites] [hours]`: ST/Q/T per lead for every occlusion site and time
   stop (`MP='{...}'` overrides parameters; the marginal branches `OM1,OM2,AM` only when named)
@@ -52,11 +55,11 @@ Both are wanted: textbook-accurate axes and amplitudes, and accurate ischemia le
 and time course. Check both kinds of regression when tuning.
 
 Known limitations (rebuild-1 rounds 10–17 in docs/DEVELOPMENT.md):
-- limb leads come from a solved torso (`limbTorso2`, field solved for heartRotation 17): changing
-  heartRotation needs a re-solved field (`tools/export_heart_torso.js` + `ANISO=1 tools/torso_v2.py`)
-- normal axis about 0–15° (normal range, lead III negative)
-- LAFB shows a pseudo-infarct (Q/poor R progression) read as old anterior MI
-- distal LCx STEMI at 1 h is not visible; LBBB and RBBB axes are not textbook (read on morphology)
+- limb leads and the V3–V6 ST-T come from a solved torso (`limbTorso2`, field solved for heartRotation 17, heartPitch −15,
+  heartYaw 12; Round 69): changing the orientation needs a re-solved field (`tools/export_heart_torso.js` + `ANISO=1
+  tools/torso_v2.py`, ~1 min) packed into `src/torso_limb.json` (LA, LL, V3–V6, chestScale)
+- normal axis about +20–40°; LAFB −50 to −60° with a small r in V1–V4; LPFB ~91° with R III ~31 mm (textbook ≤ 20; more
+  deviation costs infarct localisation, docs Round 68); RBBB axis about −50° and a QS in aVF (read on morphology)
 - old apical (distal-LAD) infarct also shows inferior Q (wrap-around LAD pattern)
 - acute marginal (RV branch) occlusion gives inferior ST elevation and, at 30 days, inferior Q instead of
   the V1/V4R pattern of isolated RV infarction
@@ -64,11 +67,12 @@ Known limitations (rebuild-1 rounds 10–17 in docs/DEVELOPMENT.md):
 - chest leads: the QRS is a heart-vector + near-field blend (with the cavity window over a scar); the ST-T comes from the
   solved torso in V5–V6, 75% in V4, 50% in V3 (`chestTorsoTLead`, Round 67; V3–V6 fields in `src/torso_limb.json`). V1–V2
   ST-T stay on the blend (the torso field breaks Brugada's coved ST). The `cavityWindowT` bandage is gone (1). A torso QRS
-  loses R progression and the infarct Q waves (Round 49). After the Round 67 repolarisation refit the
-  normal T axis is ~+56° against a QRS axis of ~+12°: aVL T flat, V5–V6 T low (the QRS axis is the outlier)
-- heart orientation: tilt 17 / pitch −22 / yaw 12–20 gives textbook normal, LAFB and LPFB axes (Round 67 scan, each with
-  its own solved torso), but the ischaemia scales, chest blend and R progression were fitted at the current orientation
-  (reader 47 → 33/57 without a refit); fascicular voltages stay ~2× textbook at every orientation, fibre ratio and Brody term
+  loses R progression and the infarct Q waves (Round 49).
+- fascicular block voltages stay high (LPFB R III ~31 mm); the old mid-RCA infarct's T in III is −5.3 mm; proximal LCx
+  at 30 days adds inferior Q; OM1 at 1 h spills ST into V3–V4; Training's hyperacute mid-LAD T is often not tall enough
+- the Purkinje network (Round 68): septal fascicle with its own territory, fast cross-territory bands at the territory
+  edges (`purkCrossFastPhi`), the septal fascicle slowed (not cut) with an LPF block (`lsfTieDelay`); per-artery scar
+  window (`occlusionScarWindow`) and salvaged rim (`occlusionMarginMm`)
 
 ## Conventions
 

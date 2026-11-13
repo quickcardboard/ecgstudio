@@ -2467,3 +2467,164 @@ fascicle scorer at app gain):
   RCA 0.8 / LCx 2.0: LPFB 91°, R III ~28 mm (was 34), read LPFB; LAFB −57°; RBBB 126 ms. Reader 50/57 (score 52.5; live 53),
   but fullcheck iErr 10 (proximal LCx loses its lateral ST and Q, mid LAD adds high-lateral ST, PDA V1–V2 ST) and Training
   audit 116/180 (previous variant 126, live 139).
+
+## Round 68, part 2: textbook scorecard (tools/scorecard.js)
+
+66 fixed checks against textbook ranges (ACC/AHA/HRS 2009, 4th UDMI, Goldberger, Chou), read from the model's
+measurements and not from the reader's verdicts; ~1 min per model. Generous ranges: a miss means clearly not textbook.
+
+| | live | 48° preview |
+|---|---|---|
+| normal | 16/17 (R V4 = R V3) | 16/17 (R V5 6.8 mm) |
+| LAFB | 3/8 (q aVL 34 ms −6.5 mm, S III 30, R aVL 22.5, QS V1–V3) | **8/8** |
+| LPFB | 3/6 (R III 34, inferior q 30–32 ms) | 4/6 (R III 28, R II/aVF 26–27) |
+| LBBB | 5/5 | 3/5 (axis 100°, small r in I) |
+| RBBB | 3/5 (axis −57°, inferior q 27 ms) | 3/5 (axis −53°) |
+| LVH, RVH | 8/8 | 8/8 |
+| mid LAD 1 h / 30 d | 5/5 | 4/5 (axis 99° at 30 d) |
+| mid RCA 1 h / 30 d | 6/8 (Q III −12.6, R aVL 11.7) | 6/8 (Q III −19, R aVL 15.9) |
+| proximal LCx 1 h / 30 d | 4/4 | 4/4 |
+| **total** | **53/66** | **56/66** |
+
+The misses left in both: the fascicular block voltages (LPFB), the RBBB superior axis (a known limitation since
+rebuild-1), and the size of the inferior infarct's Q and its aVL R.
+
+## Round 68, part 3: scorecard-driven search (conduction system, orientation, infarct layer)
+
+All steps judged by `tools/scorecard.js` (the 41 block/normal checks per candidate, ~15 s), then the full suites.
+- RBBB's superior axis: weaker RV sources help steadily (`rvSourceGain` 1 → 0.75: −53 → −34°) but do not reach −30°;
+  an earlier right-septal Purkinje (`rbbSeptalDelay` 10) fixes LBBB in the preview (5/5) but costs LAFB and LPFB.
+- Joint random search (120 candidates: the solved orientations × RV source, right-septal delay, septal-fascicle slowing,
+  septal territory, Purkinje speed and cross-territory slowing): plateau at 35/41 (preview 34). The same four misses in
+  every candidate: LPFB R III 26–31 mm, RBBB axis −34 … −53°, LBBB swinging right (96–100°) wherever the fascicular
+  blocks work, RBBB inferior q 30–33 ms. This is the limit of the present conduction system.
+- Infarct layer on the best candidate: LCx injury 2.6 drops beats (discarded); an RCA rim (3–5 mm) gives the textbook
+  Q III size (scorecard infarcts 14 → 16/17) but costs the reader 4 (the smaller inferior Q is no longer read).
+- Best candidate in full: scorecard 56/66 (= preview), reader 44/57 (preview 50), fullcheck iErr 10, Training audit
+  107/180 (preview 116): not adopted. Best scorecard: the deployed preview, 56/66; live 53/66.
+
+## Round 68, part 4: ischaemia-first orientation (the 48° preview updated)
+
+The author's priorities: ischaemia detection first; LAFB/LPFB acceptable; bundle-branch axes low priority. Quick checks:
+the infarct lead groups of fullcheck alone (scratch copy, 13 s, reproduces fullcheck's iErr exactly) and the block
+scorecard subset (15 s).
+- Injury scales and the chest dipole weight at the yaw-20 preview: iErr 10 → 8 at best; its misses (mid-LAD high-lateral
+  ST, proximal-LCx lateral Q, PDA V1–V2 ST) follow the orientation.
+- All 55 solved orientations scored on both: the apex swung far left (yaw 20) costs infarct localisation; yaw ≤ 12
+  restores it (tilt 10 / pitch −15 / yaw 12: iErr 3; tilt 17 / −15 / 12: iErr 4), but LPFB stops at 85–89°. Yaw 16
+  (solved for tilt 10/17/24): iErr 5–8.
+- Adopted for the preview: tilt 17 / pitch −15 / yaw 12, `ecgGain` 0.01167, `purkCrossSlow` 6, `purkCrossFastPhi`
+  [[0.7, 0.3], [−1.8, 0.05]], `lsfTieDelay` 2.2 (the rest as part 3).
+
+| | live | preview (yaw 20) | **preview (yaw 12)** |
+|---|---|---|---|
+| scorecard | 53/66 | 56/66 | **57/66** |
+| blind reader | 50/57 | 50/57 | 47/57 |
+| infarct lead groups (fullcheck iErr) | 4 | 10 | **4** |
+| Training audit | 139/180 | 116/180 | 131/180 |
+
+Its misses: LPFB 89° (reads normal, 1° short; R III 29.5 mm), LAFB's 30 ms q in V5–V6 (read old low-lateral MI, 1 ms
+over), RBBB axis −51°, mid-RCA 30 d Q III −20.5 mm and R aVL 16 mm, distal-LCx 30 d lateral Q.
+- Near-misses: `lsfTieDelay` 2.2 → 3.0 takes LPFB to 91° (reads LPFB; R III 31.8 mm). LAFB's V5–V6 q stays at 30 ms
+  under every LAF-side setting (terminal, anterior band, Purkinje speed; the author accepts it as a lateral q).
+  Preview scorecard 57 → **59/66** (live 53). Infarct lead groups unchanged (the setting acts only with an LPF block).
+- Misses by distance from textbook: mid-RCA 30 d Q III −20.5 mm (limit −12: +71%), LPFB R III 31.8 mm (≤ 20: +59%;
+  II/aVF 28–30), mid-RCA 30 d R aVL 16 mm (< 11: +45%), RBBB inferior q 40 ms in aVF (< 30) and axis −51° (21° outside;
+  low priority), LAFB V5–V6 q 30 ms (1 ms; accepted). Not on the scorecard: PDA ST in V1–V2, distal-LCx 30 d lateral Q,
+  distal-LAD Q in V2 (live too).
+- **LPFB deviation beyond 91°** (the author: more than 90). Septal-fascicle slowing saturates at 92°. A wider LPF
+  territory (`lpfTerrLo` −2.5 … −3.0) with cross-territory slowing 9–15 reaches 93–97° (R III 25–29 mm) but moves the
+  normal axis to 14–20°, brings LAFB's q in aVL back to 31 ms and raises the infarct lead-group errors 4 → 6 (proximal
+  LCx gains inferior Q): the territory decides which fascicle activates which wall in the normal beat too. With infarct
+  localisation held at live's level, LPFB stops at 91–92° in this model. Not changed.
+- **No infarct-criteria Q in the blocks** (the author: a small q is fine, one that meets the old-infarct criteria is
+  not). LAFB's V5–V6 q (30 ms) went with `brody` 2 → 1 (gain recalibrated ×1.054 to keep the normal QRS, `atrialLimbGain`
+  2.0 → 1.897 to keep the P wave): LAFB 8/8 on the scorecard, reads "LAFB, poor R progression"; LPFB 92°, reads LPFB.
+- **Rhythm reader** (also Training's): complexes are aligned to the median beat (best match within ±30 ms) before the
+  shape-consistency measure (a wide slurred escape had its fastest point land elsewhere in two of five beats: 0.21
+  correlation, read VF); VF also needs little isoelectric time (iso < 0.4; VF ~0.1, a slow escape ~0.8). Live: rhythm
+  reads 16/17 (unchanged), Training audit 139/180 (unchanged).
+- Preview now: scorecard **59/66** (live 53), reader 47/57 (live 50), infarct lead groups iErr 4 (= live), Training audit
+  131/180 (live 139). Remaining Q that meets infarct criteria: pericarditis's inferior q (the reader's onset effect), the
+  RBBB QS in aVF.
+
+## Round 68, part 5: reader work (the author: optimise the reader first)
+
+- **Regular narrow tachycardia without visible P** (the author): SVT, atrial flutter and AVNRT are all correct answers.
+  Training: AVNRT accepts SVT/flutter, AVRT accepts SVT/flutter/AVNRT; the flutter recipe's rate range is 60–150/min,
+  so faster draws come out as **2:1 flutter** (~145–160/min, flutter waves hidden in the QRS/T), keyed as atrial flutter
+  with SVT and AVNRT accepted and its own teaching line; a "T inversion" read is excused in flutter (the waves deform the
+  T). Validation reader: the 2:1 flutter, AVNRT and AVRT scenarios accept any of these reads (`expect.rhythm` may be a
+  list). Rhythm reads 17/17 in both models; Training audit unchanged (live 139/180, preview 131/180), flutter 4/4.
+- Tried and reverted: Q duration from each lead's own departure (Minnesota per-lead onset) instead of the global QRS
+  onset. It removes pericarditis's inferior "old MI" in the preview, but every old inferior infarct in the live model
+  loses its Q read (single-beat 37 → 31: the inferior leads sit flat a few ms before the Q); standardisation statements
+  measure from the global onset in simultaneous 12-lead recordings.
+
+## Round 68, part 6: circumflex localisation in the preview; Mobitz I in the rhythm reader
+
+- **Preview, circumflex.** `precordialDipoleW` 0.62 → 0.4 (less heart-vector spread into V3–V4: the marginal-branch
+  1-hour ST no longer reads anterior for OM2 and AM); `cavityWindow` 0.45 → 0.8 and `scarWindow` 0.5 → 0.8 (the old
+  distal-LCx and OM2 infarcts now show their lateral Q). The LCx injury scale (1.3–2.0) made no difference.
+  Preview: reader 48 → **53/57** (live 51), infarct lead groups iErr 4 → **1** (live 4), scorecard 59 → 58/66 (normal R V5
+  6.1 mm; mid-RCA 30 d Q III −23, R aVL 17.6 mm; LAFB's V1–V3 r 1.3–2 mm counted near-QS), Training audit 130/180.
+- **Rhythm reader, Mobitz I read as AF** (Training rejections in both models): one hidden P left 12 P waves for 10 QRS,
+  under the 1.25 dissociation ratio, and the irregular branch fell through to AF. P waves marching at a regular rate
+  (P–P variation < 0.1) with more P than QRS and a P before ≥ 80% of the QRS now mean AV block. Training audit: live
+  139 → **143/180**, preview 130 → **134/180**; rhythm reads 17/17.
+- Non-specific ST-T (both models: 2–3 of 8 builds show the flat T): flattening the transmural gradient no longer
+  flattens the T after the Round 67 refit; pulling the whole APD spread toward the mean in the patches made it worse
+  (T inversion next to them, 0/8). Left open.
+
+## Round 68, part 7: reader scoring for left main; old mid-RCA infarct size; normal R in V5 (preview)
+
+- Reader scoring: poor R progression is allowed after a left-main infarct, as after the LAD (the whole LAD territory).
+- New option `occlusionScarWindow` (per family; overrides `scarWindow` for that artery's scar). The preview's scar window
+  0.8 (for the lateral Q of the circumflex scars) had made the old inferior infarcts larger (mid RCA 30 d Q III −23 mm,
+  R aVL 17.6). RCA: scar window 0 (a silent scar) with a 2 mm salvaged rim (`occlusionMarginMm` RCA 2): Q III and R aVL
+  within textbook, every RCA-family read kept (a 3 mm rim loses PDA's Q).
+- Normal R V5 6.1 → ≥ 7 mm: `precordialGain` 0.8 → 1.0. That pushed PDA's V1–V2 ST over the line; `occlusionInj` RCA
+  0.8 → 0.65 and `occlusionInjRV` 1.8 → 0.8 bring it back (and the acute marginal's anterior spill goes).
+- Preview: scorecard **61/66** (live 53), reader **55/57** (live 51), infarct lead groups iErr **1** (live 4), Training
+  audit 137/180 (live 143). Left: LPFB R III 31 mm, RBBB axis and aVF QS, mid-RCA 30 d T III −5.3 mm (limit −5), proximal
+  LCx 30 d extra inferior Q, OM1 1 h anterior ST.
+
+## Round 68, part 8: Training yield (both models)
+
+Rejection reasons compared between the live model and the preview (the audit's own logs; note the 180-item audit has a
+noise of about ±6 items, so the reasons, not small totals, are the signal).
+- **Non-specific ST-T, no flat T**: since the Round 67 refit the T is less transmural, so the patch flattening was too
+  weak. `nssttGrad` 1 → 1.5: 8/8 test builds in both models (live 3/8, preview 2/8 before; ≥ 2 overshoots into T
+  inversion).
+- **Left-main narrowing read as LPFB** (preview) / poor R progression (live): the subendocardial insult carried the
+  occlusion's QRS effects (amplitude drop, slowing), swinging the QRS axis by 60–80° (preview 24 → 105°, live 13 → 75°).
+  New `subendoQRS` 0.3 (share of those QRS effects in subendocardial ischaemia): axis 39° / 17°. The narrowings' ST
+  depression partly came from that amplitude drop, so `stenosisSev` LCx 0.55 → 0.8 and RCA 0.17 → 0.45 restore it
+  (8/8 narrowing builds over eight sites in both models).
+- Result: Training audit live 143 → **144/180**, preview 137 → **148/180**; reader live 52/57, preview 55/57; infarct
+  lead groups live iErr 4, preview 1; stcheck unchanged. Common to both and left: hyperacute mid-LAD T not tall enough,
+  old distal-LCx/OM2 Q in the inferior leads, LAFB losing its axis beside a left-main infarct.
+
+## Round 69: the Round 68 model becomes the live model
+
+The 48° preview's settings are now the engine defaults and its solved torso (heartRotation 17, heartPitch −15,
+heartYaw 12) is `src/torso_limb.json`. The previous defaults and torso are the variant `src/variants/oldmodel.json` +
+`src/variants/torso_oldmodel.json`, built to `app-oldmodel/` (ecgstudio.app/app-oldmodel); `app-48normalaxis/`
+redirects to /app.
+
+Changed defaults (old → new): `heartPitch` −10 → −15, `heartYaw` 8 → 12, `ecgGain` 0.01348 → 0.0123,
+`precordialGain` 0.66 → 1, `precordialDipoleW` 0.55 → 0.4, `precordialDipoleGain` 1.7 → 2.2, `dowerChest` 0.5 → 0.8,
+`atrialFrontalRot` 30 → 45, `atrialLimbGain` 1.85 → 1.897, `chestTorsoTGain` 1 → 1.4, `occlusionInj` LCx 1 → 2,
+RCA 0.33 → 0.65, `occlusionInjRV` 1.8 → 0.8, `occlusionBorderMm` { LAD: 18 }, `occlusionScarWindow` { RCA: 0 },
+`occlusionMarginMm` { RCA: 2 }, `cavityWindow` 0.45 → 0.8, `scarWindow` 0.5 → 0.8, `brody` 2 → 1, `septalTerrHalf`
+0 → 0.45, `purkCrossFastPhi` [[0.7, 0.3], [−1.8, 0.05]], `purkCrossSlow` 3 → 6, `cvPurkinje` 1.8 → 2.1, `lsfZ` 0.42 → 0.35,
+`lsfPhi` 0.05 → 0.3, `lpfApexZ` 0.25 → 0.35, `fascConnectFrac` 0.45 → 0.35, `lpfZ` 0.3 → 0.25, `rvCvMul` 1 → 0.8,
+`lsfTieDelay` 0 → 3 (with Round 68 part 8: `nssttGrad` 1.5, `subendoQRS` 0.3, `stenosisSev` LCx 0.8 / RCA 0.45).
+
+Validation on the defaults (no overrides): reader **55/57** (rhythms 17/17; misses: proximal LCx 30 d extra inferior Q,
+OM1 1 h anterior ST), fullcheck **iErr 1** (proximal LCx 30 d Q in aVL; axErr 5.67: normal 18°, LAFB −55°, LPFB 92°,
+LBBB 84°, RVH 251° by fullcheck's measure), scorecard **61/66**, Training audit **148/180**; RVH preset axis 142°, LVH
+Sokolow 5.19 with strain; evalecg QRS 84 ms, PR 136 ms, P II 0.22 mV, axis 12° (reader 26°), T axis 49°; blocks, WPW,
+arrhythmias, AVNRT/AVRT, ST baseline run without errors. The old model as a variant: reader 51/57. Browser: index.html
+(1440×900, 844×390), app, training and app-oldmodel load without page errors; the simulator reads "Normal sinus
+rhythm, axis +26°".
