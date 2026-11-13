@@ -7,7 +7,7 @@
     "heartYaw": 12,
     "ecgGain": 0.0123,
     "precordialGain": 0.8,
-    "precordialDipoleW": 0.62,
+    "precordialDipoleW": 0.4,
     "precordialDipoleGain": 2.2,
     "dowerChest": 0.8,
     "atrialFrontalRot": 45,
@@ -44,6 +44,8 @@
     "rvCvMul": 0.8,
     "heartRotation": 17,
     "lsfTieDelay": 3.0,
-    "brody": 1
+    "brody": 1,
+    "cavityWindow": 0.8,
+    "scarWindow": 0.8
   }
 }

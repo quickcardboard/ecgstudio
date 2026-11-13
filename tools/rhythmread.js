@@ -165,7 +165,10 @@ function classify(o, beats) {
     return rateTxt('regular');
   }
   // irregular
-  if (dissoc && o.prSd !== null) {
+  // (P waves marching at a regular rate, more of them than QRS complexes: dropped beats, not AF; one hidden P can leave
+  // the count just under the dissociation ratio)
+  const marching = o.ppCv !== null && o.ppCv !== undefined && o.ppCv < 0.1 && o.pCount > beats.length && o.prAllShare >= 0.8;
+  if ((dissoc || marching) && o.prSd !== null) {
     // dropped beats: P waves not followed by a QRS; PR before each drop vs after it
     return o.prSd > 15 ? 'sinus rhythm, Mobitz I (Wenckebach) AV block' : 'sinus rhythm, Mobitz II AV block';
   }

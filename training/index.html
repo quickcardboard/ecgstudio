@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-13 (6b4cbaf)">
+<meta name="version" content="2026-11-13 (47c6956)">
 <meta name="premium" content="1">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -4083,7 +4083,10 @@ function classify(o, beats) {
     return rateTxt('regular');
   }
   // irregular
-  if (dissoc && o.prSd !== null) {
+  // (P waves marching at a regular rate, more of them than QRS complexes: dropped beats, not AF; one hidden P can leave
+  // the count just under the dissociation ratio)
+  const marching = o.ppCv !== null && o.ppCv !== undefined && o.ppCv < 0.1 && o.pCount > beats.length && o.prAllShare >= 0.8;
+  if ((dissoc || marching) && o.prSd !== null) {
     // dropped beats: P waves not followed by a QRS; PR before each drop vs after it
     return o.prSd > 15 ? 'sinus rhythm, Mobitz I (Wenckebach) AV block' : 'sinus rhythm, Mobitz II AV block';
   }

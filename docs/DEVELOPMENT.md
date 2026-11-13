@@ -2560,3 +2560,18 @@ over), RBBB axis −51°, mid-RCA 30 d Q III −20.5 mm and R aVL 16 mm, distal-
   onset. It removes pericarditis's inferior "old MI" in the preview, but every old inferior infarct in the live model
   loses its Q read (single-beat 37 → 31: the inferior leads sit flat a few ms before the Q); standardisation statements
   measure from the global onset in simultaneous 12-lead recordings.
+
+## Round 68, part 6: circumflex localisation in the preview; Mobitz I in the rhythm reader
+
+- **Preview, circumflex.** `precordialDipoleW` 0.62 → 0.4 (less heart-vector spread into V3–V4: the marginal-branch
+  1-hour ST no longer reads anterior for OM2 and AM); `cavityWindow` 0.45 → 0.8 and `scarWindow` 0.5 → 0.8 (the old
+  distal-LCx and OM2 infarcts now show their lateral Q). The LCx injury scale (1.3–2.0) made no difference.
+  Preview: reader 48 → **53/57** (live 51), infarct lead groups iErr 4 → **1** (live 4), scorecard 59 → 58/66 (normal R V5
+  6.1 mm; mid-RCA 30 d Q III −23, R aVL 17.6 mm; LAFB's V1–V3 r 1.3–2 mm counted near-QS), Training audit 130/180.
+- **Rhythm reader, Mobitz I read as AF** (Training rejections in both models): one hidden P left 12 P waves for 10 QRS,
+  under the 1.25 dissociation ratio, and the irregular branch fell through to AF. P waves marching at a regular rate
+  (P–P variation < 0.1) with more P than QRS and a P before ≥ 80% of the QRS now mean AV block. Training audit: live
+  139 → **143/180**, preview 130 → **134/180**; rhythm reads 17/17.
+- Non-specific ST-T (both models: 2–3 of 8 builds show the flat T): flattening the transmural gradient no longer
+  flattens the T after the Round 67 refit; pulling the whole APD spread toward the mean in the patches made it worse
+  (T inversion next to them, 0/8). Left open.
