@@ -2547,3 +2547,16 @@ over), RBBB axis −51°, mid-RCA 30 d Q III −20.5 mm and R aVL 16 mm, distal-
 - Preview now: scorecard **59/66** (live 53), reader 47/57 (live 50), infarct lead groups iErr 4 (= live), Training audit
   131/180 (live 139). Remaining Q that meets infarct criteria: pericarditis's inferior q (the reader's onset effect), the
   RBBB QS in aVF.
+
+## Round 68, part 5: reader work (the author: optimise the reader first)
+
+- **Regular narrow tachycardia without visible P** (the author): SVT, atrial flutter and AVNRT are all correct answers.
+  Training: AVNRT accepts SVT/flutter, AVRT accepts SVT/flutter/AVNRT; the flutter recipe's rate range is 60–150/min,
+  so faster draws come out as **2:1 flutter** (~145–160/min, flutter waves hidden in the QRS/T), keyed as atrial flutter
+  with SVT and AVNRT accepted and its own teaching line; a "T inversion" read is excused in flutter (the waves deform the
+  T). Validation reader: the 2:1 flutter, AVNRT and AVRT scenarios accept any of these reads (`expect.rhythm` may be a
+  list). Rhythm reads 17/17 in both models; Training audit unchanged (live 139/180, preview 131/180), flutter 4/4.
+- Tried and reverted: Q duration from each lead's own departure (Minnesota per-lead onset) instead of the global QRS
+  onset. It removes pericarditis's inferior "old MI" in the preview, but every old inferior infarct in the live model
+  loses its Q read (single-beat 37 → 31: the inferior leads sit flat a few ms before the Q); standardisation statements
+  measure from the global onset in simultaneous 12-lead recordings.

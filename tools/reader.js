@@ -266,7 +266,7 @@ function run(LH, JA, params, names) {
     const S = sc.make(LH, M0, M0.A);
     if (!S) { out.push({ scen: name, grade: 'fail', dx: ['(not induced)'], miss: [sc.expect.rhythm], extra: [] }); continue; }
     S.run(SETTLE); const rec = []; S.onSample((t, v) => rec.push(Array.from(v))); S.run(STRIP);
-    const r = readRhythm(rec), e = sc.expect, ok = r.rhythm.includes(e.rhythm), ideal = !e.ideal || r.rhythm.startsWith(e.ideal);
+    const r = readRhythm(rec), e = sc.expect, ok = [].concat(e.rhythm).some((x) => r.rhythm.includes(x)), ideal = !e.ideal || r.rhythm.startsWith(e.ideal);   // (expect.rhythm: one read or a list of acceptable ones)
     out.push({ scen: name, grade: ok ? (ideal ? 'pass' : 'partial') : 'fail', dx: [r.rhythm], rate: r.rate, qrs: r.width, miss: ok ? (ideal ? [] : [e.ideal]) : [e.rhythm], extra: [], hard: e.hard });
   }
   return out;
