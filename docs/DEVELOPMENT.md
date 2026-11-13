@@ -2575,3 +2575,16 @@ over), RBBB axis −51°, mid-RCA 30 d Q III −20.5 mm and R aVL 16 mm, distal-
 - Non-specific ST-T (both models: 2–3 of 8 builds show the flat T): flattening the transmural gradient no longer
   flattens the T after the Round 67 refit; pulling the whole APD spread toward the mean in the patches made it worse
   (T inversion next to them, 0/8). Left open.
+
+## Round 68, part 7: reader scoring for left main; old mid-RCA infarct size; normal R in V5 (preview)
+
+- Reader scoring: poor R progression is allowed after a left-main infarct, as after the LAD (the whole LAD territory).
+- New option `occlusionScarWindow` (per family; overrides `scarWindow` for that artery's scar). The preview's scar window
+  0.8 (for the lateral Q of the circumflex scars) had made the old inferior infarcts larger (mid RCA 30 d Q III −23 mm,
+  R aVL 17.6). RCA: scar window 0 (a silent scar) with a 2 mm salvaged rim (`occlusionMarginMm` RCA 2): Q III and R aVL
+  within textbook, every RCA-family read kept (a 3 mm rim loses PDA's Q).
+- Normal R V5 6.1 → ≥ 7 mm: `precordialGain` 0.8 → 1.0. That pushed PDA's V1–V2 ST over the line; `occlusionInj` RCA
+  0.8 → 0.65 and `occlusionInjRV` 1.8 → 0.8 bring it back (and the acute marginal's anterior spill goes).
+- Preview: scorecard **61/66** (live 53), reader **55/57** (live 51), infarct lead groups iErr **1** (live 4), Training
+  audit 137/180 (live 143). Left: LPFB R III 31 mm, RBBB axis and aVF QS, mid-RCA 30 d T III −5.3 mm (limit −5), proximal
+  LCx 30 d extra inferior Q, OM1 1 h anterior ST.

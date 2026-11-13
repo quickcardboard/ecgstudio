@@ -255,7 +255,8 @@ function run(LH, JA, params, names) {
     const got = got0.some((t) => t.endsWith('ateral')) ? [...got0, 'lateral'] : got0;   // 'lateral' = either lateral group
     const alt = (t) => t.split('|');                                   // 'lateral|posterior': either
     const miss = ex.req.filter((t) => !alt(t).some((a) => got.includes(a))), extra = got0.filter((t) => !ex.req.some((r) => alt(r).includes(t)) && !ex.ok.includes(t));
-    const okDx = [...MI_OK.all, ...(site.includes('LAD') ? ['poor R progression'] : []), ...(site.includes('LAD') && site !== 'dLAD' ? MI_OK.LAD : []), ...(/RCA|PDA/.test(site) ? MI_OK.RCA : [])];
+    // (poor R progression is expected after an LAD or left-main infarct: the whole LAD territory)
+    const okDx = [...MI_OK.all, ...(site.includes('LAD') || site === 'LM' ? ['poor R progression'] : []), ...(site.includes('LAD') && site !== 'dLAD' ? MI_OK.LAD : []), ...(/RCA|PDA/.test(site) ? MI_OK.RCA : [])];
     for (const d of dx) if (!d.startsWith('STEMI') && !d.startsWith('old MI') && !okDx.includes(d)) extra.push(d);
     out.push({ scen: `${site} ${label}`, pass: !miss.length && !extra.length, grade: miss.length ? 'fail' : extra.length ? 'partial' : 'pass', dx, axis: r.m.axis, qrs: r.m.qrs, simQRS: r.simQRS, miss, extra, leads: key === 'ste' ? f.ste : f.Q });
   }

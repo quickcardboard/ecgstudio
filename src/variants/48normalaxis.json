@@ -6,7 +6,7 @@
     "heartPitch": -15,
     "heartYaw": 12,
     "ecgGain": 0.0123,
-    "precordialGain": 0.8,
+    "precordialGain": 1.0,
     "precordialDipoleW": 0.4,
     "precordialDipoleGain": 2.2,
     "dowerChest": 0.8,
@@ -15,8 +15,8 @@
     "chestTorsoTGain": 1.4,
     "occlusionInj": {
       "LAD": 1,
-      "LCx": 2,
-      "RCA": 0.8,
+      "LCx": 2.0,
+      "RCA": 0.65,
       "LM": 1
     },
     "occlusionBorderMm": {
@@ -46,6 +46,13 @@
     "lsfTieDelay": 3.0,
     "brody": 1,
     "cavityWindow": 0.8,
-    "scarWindow": 0.8
+    "scarWindow": 0.8,
+    "occlusionScarWindow": {
+      "RCA": 0
+    },
+    "occlusionMarginMm": {
+      "RCA": 2
+    },
+    "occlusionInjRV": 0.8
   }
 }

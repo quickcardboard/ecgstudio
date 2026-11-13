@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-13 (47c6956)">
+<meta name="version" content="2026-11-13 (1d8f236)">
 <meta name="premium" content="1">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -950,7 +950,8 @@ body.land #fsClose { display: none; }
     septalPerf: [0.14, 0.3, 0.45, 0.6],      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
-    occlusionDeadS: null, occlusionBorderMm: null, occlusionMarginMm: null,   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
+    occlusionDeadS: null, occlusionBorderMm: null, occlusionScarWindow: null,   // occlusionScarWindow: per family, the scar window instead of scarWindow
+    occlusionMarginMm: null,   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
     pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.3, pericardSag: -0.55, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
@@ -2512,7 +2513,8 @@ body.land #fsClose { display: none; }
       { const oi = this.P.occlusionInj, fam = this._family(ins.branch); ins.injScale = oi ? (typeof oi === 'number' ? oi : oi[fam] === undefined ? 1 : oi[fam]) : 1;
         const ol = this.P.occlusionLate; ins.lateScale = ol ? (typeof ol === 'number' ? ol : ol[fam] === undefined ? 1 : ol[fam]) : 1;
         const od = this.P.occlusionDeadS; ins.deadS = od && od[fam] !== undefined ? od[fam] : this.P.ischDeadS;
-        const om = this.P.occlusionMarginMm; ins.marginMm = om && om[fam] ? om[fam] : 0; }
+        const om = this.P.occlusionMarginMm; ins.marginMm = om && om[fam] ? om[fam] : 0;
+        const osw = this.P.occlusionScarWindow; ins.scarK = osw && osw[fam] !== undefined ? osw[fam] : null; }
       ins.nodal = { san: M.isDownstream(M.coronary.sanNode, node), avn: M.isDownstream(M.coronary.avnNode, node) };
       return this._addInsult(ins);
     }
@@ -2833,6 +2835,7 @@ body.land #fsClose { display: none; }
         const salv = ins.marginMm > 0 && (ins._depth || (ins._depth = this._territoryDepth(ins.cells))).hops[q] * A.h < ins.marginMm;   // (occlusionMarginMm: the salvaged rim)
         const st = this._ischemicState(ins.sev[q], tm, h, ins.kind, (ins.injScale === undefined ? 1 : rv ? Math.min(1, ins.injScale * this.P.occlusionInjRV) : ins.injScale) * hg, ins.lateScale === undefined ? 1 : ins.lateScale, hg, salv ? Infinity : ins.deadS === undefined ? this.P.ischDeadS : ins.deadS);   // (RV muscle less reduced: the V1 elevation of RV involvement)
         if (!st) continue;
+        st.scarK = ins.scarK;   // (occlusionScarWindow: this artery's scar window)
         const prev = best.get(c);
         if (!prev || st.vRest > prev.vRest || st.dead) best.set(c, st);
       }
@@ -2853,9 +2856,9 @@ body.land #fsClose { display: none; }
         for (const [c, st] of best) if (!st.dead && !reach[c] && M.kind[c] === KIND.VENT) { st.dead = true; st.vRest = P.vRest; st.amp = 0; }
       }
       let nDead = 0;
-      const ph = this.phantom = new Uint8Array(M.nCells);
+      const ph = this.phantom = new Uint8Array(M.nCells), phK = this.phantomK = new Float32Array(M.nCells);
       for (const [c, st] of best) {
-        if (st.dead && st.kind !== 'subendo' && M.kind[c] === KIND.VENT) ph[c] = 1;   // (a subendocardial scar is covered by living muscle: no window)
+        if (st.dead && st.kind !== 'subendo' && M.kind[c] === KIND.VENT) { ph[c] = 1; phK[c] = st.scarK === null || st.scarK === undefined ? P.scarWindow : st.scarK; }   // (a subendocardial scar is covered by living muscle: no window)
         this.apdMax[c] = this.apdMax0[c] * st.apd; this.vRest[c] = st.vRest; this.vAmp[c] = this.vAmp0[c] * st.amp;
         this.cvMul[c] = st.cv; this.blocked[c] = st.dead || st.unexcitable ? 1 : 0; this._ischCells.add(c);
         if (st.decl > 0) { const sv = this._pDeclSave || (this._pDeclSave = new Map()); if (!sv.has(c)) sv.set(c, this.pDecl[c]); this.pDecl[c] = Math.min(0.9, sv.get(c) + st.decl); }
@@ -2961,8 +2964,8 @@ body.land #fsClose { display: none; }
           const w = A.at(i + (a === 0), j + (a === 1), kk + (a === 2));
           if (w < 0 || !ph[w]) continue;
           M.pairCoef(c, w, a, cc);                                // pair stored low (c) → high (w)
-          const oh = idx[w] * NE, ol = idx[c] * NE;
-          for (let e = 0; e < NE; e++) { Wp[oh + e] += cc[e]; Wp[ol + e] -= cc[e]; }
+          const oh = idx[w] * NE, ol = idx[c] * NE, rk = this.phantomK ? 0.5 * (this.phantomK[c] + this.phantomK[w]) / k : 1;   // (per-artery window relative to scarWindow)
+          for (let e = 0; e < NE; e++) { Wp[oh + e] += rk * cc[e]; Wp[ol + e] -= rk * cc[e]; }
         }
       }
       this._pAct = new Float64Array(M.nCells).fill(-1e9);
@@ -3883,7 +3886,8 @@ function run(LH, JA, params, names) {
     const got = got0.some((t) => t.endsWith('ateral')) ? [...got0, 'lateral'] : got0;   // 'lateral' = either lateral group
     const alt = (t) => t.split('|');                                   // 'lateral|posterior': either
     const miss = ex.req.filter((t) => !alt(t).some((a) => got.includes(a))), extra = got0.filter((t) => !ex.req.some((r) => alt(r).includes(t)) && !ex.ok.includes(t));
-    const okDx = [...MI_OK.all, ...(site.includes('LAD') ? ['poor R progression'] : []), ...(site.includes('LAD') && site !== 'dLAD' ? MI_OK.LAD : []), ...(/RCA|PDA/.test(site) ? MI_OK.RCA : [])];
+    // (poor R progression is expected after an LAD or left-main infarct: the whole LAD territory)
+    const okDx = [...MI_OK.all, ...(site.includes('LAD') || site === 'LM' ? ['poor R progression'] : []), ...(site.includes('LAD') && site !== 'dLAD' ? MI_OK.LAD : []), ...(/RCA|PDA/.test(site) ? MI_OK.RCA : [])];
     for (const d of dx) if (!d.startsWith('STEMI') && !d.startsWith('old MI') && !okDx.includes(d)) extra.push(d);
     out.push({ scen: `${site} ${label}`, pass: !miss.length && !extra.length, grade: miss.length ? 'fail' : extra.length ? 'partial' : 'pass', dx, axis: r.m.axis, qrs: r.m.qrs, simQRS: r.simQRS, miss, extra, leads: key === 'ste' ? f.ste : f.Q });
   }
