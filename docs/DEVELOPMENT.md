@@ -2525,3 +2525,10 @@ scorecard subset (15 s).
 
 Its misses: LPFB 89° (reads normal, 1° short; R III 29.5 mm), LAFB's 30 ms q in V5–V6 (read old low-lateral MI, 1 ms
 over), RBBB axis −51°, mid-RCA 30 d Q III −20.5 mm and R aVL 16 mm, distal-LCx 30 d lateral Q.
+- Near-misses: `lsfTieDelay` 2.2 → 3.0 takes LPFB to 91° (reads LPFB; R III 31.8 mm). LAFB's V5–V6 q stays at 30 ms
+  under every LAF-side setting (terminal, anterior band, Purkinje speed; the author accepts it as a lateral q).
+  Preview scorecard 57 → **59/66** (live 53). Infarct lead groups unchanged (the setting acts only with an LPF block).
+- Misses by distance from textbook: mid-RCA 30 d Q III −20.5 mm (limit −12: +71%), LPFB R III 31.8 mm (≤ 20: +59%;
+  II/aVF 28–30), mid-RCA 30 d R aVL 16 mm (< 11: +45%), RBBB inferior q 40 ms in aVF (< 30) and axis −51° (21° outside;
+  low priority), LAFB V5–V6 q 30 ms (1 ms; accepted). Not on the scorecard: PDA ST in V1–V2, distal-LCx 30 d lateral Q,
+  distal-LAD Q in V2 (live too).
