@@ -2604,3 +2604,27 @@ noise of about ±6 items, so the reasons, not small totals, are the signal).
 - Result: Training audit live 143 → **144/180**, preview 137 → **148/180**; reader live 52/57, preview 55/57; infarct
   lead groups live iErr 4, preview 1; stcheck unchanged. Common to both and left: hyperacute mid-LAD T not tall enough,
   old distal-LCx/OM2 Q in the inferior leads, LAFB losing its axis beside a left-main infarct.
+
+## Round 69: the Round 68 model becomes the live model
+
+The 48° preview's settings are now the engine defaults and its solved torso (heartRotation 17, heartPitch −15,
+heartYaw 12) is `src/torso_limb.json`. The previous defaults and torso are the variant `src/variants/oldmodel.json` +
+`src/variants/torso_oldmodel.json`, built to `app-oldmodel/` (ecgstudio.app/app-oldmodel); `app-48normalaxis/`
+redirects to /app.
+
+Changed defaults (old → new): `heartPitch` −10 → −15, `heartYaw` 8 → 12, `ecgGain` 0.01348 → 0.0123,
+`precordialGain` 0.66 → 1, `precordialDipoleW` 0.55 → 0.4, `precordialDipoleGain` 1.7 → 2.2, `dowerChest` 0.5 → 0.8,
+`atrialFrontalRot` 30 → 45, `atrialLimbGain` 1.85 → 1.897, `chestTorsoTGain` 1 → 1.4, `occlusionInj` LCx 1 → 2,
+RCA 0.33 → 0.65, `occlusionInjRV` 1.8 → 0.8, `occlusionBorderMm` { LAD: 18 }, `occlusionScarWindow` { RCA: 0 },
+`occlusionMarginMm` { RCA: 2 }, `cavityWindow` 0.45 → 0.8, `scarWindow` 0.5 → 0.8, `brody` 2 → 1, `septalTerrHalf`
+0 → 0.45, `purkCrossFastPhi` [[0.7, 0.3], [−1.8, 0.05]], `purkCrossSlow` 3 → 6, `cvPurkinje` 1.8 → 2.1, `lsfZ` 0.42 → 0.35,
+`lsfPhi` 0.05 → 0.3, `lpfApexZ` 0.25 → 0.35, `fascConnectFrac` 0.45 → 0.35, `lpfZ` 0.3 → 0.25, `rvCvMul` 1 → 0.8,
+`lsfTieDelay` 0 → 3 (with Round 68 part 8: `nssttGrad` 1.5, `subendoQRS` 0.3, `stenosisSev` LCx 0.8 / RCA 0.45).
+
+Validation on the defaults (no overrides): reader **55/57** (rhythms 17/17; misses: proximal LCx 30 d extra inferior Q,
+OM1 1 h anterior ST), fullcheck **iErr 1** (proximal LCx 30 d Q in aVL; axErr 5.67: normal 18°, LAFB −55°, LPFB 92°,
+LBBB 84°, RVH 251° by fullcheck's measure), scorecard **61/66**, Training audit **148/180**; RVH preset axis 142°, LVH
+Sokolow 5.19 with strain; evalecg QRS 84 ms, PR 136 ms, P II 0.22 mV, axis 12° (reader 26°), T axis 49°; blocks, WPW,
+arrhythmias, AVNRT/AVRT, ST baseline run without errors. The old model as a variant: reader 51/57. Browser: index.html
+(1440×900, 844×390), app, training and app-oldmodel load without page errors; the simulator reads "Normal sinus
+rhythm, axis +26°".

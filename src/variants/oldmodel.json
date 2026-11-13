@@ -1,0 +1,41 @@
+{
+  "dir": "app-oldmodel",
+  "about": "The model live until Round 69 (heart pitch -10 / yaw 8, its own solved torso, the Round 67 chest/repolarisation settings). Kept for comparison; the live defaults are the Round 68 model.",
+  "torso": "src/variants/torso_oldmodel.json",
+  "params": {
+    "heartPitch": -10,
+    "heartYaw": 8,
+    "ecgGain": 0.01348,
+    "precordialGain": 0.66,
+    "precordialDipoleW": 0.55,
+    "precordialDipoleGain": 1.7,
+    "dowerChest": 0.5,
+    "atrialFrontalRot": 30,
+    "atrialLimbGain": 1.85,
+    "chestTorsoTGain": 1,
+    "occlusionInj": {
+      "LAD": 1,
+      "LCx": 1,
+      "RCA": 0.33,
+      "LM": 1
+    },
+    "occlusionBorderMm": null,
+    "septalTerrHalf": 0,
+    "purkCrossFastPhi": null,
+    "purkCrossSlow": 3,
+    "cvPurkinje": 1.8,
+    "lsfZ": 0.42,
+    "lsfPhi": 0.05,
+    "lpfApexZ": 0.25,
+    "fascConnectFrac": 0.45,
+    "lpfZ": 0.3,
+    "rvCvMul": 1,
+    "lsfTieDelay": 0,
+    "brody": 2,
+    "cavityWindow": 0.45,
+    "scarWindow": 0.5,
+    "occlusionScarWindow": null,
+    "occlusionMarginMm": null,
+    "occlusionInjRV": 1.8
+  }
+}
