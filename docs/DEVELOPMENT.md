@@ -2467,3 +2467,24 @@ fascicle scorer at app gain):
   RCA 0.8 / LCx 2.0: LPFB 91°, R III ~28 mm (was 34), read LPFB; LAFB −57°; RBBB 126 ms. Reader 50/57 (score 52.5; live 53),
   but fullcheck iErr 10 (proximal LCx loses its lateral ST and Q, mid LAD adds high-lateral ST, PDA V1–V2 ST) and Training
   audit 116/180 (previous variant 126, live 139).
+
+## Round 68, part 2: textbook scorecard (tools/scorecard.js)
+
+66 fixed checks against textbook ranges (ACC/AHA/HRS 2009, 4th UDMI, Goldberger, Chou), read from the model's
+measurements and not from the reader's verdicts; ~1 min per model. Generous ranges: a miss means clearly not textbook.
+
+| | live | 48° preview |
+|---|---|---|
+| normal | 16/17 (R V4 = R V3) | 16/17 (R V5 6.8 mm) |
+| LAFB | 3/8 (q aVL 34 ms −6.5 mm, S III 30, R aVL 22.5, QS V1–V3) | **8/8** |
+| LPFB | 3/6 (R III 34, inferior q 30–32 ms) | 4/6 (R III 28, R II/aVF 26–27) |
+| LBBB | 5/5 | 3/5 (axis 100°, small r in I) |
+| RBBB | 3/5 (axis −57°, inferior q 27 ms) | 3/5 (axis −53°) |
+| LVH, RVH | 8/8 | 8/8 |
+| mid LAD 1 h / 30 d | 5/5 | 4/5 (axis 99° at 30 d) |
+| mid RCA 1 h / 30 d | 6/8 (Q III −12.6, R aVL 11.7) | 6/8 (Q III −19, R aVL 15.9) |
+| proximal LCx 1 h / 30 d | 4/4 | 4/4 |
+| **total** | **53/66** | **56/66** |
+
+The misses left in both: the fascicular block voltages (LPFB), the RBBB superior axis (a known limitation since
+rebuild-1), and the size of the inferior infarct's Q and its aVL R.

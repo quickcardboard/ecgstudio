@@ -34,6 +34,9 @@ Run before and after any engine change and compare:
   WPW, pericarditis, Brugada, atrial enlargement, thirteen occlusion sites at 1 h and 30 days) and 10 s rhythm
   reads (`tools/rhythmread.js` on the strips of `tools/rhythmscen.js`: sinus, AF, flutter, ectopic, MAT,
   AVNRT, AVRT, VT, VF, AV and SA blocks); `tools/physfit.js` is the joint refit that set the current defaults
+- `node tools/scorecard.js ['{params}'] [scenarios]`: textbook scorecard (66 checks over normal, the blocks, LVH/RVH and
+  infarcts: intervals, axes, amplitudes, morphology), independent of the reader's verdicts; `TV2=` for a variant's torso.
+  Round 68: live 53/66, 48° preview 56/66
 - `node tools/hyper.js '[{"lv":6,"P":{"lvStrain":1,"lvSourceGain":1.5}},{"lv":2,"rv":6,"an":{"rvThickPhiC":0.4,"rvThickPhiW":0.8},"P":{"rvStrain":0.7,"rvSourceGain":1.8,"rvCvMul":0.8}}]'` (the LVH and RVH presets of `hypertrophyOptions`)
 - `node tools/ischaudit.js [sites] [hours]`: ST/Q/T per lead for every occlusion site and time
   stop (`MP='{...}'` overrides parameters; the marginal branches `OM1,OM2,AM` only when named)
