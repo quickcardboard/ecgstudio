@@ -231,12 +231,13 @@
     ischInjuryH: 0.6,      // hours for the injury current (resting depolarisation) to develop
     ischApdShort: 0.35, ischApdLate: 0.9, ischLateH: 3,
     ischPlateauDrop: 0.25, ischKatpFloor: 0.7,    // minutes (with the K-ATP shortening): extra fall of the plateau over the APD in the ischaemic zone (a broad T rising from the ST)
+    subendoQRS: 0.3,       // (Round 68: 1 → 0.3, left-main narrowing had swung the QRS axis by 60–80°) share of the occlusion's QRS effects (amplitude drop, slowing) in subendocardial ischaemia
     ischSubendoGain: 1.6, subendoInj: 0.6, subendoRVGain: 0.5, subendoSpanPhi: 1.6, subendoSpanZ: 0.5,  // demand ischaemia: the inner wall is the most severely injured
     ischStResolve: 0.6,    // subendocardial: fraction of the injury current gone by 8 h
     // narrowing (Sim.addStenosis): severity of the partial-flow ischaemia in the territory's inner wall, per
     // artery family (the injury of a territory saturates: these give 1.5–2 mm of horizontal ST depression at
     // J+80 in two contiguous leads at 1 h for the proximal artery; a mid-LAD territory reaches ~1 mm at most)
-    stenosisSev: { LAD: 0.65, LCx: 0.55, RCA: 0.17, LM: 0.5 },
+    stenosisSev: { LAD: 0.65, LCx: 0.8, RCA: 0.45, LM: 0.5 },   // (Round 68: LCx 0.55 → 0.8, RCA 0.17 → 0.45 with subendoQRS 0.3)
     // electrolytes and hypothermia (Sim.setElectrolyte): factors on the healthy values
     elecHyperKRepW: 0.5, elecHyperKApd: 0.85, elecHyperKGrad: 0.3, elecHyperKSync: 0, elecHyperKCv: 2.6, elecHyperKCvAtrial: 1.8, elecHyperKPAmp: 0.4,
     elecHypoKRepW: 1.2, elecHypoKSag: 0.05, elecHypoKMid: 0, elecHypoKLayer: 0.5, elecHypoKLayerW: 0.25, elecHypoKTail: 0.18, elecHypoKTailMs: 230, elecHypoKTailW: 90,
@@ -259,7 +260,7 @@
     // T wave upright is reduced in patches that follow no artery (a smooth pattern from the Sim's seed), by up
     // to nssttGrad of it, and the plateau sags a little (nssttSag): flat or slightly inverted T waves and
     // minimal ST sagging in some lead groups, as with electrolytes, drugs, rate or autonomic tone
-    nssttGrad: 1.0, nssttSag: 0.06, nssttPatch: 0.4,   // (testers: T waves must look flat, ±0.5 mm, in the leads called flat)
+    nssttGrad: 1.5, nssttSag: 0.06, nssttPatch: 0.4,   // (Round 68: nssttGrad 1 → 1.5, the T is less transmural since Round 67) (testers: T waves must look flat, ±0.5 mm, in the leads called flat)
     ischTRecover: 0.35,    // fraction of the late T-wave inversion that recovers by ~1 month (it often persists)
     ischDvRest: 22,        // mV resting depolarisation at full injury (and in dead cells)
     ischAmpDrop: 0.55, ischCvSlow: 0.15,
@@ -2094,8 +2095,9 @@
         apd, dead, rim, unexcitable, level: Math.max(inj, 0.5 * s * katp), kind, decl: dead ? 0 : P.ischPlateauDrop * s * katp * kk,
         // necrotic muscle stays depolarised (and partly coupled, see _uncoupleDead) until it turns to scar
         vRest: dead ? P.vRest + P.ischDvRest * k * (kind === 'subendo' ? 0 : stResidual(h)) : P.vRest + P.ischDvRest * inj * k,
-        amp: dead ? 0 : 1 - P.ischAmpDrop * inj * k,
-        cv: 1 + P.ischCvSlow * inj,
+        // (subendoQRS < 1: subendocardial ischaemia changes the QRS less: its amplitude drop and slowing scaled down)
+        amp: dead ? 0 : 1 - P.ischAmpDrop * inj * k * (kind === 'subendo' ? P.subendoQRS : 1),
+        cv: 1 + P.ischCvSlow * inj * (kind === 'subendo' ? P.subendoQRS : 1),
       };
     }
 

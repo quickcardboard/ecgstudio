@@ -2588,3 +2588,19 @@ over), RBBB axis −51°, mid-RCA 30 d Q III −20.5 mm and R aVL 16 mm, distal-
 - Preview: scorecard **61/66** (live 53), reader **55/57** (live 51), infarct lead groups iErr **1** (live 4), Training
   audit 137/180 (live 143). Left: LPFB R III 31 mm, RBBB axis and aVF QS, mid-RCA 30 d T III −5.3 mm (limit −5), proximal
   LCx 30 d extra inferior Q, OM1 1 h anterior ST.
+
+## Round 68, part 8: Training yield (both models)
+
+Rejection reasons compared between the live model and the preview (the audit's own logs; note the 180-item audit has a
+noise of about ±6 items, so the reasons, not small totals, are the signal).
+- **Non-specific ST-T, no flat T**: since the Round 67 refit the T is less transmural, so the patch flattening was too
+  weak. `nssttGrad` 1 → 1.5: 8/8 test builds in both models (live 3/8, preview 2/8 before; ≥ 2 overshoots into T
+  inversion).
+- **Left-main narrowing read as LPFB** (preview) / poor R progression (live): the subendocardial insult carried the
+  occlusion's QRS effects (amplitude drop, slowing), swinging the QRS axis by 60–80° (preview 24 → 105°, live 13 → 75°).
+  New `subendoQRS` 0.3 (share of those QRS effects in subendocardial ischaemia): axis 39° / 17°. The narrowings' ST
+  depression partly came from that amplitude drop, so `stenosisSev` LCx 0.55 → 0.8 and RCA 0.17 → 0.45 restore it
+  (8/8 narrowing builds over eight sites in both models).
+- Result: Training audit live 143 → **144/180**, preview 137 → **148/180**; reader live 52/57, preview 55/57; infarct
+  lead groups live iErr 4, preview 1; stcheck unchanged. Common to both and left: hyperacute mid-LAD T not tall enough,
+  old distal-LCx/OM2 Q in the inferior leads, LAFB losing its axis beside a left-main infarct.
