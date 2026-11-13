@@ -2532,3 +2532,8 @@ over), RBBB axis −51°, mid-RCA 30 d Q III −20.5 mm and R aVL 16 mm, distal-
   II/aVF 28–30), mid-RCA 30 d R aVL 16 mm (< 11: +45%), RBBB inferior q 40 ms in aVF (< 30) and axis −51° (21° outside;
   low priority), LAFB V5–V6 q 30 ms (1 ms; accepted). Not on the scorecard: PDA ST in V1–V2, distal-LCx 30 d lateral Q,
   distal-LAD Q in V2 (live too).
+- **LPFB deviation beyond 91°** (the author: more than 90). Septal-fascicle slowing saturates at 92°. A wider LPF
+  territory (`lpfTerrLo` −2.5 … −3.0) with cross-territory slowing 9–15 reaches 93–97° (R III 25–29 mm) but moves the
+  normal axis to 14–20°, brings LAFB's q in aVL back to 31 ms and raises the infarct lead-group errors 4 → 6 (proximal
+  LCx gains inferior Q): the territory decides which fascicle activates which wall in the normal beat too. With infarct
+  localisation held at live's level, LPFB stops at 91–92° in this model. Not changed.
