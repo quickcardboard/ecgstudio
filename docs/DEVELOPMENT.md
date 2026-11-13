@@ -2430,7 +2430,7 @@ fascicle scorer at app gain):
   lateral infarcts.
 - `pmjRetroRV` 55 widened RBBB but split the late RV activation off the QRS (a quiet gap): the readers measured 68–78 ms.
 - **Reader fix** (`tools/reader.js`, `tools/rhythmread.js`, also used by Training's generator): the QRS goes on past a
-  pause of up to 25 ms when activity at QRS speed (≥ 12% of peak spatial velocity) resumes; a slow late activation had
+  pause of up to 25 ms when activity at QRS speed (≥ 20% of peak spatial velocity) resumes; a slow late activation had
   been cut off (the His-block escape, 125 ms in the simulation, read 67 ms). Live model unchanged: reader 47/57, fullcheck
   iErr 4, Training audit 139/180.
 - New options: `lsfTieDelay` (>0: the parent division's block slows the septal fascicle instead of cutting it),
@@ -2454,3 +2454,16 @@ fascicle scorer at app gain):
   Q III 46 ms / −9 mm, no LVH read; but proximal RCA's q in II falls to 28 ms and the thin PDA territory loses its Q at any
   rim (3 mm: q II 26 ms). RCA 4 mm on the 26 infarct scenarios: 20.5 → 20.5 (proximal RCA fixed, PDA lost).
 - Small q waves below the infarct criteria are acceptable (the author): LAFB's V4 q (17 ms, −0.7 mm) stays.
+- **Reader changes** (the author): LVH by **Sokolow-Lyon only** (S V1 + R V5/V6 ≥ 3.5 mV; Cornell and R aVL ≥ 1.1 mV
+  dropped) in `tools/reader.js`, Training's criteria (`src/training_gen.js`) and the simulator's interpretation and LVH card
+  (`src/app.js`); **LPFB and RVH are not called with an old lateral MI** (Q in I+aVL or V5+V6; lateral MI is a textbook cause
+  of right axis deviation and its posterolateral tall R in V1 is not RVH); the QRS-pause bridge needs ≥ 20% of peak spatial
+  velocity (12% swallowed AVNRT's retrograde P: QRS 122 ms, read VT). Live model: reader 50/57 (score 53), fullcheck iErr 4,
+  Training audit 139/180.
+- **LPFB R wave** (the author: the most noticeable). Orientation alone does not change it (R III 30–34 mm at every solved
+  orientation, normal axis 22–75°): the LPFB axis and R III move together. Slowing the septal fascicle with the LPF block
+  (`lsfTieDelay`) trades them: untied 82–87° / 19–24 mm, ×1.5 89–91° / 25–29 mm, ×2 ~92° / ~30 mm. Variant now tilt 24 /
+  pitch −15 / yaw 20 (its own solved torso), `lsfTieDelay` 1.8, `ecgGain` 0.01176, `atrialLimbGain` 2.0, `occlusionInj`
+  RCA 0.8 / LCx 2.0: LPFB 91°, R III ~28 mm (was 34), read LPFB; LAFB −57°; RBBB 126 ms. Reader 50/57 (score 52.5; live 53),
+  but fullcheck iErr 10 (proximal LCx loses its lateral ST and Q, mid LAD adds high-lateral ST, PDA V1–V2 ST) and Training
+  audit 116/180 (previous variant 126, live 139).

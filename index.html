@@ -921,7 +921,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-13 (6cac7a8).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-13 (a9d4b9b).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -965,7 +965,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-13 (6cac7a8).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-13 (a9d4b9b).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -7047,7 +7047,7 @@ THE SOFTWARE.
     lbbb: { t: 'Left bundle branch block', f: ['QRS ≥ 120 ms; broad notched R in I, aVL, V5–V6 without septal q; deep QS or rS in V1–V3.', 'ST and T opposite to the main QRS deflection (appropriate discordance).'], p: ['LBBB hides ischemia and mimics anterior Q waves; use Sgarbossa criteria for infarction.'] },
     lafb: { t: 'Left anterior fascicular block', f: ['Left axis deviation, −45° or beyond.', 'qR in I and aVL; rS in II, III and aVF; QRS < 120 ms.'], p: ['Exclude other causes of left axis deviation (inferior MI, LVH) before calling LAFB.'] },
     lpfb: { t: 'Left posterior fascicular block', f: ['Right axis deviation (> +90°).', 'rS in I and aVL; qR in II, III and aVF; QRS < 120 ms.'], p: ['A diagnosis of exclusion: rule out RVH, lateral MI and a vertical heart first.'] },
-    lvh: { t: 'Left ventricular hypertrophy', f: ['Voltage: Sokolow–Lyon S V1 + R V5/V6 ≥ 3.5 mV; Cornell R aVL + S V3 ≥ 2.8 (men) / 2.0 mV (women).', 'Repolarisation abnormality ("strain"): down-sloping ST depression and asymmetric T inversion in I, aVL, V5–V6.'], p: ['Voltage alone is common in thin young adults; strain and left atrial enlargement add weight.'] },
+    lvh: { t: 'Left ventricular hypertrophy', f: ['Voltage: Sokolow–Lyon S V1 + R V5/V6 ≥ 3.5 mV.', 'Repolarisation abnormality ("strain"): down-sloping ST depression and asymmetric T inversion in I, aVL, V5–V6.'], p: ['Voltage alone is common in thin young adults; strain and left atrial enlargement add weight.'] },
     rvh: { t: 'Right ventricular hypertrophy', f: ['Right axis deviation; dominant R in V1 (R/S > 1); deep S in V5–V6.', 'Right ventricular strain: T inversion in V1–V3; often P pulmonale.'], p: ['Dominant R in V1 has other causes: posterior MI, RBBB, WPW (left-sided pathway), dextrocardia.'] },
     rae: { t: 'Right atrial enlargement', f: ['Tall peaked P ≥ 0.25 mV (2.5 mm) in II, III, aVF ("P pulmonale"); P duration normal.'], p: [] },
     lae: { t: 'Left atrial enlargement', f: ['Broad P ≥ 120 ms, notched in II with the humps ≥ 40 ms apart ("P mitrale").', 'Deep, broad negative terminal P in V1 (≥ 1 mm × 1 mm).'], p: [] },
@@ -7165,11 +7165,10 @@ THE SOFTWARE.
     const PR = ab ? vb.on - ab.on : null, QRS = S.beatEnds(vb).last - vb.on + 4;
     if (S.ap && PR !== null && PR < 120) out.push(`Ventricular pre-excitation (WPW pattern): short PR (${Math.round(PR)} ms), delta wave, QRS ${Math.round(QRS)} ms. Repolarization changes are secondary.`);
     if (!S.ap && !Object.keys(S.blocks).length) {
-      const sok = m.V1.s + Math.max(m.V5.rMax, m.V6.rMax), corn = m.aVL.rMax + m.V3.s;
+      const sok = m.V1.s + Math.max(m.V5.rMax, m.V6.rMax);
       const strainLat = ['I', 'aVL', 'V5', 'V6'].filter((n) => m[n].t < -0.08).length >= 2;
       const domR = m.V1.rMax > m.V1.s && m.V1.rMax >= 0.5;
-      // (Cornell's deep S in V3 is not left-sided when the right ventricle dominates)
-      if (sok >= 3.5 || (corn >= 2.8 && !domR)) out.push(`Left ventricular hypertrophy by voltage (Sokolow–Lyon ${sok.toFixed(1)} mV, Cornell ${corn.toFixed(1)} mV)${strainLat ? ' with repolarization abnormality (strain)' : ''}`);
+      if (sok >= 3.5) out.push(`Left ventricular hypertrophy by voltage (Sokolow–Lyon ${sok.toFixed(1)} mV)${strainLat ? ' with repolarization abnormality (strain)' : ''}`);   // (Sokolow–Lyon only)
       if (domR) out.push(`Right ventricular hypertrophy: dominant R in V1 (R ${m.V1.rMax.toFixed(2)} mV)${['V1', 'V2'].every((n) => m[n].t < -0.1) ? ' with T inversion in V1–V2 (RV strain)' : ''}`);
     }
     // pericarditis: diffuse ST elevation, ST depression in aVR, PR depression (PR segment against TP)

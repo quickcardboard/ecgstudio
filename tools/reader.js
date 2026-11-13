@@ -5,7 +5,7 @@
 // simulated pathology (required / allowed / unexpected findings).
 //   node tools/reader.js [engine.js path] ['{params}'] [scenario,...]
 // Criteria: ACC/AHA/HRS 2009 intraventricular conduction (LAFB, LPFB, LBBB, RBBB, IVCD); Sokolow-Lyon
-// and Cornell (men) LVH; RVH (RAD with R/S V1 > 1 or R V1 ≥ 0.7 mV); Fourth Universal Definition of
+// LVH (only: no Cornell or aVL criterion); LPFB and RVH not called with an old lateral MI; RVH (RAD with R/S V1 > 1 or R V1 ≥ 0.7 mV); Fourth Universal Definition of
 // MI (STEMI: J point ≥ 0.1 mV, V2–V3 ≥ 0.2 mV, two contiguous leads; pathological Q: V2–V3 ≥ 20 ms
 // or QS, I/II/aVL/aVF/V4–V6 ≥ 30 ms and ≥ 0.1 mV deep or QS, two contiguous leads; III, aVR and V1
 // are not used for Q); QTc (Bazett) > 460 ms long; PR > 200 ms first-degree AV block.
@@ -38,7 +38,7 @@ function read(rec, hint, rr, opts = {}) {
   // QRS end: the first point after the main activity where the signal stays quiet for 8 ms
   let off = tmaxV; while (off < on + 220 && !quiet(off, 8, 0.05)) off++;
   // (a slow late activation can pause briefly: the QRS goes on if activity at QRS speed resumes within 25 ms)
-  for (let k = 0; k < 3; k++) { let u = off + 8; while (u < off + 33 && sv(u) < 0.12 * vmax) u++; if (u >= off + 33 || u >= on + 220) break; off = u; while (off < on + 220 && !quiet(off, 8, 0.05)) off++; }
+  for (let k = 0; k < 3; k++) { let u = off + 8; while (u < off + 33 && sv(u) < 0.2 * vmax) u++; if (u >= off + 33 || u >= on + 220) break; off = u; while (off < on + 220 && !quiet(off, 8, 0.05)) off++; }
   if (opts.minOff > off) off = Math.min(on + 220, Math.round(opts.minOff));
   // P wave: spatial magnitude above 0.02 mV before the QRS
   const mag = (t) => { let s = 0; for (let k = 0; k < NL; k++) s += x(t, k) ** 2; return Math.sqrt(s); };
@@ -138,13 +138,18 @@ function diagnose(m, L) {
   const narrow = m.qrs < 120;
   if (narrow && m.axis <= -45 && m.axis >= -90 && L.aVL.q.dur > 0 && L.aVL.R > L.aVL.S && ['II', 'III', 'aVF'].every((n) => L[n].S > L[n].R) && L.aVL.rpt >= 45) dx.push('LAFB');
   else if (narrow && m.axis <= -45 && m.axis >= -90) f.lafbIncomplete = true;
+  // an old lateral infarct (Q in two contiguous lateral leads) explains a right axis and a tall R in V1 (posterolateral):
+  // LPFB and RVH are not called alongside it, as a clinician would exclude them
+  const qLat = (n) => (L[n].q.dur >= 30 && L[n].q.amp <= -0.1) || L[n].qs;
+  const latMI = (qLat('I') && qLat('aVL')) || (qLat('V5') && qLat('V6'));
   // RVH: right or extreme (northwest, severe RVH) axis with a dominant or tall R in V1
-  const rvh = (m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7);
-  if (narrow && m.axis > 90 && m.axis <= 180 && L.I.S > L.I.R && L.aVL.S > L.aVL.R && L.III.q.dur > 0 && L.III.R > L.III.S && L.aVF.R > L.aVF.S && !rvh) dx.push('LPFB');
+  const rvh = !latMI && (m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7);
+  if (narrow && m.axis > 90 && m.axis <= 180 && L.I.S > L.I.R && L.aVL.S > L.aVL.R && L.III.q.dur > 0 && L.III.R > L.III.S && L.aVF.R > L.aVF.S && !rvh && !latMI) dx.push('LPFB');
   // hypertrophy
   const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S;
-  // (LVH criteria are not used in bundle-branch block; with RVH only Sokolow-Lyon counts)
-  if (!lbbb && !rbbb && (sok >= 3.5 || (!rvh && (corn > 2.8 || L.aVL.R >= 1.1)))) dx.push('LVH');
+  // LVH: Sokolow-Lyon only (S V1 + R V5/V6 ≥ 3.5 mV; the author's choice: the aVL and Cornell criteria fire on a left-swung
+  // axis after an inferior infarct or with LAFB); not read in bundle-branch block
+  if (!lbbb && !rbbb && sok >= 3.5) dx.push('LVH');
   if (rvh) dx.push('RVH');
   // poor R-wave progression (R in V3 <= 0.3 mV, narrow QRS); read as possible old anterior MI when not otherwise explained
   f.rV3 = +L.V3.R.toFixed(2);

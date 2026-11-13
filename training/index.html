@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-13 (6cac7a8)">
+<meta name="version" content="2026-11-13 (a9d4b9b)">
 <meta name="premium" content="1">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -3633,7 +3633,7 @@ const TR_READER = (function () { const module = { exports: {} }, exports = modul
 // simulated pathology (required / allowed / unexpected findings).
 //   node tools/reader.js [engine.js path] ['{params}'] [scenario,...]
 // Criteria: ACC/AHA/HRS 2009 intraventricular conduction (LAFB, LPFB, LBBB, RBBB, IVCD); Sokolow-Lyon
-// and Cornell (men) LVH; RVH (RAD with R/S V1 > 1 or R V1 ≥ 0.7 mV); Fourth Universal Definition of
+// LVH (only: no Cornell or aVL criterion); LPFB and RVH not called with an old lateral MI; RVH (RAD with R/S V1 > 1 or R V1 ≥ 0.7 mV); Fourth Universal Definition of
 // MI (STEMI: J point ≥ 0.1 mV, V2–V3 ≥ 0.2 mV, two contiguous leads; pathological Q: V2–V3 ≥ 20 ms
 // or QS, I/II/aVL/aVF/V4–V6 ≥ 30 ms and ≥ 0.1 mV deep or QS, two contiguous leads; III, aVR and V1
 // are not used for Q); QTc (Bazett) > 460 ms long; PR > 200 ms first-degree AV block.
@@ -3666,7 +3666,7 @@ function read(rec, hint, rr, opts = {}) {
   // QRS end: the first point after the main activity where the signal stays quiet for 8 ms
   let off = tmaxV; while (off < on + 220 && !quiet(off, 8, 0.05)) off++;
   // (a slow late activation can pause briefly: the QRS goes on if activity at QRS speed resumes within 25 ms)
-  for (let k = 0; k < 3; k++) { let u = off + 8; while (u < off + 33 && sv(u) < 0.12 * vmax) u++; if (u >= off + 33 || u >= on + 220) break; off = u; while (off < on + 220 && !quiet(off, 8, 0.05)) off++; }
+  for (let k = 0; k < 3; k++) { let u = off + 8; while (u < off + 33 && sv(u) < 0.2 * vmax) u++; if (u >= off + 33 || u >= on + 220) break; off = u; while (off < on + 220 && !quiet(off, 8, 0.05)) off++; }
   if (opts.minOff > off) off = Math.min(on + 220, Math.round(opts.minOff));
   // P wave: spatial magnitude above 0.02 mV before the QRS
   const mag = (t) => { let s = 0; for (let k = 0; k < NL; k++) s += x(t, k) ** 2; return Math.sqrt(s); };
@@ -3766,13 +3766,18 @@ function diagnose(m, L) {
   const narrow = m.qrs < 120;
   if (narrow && m.axis <= -45 && m.axis >= -90 && L.aVL.q.dur > 0 && L.aVL.R > L.aVL.S && ['II', 'III', 'aVF'].every((n) => L[n].S > L[n].R) && L.aVL.rpt >= 45) dx.push('LAFB');
   else if (narrow && m.axis <= -45 && m.axis >= -90) f.lafbIncomplete = true;
+  // an old lateral infarct (Q in two contiguous lateral leads) explains a right axis and a tall R in V1 (posterolateral):
+  // LPFB and RVH are not called alongside it, as a clinician would exclude them
+  const qLat = (n) => (L[n].q.dur >= 30 && L[n].q.amp <= -0.1) || L[n].qs;
+  const latMI = (qLat('I') && qLat('aVL')) || (qLat('V5') && qLat('V6'));
   // RVH: right or extreme (northwest, severe RVH) axis with a dominant or tall R in V1
-  const rvh = (m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7);
-  if (narrow && m.axis > 90 && m.axis <= 180 && L.I.S > L.I.R && L.aVL.S > L.aVL.R && L.III.q.dur > 0 && L.III.R > L.III.S && L.aVF.R > L.aVF.S && !rvh) dx.push('LPFB');
+  const rvh = !latMI && (m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7);
+  if (narrow && m.axis > 90 && m.axis <= 180 && L.I.S > L.I.R && L.aVL.S > L.aVL.R && L.III.q.dur > 0 && L.III.R > L.III.S && L.aVF.R > L.aVF.S && !rvh && !latMI) dx.push('LPFB');
   // hypertrophy
   const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S;
-  // (LVH criteria are not used in bundle-branch block; with RVH only Sokolow-Lyon counts)
-  if (!lbbb && !rbbb && (sok >= 3.5 || (!rvh && (corn > 2.8 || L.aVL.R >= 1.1)))) dx.push('LVH');
+  // LVH: Sokolow-Lyon only (S V1 + R V5/V6 ≥ 3.5 mV; the author's choice: the aVL and Cornell criteria fire on a left-swung
+  // axis after an inferior infarct or with LAFB); not read in bundle-branch block
+  if (!lbbb && !rbbb && sok >= 3.5) dx.push('LVH');
   if (rvh) dx.push('RVH');
   // poor R-wave progression (R in V3 <= 0.3 mV, narrow QRS); read as possible old anterior MI when not otherwise explained
   f.rV3 = +L.V3.R.toFixed(2);
@@ -3940,7 +3945,7 @@ function readRhythm(rec) {
     let on = p; while (on > p - 120 && !quiet(on - 6, 6, 0.06)) on--;
     let off = p; while (off < p + 200 && !quiet(off, 8, 0.06)) off++;
     // (a slow late activation can pause briefly: the QRS goes on if activity at QRS speed resumes within 25 ms)
-    for (let k = 0; k < 3; k++) { let u = off + 8; while (u < off + 33 && svs[u] < 0.12 * top) u++; if (u >= off + 33 || u >= p + 200) break; off = u; while (off < p + 200 && !quiet(off, 8, 0.06)) off++; }
+    for (let k = 0; k < 3; k++) { let u = off + 8; while (u < off + 33 && svs[u] < 0.2 * top) u++; if (u >= off + 33 || u >= p + 200) break; off = u; while (off < p + 200 && !quiet(off, 8, 0.06)) off++; }
     return { p, on, off, w: off - on };
   });
   const out = { beats: beats.length };
@@ -4613,7 +4618,7 @@ return module.exports; })();
     // (Round 66, the author: a 30–32 ms, 1.3 mm q in V5 is not a Q wave anyone sees at 25 mm/s. Outside V2–V3 a lead counts
     // with a QS, a Q of at least 40 ms (one small square), or a Q of at least 30 ms that is at least 2 mm deep)
     const qLeads = (L) => contiguous(LEADS.filter((n) => (n === 'V2' || n === 'V3' ? L[n].q.dur >= 20 || L[n].qs : ['I', 'II', 'III', 'aVL', 'aVF', 'V4', 'V5', 'V6'].includes(n) && ((L[n].q.dur >= 40 && L[n].q.amp <= -0.1) || (L[n].q.dur >= 30 && L[n].q.amp <= -0.2) || L[n].qs))));
-    // criteria (ACC/AHA 2009 conduction, Sokolow-Lyon/Cornell, 4th UDMI, the reader's P-wave and Brugada
+    // criteria (ACC/AHA 2009 conduction, Sokolow-Lyon, 4th UDMI, the reader's P-wave and Brugada
     // rules; tools/reader.js has the sources) → { ok, why, leads }
     function criteria(k, a, m, L) {
       const yes = (ok, why, leads, leads2) => ({ ok: !!ok, why, leads, leads2 });
@@ -4628,7 +4633,7 @@ return module.exports; })();
         case 'lbbb': return yes(m.qrs >= 120 && (latR('V6') || latR('I')) && Math.max(L.V6.rpt, L.I.rpt) > 60 && (L.V1.qs || L.V1.R < L.V1.neg), `QRS ${m.qrs} ms`);
         case 'rbbb': return yes(m.qrs >= 120 && ((L.V1.rPrime > 0 && L.V1.rPrime > L.V1.rFirst) || (L.V2.rPrime > 0 && L.V2.rPrime > L.V2.rFirst) || (L.V1.R > L.V1.S && L.V1.rpt > 50)) && (L.I.sWide >= 40 || L.V6.sWide >= 40 || L.I.S > L.I.R || L.V6.S > L.V6.R), `QRS ${m.qrs} ms`);
         case 'wpw': return yes(m.pr !== null && m.pr < 120 && m.qrs >= 110 && m.upstroke >= 50, `PR ${m.pr}, QRS ${m.qrs}, upstroke ${m.upstroke}`);
-        case 'lvh': { const sok = L.V1.S + Math.max(L.V5.R, L.V6.R), corn = L.aVL.R + L.V3.S; return yes(sok >= 3.5 || corn > 2.8 || L.aVL.R >= 1.1, `Sokolow ${sok.toFixed(2)}, Cornell ${corn.toFixed(2)}`); }
+        case 'lvh': { const sok = L.V1.S + Math.max(L.V5.R, L.V6.R); return yes(sok >= 3.5, `Sokolow ${sok.toFixed(2)}`); }   // (Sokolow-Lyon only, as the reader)
         case 'rvh': return yes((m.axis > 90 || m.axis < -90) && (L.V1.R > L.V1.S || L.V1.R >= 0.7), `axis ${m.axis}°, R V1 ${L.V1.R}`);
         case 'nsstt': {
           // flat T (within ±0.5 mm) in two contiguous leads where T is normally upright, and neither the
