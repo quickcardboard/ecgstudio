@@ -2436,3 +2436,14 @@ fascicle scorer at app gain):
 - New options: `lsfTieDelay` (>0: the parent division's block slows the septal fascicle instead of cutting it),
   `ventEscapeFrac` (position of the ventricular escape along the LPF; null: the muscle under the idioventricular Purkinje
   node). The RVH preset's RV speed is now relative to the default (`rvCvMul` × 0.8).
+- **LAFB precordial pattern** (the author: a small r in V1–V4, no septal q there; q in V5–V6 is lateral and fine).
+  Variant now `septalTerrHalf` 0.45, `lsfPhi` 0.3, `purkCrossFastPhi` [[0.7, 0.3], [−1.8, 0.15]]: LAFB −47°, r V1–V4
+  2.6/3.6/3.1/1.8 mm, q in aVL −1 mm, read "LAFB" alone (no MI, no LVH, no poor R progression); LPFB 93°; RBBB 123 ms;
+  normal axis 34° (was 40–48°). Left: a small q in V4 (17 ms, −0.7 mm) in every setting tried. Brody 0 removes the V5–V6 q
+  but also the r in V1–V3 (QS); the fascicles' apical extension (`fascApexZ`) adds no anterior initial force.
+- **Reader:** Q measured against the level at QRS onset (the PR segment, as in the Minnesota code), not the TP baseline:
+  RVH in the variant no longer reads old inferior MI. Live: Training audit 140/180 (139), single-beat reads unchanged.
+- **Not fixed by** infarct size (`occlusionBorderMm` / `occlusionDeadS` for RCA and LCx: no change in the 30-day reads) or
+  the fibre ratio (`sigmaRatio` < 10 removes the LAFB deviation; aVL R after a mid-RCA infarct stays 15–16 mm). The LPFB
+  R III stays 32–34 mm with a correct read; pericarditis's inferior q is a reader onset effect (the smaller QRS moves the
+  detected onset ~6 ms earlier; the normal inferior q is ~29 ms from the true onset).

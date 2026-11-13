@@ -79,9 +79,11 @@ function read(rec, hint, rr, opts = {}) {
   const L = {};
   for (const n of LEADS) {
     const k = K(n), s = []; for (let t = on; t <= off; t++) s.push(x(t, k));
-    const thr = 0.025; let i0 = 0; while (i0 < s.length && Math.abs(s[i0]) < thr) i0++;
+    // Q wave against the level at QRS onset (the PR segment, as in the Minnesota code), not the TP baseline: a depressed
+    // PR segment (pericarditis, atrial repolarisation) would otherwise lengthen every q in the leads facing it
+    const thr = 0.025, s0 = s[0]; let i0 = 0; while (i0 < s.length && Math.abs(s[i0] - s0) < thr) i0++;
     let qDur = 0, qAmp = 0;
-    if (i0 < s.length && s[i0] < 0) { let i = i0; while (i < s.length && s[i] < 0) { qAmp = Math.min(qAmp, s[i]); i++; } qDur = i; }
+    if (i0 < s.length && s[i0] < s0) { let i = i0; while (i < s.length && s[i] < s0) { qAmp = Math.min(qAmp, s[i] - s0); i++; } qDur = i; }
     const maxP = Math.max(0, ...s), minN = Math.min(0, ...s), rpt = s.indexOf(Math.max(...s));
     // R and S: the largest positive peak and the most negative point after it; R′: a second positive peak after an S
     let S = 0; for (let i = rpt; i < s.length; i++) S = Math.min(S, s[i]);
@@ -101,7 +103,7 @@ function read(rec, hint, rr, opts = {}) {
   const qrs = off - on, axis = Math.round(Math.atan2((2 / Math.sqrt(3)) * L.aVF.net, L.I.net) * 180 / Math.PI);
   // delta wave: slow initial QRS (largest-R lead: time from QRS onset to half its R peak)
   const big = LEADS.reduce((b, n) => (L[n].R > L[b].R ? n : b), 'I'), kb = K(big); let up = 0; while (up < 120 && x(on + up, kb) < 0.5 * L[big].R) up++;
-  const m = { qrs, pr, pdur, qt, qtc: Math.round(qtc), axis, rate: Math.round(60000 / (rr || 833)), pAmp, prSeg, ptfV1: +ptfV1.toFixed(3), pNotch, upstroke: up, upLead: big };
+  const m = { on, qrs, pr, pdur, qt, qtc: Math.round(qtc), axis, rate: Math.round(60000 / (rr || 833)), pAmp, prSeg, ptfV1: +ptfV1.toFixed(3), pNotch, upstroke: up, upLead: big };
   return { m, L, interpret };
   function interpret() { return diagnose(m, L); }
 }

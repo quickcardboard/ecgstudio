@@ -22,10 +22,10 @@
     "occlusionBorderMm": {
       "LAD": 18
     },
-    "septalTerrHalf": 0.3,
+    "septalTerrHalf": 0.45,
     "purkCrossFastPhi": [
       [
-        0.56,
+        0.7,
         0.3
       ],
       [
@@ -36,7 +36,7 @@
     "purkCrossSlow": 4.5,
     "cvPurkinje": 2.1,
     "lsfZ": 0.35,
-    "lsfPhi": -0.2,
+    "lsfPhi": 0.3,
     "lpfApexZ": 0.35,
     "fascConnectFrac": 0.35,
     "lpfZ": 0.25,
