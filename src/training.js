@@ -980,6 +980,7 @@
     for (const id of ['menuBtn', 'homeMenuBtn']) $(id).addEventListener('click', (e) => { e.stopPropagation(); showMenu(menu.hidden); });
     addEventListener('pointerdown', (e) => { if (!menu.hidden && !e.target.closest('#menu, #menuBtn, #homeMenuBtn')) showMenu(false); });
     menu.addEventListener('click', (e) => {
+      if (e.target.closest('a')) { showMenu(false); return; }   // (Contact, the simulator link: they open by themselves)
       const b = e.target.closest('[data-go]'); if (!b) return;
       showMenu(false);
       if (b.dataset.go === 'home') goHome();

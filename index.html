@@ -254,11 +254,12 @@ header.top { display: flex; align-items: center; gap: 14px; min-height: 36px; }
 .simctl .tsrow { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
 .simctl input[type=range] { width: 160px; accent-color: var(--accent); }
 .simctl .val { font: 500 12.5px/1 var(--font-data); min-width: 3.2em; color: var(--fg); }
-button, .seg label {
+button, .seg label, a.hbtn {
   font: 500 13px/1 var(--font-ui); color: inherit; background: var(--surface); border: 1px solid var(--line);
   border-radius: 6px; padding: 7px 11px; cursor: pointer;
 }
-button:hover { border-color: var(--muted); }
+button:hover, a.hbtn:hover { border-color: var(--muted); }
+a.hbtn { text-decoration: none; }
 button:focus-visible, input:focus-visible + label, input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 
@@ -517,7 +518,7 @@ body.m #app { padding: env(safe-area-inset-top, 0px) 0 0; gap: 0; }
 body.m header.top { min-height: 50px; gap: 8px; padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); }
 body.m .brand h1 { font-size: 19px; }
 body.m .brand .logo { width: 26px; height: 26px; }
-body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp, body.m #btnAlpha { display: none; }
+body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp, body.m #btnContact, body.m #btnAlpha { display: none; }
 body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mctl button { height: 38px; min-width: 42px; padding: 0 11px; border-radius: 19px; display: grid; place-items: center; }
 .mctl svg { width: 20px; height: 20px; fill: currentColor; }
@@ -528,7 +529,8 @@ body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mplay::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--accent); }
 .mplay.holding::after { width: 100%; transition: width 0.7s linear; }
 body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index: 21; right: max(10px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 50px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
-.mmenu button { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
+.mmenu button, .mmenu a { color: inherit; text-decoration: none; font-family: var(--font-ui); }
+.mmenu button, .mmenu a { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
 .mmenu .malpha { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; color: var(--accent); font-weight: 600; }
 .balpha { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); border-color: var(--accent); }
 .balpha svg, .malpha svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -699,6 +701,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     <button id="btnShare" type="button" title="Copy a link that reopens this exact scenario">Share</button>
     <button id="btnAlpha" type="button" class="balpha" title="Sign up to test the ECG Studio Android app (Google Group)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Join the alpha</button>
     <button id="btnHelp" type="button">Help</button>
+    <a id="btnContact" class="hbtn" href="https://ecgstudio.app/contact/" target="_blank" rel="noopener">Contact</a>
     <div class="mctl" role="group" aria-label="Simulation">
       <button type="button" id="mSpeed" class="mspeed" aria-label="Simulation speed: 1×. Tap to change">1×</button>
       <button type="button" id="mPlay" class="mplay" aria-label="Pause. Hold to reset"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="ip" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="ir" d="M8 5l11 7-11 7z"/></svg></button>
@@ -709,6 +712,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     <button type="button" role="menuitem" id="mShare">Share this scenario</button>
     <button type="button" role="menuitem" id="mPng">Save ECG image</button>
     <button type="button" role="menuitem" id="mHelp">Help</button>
+    <a role="menuitem" id="mContact" href="https://ecgstudio.app/contact/" target="_blank" rel="noopener">Contact</a>
     <button type="button" role="menuitem" id="mAlpha" class="malpha"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Join the alpha</button>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
@@ -929,8 +933,8 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>. Questions or feedback: the <a href="https://ecgstudio.app/contact/" target="_blank" rel="noopener">contact form</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-16 (03d4588).</p>
+      <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-16 (2c03fc1).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -973,9 +977,9 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li><b>Limitations:</b> normal axis about 0–15°; LBBB/RBBB axes not textbook (read them on QRS shape); LAFB looks like an old anterior MI; distal LCx STEMI at 1 h not visible; an acute marginal (RV branch) occlusion shows inferior changes rather than the right-ventricular pattern; an old apical infarct also shows inferior Q waves; after an infarct the T inversion in V3–V5 can be deeper and last longer than usual; hyperkalemia T waves are peaked but broader-based than the classic tent; VT, VF and torsades slow older phones.</li>
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
-        <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>. Questions or feedback: the <a href="https://ecgstudio.app/contact/" target="_blank" rel="noopener">contact form</a>.</li>
+        <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-16 (03d4588).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-16 (2c03fc1).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -8247,6 +8251,7 @@ THE SOFTWARE.
       shareScenario();
     });
     $('mPng').addEventListener('click', () => { closeLayer('menu'); saveEcgPng(); });
+    $('mContact').addEventListener('click', () => { if (hasLayer('menu')) closeLayer('menu'); });   // (the link opens the contact page)
     $('mHelp').addEventListener('click', () => { showGuide(); swapLayer('menu', 'help', () => { $('guide').hidden = true; }); });
     // heart: view options, floating actions, live lead
     $('mLearn').addEventListener('click', () => { if (sheetOpen() && ui.tab === 'learn') closeLayer('sheet'); else openSheet('learn'); });

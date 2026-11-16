@@ -3173,6 +3173,7 @@
       shareScenario();
     });
     $('mPng').addEventListener('click', () => { closeLayer('menu'); saveEcgPng(); });
+    $('mContact').addEventListener('click', () => { if (hasLayer('menu')) closeLayer('menu'); });   // (the link opens the contact page)
     $('mHelp').addEventListener('click', () => { showGuide(); swapLayer('menu', 'help', () => { $('guide').hidden = true; }); });
     // heart: view options, floating actions, live lead
     $('mLearn').addEventListener('click', () => { if (sheetOpen() && ui.tab === 'learn') closeLayer('sheet'); else openSheet('learn'); });

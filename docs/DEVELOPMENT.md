@@ -2657,3 +2657,10 @@ The blind reader in `src/app.js` (`structFindings`) added two false findings to 
 
 The `readKeep` filter on the hypothermia library page (`src/learn/topics.json`, `tools/seo_shots.js`) is removed;
 `ecg/hypothermia/` was rebuilt and reads only the hypothermia pattern.
+
+## claude/festive-goodall-6yao5r round 2: Contact in the menus
+
+- **Contact** (the `/contact/` page, opened in a new tab) is now in the menus, below Help: in the simulator's header (desktop) and
+  its ⋯ menu (phone), and in Training's ⋯ menu (kept in the app, where Training hides its other web links).
+  The build hides it (`{{CONTACT_HIDDEN}}`) while `site.json` `contactForm` is empty.
+- The "Questions or feedback: the contact form" line is gone from Help → About in the simulator.

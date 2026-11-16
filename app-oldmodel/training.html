@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-16 (03d4588)">
+<meta name="version" content="2026-11-16 (2c03fc1)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -299,7 +299,7 @@ header h1 span { color: var(--accent); }
 html.inapp header, html.inapp .app-bar { min-height: 50px; box-sizing: border-box; padding-top: 0; padding-bottom: 0; padding-left: var(--tabs-w, 12px); }
 html.inapp #home .phead { justify-content: flex-end; }
 html.inapp #app { max-width: none; }   /* (tablets: the full width, under the tabs; the wider layout comes in app phase 4) */
-html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href], html.inapp .menu hr { display: none; }
+html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href]:not(.contact), html.inapp .menu hr { display: none; }
 /* website: the logo at the left of the headers, where the app shell puts it (the ⋯ menu links back to the simulator) */
 .tlogo { display: inline-flex; flex: none; } .tlogo .logo { width: 26px; height: 26px; }
 #home .phead h2 { display: flex; align-items: center; gap: 9px; }
@@ -536,6 +536,7 @@ body.land #fsClose { display: none; }
     <button type="button" data-go="report">Report a problem with this ECG</button>
     <button type="button" data-go="stats">Statistics</button>
     <button type="button" data-go="help">Help</button>
+    <a class="contact" href="https://ecgstudio.app/contact/" target="_blank" rel="noopener">Contact</a>
     <button type="button" data-go="hand" id="menuHand" hidden>Keyboard on the left</button>
     <button type="button" data-go="restart">Reset progress</button>
     <hr>
@@ -6013,6 +6014,7 @@ self.onmessage = (e) => {
     for (const id of ['menuBtn', 'homeMenuBtn']) $(id).addEventListener('click', (e) => { e.stopPropagation(); showMenu(menu.hidden); });
     addEventListener('pointerdown', (e) => { if (!menu.hidden && !e.target.closest('#menu, #menuBtn, #homeMenuBtn')) showMenu(false); });
     menu.addEventListener('click', (e) => {
+      if (e.target.closest('a')) { showMenu(false); return; }   // (Contact, the simulator link: they open by themselves)
       const b = e.target.closest('[data-go]'); if (!b) return;
       showMenu(false);
       if (b.dataset.go === 'home') goHome();
