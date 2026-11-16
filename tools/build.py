@@ -28,6 +28,8 @@ contact_html = f' (<a href="{htmlmod.escape(contact)}">{htmlmod.escape(contact.r
 for k, v in (('{{AUTHOR}}', htmlmod.escape(site['author'])), ('{{CONTACT}}', contact_html), ('{{YEAR}}', htmlmod.escape(site.get('year', ''))),
              ('{{VERSION}}', datetime.date.today().isoformat() + (f' ({rev})' if rev else ''))):
     html = html.replace(k, v)   # (the page shell only: done before the scripts and data are inlined)
+# search-engine ownership checks (site.json "verify": {"google-site-verification": "<code>", "msvalidate.01": "<code>"})
+html = html.replace('{{VERIFY}}', ''.join(f'\n<meta name="{htmlmod.escape(k)}" content="{htmlmod.escape(v)}">' for k, v in site.get('verify', {}).items() if v), 1)
 anatomy = (src / 'anatomy.json').read_text()
 assert '</script' not in anatomy
 html = html.replace('/*__ANATOMY__*/', anatomy, 1)
@@ -47,6 +49,10 @@ assert '</script' not in tour
 html = html.replace('/*__TOUR__*/', tour, 1)
 (root / 'index.html').write_text(html)
 print('index.html', round(len(html.encode()) / 1e6, 2), 'MB')
+# ECG library (ecgstudio.app/ecg/), sitemap.xml and llms.txt: tools/learn_pages.py (images: tools/seo_shots.js)
+sys.path.insert(0, str(root / "tools")); sys.dont_write_bytecode = True
+import learn_pages
+learn_pages.build(root, LOGO_INLINE, site['author'])
 
 # Training (prototype, phones): src/training.html + training.js + the vocabulary, and a background worker
 # that generates the ECGs live (engine + blind readers + src/training_gen.js) -> training/index.html

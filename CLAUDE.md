@@ -19,6 +19,8 @@ all rights reserved (LICENSE).
 - `src/app.js`: Three.js view, ECG paper, interpretation, controls, share links, PNG export.
   `window.ECGStudioApp` is a handle for automated tests.
 - `site.json`: author, contact, year shown in Help → About; the build stamps date + commit.
+- `src/learn/topics.json` → the ECG library at `/ecg/` (`tools/learn_pages.py`, run by the build; images and reads:
+  `node tools/seo_shots.js`, rerun after engine changes), plus `sitemap.xml`, `llms.txt`. Marketing plan: `docs/MARKETING.md`.
 - `docs/DEVELOPMENT.md`: model choices, validation and per-round notes. Add a section for each
   round of changes (`Round N` on `milestone-1`; `<branch> round N` on a feature branch, so merges
   do not clash).

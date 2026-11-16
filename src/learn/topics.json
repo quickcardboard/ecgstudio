@@ -1,0 +1,822 @@
+{
+ "_note": "ECG library pages (ecgstudio.app/ecg/<slug>/): written here, built by tools/build.py. hash = the simulator scenario (share-link syntax; BRANCH@f = the coronary node that far along the branch, resolved by tools/seo_shots.js, which also renders ecg/<slug>/ecg.png and src/learn/shots.json).",
+ "groups": [
+  [
+   "rhythms",
+   "Rhythms and tachycardias"
+  ],
+  [
+   "blocks",
+   "Conduction blocks"
+  ],
+  [
+   "ischemia",
+   "Ischemia and infarction"
+  ],
+  [
+   "conditions",
+   "Chambers, pre-excitation and other conditions"
+  ],
+  [
+   "metabolic",
+   "Electrolytes and temperature"
+  ]
+ ],
+ "topics": [
+  {
+   "slug": "normal-sinus-rhythm",
+   "group": "rhythms",
+   "hash": "",
+   "name": "Normal sinus rhythm",
+   "title": "Normal Sinus Rhythm ECG: Criteria and Normal Values",
+   "summary": "Normal sinus rhythm is the heart's normal rhythm: each beat starts in the sinus node, every P wave is followed by a QRS complex, and the rate is 60 to 100 beats per minute.",
+   "criteria": [
+    "Rate 60–100 bpm with regular P–P intervals",
+    "P wave upright in I, II and aVF and inverted in aVR (a sinus origin)",
+    "Every P wave followed by a QRS complex, with a constant PR interval of 120–200 ms",
+    "QRS duration under 120 ms (usually 80–100 ms)",
+    "QTc under about 450 ms in men and 460 ms in women",
+    "QRS axis between −30° and +90°; R waves growing from V1 to V5 (R-wave progression)"
+   ],
+   "mechanism": "The sinus node in the high right atrium fires first. The impulse spreads across both atria (the P wave), is delayed in the AV node (the PR segment), then runs down the His bundle, bundle branches and Purkinje network so that the ventricles depolarise almost together (the narrow QRS). Repolarisation runs from epicardium to endocardium, which is why the T wave points the same way as the QRS in most leads.",
+   "ddx": [
+    "Sinus tachycardia (over 100 bpm) and sinus bradycardia (under 60 bpm)",
+    "Sinus arrhythmia: P–P intervals that vary with breathing",
+    "Ectopic atrial rhythm: P waves inverted in II, III and aVF"
+   ],
+   "try": "Change the sinus rate in the Rhythm tab, or click the atria or ventricles to add a premature beat and watch where it starts."
+  },
+  {
+   "slug": "atrial-fibrillation",
+   "group": "rhythms",
+   "hash": "r=72&a=af",
+   "name": "Atrial fibrillation",
+   "title": "Atrial Fibrillation ECG: Irregularly Irregular Rhythm, No P Waves",
+   "summary": "Atrial fibrillation (AF) is chaotic electrical activity in the atria: there are no P waves, the baseline shows fine fibrillatory waves, and the QRS complexes come at irregularly irregular intervals.",
+   "criteria": [
+    "Irregularly irregular R–R intervals with no repeating pattern",
+    "No organised P waves; a fibrillatory baseline (f waves, often best seen in V1 and II)",
+    "Narrow QRS unless there is a bundle branch block, aberrancy or pre-excitation",
+    "Ventricular rate set by the AV node: often 100–160 bpm untreated (rapid ventricular response), slower with rate control"
+   ],
+   "mechanism": "Multiple wandering wavelets re-enter through atrial tissue whose refractory periods vary, usually on a substrate of atrial fibrosis and dilatation and often triggered from the pulmonary veins. The AV node receives hundreds of impulses a minute and conducts them at random, which makes the ventricular rhythm irregular.",
+   "ddx": [
+    "Multifocal atrial tachycardia: irregular, but with three or more distinct P waves",
+    "Atrial flutter with variable block: flutter waves and grouped R–R intervals",
+    "Sinus rhythm with frequent premature atrial beats"
+   ],
+   "try": "Start AF in the Rhythm tab and watch the atria in the 3D view. Change the ventricular response, or shock it back to sinus rhythm."
+  },
+  {
+   "slug": "atrial-flutter",
+   "group": "rhythms",
+   "hash": "r=72&a=flutter",
+   "name": "Atrial flutter",
+   "title": "Atrial Flutter ECG: Sawtooth Flutter Waves and 2:1 Block",
+   "summary": "Typical atrial flutter is a macro-reentrant circuit around the right atrium that produces regular sawtooth flutter waves at about 300 per minute, usually conducted to the ventricles 2:1 at about 150 bpm.",
+   "criteria": [
+    "Regular atrial (flutter) waves at 250–350 per minute with no isoelectric baseline between them",
+    "Sawtooth F waves negative in II, III and aVF and positive in V1 in typical counter-clockwise flutter",
+    "Fixed AV conduction (2:1, 3:1, 4:1) gives a regular ventricular rate; variable block gives an irregular one",
+    "A regular narrow-complex tachycardia at about 150 bpm should always raise the question of flutter with 2:1 block"
+   ],
+   "mechanism": "A single re-entrant wave travels around the tricuspid annulus, passing through the cavotricuspid isthmus between the inferior vena cava and the tricuspid valve. Because one circuit is activated continuously, the baseline never rests, giving the sawtooth pattern. The AV node cannot conduct every wave, so the ventricles follow a fixed fraction of them. Ablation of the isthmus is usually curative.",
+   "ddx": [
+    "Sinus tachycardia or atrial tachycardia (an isoelectric baseline between P waves)",
+    "AVNRT (no visible atrial activity, or a pseudo-r′ in V1)",
+    "Atrial fibrillation (irregular, no organised waves)"
+   ],
+   "try": "Start flutter in the Rhythm tab, then give adenosine: the transient AV block uncovers the flutter waves."
+  },
+  {
+   "slug": "multifocal-atrial-tachycardia",
+   "group": "rhythms",
+   "hash": "r=118&a=mat",
+   "name": "Multifocal atrial tachycardia",
+   "title": "Multifocal Atrial Tachycardia (MAT) ECG: Three P-Wave Shapes",
+   "summary": "Multifocal atrial tachycardia (MAT) is an irregular rhythm over 100 bpm in which at least three different P-wave shapes come from several atrial foci, each with its own PR interval.",
+   "criteria": [
+    "Atrial rate over 100 bpm (under 100 bpm the same pattern is called wandering atrial pacemaker)",
+    "At least three distinct P-wave morphologies in the same lead",
+    "Varying P–P, PR and R–R intervals, so the rhythm is irregular",
+    "An isoelectric baseline between P waves"
+   ],
+   "mechanism": "Several ectopic atrial foci fire in turn, often from increased automaticity or triggered activity. It is classically seen in decompensated chronic lung disease, hypoxia, hypokalaemia and hypomagnesaemia, and treatment is of the underlying cause.",
+   "ddx": [
+    "Atrial fibrillation (no discrete P waves)",
+    "Sinus tachycardia with frequent premature atrial beats",
+    "Wandering atrial pacemaker (the same pattern at a rate under 100 bpm)"
+   ],
+   "try": "Start MAT in the Rhythm tab and compare the P waves in lead II beat by beat."
+  },
+  {
+   "slug": "avnrt",
+   "group": "rhythms",
+   "hash": "r=72&a=avnrt",
+   "name": "AV nodal re-entrant tachycardia (AVNRT)",
+   "title": "AVNRT ECG: Narrow Complex SVT, Pseudo-r′ in V1",
+   "summary": "AV nodal re-entrant tachycardia (AVNRT) is the commonest regular narrow-complex supraventricular tachycardia: a re-entry circuit inside the AV node, using a slow and a fast pathway, drives the ventricles at about 140–250 bpm.",
+   "criteria": [
+    "Regular narrow-complex tachycardia, typically 140–250 bpm, with abrupt onset and offset",
+    "No visible P waves, or retrograde P waves hidden in or just after the QRS",
+    "A pseudo-r′ in V1 and pseudo-S waves in II, III and aVF in typical (slow–fast) AVNRT",
+    "Very short RP interval (under about 70 ms)"
+   ],
+   "mechanism": "People with dual AV-nodal pathways have a fast pathway with a long refractory period and a slow pathway with a short one. A premature atrial beat that finds the fast pathway refractory goes down the slow pathway and returns up the fast one, starting a loop. The atria and ventricles are activated almost together, so the retrograde P wave is buried in the QRS. Vagal manoeuvres or adenosine block the AV node and end the tachycardia.",
+   "ddx": [
+    "Orthodromic AVRT (retrograde P wave further from the QRS, RP over 70 ms)",
+    "Atrial flutter with 2:1 block",
+    "Sinus or atrial tachycardia"
+   ],
+   "try": "Start AVNRT in the Rhythm tab and watch the circuit in the AV node in the cut view, then end it with adenosine."
+  },
+  {
+   "slug": "avrt",
+   "group": "rhythms",
+   "hash": "r=72&a=avrt&s=ap",
+   "name": "AV re-entrant tachycardia (AVRT)",
+   "title": "AVRT ECG: Orthodromic Tachycardia With an Accessory Pathway",
+   "summary": "AV re-entrant tachycardia (AVRT) is a supraventricular tachycardia in which the impulse loops between atria and ventricles through the AV node and an accessory pathway. In orthodromic AVRT, the common form, the QRS is narrow and a retrograde P wave follows it.",
+   "criteria": [
+    "Regular tachycardia, usually 150–250 bpm",
+    "Narrow QRS in orthodromic AVRT (down the AV node, back up the pathway); wide in antidromic AVRT",
+    "Retrograde P wave after the QRS, in the ST segment, with an RP interval over about 70 ms",
+    "In sinus rhythm the same patient may show pre-excitation (short PR and delta wave) if the pathway conducts forwards"
+   ],
+   "mechanism": "An accessory pathway (bundle of Kent) bridges atrium and ventricle outside the AV node. A premature beat can travel down the AV node and back up the pathway, so atria and ventricles are activated in sequence and the retrograde P wave falls clearly after the QRS. Adenosine blocks the AV-node limb and stops the circuit.",
+   "ddx": [
+    "AVNRT (P wave buried in the QRS, pseudo-r′ in V1)",
+    "Atrial tachycardia with 1:1 conduction (long RP)",
+    "Antidromic AVRT or pre-excited AF: wide-complex tachycardia"
+   ],
+   "try": "Start AVRT in the Rhythm tab with the accessory pathway shown on the heart, then compare it with the delta wave in sinus rhythm."
+  },
+  {
+   "slug": "ventricular-tachycardia",
+   "group": "rhythms",
+   "hash": "r=72&a=vt",
+   "name": "Ventricular tachycardia",
+   "title": "Ventricular Tachycardia ECG: Wide Complex Tachycardia Criteria",
+   "summary": "Ventricular tachycardia (VT) is a wide-complex tachycardia that starts in the ventricles: three or more consecutive ventricular beats over 100 bpm, often with AV dissociation. A regular wide-complex tachycardia should be treated as VT until proven otherwise.",
+   "criteria": [
+    "QRS 120 ms or wider at a rate over 100 bpm (usually 120–250 bpm)",
+    "AV dissociation: P waves marching through at their own slower rate",
+    "Capture and fusion beats, when a sinus impulse reaches the ventricles between VT beats",
+    "Extreme (northwest) axis, and positive or negative concordance across V1–V6",
+    "Monomorphic VT: every QRS the same shape; sustained if it lasts over 30 s"
+   ],
+   "mechanism": "Most monomorphic VT is re-entry around or through scar from an old infarct; some comes from a focus with abnormal automaticity or triggered activity. Because the impulse spreads cell to cell through muscle rather than through the fast Purkinje network, the QRS is wide and bizarre. Unstable VT needs synchronised cardioversion, and pulseless VT needs defibrillation.",
+   "ddx": [
+    "SVT with bundle branch block or rate-related aberrancy",
+    "Pre-excited tachycardia (antidromic AVRT, AF with WPW)",
+    "Hyperkalaemia or sodium-channel blocker toxicity"
+   ],
+   "try": "Start VT in the Rhythm tab and watch the re-entry wave in the 3D view, then shock it."
+  },
+  {
+   "slug": "torsades-de-pointes",
+   "group": "rhythms",
+   "hash": "r=72&a=tdp",
+   "name": "Torsades de pointes",
+   "title": "Torsades de Pointes ECG: Polymorphic VT With Long QT",
+   "summary": "Torsades de pointes is a polymorphic ventricular tachycardia in which the QRS axis twists around the baseline, with complexes waxing and waning in height. It happens on a background of a long QT interval.",
+   "criteria": [
+    "Polymorphic wide-complex tachycardia, typically 160–250 bpm",
+    "QRS amplitude and axis rotating around the isoelectric line every 5–20 beats",
+    "Prolonged QT (often QTc over 500 ms) in the beats before it starts",
+    "Often started by a short–long–short sequence (a pause followed by a premature beat on the T wave)"
+   ],
+   "mechanism": "A prolonged action potential (congenital long QT, drugs, hypokalaemia, hypomagnesaemia, bradycardia) allows early afterdepolarisations that trigger premature beats, and uneven repolarisation lets them re-enter. It may stop by itself or degenerate into ventricular fibrillation. Intravenous magnesium is first-line, together with correcting the cause.",
+   "ddx": [
+    "Polymorphic VT with a normal QT (usually acute ischaemia)",
+    "Ventricular fibrillation",
+    "Artefact from movement or a loose lead"
+   ],
+   "try": "Start torsades in the Rhythm tab and watch the twisting axis across the 12 leads."
+  },
+  {
+   "slug": "ventricular-fibrillation",
+   "group": "rhythms",
+   "hash": "r=72&a=vf",
+   "name": "Ventricular fibrillation",
+   "title": "Ventricular Fibrillation ECG: Chaotic Rhythm With No QRS",
+   "summary": "Ventricular fibrillation (VF) is disorganised electrical activity of the ventricles with no effective contraction. The ECG shows a chaotic, irregular waveform with no identifiable QRS complexes, and the patient is in cardiac arrest.",
+   "criteria": [
+    "Chaotic, irregular deflections of varying amplitude and shape",
+    "No identifiable P waves, QRS complexes or T waves",
+    "Coarse VF (larger waves) early; fine VF later, which can look like asystole"
+   ],
+   "mechanism": "Many re-entrant wavelets break up and wander through the ventricles, so no part of the muscle contracts in step with the rest. Common triggers are acute ischaemia, scar, and premature beats falling on the T wave. Immediate defibrillation and CPR are the treatment.",
+   "ddx": [
+    "Polymorphic VT or torsades de pointes (organised, twisting complexes)",
+    "Artefact (the patient is talking and has a pulse)",
+    "Fine VF versus asystole: check in more than one lead"
+   ],
+   "try": "Start VF in the Rhythm tab, watch the wavelets in the 3D heart, and defibrillate."
+  },
+  {
+   "slug": "first-degree-av-block",
+   "group": "blocks",
+   "hash": "r=72&b=AVN.first",
+   "name": "First-degree AV block",
+   "title": "First-Degree AV Block ECG: PR Interval Over 200 ms",
+   "summary": "First-degree AV block is a fixed delay in AV conduction: the PR interval is longer than 200 ms, but every P wave is still followed by a QRS complex.",
+   "criteria": [
+    "PR interval over 200 ms (one large square at 25 mm/s), constant from beat to beat",
+    "Every P wave followed by a QRS (no dropped beats)",
+    "QRS usually narrow, as the delay is most often in the AV node"
+   ],
+   "mechanism": "Conduction through the AV node (or less often the His–Purkinje system) is slowed but never fails. Causes include high vagal tone in athletes, AV-nodal blocking drugs (beta-blockers, calcium-channel blockers, digoxin), inferior ischaemia, and degenerative conduction disease. On its own it is usually benign.",
+   "ddx": [
+    "Mobitz I (the PR grows until a beat is dropped)",
+    "A P wave hidden in the previous T wave at fast rates",
+    "Junctional rhythm with retrograde P waves"
+   ],
+   "try": "Click the AV node in the cut view of the Blocks tab and choose a first-degree block."
+  },
+  {
+   "slug": "mobitz-type-1-wenckebach",
+   "group": "blocks",
+   "hash": "r=72&b=AVN.wenckebach",
+   "name": "Second-degree AV block, Mobitz I (Wenckebach)",
+   "title": "Mobitz Type I (Wenckebach) ECG: Progressive PR Prolongation",
+   "summary": "Mobitz type I (Wenckebach) second-degree AV block is a progressive lengthening of the PR interval from beat to beat until one P wave is not conducted, after which the cycle starts again.",
+   "criteria": [
+    "PR interval lengthens with each beat until a P wave is not followed by a QRS",
+    "The PR after the dropped beat is the shortest of the cycle",
+    "Group beating (e.g. 4:3, 3:2), and R–R intervals that shorten through the group",
+    "The pause containing the dropped beat is shorter than two P–P intervals; QRS usually narrow"
+   ],
+   "mechanism": "The block is almost always in the AV node, whose conduction slows the faster it is asked to conduct (decremental conduction). Each beat finds the node a little less recovered, until one fails. It is common in sleep, in athletes and with inferior infarction, and rarely progresses to complete heart block.",
+   "ddx": [
+    "Mobitz II (constant PR before the dropped beat)",
+    "Non-conducted premature atrial beat (the P wave comes early)",
+    "2:1 AV block (cannot be classed as type I or II from the strip alone)"
+   ],
+   "try": "Choose Mobitz I at the AV node in the Blocks tab and measure the PR intervals in the rhythm strip."
+  },
+  {
+   "slug": "mobitz-type-2",
+   "group": "blocks",
+   "hash": "r=72&b=HIS.mobitz2",
+   "name": "Second-degree AV block, Mobitz II",
+   "title": "Mobitz Type II AV Block ECG: Dropped QRS With Constant PR",
+   "summary": "Mobitz type II second-degree AV block is the sudden failure of a P wave to conduct with no warning: the PR interval stays the same before and after the dropped beat. The block is below the AV node and can progress to complete heart block.",
+   "criteria": [
+    "Constant PR interval in the conducted beats (normal or prolonged)",
+    "Intermittent P waves not followed by a QRS, with no PR lengthening beforehand",
+    "The pause equals exactly two P–P intervals",
+    "The QRS is often wide (coexisting bundle branch or fascicular block)"
+   ],
+   "mechanism": "The block is in the His bundle or the bundle branches, which conduct on an all-or-nothing basis rather than slowing down first. It reflects structural disease of the conducting system (fibrosis, anterior infarction, surgery) and is an indication for pacing.",
+   "ddx": [
+    "Mobitz I (progressive PR lengthening)",
+    "Non-conducted premature atrial beats",
+    "2:1 AV block"
+   ],
+   "try": "Block the His bundle in the Blocks tab and compare the PR intervals with a Wenckebach block at the AV node."
+  },
+  {
+   "slug": "2-to-1-av-block",
+   "group": "blocks",
+   "hash": "r=72&b=AVN.two-to-one",
+   "name": "2:1 AV block",
+   "title": "2:1 AV Block ECG: Every Other P Wave Conducted",
+   "summary": "In 2:1 AV block every second P wave is not conducted, so there are two P waves for every QRS complex. It is a form of second-degree block that cannot be classed as Mobitz I or II from a single strip, because there are never two conducted beats in a row to compare.",
+   "criteria": [
+    "Regular P waves with exactly two P waves per QRS",
+    "Constant PR interval in the conducted beats",
+    "Ventricular rate half the atrial rate"
+   ],
+   "mechanism": "The level of block matters for prognosis. A long PR, narrow QRS and improvement with atropine or exercise suggest the AV node (Mobitz I behaviour); a normal PR, wide QRS and worsening with atropine suggest block below the node (Mobitz II behaviour). A longer recording often shows the type.",
+   "ddx": [
+    "Blocked premature atrial beats in bigeminy (the blocked P comes early)",
+    "Atrial flutter with 2:1 block (no baseline between waves)",
+    "Sinus bradycardia with a P wave hidden in the T wave"
+   ],
+   "try": "Choose 2:1 block at the AV node in the Blocks tab and look for the second P wave on the T wave."
+  },
+  {
+   "slug": "complete-heart-block",
+   "group": "blocks",
+   "hash": "r=72&b=AVN.complete",
+   "name": "Third-degree (complete) heart block",
+   "title": "Complete Heart Block ECG: Third-Degree AV Block and AV Dissociation",
+   "summary": "In complete (third-degree) heart block no atrial impulse reaches the ventricles. The P waves and QRS complexes each keep their own regular rate with no relationship between them, and an escape rhythm drives the ventricles.",
+   "criteria": [
+    "Regular P–P intervals and regular R–R intervals, independent of each other (AV dissociation)",
+    "PR intervals vary at random; P waves fall anywhere, including inside QRS complexes and T waves",
+    "Atrial rate faster than the ventricular rate",
+    "Junctional escape (narrow QRS, 40–60 bpm) with block in the AV node; ventricular escape (wide QRS, 20–40 bpm) with block lower down"
+   ],
+   "mechanism": "Conduction fails completely in the AV node, His bundle or both bundle branches. A subsidiary pacemaker below the block takes over. The lower the block, the slower and less reliable the escape rhythm. Symptomatic or infranodal complete block needs pacing.",
+   "ddx": [
+    "High-grade AV block (some P waves still conduct)",
+    "Isorhythmic AV dissociation (the atrial and ventricular rates are close, with no block)",
+    "Accelerated junctional rhythm"
+   ],
+   "try": "Block the AV node completely in the Blocks tab, then block the His bundle instead and compare the escape rhythms."
+  },
+  {
+   "slug": "left-bundle-branch-block",
+   "group": "blocks",
+   "hash": "r=72&b=LBB.complete",
+   "name": "Left bundle branch block",
+   "title": "Left Bundle Branch Block (LBBB) ECG Criteria",
+   "summary": "In left bundle branch block (LBBB) the left ventricle is activated late, from the right side across the septum. The QRS is 120 ms or wider, with broad notched R waves in the lateral leads, a deep S wave in V1, and ST-T changes opposite to the QRS.",
+   "criteria": [
+    "QRS duration 120 ms or more",
+    "Broad, notched or slurred R waves in I, aVL, V5 and V6 (an 'M' shape)",
+    "No septal q waves in I, V5 and V6",
+    "Deep S wave or QS complex in V1 (a 'W' shape), with poor R-wave progression",
+    "Discordant ST-T: ST and T point away from the main QRS deflection"
+   ],
+   "mechanism": "With the left bundle blocked, the septum is activated from right to left (the reverse of normal), which removes the septal q waves, and the impulse then crosses slowly through muscle to the left ventricle. The abnormal depolarisation causes abnormal repolarisation, which is why the ST-T segments are discordant. A new LBBB with chest pain is assessed for infarction with the Sgarbossa criteria.",
+   "ddx": [
+    "Left ventricular hypertrophy with strain",
+    "Ventricular paced rhythm (pacing spikes)",
+    "Pre-excitation (WPW)",
+    "Non-specific intraventricular conduction delay"
+   ],
+   "try": "Cut the left bundle in the Blocks tab and follow the late activation of the left ventricle in the 3D view."
+  },
+  {
+   "slug": "right-bundle-branch-block",
+   "group": "blocks",
+   "hash": "r=72&b=RBB.complete",
+   "name": "Right bundle branch block",
+   "title": "Right Bundle Branch Block (RBBB) ECG: RSR′ in V1",
+   "summary": "In right bundle branch block (RBBB) the right ventricle is activated late, so the end of the QRS points to the right and forward. The QRS is 120 ms or wider, with an rsR′ ('M' shape) in V1–V2 and a broad slurred S wave in I and V6.",
+   "criteria": [
+    "QRS duration 120 ms or more (110–119 ms with the same shape: incomplete RBBB)",
+    "rsR′, rsr′ or a notched R in V1–V2, the R′ usually taller than the first r",
+    "Wide, slurred S waves in I, aVL, V5 and V6",
+    "T-wave inversion in V1–V3 (secondary to the block)",
+    "Septal q waves preserved in the lateral leads"
+   ],
+   "mechanism": "The septum and left ventricle are activated normally through the left bundle, so the start of the QRS is normal. The right ventricle is then activated late through muscle, adding a slow, rightward and anterior terminal deflection: the R′ in V1 and the wide S in the lateral leads. RBBB is common in healthy people; new RBBB can accompany pulmonary embolism or an anterior infarction.",
+   "ddx": [
+    "Brugada pattern (coved ST elevation in V1–V2, no wide S in I and V6)",
+    "Right ventricular hypertrophy",
+    "Posterior infarction (tall R in V1 without a wide QRS)"
+   ],
+   "try": "Cut the right bundle in the Blocks tab, then add a left anterior fascicular block for a bifascicular block."
+  },
+  {
+   "slug": "left-anterior-fascicular-block",
+   "group": "blocks",
+   "hash": "r=72&b=LAF.complete",
+   "name": "Left anterior fascicular block",
+   "title": "Left Anterior Fascicular Block (LAFB) ECG: Left Axis Deviation",
+   "summary": "Left anterior fascicular block (left anterior hemiblock) is the commonest cause of marked left axis deviation: the QRS axis lies between −45° and −90°, with qR complexes in I and aVL and rS complexes in II, III and aVF, and a QRS under 120 ms.",
+   "criteria": [
+    "Frontal QRS axis between −45° and −90°",
+    "qR in I and aVL; rS in II, III and aVF (S in III deeper than in II)",
+    "QRS duration under 120 ms",
+    "Delayed R-peak time in aVL (45 ms or more); deep S waves often persist to V6"
+   ],
+   "mechanism": "The left anterior fascicle supplies the anterior and lateral left ventricle. When it is blocked, the impulse arrives first through the left posterior fascicle at the inferior wall and then spreads upward and leftward, pulling the late QRS vector up and to the left. LAFB is common with hypertension, coronary disease and age, and with RBBB forms a bifascicular block.",
+   "ddx": [
+    "Inferior myocardial infarction (Q waves in II, III, aVF rather than rS)",
+    "Left ventricular hypertrophy with left axis deviation",
+    "Pre-excitation with a posteroseptal pathway"
+   ],
+   "try": "Block the left anterior fascicle in the Blocks tab and watch the hexaxial axis swing upward."
+  },
+  {
+   "slug": "left-posterior-fascicular-block",
+   "group": "blocks",
+   "hash": "r=72&b=LPF.complete",
+   "name": "Left posterior fascicular block",
+   "title": "Left Posterior Fascicular Block (LPFB) ECG: Right Axis Deviation",
+   "summary": "Left posterior fascicular block (left posterior hemiblock) shifts the QRS axis to the right, beyond +90°, with rS complexes in I and aVL and qR complexes in III and aVF. It is a diagnosis of exclusion once other causes of right axis deviation are ruled out.",
+   "criteria": [
+    "Frontal QRS axis between +90° and +180°",
+    "rS in I and aVL; qR in II, III and aVF",
+    "QRS duration under 120 ms",
+    "No right ventricular hypertrophy, lateral infarction, pulmonary disease or vertical heart to explain the axis"
+   ],
+   "mechanism": "The left posterior fascicle is short and broad and has a dual blood supply, so isolated LPFB is uncommon and usually means extensive conduction-system disease. With the fascicle blocked, the anterior wall is activated first and the impulse then sweeps downward and rightward to the inferior wall.",
+   "ddx": [
+    "Right ventricular hypertrophy",
+    "Lateral myocardial infarction",
+    "Normal variant in thin young people",
+    "Limb lead reversal (left and right arm swapped)"
+   ],
+   "try": "Block the left posterior fascicle in the Blocks tab and compare the axis with a left anterior fascicular block."
+  },
+  {
+   "slug": "sinoatrial-exit-block",
+   "group": "blocks",
+   "hash": "r=72&b=SAN.sa-exit",
+   "name": "Sinoatrial exit block",
+   "title": "Sinoatrial Exit Block ECG: Dropped P Waves and Sinus Pauses",
+   "summary": "In sinoatrial (SA) exit block the sinus node keeps firing but some impulses fail to leave it, so a whole P–QRS–T complex is missing. In second-degree type II SA block the pause is an exact multiple of the normal P–P interval.",
+   "criteria": [
+    "Pauses with a missing P wave and QRS complex",
+    "Type II: the pause is exactly twice (or a multiple of) the P–P interval",
+    "Type I (Wenckebach): P–P intervals shorten before the pause, and the pause is shorter than two P–P intervals",
+    "Normal P-wave shape and PR interval in the conducted beats"
+   ],
+   "mechanism": "The sinus node's discharge is invisible on the surface ECG; only the atrial depolarisation it produces is seen. When conduction from the node into the atrium fails intermittently, a beat drops out while the node's own rhythm continues, which is why the pause fits the underlying cycle. Sinus arrest, by contrast, is a failure of the node to fire, and the pause has no fixed relation to the P–P interval.",
+   "ddx": [
+    "Sinus arrest or pause (the pause is not a multiple of the P–P interval)",
+    "Non-conducted premature atrial beat (an early P wave in the T wave)",
+    "Sinus arrhythmia"
+   ],
+   "try": "Click the sinus node in the Blocks tab and compare SA exit block with a sinus pause and sinus arrest."
+  },
+  {
+   "slug": "anterior-stemi",
+   "group": "ischemia",
+   "hash": "r=72&o=LAD@0&c=2&h=1",
+   "name": "Anterior STEMI (LAD occlusion)",
+   "title": "Anterior STEMI ECG: LAD Occlusion and ST Elevation in V1–V4",
+   "summary": "An anterior ST-elevation myocardial infarction (STEMI) is caused by occlusion of the left anterior descending (LAD) artery. It shows ST elevation in the precordial leads V1–V4, extending to I, aVL, V5 and V6 when the occlusion is proximal (anterolateral STEMI), often with reciprocal ST depression in the inferior leads.",
+   "criteria": [
+    "New ST elevation at the J point in two or more contiguous leads: 1 mm or more in most leads; in V2–V3, 2 mm or more in men over 40, 2.5 mm in men under 40, 1.5 mm in women",
+    "Anterior STEMI: V1–V4 (septal V1–V2, anterior V3–V4); anterolateral adds I, aVL, V5, V6",
+    "Reciprocal ST depression in II, III and aVF suggests a proximal LAD occlusion (before the first diagonal)",
+    "Over hours: R waves shrink, Q waves form, and T waves invert"
+   ],
+   "mechanism": "Occlusion of the LAD stops blood flow to the anterior wall, septum and apex. Ischaemic cells depolarise partly and repolarise early, so during the ST segment current flows from them into healthy tissue (the injury current), lifting the ST segment in leads over the territory and depressing it in leads facing the opposite wall. Emergency reperfusion by primary PCI is the treatment.",
+   "ddx": [
+    "Left ventricular aneurysm (old infarct, persistent ST elevation with Q waves)",
+    "Pericarditis (diffuse ST elevation and PR depression, no reciprocal changes)",
+    "Benign early repolarisation",
+    "LBBB and LVH (ST elevation in V1–V3 secondary to the QRS)",
+    "Brugada pattern"
+   ],
+   "try": "Occlude the LAD in the Ischemia tab and move the time slider from 15 minutes to 1 month to watch the infarct evolve."
+  },
+  {
+   "slug": "inferior-stemi",
+   "group": "ischemia",
+   "hash": "r=72&o=RCA@0.45&c=2&h=1",
+   "name": "Inferior STEMI (RCA occlusion)",
+   "title": "Inferior STEMI ECG: ST Elevation in II, III and aVF",
+   "summary": "An inferior ST-elevation myocardial infarction shows ST elevation in leads II, III and aVF, usually with reciprocal ST depression in I and aVL. About 80% are caused by occlusion of the right coronary artery (RCA) and the rest by the left circumflex.",
+   "criteria": [
+    "ST elevation of 1 mm or more in at least two of II, III and aVF",
+    "Reciprocal ST depression in aVL (often the earliest sign) and I",
+    "ST elevation greater in III than in II, with ST depression in I, favours the RCA over the circumflex",
+    "Check right-sided leads (ST elevation in V4R) for right ventricular infarction, and V1–V3 depression for posterior extension",
+    "Bradycardia and AV block are common (the RCA usually supplies the AV node)"
+   ],
+   "mechanism": "The RCA supplies the inferior wall of the left ventricle, most of the right ventricle and, in most people, the sinus and AV nodes. Leads II, III and aVF look at the inferior wall from below, so the injury current raises their ST segments, while aVL, facing the opposite direction, shows the mirror image.",
+   "ddx": [
+    "Pericarditis (ST elevation in both inferior and lateral leads, PR depression)",
+    "Left ventricular aneurysm after an old inferior infarct",
+    "Inferior Q waves of LAFB or WPW mimicking an old infarct"
+   ],
+   "try": "Occlude the RCA at different points in the Ischemia tab and compare the inferior and right-sided changes."
+  },
+  {
+   "slug": "lateral-stemi",
+   "group": "ischemia",
+   "hash": "r=72&o=LCx@0&c=2&h=1",
+   "name": "Lateral STEMI (circumflex occlusion)",
+   "title": "Lateral STEMI ECG: Circumflex Occlusion, ST Elevation in I, aVL, V5–V6",
+   "summary": "A lateral myocardial infarction, usually from occlusion of the left circumflex (LCx) artery or a diagonal branch of the LAD, shows ST elevation in the lateral leads I, aVL, V5 and V6. Circumflex occlusions are often electrically subtle and can extend to the posterior wall.",
+   "criteria": [
+    "ST elevation in I and aVL (high lateral) and/or V5–V6 (low lateral)",
+    "Reciprocal ST depression in III and aVF",
+    "ST depression in V1–V3 with upright T waves suggests posterior involvement (confirm with V7–V9)",
+    "Circumflex occlusion may show little or no ST elevation on the standard 12 leads"
+   ],
+   "mechanism": "The circumflex runs in the left atrioventricular groove and supplies the lateral and, in many people, the posterior wall. That territory faces away from most of the 12 electrodes, which is why its infarcts are the most often missed on a standard ECG.",
+   "ddx": [
+    "Anterolateral STEMI from a proximal LAD occlusion (ST elevation in V1–V4 too)",
+    "Pericarditis",
+    "LVH with lateral strain"
+   ],
+   "try": "Occlude the circumflex and its marginal branches in the Ischemia tab and look for posterior changes in V1–V3."
+  },
+  {
+   "slug": "hyperacute-t-waves",
+   "group": "ischemia",
+   "hash": "r=72&o=LAD@0.22&c=2&h=0.25",
+   "name": "Hyperacute T waves",
+   "title": "Hyperacute T Waves ECG: The Earliest Sign of STEMI",
+   "summary": "Hyperacute T waves are tall, broad-based, symmetric T waves over the territory of a freshly occluded coronary artery. They appear in the first minutes of a myocardial infarction, often before obvious ST elevation.",
+   "criteria": [
+    "T waves tall relative to the QRS in the same lead, with a broad base and a symmetric shape",
+    "Confined to a coronary territory (for example V2–V4 in an LAD occlusion)",
+    "Early, modest ST elevation, with reciprocal changes in the opposite leads",
+    "Evolve within minutes to frank ST elevation on repeat ECGs"
+   ],
+   "mechanism": "In the first minutes of ischaemia ATP-sensitive potassium channels open, shortening the action potential of the ischaemic cells. They repolarise earlier than the healthy tissue around them, which enlarges the T wave over the territory before the injury current lifts the ST segment.",
+   "ddx": [
+    "Hyperkalaemia (narrow, peaked T waves in many leads)",
+    "Benign early repolarisation",
+    "LVH and LBBB (tall T waves in V1–V3)"
+   ],
+   "try": "Occlude the mid LAD in the Ischemia tab with the time slider at 15 minutes, then move it to 1 hour."
+  },
+  {
+   "slug": "old-inferior-myocardial-infarction",
+   "group": "ischemia",
+   "hash": "r=72&o=RCA@0.45&c=2&h=720",
+   "name": "Old inferior myocardial infarction",
+   "title": "Old Myocardial Infarction ECG: Pathological Q Waves",
+   "summary": "An old (healed) myocardial infarction is recognised on the ECG by pathological Q waves in the leads over the scar, here II, III and aVF after an inferior infarct, with the ST segment back at baseline and T-wave inversion that may persist for months.",
+   "criteria": [
+    "Pathological Q waves: 40 ms or wider, or deeper than a quarter of the following R wave, in two contiguous leads",
+    "Inferior infarct: Q waves in II, III and aVF (a Q in III alone can be normal)",
+    "ST segment back to baseline (persistent ST elevation weeks later suggests an aneurysm)",
+    "T-wave inversion over the infarct, which may persist or normalise"
+   ],
+   "mechanism": "Dead myocardium no longer generates electrical forces. An electrode over the scar sees through the 'electrical window' into the cavity and records the activation of the opposite wall moving away from it: a Q wave. That is why Q waves persist long after the acute changes resolve.",
+   "ddx": [
+    "Normal small q waves (septal q in I, aVL, V5, V6; isolated q in III)",
+    "LAFB and WPW, which can mimic inferior Q waves",
+    "Hypertrophic cardiomyopathy (deep narrow Q waves)"
+   ],
+   "try": "Occlude the RCA in the Ischemia tab and drag the time slider through the stages to 1 month."
+  },
+  {
+   "slug": "wellens-syndrome",
+   "group": "ischemia",
+   "hash": "r=72&wellens=B",
+   "name": "Wellens syndrome",
+   "title": "Wellens Syndrome ECG: Deep T Inversion in V2–V3",
+   "summary": "Wellens syndrome is a pattern of deep, symmetric (type B) or biphasic (type A) T waves in V2–V3 in a patient whose chest pain has settled. It indicates a critical proximal LAD stenosis that has reperfused and carries a high risk of an extensive anterior infarction.",
+   "criteria": [
+    "Type A: biphasic T waves in V2–V3 (up, then down); about a quarter of cases",
+    "Type B: deep, symmetric T-wave inversion in V2–V3, sometimes extending to V1–V6; about three quarters",
+    "Recorded while pain-free, with no or minimal (under 1 mm) ST elevation",
+    "No pathological Q waves and preserved R-wave progression",
+    "Normal or slightly raised cardiac markers"
+   ],
+   "mechanism": "A proximal LAD lesion has closed and reopened. The reperfused anterior wall repolarises abnormally, which inverts the T waves, but the muscle is still alive. Stress testing can provoke occlusion; these patients need angiography.",
+   "ddx": [
+    "Evolving or completed anterior infarct (Q waves, loss of R waves)",
+    "Pulmonary embolism (T inversion in V1–V4 and III)",
+    "Raised intracranial pressure (giant T inversion, long QT)",
+    "Persistent juvenile T-wave pattern, LVH strain"
+   ],
+   "try": "Choose Wellens type A or type B in the Conditions tab."
+  },
+  {
+   "slug": "left-ventricular-hypertrophy",
+   "group": "conditions",
+   "hash": "r=72&s=lvh",
+   "name": "Left ventricular hypertrophy",
+   "title": "Left Ventricular Hypertrophy (LVH) ECG: Voltage Criteria and Strain",
+   "summary": "Left ventricular hypertrophy (LVH) raises the QRS voltages that face the left ventricle: tall R waves in the lateral leads and deep S waves in V1–V2. The Sokolow–Lyon and Cornell criteria are the most widely used; ST depression and T inversion in the lateral leads (the strain pattern) often accompany it.",
+   "criteria": [
+    "Sokolow–Lyon: S in V1 plus the taller of R in V5 or V6 of 35 mm or more",
+    "Cornell: R in aVL plus S in V3 over 28 mm in men or 20 mm in women",
+    "R in aVL of 11 mm or more",
+    "Strain pattern: downsloping ST depression and asymmetric T inversion in I, aVL, V5 and V6",
+    "Supporting signs: left atrial enlargement, left axis deviation, slightly wider QRS"
+   ],
+   "mechanism": "A thicker left ventricular wall has more muscle generating current, and it lies closer to the chest electrodes, so the leftward and posterior QRS forces grow. The thick wall also repolarises more slowly from the endocardium, which reverses the T wave in the lateral leads (strain). The voltage criteria are specific but not sensitive; echocardiography is the reference.",
+   "ddx": [
+    "High voltage in thin young adults (no strain pattern)",
+    "LBBB (QRS 120 ms or wider)",
+    "Lateral ischaemia (ST depression without high voltage)"
+   ],
+   "try": "Add LVH in the Conditions tab: the heart wall thickens in the 3D view and the voltages rise."
+  },
+  {
+   "slug": "right-ventricular-hypertrophy",
+   "group": "conditions",
+   "hash": "r=72&s=rvh",
+   "name": "Right ventricular hypertrophy",
+   "title": "Right Ventricular Hypertrophy (RVH) ECG: Right Axis and Tall R in V1",
+   "summary": "Right ventricular hypertrophy (RVH) shifts the QRS forces to the right and forward: right axis deviation, a dominant R wave in V1, deep S waves in V5–V6, and often right atrial enlargement and right ventricular strain.",
+   "criteria": [
+    "Right axis deviation of +110° or more",
+    "Dominant R wave in V1 (R/S ratio over 1, or R in V1 of 7 mm or more)",
+    "Deep S waves in V5–V6 (R/S ratio under 1 in V6)",
+    "Right ventricular strain: ST depression and T inversion in V1–V3 and the inferior leads",
+    "Right atrial enlargement (P wave over 2.5 mm in II)"
+   ],
+   "mechanism": "The right ventricle is normally thin and its forces are hidden by the much larger left ventricle. When pressure overload (pulmonary hypertension, pulmonary stenosis, chronic lung disease) thickens it enough, its rightward and anterior forces start to dominate the QRS.",
+   "ddx": [
+    "Posterior myocardial infarction (tall R in V1 with a normal axis)",
+    "Right bundle branch block (QRS 120 ms or wider)",
+    "WPW with a left-sided pathway",
+    "Dextrocardia or lead misplacement"
+   ],
+   "try": "Add RVH in the Conditions tab and compare V1 and the axis with LVH."
+  },
+  {
+   "slug": "wolff-parkinson-white",
+   "group": "conditions",
+   "hash": "r=72&s=ap",
+   "name": "Wolff–Parkinson–White pattern",
+   "title": "Wolff–Parkinson–White (WPW) ECG: Short PR and Delta Wave",
+   "summary": "In Wolff–Parkinson–White (WPW) pattern an accessory pathway lets the atrial impulse reach the ventricles early, bypassing the AV node. The ECG shows a short PR interval, a slurred upstroke at the start of the QRS (the delta wave), and a widened QRS.",
+   "criteria": [
+    "PR interval under 120 ms",
+    "Delta wave: a slurred, slow upstroke at the start of the QRS",
+    "QRS 110 ms or wider, a fusion of pre-excited and normal activation",
+    "Secondary ST-T changes opposite to the delta wave and QRS",
+    "Delta-wave polarity suggests where the pathway is; it can mimic infarct Q waves"
+   ],
+   "mechanism": "The accessory pathway conducts without the AV node's delay, so part of the ventricle is activated early and slowly through muscle (the delta wave) while the rest is activated normally through the His–Purkinje system. WPW syndrome means pre-excitation plus tachycardias (AVRT). AF with a fast pathway can conduct dangerously fast; AV-nodal blocking drugs are avoided in pre-excited AF.",
+   "ddx": [
+    "Short PR without a delta wave (enhanced AV-nodal conduction)",
+    "Bundle branch block",
+    "Inferior or posterior myocardial infarction (pseudo-infarct Q waves and tall R in V1)",
+    "Hypertrophy"
+   ],
+   "try": "Add the accessory pathway in the Conditions tab, then start AVRT in the Rhythm tab."
+  },
+  {
+   "slug": "pericarditis",
+   "group": "conditions",
+   "hash": "r=72&s=peri",
+   "name": "Acute pericarditis",
+   "title": "Acute Pericarditis ECG: Diffuse ST Elevation and PR Depression",
+   "summary": "Acute pericarditis causes widespread concave ST elevation in most leads, PR-segment depression, and ST depression with PR elevation in aVR, without the reciprocal changes or Q waves of a myocardial infarction.",
+   "criteria": [
+    "Diffuse concave ('saddle-shaped') ST elevation across several coronary territories, often I, II, aVL, aVF and V2–V6",
+    "PR-segment depression, with PR elevation and ST depression in aVR (and sometimes V1)",
+    "No reciprocal ST depression other than aVR and V1, and no Q waves",
+    "Spodick's sign: a downsloping TP segment; sinus tachycardia is common",
+    "Evolves in stages: ST elevation, then flattening, T inversion, and normalisation"
+   ],
+   "mechanism": "Inflammation of the pericardium injures the thin layer of epicardial myocardium all around the heart. The injury is not confined to one artery's territory, so the ST elevation is diffuse; atrial epicardial injury depresses the PR segment.",
+   "ddx": [
+    "STEMI (territorial ST elevation, reciprocal depression, convex ST, Q waves)",
+    "Benign early repolarisation (no PR depression; ST/T ratio in V6 under 0.25)",
+    "Myocarditis"
+   ],
+   "try": "Add pericarditis in the Conditions tab and compare it with a coronary occlusion in the Ischemia tab."
+  },
+  {
+   "slug": "brugada-syndrome",
+   "group": "conditions",
+   "hash": "r=72&s=brugada",
+   "name": "Brugada syndrome (type 1)",
+   "title": "Brugada Syndrome ECG: Type 1 Coved ST Elevation in V1–V2",
+   "summary": "Brugada syndrome is an inherited sodium-channel disorder with a risk of ventricular fibrillation and sudden death. The diagnostic type 1 pattern is coved ST elevation of 2 mm or more in V1–V2 followed by a negative T wave.",
+   "criteria": [
+    "Type 1 (diagnostic): coved ST elevation of 2 mm or more at the J point in one or more of V1–V2, descending into an inverted T wave",
+    "May only appear with the right precordial leads placed one or two intercostal spaces higher",
+    "Type 2 ('saddle-back') pattern is suggestive but not diagnostic",
+    "Unmasked or worsened by fever and sodium-channel blockers (for example flecainide, ajmaline)"
+   ],
+   "mechanism": "Loss of sodium-channel function (often SCN5A mutations) lets the transient outward current dominate early repolarisation in the right ventricular outflow tract epicardium. The resulting voltage gradient across the wall produces the coved ST segment and creates the substrate for phase 2 re-entry and ventricular fibrillation.",
+   "ddx": [
+    "Right bundle branch block (wide S in I and V6)",
+    "Anteroseptal STEMI",
+    "Early repolarisation",
+    "Arrhythmogenic right ventricular cardiomyopathy",
+    "Pectus excavatum, hyperkalaemia, sodium-channel blocker toxicity"
+   ],
+   "try": "Add Brugada in the Conditions tab and look at V1 and V2."
+  },
+  {
+   "slug": "hyperkalemia",
+   "group": "metabolic",
+   "hash": "r=72&hyperK=mild",
+   "name": "Hyperkalemia",
+   "title": "Hyperkalemia ECG: Peaked T Waves to Sine Wave",
+   "summary": "Hyperkalemia (high serum potassium) first causes tall, narrow, peaked T waves; as potassium rises further the P waves flatten and disappear, the PR and QRS lengthen, and the ECG can progress to a sine-wave pattern, ventricular fibrillation or asystole.",
+   "criteria": [
+    "Mild (about 5.5–6.5 mmol/L): tall, narrow-based, symmetric 'tented' T waves, most marked in V2–V4",
+    "Moderate (about 6.5–8 mmol/L): PR prolongation, flattened or absent P waves, widening QRS",
+    "Severe (over 8 mmol/L): very wide QRS merging with the T wave (sine wave), bradycardia, VF or asystole",
+    "The ECG correlates loosely with the level; any of these changes is an emergency"
+   ],
+   "mechanism": "A high extracellular potassium speeds the potassium currents that repolarise the cell, shortening and steepening repolarisation (peaked T waves). It also partly depolarises the resting membrane, inactivating sodium channels, which slows conduction in the atria first and then in the ventricles. Calcium is given to stabilise the membrane while potassium is lowered.",
+   "ddx": [
+    "Hyperacute T waves of early infarction (broad-based, territorial)",
+    "Normal tall T waves in young men and early repolarisation",
+    "LVH and LBBB (wide QRS with large T waves)"
+   ],
+   "try": "Choose hyperkalemia in the Conditions tab and switch between peaked T waves and the severe pattern."
+  },
+  {
+   "slug": "hypokalemia",
+   "group": "metabolic",
+   "hash": "r=72&s=hypoK",
+   "name": "Hypokalemia",
+   "title": "Hypokalemia ECG: U Waves, Flat T Waves and ST Depression",
+   "summary": "Hypokalemia (low serum potassium) flattens the T waves, brings out prominent U waves, depresses the ST segment, and prolongs the apparent QT (in fact the QU) interval, raising the risk of arrhythmias including torsades de pointes.",
+   "criteria": [
+    "T-wave flattening or inversion",
+    "Prominent U waves (over 1 mm), best seen in V2–V3, sometimes taller than the T wave",
+    "ST-segment depression",
+    "Long apparent QT (the T and U waves merge: a long QU interval)",
+    "Premature beats and tachyarrhythmias, especially with digoxin"
+   ],
+   "mechanism": "Low extracellular potassium slows the potassium currents that end the action potential, so repolarisation is delayed and flattened, and the later repolarisation of some cells (possibly Purkinje fibres or mid-myocardium) appears as the U wave.",
+   "ddx": [
+    "Long QT from drugs or congenital long QT (no U waves)",
+    "Digoxin effect (scooped ST depression, short QT)",
+    "Ischaemia (ST depression without U waves)"
+   ],
+   "try": "Add hypokalemia in the Conditions tab and look for the U waves in V2 and V3."
+  },
+  {
+   "slug": "hypocalcemia",
+   "group": "metabolic",
+   "hash": "r=72&s=hypoCa",
+   "name": "Hypocalcemia",
+   "title": "Hypocalcemia ECG: Long QT From a Long ST Segment",
+   "summary": "Hypocalcemia (low serum calcium) prolongs the QT interval by lengthening the ST segment, while the T wave itself keeps a normal shape and width.",
+   "criteria": [
+    "Prolonged QTc",
+    "A long, flat ST segment (the plateau is lengthened)",
+    "Normal T-wave width and shape",
+    "Torsades de pointes is possible but less common than with other causes of long QT"
+   ],
+   "mechanism": "Low extracellular calcium slows the inactivation of L-type calcium channels and lengthens phase 2 (the plateau) of the action potential, which corresponds to the ST segment. Repolarisation itself, the T wave, is not much changed.",
+   "ddx": [
+    "Hypokalemia (flat T waves and U waves rather than a long ST)",
+    "Drug-induced or congenital long QT (broad or abnormal T waves)",
+    "Hypothermia (J waves, bradycardia)"
+   ],
+   "try": "Add hypocalcemia, then hypercalcemia, in the Conditions tab and compare the ST segment."
+  },
+  {
+   "slug": "hypercalcemia",
+   "group": "metabolic",
+   "hash": "r=72&s=hyperCa",
+   "name": "Hypercalcemia",
+   "title": "Hypercalcemia ECG: Short QT From a Short ST Segment",
+   "summary": "Hypercalcemia (high serum calcium) shortens the QT interval by shortening the ST segment, so the T wave seems to start right after the QRS.",
+   "criteria": [
+    "Short QTc",
+    "Short or absent ST segment; the T wave starts close to the QRS",
+    "In severe hypercalcemia: J (Osborn) waves, PR prolongation, AV block and bradyarrhythmias"
+   ],
+   "mechanism": "High extracellular calcium speeds the inactivation of calcium channels and shortens the plateau (phase 2) of the action potential, which is the ST segment on the ECG.",
+   "ddx": [
+    "Digoxin effect (short QT with scooped ST depression)",
+    "Congenital short QT syndrome",
+    "Hyperkalemia (peaked T waves)"
+   ],
+   "try": "Add hypercalcemia in the Conditions tab and measure the QT against the normal beat."
+  },
+  {
+   "slug": "hypothermia",
+   "group": "metabolic",
+   "hash": "r=72&s=hypothermia",
+   "name": "Hypothermia",
+   "title": "Hypothermia ECG: Osborn (J) Waves and Bradycardia",
+   "summary": "Hypothermia slows the heart and every interval and produces the characteristic Osborn wave: a positive hump at the J point, at the junction of the QRS and ST segment, most visible in the inferior and lateral precordial leads.",
+   "criteria": [
+    "Osborn (J) waves: a positive deflection at the J point, larger as temperature falls",
+    "Sinus bradycardia",
+    "Prolonged PR, QRS and QT intervals",
+    "Shivering artefact; atrial fibrillation, then VF or asystole as temperature falls further"
+   ],
+   "mechanism": "Cooling deepens the notch of the epicardial action potential (the transient outward current) more than the endocardial one, creating a voltage gradient across the wall at the end of the QRS that appears as the J wave. Cold also slows the sinus node and conduction everywhere.",
+   "ddx": [
+    "Hypercalcemia (J waves with a short QT)",
+    "Brugada pattern and early repolarisation",
+    "Subarachnoid haemorrhage and other causes of J waves"
+   ],
+   "try": "Add hypothermia in the Conditions tab and look for the J waves in II and V4–V6.",
+   "readKeep": "hypothermia"
+  },
+  {
+   "slug": "right-atrial-enlargement",
+   "group": "conditions",
+   "hash": "r=72&s=rae",
+   "name": "Right atrial enlargement",
+   "title": "Right Atrial Enlargement ECG: P Pulmonale",
+   "summary": "Right atrial enlargement makes the P wave taller but not longer: a peaked P wave over 2.5 mm in lead II (P pulmonale) and a prominent initial positive P wave in V1.",
+   "criteria": [
+    "P wave over 2.5 mm tall in II, III or aVF",
+    "Initial positive part of the P wave in V1 or V2 over 1.5 mm",
+    "P-wave duration normal (under 120 ms)",
+    "Often with signs of RVH or right axis deviation"
+   ],
+   "mechanism": "The right atrium is activated first, so its larger mass increases the early part of the P wave and makes it taller without lengthening it. Causes are those of right heart pressure overload: chronic lung disease, pulmonary hypertension, tricuspid and pulmonary valve disease.",
+   "ddx": [
+    "Left atrial enlargement (a wide, notched P wave)",
+    "Sinus tachycardia (P waves can look tall)",
+    "Hypokalemia (peaked P waves)"
+   ],
+   "try": "Add right atrial enlargement in the Conditions tab and compare the P wave in II and V1."
+  },
+  {
+   "slug": "left-atrial-enlargement",
+   "group": "conditions",
+   "hash": "r=72&s=lae",
+   "name": "Left atrial enlargement",
+   "title": "Left Atrial Enlargement ECG: P Mitrale and Biphasic P in V1",
+   "summary": "Left atrial enlargement makes the P wave longer: a broad, notched P wave of 120 ms or more in lead II (P mitrale) and a deep, wide terminal negative part of the P wave in V1.",
+   "criteria": [
+    "P wave 120 ms or longer in II",
+    "Notched ('M-shaped') P wave with peaks over 40 ms apart",
+    "Terminal negative part of the P wave in V1 at least 1 mm deep and 40 ms wide (one small square each)",
+    "Common with LVH, mitral valve disease and hypertension"
+   ],
+   "mechanism": "The left atrium is activated after the right, so its larger mass and longer conduction path prolong and enlarge the second half of the P wave. Because the left atrium lies posteriorly, that late force points away from V1 and appears as a negative terminal deflection there.",
+   "ddx": [
+    "Interatrial conduction delay (Bachmann's bundle block) without enlargement",
+    "Right atrial enlargement (tall rather than wide P)",
+    "Ectopic atrial rhythm"
+   ],
+   "try": "Add left atrial enlargement in the Conditions tab and look at the P wave in V1."
+  }
+ ]
+}
