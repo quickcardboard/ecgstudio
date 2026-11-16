@@ -2642,6 +2642,8 @@ No engine change. New crawlable content and metadata (plan and outreach drafts: 
   `"verify"` for the Google/Bing ownership meta tags.
 - `tools/promo_clips.js`: portrait 1080×1920, 60 fps clips of the phone layout for Shorts/TikTok/Reels, with the page's
   animation frames stepped by hand and captured over CDP (not in the build).
+  Edited versions: `PROMO_CAM=1` zooms and pans at capture (the page drawn at 4x, each frame capturing the camera's
+  rectangle), then `tools/promo_edit.js` adds captions, the shock flash and an end card from `tools/promo_story.json`.
 - Contact page `/contact/`: the Google Form in `site.json` `"contactForm"` embedded (`?embedded=true`), linked from the
   library header, Help → About and `llms.txt`; nothing is built while `contactForm` is empty. Privacy policy: a
   "Contact form" section.

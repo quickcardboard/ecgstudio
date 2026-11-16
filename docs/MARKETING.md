@@ -32,6 +32,13 @@ people who teach and learn ECGs. Cost: none except time.
 - `node tools/promo_clips.js <outdir> [stemi,af,chb] [fps]` records short portrait clips (1080×1920, 60 fps, phone layout)
   for Shorts, TikTok and Reels: STEMI evolving, AF and a shock, complete heart block. Time is stepped one frame per
   capture, so the clips are smooth whatever the machine; about 0.3 s of rendering per frame.
+- Edited versions (zooms, captions, shock flash, end card) for a general audience: the storyboards, captions and
+  voice-over scripts are in `tools/promo_story.json`.
+  ```bash
+  PROMO_CAM=1 node tools/promo_clips.js <outdir>   # records ecgstudio-<name>-cam.mp4, zooming at capture (~20 min)
+  node tools/promo_edit.js <outdir>                 # adds captions, flash and end card: ecgstudio-<name>-edited.mp4
+  ```
+  The editor also writes `ecgstudio-<name>-script.txt` (timed voice-over, title, post text, hashtags).
 
 ## Why this is the right first step
 
@@ -137,8 +144,9 @@ read each community's self-promotion rules first. Several subreddits allow it on
 approval; ask the moderators when unsure. Lead with something useful to look at (a clip or an ECG), not the link.
 
 **Video clips**: rendered with `tools/promo_clips.js` in portrait 1080×1920 at 60 fps (STEMI evolving over a month, AF and
-a shock, complete heart block). Add a caption line at the top in the app's editor (e.g. "Watch an LAD occlusion evolve over
-a month").
+a shock, complete heart block). The edited versions already carry captions, zooms and an end card; record the voice-over
+from the script file in the app's editor (TikTok and Shorts both have a "Voiceover" tool), or post them with captions
+only, since most people watch muted.
 Post them natively (uploaded, not as links) to YouTube Shorts, Instagram Reels, TikTok and X, and on Reddit. Put the link
 in the description, comment or bio.
 
