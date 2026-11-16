@@ -28,7 +28,7 @@ const CLIPS = {
   // atrial fibrillation, then a shock back to sinus rhythm (lead II)
   af: {
     hash: 'r=72&a=af', group: 0,
-    async run(c) { await c.rec(8000); await c.page.evaluate(() => document.getElementById('btnShock').click()); await c.rec(8000); },
+    async run(c) { await c.rec(8000); await c.page.evaluate(() => document.getElementById('btnShock').click()); await c.rec(12500); /* (to the new read, 10 s after the shock) */ },
   },
   // complete heart block: P waves and QRS complexes each at their own rate
   chb: { hash: 'r=72&b=AVN.complete', group: 0, async run(c) { await c.rec(14000); } },
