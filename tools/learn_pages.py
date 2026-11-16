@@ -1,7 +1,7 @@
 """ECG library: static, crawlable pages at ecgstudio.app/ecg/ from src/learn/topics.json (text) and src/learn/shots.json
 (the simulator's read and share link, written by tools/seo_shots.js with the images ecg/<slug>/ecg.png). Also writes
 sitemap.xml and llms.txt. Called by tools/build.py."""
-import datetime, html, json, pathlib
+import datetime, html, json, pathlib, re
 
 SITE = 'https://ecgstudio.app'
 esc = html.escape
@@ -46,11 +46,13 @@ li { margin: 2px 0; }
 .grid a:hover { border-color: var(--accent); }
 .grid b { display: block; color: var(--accent); }
 .grid span { font-size: 14px; color: var(--muted); }
+iframe { display: block; width: 100%; height: 1100px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.small { font-size: 14px; color: var(--muted); }
 @media (max-width: 600px) { h1 { font-size: 26px; } header.top nav a.hide { display: none; } }
 """
 
 
-def shell(title, desc, canonical, body, logo, image=None, ld=None, author='Thomas Liou'):
+def shell(title, desc, canonical, body, logo, image=None, ld=None, author='Thomas Liou', contact=False):
     img = image or f'{SITE}/icons/og-image.png'
     lds = ''.join(f'<script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>\n' for x in (ld or []))
     return f"""<!doctype html>
@@ -76,7 +78,7 @@ def shell(title, desc, canonical, body, logo, image=None, ld=None, author='Thoma
 {lds}</head>
 <body>
 <header class="top"><div><a class="brand" href="/">{logo}ECG <span>Studio</span></a>
-<nav><a href="/ecg/">ECG library</a><a class="hide" href="/">3D simulator</a></nav></div></header>
+<nav><a href="/ecg/">ECG library</a><a class="hide" href="/">3D simulator</a>{'<a href="/contact/">Contact</a>' if contact else ''}</nav></div></header>
 <main>
 {body}
 <p class="note">ECG Studio is an educational simulator, not a medical device. Its ECGs are computed by a model of the heart,
@@ -88,12 +90,22 @@ Created by {esc(author)}. © {datetime.date.today().year}.</p>
 """
 
 
-def build(root, logo_inline, author):
+def form_urls(url):
+    # a Google Form link -> (link to open, embeddable URL or None). Short forms.gle links cannot be embedded.
+    url = (url or '').strip()
+    if not url:
+        return None, None
+    m = re.match(r'(https://docs\.google\.com/forms/(?:u/\d+/)?d/(?:e/)?[\w-]+)/', url)
+    return url, (m.group(1) + '/viewform?embedded=true' if m else None)
+
+
+def build(root, logo_inline, author, contact_form=''):
     root = pathlib.Path(root)
     data = json.loads((root / 'src/learn/topics.json').read_text())
     shots_f = root / 'src/learn/shots.json'
     shots = json.loads(shots_f.read_text()) if shots_f.exists() else {}
     groups = dict(data['groups'])
+    form_link, form_embed = form_urls(contact_form)
     topics = data['topics']
     logo = logo_inline
     out = root / 'ecg'
@@ -147,7 +159,7 @@ a 3D heart as you watch, so you can see which part of the heart makes each wave.
                 {'@type': 'ListItem', 'position': 2, 'name': tp['name'], 'item': canonical}]}]
         (out / slug).mkdir(parents=True, exist_ok=True)
         (out / slug / 'index.html').write_text(shell(tp['title'] + ' | ECG Studio', tp['summary'], canonical, body, logo,
-                                                     canonical + 'ecg.png' if has_img else None, ld, author))
+                                                     canonical + 'ecg.png' if has_img else None, ld, author, bool(form_link)))
         urls.append(canonical)
     # the library index
     secs = ''
@@ -165,10 +177,29 @@ confused with, and a 12-lead ECG computed by the ECG Studio heart model. Open an
 {secs}"""
     ld = [{'@context': 'https://schema.org', '@type': 'CollectionPage', 'name': 'ECG library', 'url': SITE + '/ecg/', 'description': desc,
            'hasPart': [{'@type': 'MedicalWebPage', 'name': t['name'], 'url': f'{SITE}/ecg/{t["slug"]}/'} for t in topics]}]
-    (out / 'index.html').write_text(shell('ECG Library: 12-Lead ECG Examples and Criteria | ECG Studio', desc, SITE + '/ecg/', body, logo, None, ld, author))
+    (out / 'index.html').write_text(shell('ECG Library: 12-Lead ECG Examples and Criteria | ECG Studio', desc, SITE + '/ecg/', body, logo, None, ld, author, bool(form_link)))
     # sitemap and llms.txt
     today = datetime.date.today().isoformat()
-    allurls = [SITE + '/', SITE + '/ecg/'] + urls + [SITE + '/privacy/']
+    # contact (site.json "contactForm": a Google Form); no page without one
+    cdir = root / 'contact'
+    if form_link:
+        frame = (f'<iframe src="{esc(form_embed)}" title="Contact form" loading="lazy">Loading…</iframe>\n'
+                 f'<p class="small">Form not showing? <a href="{esc(form_link)}">Open it in a new page</a>.</p>' if form_embed
+                 else f'<p><a class="cta" href="{esc(form_link)}">Open the contact form →</a></p>')
+        body = f"""<h1>Contact</h1>
+<p class="lede">Questions, ideas, errors in a simulated ECG, or plans to use ECG Studio in your teaching: write to
+{esc(author)} here. Educators are especially welcome.</p>
+{frame}
+<p class="small">The form is run by Google Forms. What you send is used only to reply to you; see the
+<a href="/privacy/">privacy policy</a>.</p>
+"""
+        cdir.mkdir(exist_ok=True)
+        (cdir / 'index.html').write_text(shell('Contact | ECG Studio', 'Contact the creator of ECG Studio, the free 3D heart and 12-lead ECG simulator: questions, feedback and teaching use.',
+                                               SITE + '/contact/', body, logo, None, [{'@context': 'https://schema.org', '@type': 'ContactPage', 'name': 'Contact ECG Studio', 'url': SITE + '/contact/'}], author, True))
+    elif cdir.exists():
+        (cdir / 'index.html').unlink(missing_ok=True)
+        if not any(cdir.iterdir()): cdir.rmdir()
+    allurls = [SITE + '/', SITE + '/ecg/'] + urls + [SITE + '/privacy/'] + ([SITE + '/contact/'] if form_link else [])
     (root / 'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
                                       + ''.join(f'  <url><loc>{u}</loc><lastmod>{today}</lastmod></url>\n' for u in allurls) + '</urlset>\n')
     llms = ['# ECG Studio', '',
@@ -192,7 +223,10 @@ confused with, and a 12-lead ECG computed by the ECG Studio heart model. Open an
         llms.append(f'### {gname}')
         llms += [f'- [{t["name"]}]({SITE}/ecg/{t["slug"]}/): {t["summary"]}' for t in topics if t['group'] == g]
         llms.append('')
-    llms += ['## Optional', '', '- [Privacy policy](https://ecgstudio.app/privacy/): no personal data is collected', '']
+    llms += ['## Optional', '']
+    if form_link:
+        llms.append('- [Contact](https://ecgstudio.app/contact/): questions, feedback and teaching use')
+    llms += ['- [Privacy policy](https://ecgstudio.app/privacy/): no personal data is collected by the simulator', '']
     (root / 'llms.txt').write_text('\n'.join(llms))
     print(f'ecg/ ({len(topics)} pages), sitemap.xml, llms.txt')
 

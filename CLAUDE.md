@@ -18,7 +18,8 @@ all rights reserved (LICENSE).
   (`window.ECGStudio`) and in Node (`require('./src/engine.js')`). Parameters live in `DEFAULTS`.
 - `src/app.js`: Three.js view, ECG paper, interpretation, controls, share links, PNG export.
   `window.ECGStudioApp` is a handle for automated tests.
-- `site.json`: author, contact, year shown in Help → About; the build stamps date + commit.
+- `site.json`: author, contact, year shown in Help → About; the build stamps date + commit. `contactForm` (a Google Form
+  link) builds the contact page `/contact/`; `verify` holds search-engine ownership codes.
 - `src/learn/topics.json` → the ECG library at `/ecg/` (`tools/learn_pages.py`, run by the build; images and reads:
   `node tools/seo_shots.js`, rerun after engine changes), plus `sitemap.xml`, `llms.txt`. Marketing plan: `docs/MARKETING.md`.
 - `docs/DEVELOPMENT.md`: model choices, validation and per-round notes. Add a section for each

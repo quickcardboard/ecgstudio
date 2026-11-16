@@ -15,6 +15,7 @@ people who teach and learn ECGs. Cost: none except time.
 | Link previews | `icons/og-image.png` + Open Graph and Twitter tags; each library page uses its own ECG image | A picture on every shared link (Reddit, Discord, X, WhatsApp, LinkedIn, Slack). |
 | Library link in the app | Help → About (desktop and phone) | Lets people (and crawlers) get from the simulator to the library. |
 | Verification codes | `site.json` `"verify"` | The build adds the Google and Bing ownership tags (see below). |
+| Contact page | `/contact/`, from `site.json` `"contactForm"` | Your Google Form, embedded; linked from the library header, Help → About and llms.txt. Absent until the link is set. |
 
 ### Keeping it current
 

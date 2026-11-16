@@ -64,4 +64,4 @@ Key facts:
 
 ## Optional
 
-- [Privacy policy](https://ecgstudio.app/privacy/): no personal data is collected
+- [Privacy policy](https://ecgstudio.app/privacy/): no personal data is collected by the simulator
