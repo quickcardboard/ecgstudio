@@ -2645,3 +2645,15 @@ No engine change. New crawlable content and metadata (plan and outreach drafts: 
 - Contact page `/contact/`: the Google Form in `site.json` `"contactForm"` embedded (`?embedded=true`), linked from the
   library header, Help → About and `llms.txt`; nothing is built while `contactForm` is empty. Privacy policy: a
   "Contact form" section.
+
+## claude/festive-goodall-6yao5r round 1: hypothermia no longer read as pericarditis and LAE
+
+The blind reader in `src/app.js` (`structFindings`) added two false findings to every hypothermia ECG:
+- **Pericarditis**: the Osborn waves raise the J point in most leads, which met the diffuse-ST-elevation rule. That rule now
+  does not fire when hypothermia is set (the J waves are reported in the hypothermia finding instead).
+- **Left atrial enlargement**: hypothermia slows atrial conduction as well (`elecHypothermiaCv` 1.25), so the P widens from
+  118 to 145 ms. The P width is now divided by that factor before the 120 ms test. LAE with hypothermia still reads
+  (188 ms, 150 after scaling), and LAE alone (153 ms) and pericarditis alone are read as before.
+
+The `readKeep` filter on the hypothermia library page (`src/learn/topics.json`, `tools/seo_shots.js`) is removed;
+`ecg/hypothermia/` was rebuilt and reads only the hypothermia pattern.

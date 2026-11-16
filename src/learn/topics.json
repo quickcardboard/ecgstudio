@@ -773,8 +773,7 @@
     "Brugada pattern and early repolarisation",
     "Subarachnoid haemorrhage and other causes of J waves"
    ],
-   "try": "Add hypothermia in the Conditions tab and look for the J waves in II and V4–V6.",
-   "readKeep": "hypothermia"
+   "try": "Add hypothermia in the Conditions tab and look for the J waves in II and V4–V6."
   },
   {
    "slug": "right-atrial-enlargement",
