@@ -28,7 +28,9 @@ people who teach and learn ECGs. Cost: none except time.
   The images come from the live model, so they stay honest; read the `shots.json` findings for each changed topic to
   confirm the simulator still reads it as the page says.
 - To add a topic, add an entry to `topics.json` and run both commands.
-- `node tools/promo_clips.js <outdir>` records short MP4 clips (STEMI evolving, AF and a shock, complete heart block).
+- `node tools/promo_clips.js <outdir> [stemi,af,chb] [fps]` records short portrait clips (1080×1920, 60 fps, phone layout)
+  for Shorts, TikTok and Reels: STEMI evolving, AF and a shock, complete heart block. Time is stepped one frame per
+  capture, so the clips are smooth whatever the machine; about 0.3 s of rendering per frame.
 
 ## Why this is the right first step
 
@@ -133,7 +135,9 @@ These need your accounts and a human voice. Post one or two a week rather than a
 read each community's self-promotion rules first. Several subreddits allow it only in weekly threads or with moderator
 approval; ask the moderators when unsure. Lead with something useful to look at (a clip or an ECG), not the link.
 
-**Video clips**: rendered with `tools/promo_clips.js` (STEMI evolving over a month, AF and a shock, complete heart block).
+**Video clips**: rendered with `tools/promo_clips.js` in portrait 1080×1920 at 60 fps (STEMI evolving over a month, AF and
+a shock, complete heart block). Add a caption line at the top in the app's editor (e.g. "Watch an LAD occlusion evolve over
+a month").
 Post them natively (uploaded, not as links) to YouTube Shorts, Instagram Reels, TikTok and X, and on Reddit. Put the link
 in the description, comment or bio.
 

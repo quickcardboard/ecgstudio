@@ -2640,4 +2640,5 @@ No engine change. New crawlable content and metadata (plan and outreach drafts: 
 - `robots.txt` (AI crawlers named; old-model previews and the app shell excluded), WebApplication JSON-LD and Open Graph
   image (`icons/og-image.png`) in `src/template.html`, a link to the library under Help → About, and `site.json`
   `"verify"` for the Google/Bing ownership meta tags.
-- `tools/promo_clips.js`: short MP4 screen recordings for social posts (not in the build).
+- `tools/promo_clips.js`: portrait 1080×1920, 60 fps clips of the phone layout for Shorts/TikTok/Reels, with the page's
+  animation frames stepped by hand and captured over CDP (not in the build).
