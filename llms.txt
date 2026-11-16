@@ -64,4 +64,5 @@ Key facts:
 
 ## Optional
 
+- [Contact](https://ecgstudio.app/contact/): questions, feedback and teaching use
 - [Privacy policy](https://ecgstudio.app/privacy/): no personal data is collected by the simulator
