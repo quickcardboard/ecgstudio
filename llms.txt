@@ -1,0 +1,68 @@
+# ECG Studio
+
+> ECG Studio (https://ecgstudio.app) is a free, browser-based 3D heart and 12-lead ECG simulator for medical, nursing and paramedic education. A 3D model of the heart (built from CT-derived anatomy) beats in real time, and the 12-lead ECG is computed from its electrical activity, so learners can see which part of the heart produces each wave and how rhythms, conduction blocks, coronary occlusions, hypertrophy and electrolyte disturbances change the ECG.
+
+Key facts:
+- Free to use in any modern browser on desktop or phone; no account or sign-up; no ads or tracking.
+- Simulates: sinus rhythm, atrial fibrillation and flutter, MAT, AVNRT, AVRT, VT, torsades de pointes, VF; first-, second- (Mobitz I, Mobitz II, 2:1) and third-degree AV block, sinoatrial block, LBBB, RBBB, LAFB, LPFB; occlusion of any coronary artery with the ECG evolving from 15 minutes to 1 month (hyperacute T, STEMI, Q waves); LVH, RVH, atrial enlargement, WPW, pericarditis, Brugada, Wellens, hyperkalemia, hypokalemia, hypocalcemia, hypercalcemia and hypothermia.
+- Every scenario can be shared as a link, and the ECG can be saved as an image.
+- Educational only, not a medical device. Created by Thomas Liou.
+
+## Pages
+
+- [3D heart and 12-lead ECG simulator](https://ecgstudio.app/): the interactive simulator
+- [ECG library](https://ecgstudio.app/ecg/): criteria, mechanism and differential diagnosis for each pattern, with a simulated 12-lead ECG
+
+## ECG library
+
+### Rhythms and tachycardias
+- [Normal sinus rhythm](https://ecgstudio.app/ecg/normal-sinus-rhythm/): Normal sinus rhythm is the heart's normal rhythm: each beat starts in the sinus node, every P wave is followed by a QRS complex, and the rate is 60 to 100 beats per minute.
+- [Atrial fibrillation](https://ecgstudio.app/ecg/atrial-fibrillation/): Atrial fibrillation (AF) is chaotic electrical activity in the atria: there are no P waves, the baseline shows fine fibrillatory waves, and the QRS complexes come at irregularly irregular intervals.
+- [Atrial flutter](https://ecgstudio.app/ecg/atrial-flutter/): Typical atrial flutter is a macro-reentrant circuit around the right atrium that produces regular sawtooth flutter waves at about 300 per minute, usually conducted to the ventricles 2:1 at about 150 bpm.
+- [Multifocal atrial tachycardia](https://ecgstudio.app/ecg/multifocal-atrial-tachycardia/): Multifocal atrial tachycardia (MAT) is an irregular rhythm over 100 bpm in which at least three different P-wave shapes come from several atrial foci, each with its own PR interval.
+- [AV nodal re-entrant tachycardia (AVNRT)](https://ecgstudio.app/ecg/avnrt/): AV nodal re-entrant tachycardia (AVNRT) is the commonest regular narrow-complex supraventricular tachycardia: a re-entry circuit inside the AV node, using a slow and a fast pathway, drives the ventricles at about 140–250 bpm.
+- [AV re-entrant tachycardia (AVRT)](https://ecgstudio.app/ecg/avrt/): AV re-entrant tachycardia (AVRT) is a supraventricular tachycardia in which the impulse loops between atria and ventricles through the AV node and an accessory pathway. In orthodromic AVRT, the common form, the QRS is narrow and a retrograde P wave follows it.
+- [Ventricular tachycardia](https://ecgstudio.app/ecg/ventricular-tachycardia/): Ventricular tachycardia (VT) is a wide-complex tachycardia that starts in the ventricles: three or more consecutive ventricular beats over 100 bpm, often with AV dissociation. A regular wide-complex tachycardia should be treated as VT until proven otherwise.
+- [Torsades de pointes](https://ecgstudio.app/ecg/torsades-de-pointes/): Torsades de pointes is a polymorphic ventricular tachycardia in which the QRS axis twists around the baseline, with complexes waxing and waning in height. It happens on a background of a long QT interval.
+- [Ventricular fibrillation](https://ecgstudio.app/ecg/ventricular-fibrillation/): Ventricular fibrillation (VF) is disorganised electrical activity of the ventricles with no effective contraction. The ECG shows a chaotic, irregular waveform with no identifiable QRS complexes, and the patient is in cardiac arrest.
+
+### Conduction blocks
+- [First-degree AV block](https://ecgstudio.app/ecg/first-degree-av-block/): First-degree AV block is a fixed delay in AV conduction: the PR interval is longer than 200 ms, but every P wave is still followed by a QRS complex.
+- [Second-degree AV block, Mobitz I (Wenckebach)](https://ecgstudio.app/ecg/mobitz-type-1-wenckebach/): Mobitz type I (Wenckebach) second-degree AV block is a progressive lengthening of the PR interval from beat to beat until one P wave is not conducted, after which the cycle starts again.
+- [Second-degree AV block, Mobitz II](https://ecgstudio.app/ecg/mobitz-type-2/): Mobitz type II second-degree AV block is the sudden failure of a P wave to conduct with no warning: the PR interval stays the same before and after the dropped beat. The block is below the AV node and can progress to complete heart block.
+- [2:1 AV block](https://ecgstudio.app/ecg/2-to-1-av-block/): In 2:1 AV block every second P wave is not conducted, so there are two P waves for every QRS complex. It is a form of second-degree block that cannot be classed as Mobitz I or II from a single strip, because there are never two conducted beats in a row to compare.
+- [Third-degree (complete) heart block](https://ecgstudio.app/ecg/complete-heart-block/): In complete (third-degree) heart block no atrial impulse reaches the ventricles. The P waves and QRS complexes each keep their own regular rate with no relationship between them, and an escape rhythm drives the ventricles.
+- [Left bundle branch block](https://ecgstudio.app/ecg/left-bundle-branch-block/): In left bundle branch block (LBBB) the left ventricle is activated late, from the right side across the septum. The QRS is 120 ms or wider, with broad notched R waves in the lateral leads, a deep S wave in V1, and ST-T changes opposite to the QRS.
+- [Right bundle branch block](https://ecgstudio.app/ecg/right-bundle-branch-block/): In right bundle branch block (RBBB) the right ventricle is activated late, so the end of the QRS points to the right and forward. The QRS is 120 ms or wider, with an rsR′ ('M' shape) in V1–V2 and a broad slurred S wave in I and V6.
+- [Left anterior fascicular block](https://ecgstudio.app/ecg/left-anterior-fascicular-block/): Left anterior fascicular block (left anterior hemiblock) is the commonest cause of marked left axis deviation: the QRS axis lies between −45° and −90°, with qR complexes in I and aVL and rS complexes in II, III and aVF, and a QRS under 120 ms.
+- [Left posterior fascicular block](https://ecgstudio.app/ecg/left-posterior-fascicular-block/): Left posterior fascicular block (left posterior hemiblock) shifts the QRS axis to the right, beyond +90°, with rS complexes in I and aVL and qR complexes in III and aVF. It is a diagnosis of exclusion once other causes of right axis deviation are ruled out.
+- [Sinoatrial exit block](https://ecgstudio.app/ecg/sinoatrial-exit-block/): In sinoatrial (SA) exit block the sinus node keeps firing but some impulses fail to leave it, so a whole P–QRS–T complex is missing. In second-degree type II SA block the pause is an exact multiple of the normal P–P interval.
+
+### Ischemia and infarction
+- [Anterior STEMI (LAD occlusion)](https://ecgstudio.app/ecg/anterior-stemi/): An anterior ST-elevation myocardial infarction (STEMI) is caused by occlusion of the left anterior descending (LAD) artery. It shows ST elevation in the precordial leads V1–V4, extending to I, aVL, V5 and V6 when the occlusion is proximal (anterolateral STEMI), often with reciprocal ST depression in the inferior leads.
+- [Inferior STEMI (RCA occlusion)](https://ecgstudio.app/ecg/inferior-stemi/): An inferior ST-elevation myocardial infarction shows ST elevation in leads II, III and aVF, usually with reciprocal ST depression in I and aVL. About 80% are caused by occlusion of the right coronary artery (RCA) and the rest by the left circumflex.
+- [Lateral STEMI (circumflex occlusion)](https://ecgstudio.app/ecg/lateral-stemi/): A lateral myocardial infarction, usually from occlusion of the left circumflex (LCx) artery or a diagonal branch of the LAD, shows ST elevation in the lateral leads I, aVL, V5 and V6. Circumflex occlusions are often electrically subtle and can extend to the posterior wall.
+- [Hyperacute T waves](https://ecgstudio.app/ecg/hyperacute-t-waves/): Hyperacute T waves are tall, broad-based, symmetric T waves over the territory of a freshly occluded coronary artery. They appear in the first minutes of a myocardial infarction, often before obvious ST elevation.
+- [Old inferior myocardial infarction](https://ecgstudio.app/ecg/old-inferior-myocardial-infarction/): An old (healed) myocardial infarction is recognised on the ECG by pathological Q waves in the leads over the scar, here II, III and aVF after an inferior infarct, with the ST segment back at baseline and T-wave inversion that may persist for months.
+- [Wellens syndrome](https://ecgstudio.app/ecg/wellens-syndrome/): Wellens syndrome is a pattern of deep, symmetric (type B) or biphasic (type A) T waves in V2–V3 in a patient whose chest pain has settled. It indicates a critical proximal LAD stenosis that has reperfused and carries a high risk of an extensive anterior infarction.
+
+### Chambers, pre-excitation and other conditions
+- [Left ventricular hypertrophy](https://ecgstudio.app/ecg/left-ventricular-hypertrophy/): Left ventricular hypertrophy (LVH) raises the QRS voltages that face the left ventricle: tall R waves in the lateral leads and deep S waves in V1–V2. The Sokolow–Lyon and Cornell criteria are the most widely used; ST depression and T inversion in the lateral leads (the strain pattern) often accompany it.
+- [Right ventricular hypertrophy](https://ecgstudio.app/ecg/right-ventricular-hypertrophy/): Right ventricular hypertrophy (RVH) shifts the QRS forces to the right and forward: right axis deviation, a dominant R wave in V1, deep S waves in V5–V6, and often right atrial enlargement and right ventricular strain.
+- [Wolff–Parkinson–White pattern](https://ecgstudio.app/ecg/wolff-parkinson-white/): In Wolff–Parkinson–White (WPW) pattern an accessory pathway lets the atrial impulse reach the ventricles early, bypassing the AV node. The ECG shows a short PR interval, a slurred upstroke at the start of the QRS (the delta wave), and a widened QRS.
+- [Acute pericarditis](https://ecgstudio.app/ecg/pericarditis/): Acute pericarditis causes widespread concave ST elevation in most leads, PR-segment depression, and ST depression with PR elevation in aVR, without the reciprocal changes or Q waves of a myocardial infarction.
+- [Brugada syndrome (type 1)](https://ecgstudio.app/ecg/brugada-syndrome/): Brugada syndrome is an inherited sodium-channel disorder with a risk of ventricular fibrillation and sudden death. The diagnostic type 1 pattern is coved ST elevation of 2 mm or more in V1–V2 followed by a negative T wave.
+- [Right atrial enlargement](https://ecgstudio.app/ecg/right-atrial-enlargement/): Right atrial enlargement makes the P wave taller but not longer: a peaked P wave over 2.5 mm in lead II (P pulmonale) and a prominent initial positive P wave in V1.
+- [Left atrial enlargement](https://ecgstudio.app/ecg/left-atrial-enlargement/): Left atrial enlargement makes the P wave longer: a broad, notched P wave of 120 ms or more in lead II (P mitrale) and a deep, wide terminal negative part of the P wave in V1.
+
+### Electrolytes and temperature
+- [Hyperkalemia](https://ecgstudio.app/ecg/hyperkalemia/): Hyperkalemia (high serum potassium) first causes tall, narrow, peaked T waves; as potassium rises further the P waves flatten and disappear, the PR and QRS lengthen, and the ECG can progress to a sine-wave pattern, ventricular fibrillation or asystole.
+- [Hypokalemia](https://ecgstudio.app/ecg/hypokalemia/): Hypokalemia (low serum potassium) flattens the T waves, brings out prominent U waves, depresses the ST segment, and prolongs the apparent QT (in fact the QU) interval, raising the risk of arrhythmias including torsades de pointes.
+- [Hypocalcemia](https://ecgstudio.app/ecg/hypocalcemia/): Hypocalcemia (low serum calcium) prolongs the QT interval by lengthening the ST segment, while the T wave itself keeps a normal shape and width.
+- [Hypercalcemia](https://ecgstudio.app/ecg/hypercalcemia/): Hypercalcemia (high serum calcium) shortens the QT interval by shortening the ST segment, so the T wave seems to start right after the QRS.
+- [Hypothermia](https://ecgstudio.app/ecg/hypothermia/): Hypothermia slows the heart and every interval and produces the characteristic Osborn wave: a positive hump at the J point, at the junction of the QRS and ST segment, most visible in the inferior and lateral precordial leads.
+
+## Optional
+
+- [Contact](https://ecgstudio.app/contact/): questions, feedback and teaching use
+- [Privacy policy](https://ecgstudio.app/privacy/): no personal data is collected by the simulator

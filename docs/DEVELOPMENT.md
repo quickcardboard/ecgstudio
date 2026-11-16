@@ -2628,3 +2628,20 @@ Sokolow 5.19 with strain; evalecg QRS 84 ms, PR 136 ms, P II 0.22 mV, axis 12° 
 arrhythmias, AVNRT/AVRT, ST baseline run without errors. The old model as a variant: reader 51/57. Browser: index.html
 (1440×900, 844×390), app, training and app-oldmodel load without page errors; the simulator reads "Normal sinus
 rhythm, axis +26°".
+
+## claude/loving-noether-jdkvjd round 1: ECG library, search and AI discoverability
+
+No engine change. New crawlable content and metadata (plan and outreach drafts: `docs/MARKETING.md`):
+- **ECG library** at `/ecg/`: 37 static pages (rhythms, blocks, ischemia, chambers and conditions, electrolytes), each
+  with a summary, criteria, mechanism, differential, the simulator's own read, a 12-lead image and a share link that
+  opens the scenario. Text in `src/learn/topics.json`; images and reads rendered from the live model by
+  `tools/seo_shots.js` (Playwright, ~25 s per topic) into `ecg/<slug>/ecg.png` and `src/learn/shots.json`; pages,
+  `sitemap.xml` and `llms.txt` written by `tools/learn_pages.py` from `tools/build.py`.
+- `robots.txt` (AI crawlers named; old-model previews and the app shell excluded), WebApplication JSON-LD and Open Graph
+  image (`icons/og-image.png`) in `src/template.html`, a link to the library under Help → About, and `site.json`
+  `"verify"` for the Google/Bing ownership meta tags.
+- `tools/promo_clips.js`: portrait 1080×1920, 60 fps clips of the phone layout for Shorts/TikTok/Reels, with the page's
+  animation frames stepped by hand and captured over CDP (not in the build).
+- Contact page `/contact/`: the Google Form in `site.json` `"contactForm"` embedded (`?embedded=true`), linked from the
+  library header, Help → About and `llms.txt`; nothing is built while `contactForm` is empty. Privacy policy: a
+  "Contact form" section.

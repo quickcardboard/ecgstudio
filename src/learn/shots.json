@@ -1,0 +1,489 @@
+{
+ "normal-sinus-rhythm": {
+  "hash": "",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 85 ms",
+   "QT/QTcF 373/396 ms",
+   "Axis +26° · normal axis"
+  ],
+  "findings": []
+ },
+ "anterior-stemi": {
+  "hash": "r=72&o=4&c=2&h=1",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 81 ms",
+   "QT/QTcF 364/386 ms",
+   "Axis +39° · normal axis"
+  ],
+  "findings": [
+   "Acute anterolateral STEMI: ST elevation in I, aVL, V1–V5",
+   "Reciprocal ST depression in II, III, aVF",
+   "R waves lost in II, III, aVF",
+   "T-wave inversion in II"
+  ]
+ },
+ "atrial-fibrillation": {
+  "hash": "r=72&a=af",
+  "rhythm": "Atrial fibrillation with controlled ventricular response (91 bpm, irregularly irregular)",
+  "chips": [
+   "Rate 91 bpm",
+   "Atrial fibrillatory",
+   "QRS 85 ms",
+   "QT/QTcF 310/382 ms",
+   "Axis +31° · normal axis"
+  ],
+  "findings": []
+ },
+ "atrial-flutter": {
+  "hash": "r=72&a=flutter",
+  "rhythm": "Atrial flutter (typical, counterclockwise), atrial 315/min with 2:1 AV conduction",
+  "chips": [
+   "Rate 164 bpm",
+   "Atrial 315/min",
+   "QRS 85 ms",
+   "QT/QTcF 300/420 ms",
+   "Axis +30° · normal axis"
+  ],
+  "findings": []
+ },
+ "multifocal-atrial-tachycardia": {
+  "hash": "r=118&a=mat",
+  "rhythm": "Multifocal atrial tachycardia: 119 bpm, irregular, three or more P-wave shapes",
+  "chips": [
+   "Rate 119 bpm",
+   "PR 126–199 ms",
+   "QRS 85 ms",
+   "QT/QTcF 335/452 ms",
+   "Axis +30° · normal axis"
+  ],
+  "findings": []
+ },
+ "avnrt": {
+  "hash": "r=72&a=avnrt",
+  "rhythm": "AVNRT (typical slow–fast): 174 bpm, narrow QRS, retrograde P hidden at the end of the QRS",
+  "chips": [
+   "Rate 174 bpm",
+   "PR 314 ms",
+   "QRS 85 ms",
+   "QT/QTcF 296/423 ms",
+   "Axis +33° · normal axis"
+  ],
+  "findings": []
+ },
+ "avrt": {
+  "hash": "r=72&a=avrt&s=ap",
+  "rhythm": "Orthodromic AVRT: down the AV node, back up the left lateral accessory pathway (narrow QRS, no pre-excitation)",
+  "chips": [
+   "Rate 207 bpm",
+   "RP 46 ms (retrograde P)",
+   "QRS 86 ms",
+   "QT/QTcF 213/319 ms",
+   "Axis +19° · normal axis"
+  ],
+  "findings": []
+ },
+ "ventricular-tachycardia": {
+  "hash": "r=72&a=vt",
+  "rhythm": "Monomorphic ventricular tachycardia, 182 bpm, with AV dissociation",
+  "chips": [
+   "Rate 182 bpm",
+   "QRS 184 ms",
+   "QT/QTcF 304/440 ms",
+   "Axis -99° · left axis deviation"
+  ],
+  "findings": []
+ },
+ "torsades-de-pointes": {
+  "hash": "r=72&a=tdp",
+  "rhythm": "Torsades de pointes: polymorphic ventricular tachycardia, 271 bpm, the QRS axis twisting around the baseline (amplitude waxing and waning)",
+  "chips": [
+   "Rate 271 bpm",
+   "QRS 409 ms"
+  ],
+  "findings": []
+ },
+ "ventricular-fibrillation": {
+  "hash": "r=72&a=vf",
+  "rhythm": "Ventricular fibrillation: shock now",
+  "chips": [
+   "Rhythm chaotic, no QRS complexes"
+  ],
+  "findings": []
+ },
+ "first-degree-av-block": {
+  "hash": "r=72&b=AVN.first",
+  "rhythm": "Normal sinus rhythm with 1st-degree AV block",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 252 ms",
+   "QRS 85 ms",
+   "QT/QTcF 381/405 ms",
+   "Axis +28° · normal axis"
+  ],
+  "findings": []
+ },
+ "mobitz-type-1-wenckebach": {
+  "hash": "r=72&b=AVN.wenckebach",
+  "rhythm": "Sinus rhythm with 2nd-degree AV block, Mobitz I (Wenckebach)",
+  "chips": [
+   "Ventricular 58 bpm",
+   "Atrial 72 bpm",
+   "PR 191–438 ms",
+   "QRS 85 ms",
+   "QT/QTcF 418/372 ms",
+   "Axis +27° · normal axis"
+  ],
+  "findings": []
+ },
+ "mobitz-type-2": {
+  "hash": "r=72&b=HIS.mobitz2",
+  "rhythm": "Sinus rhythm with 2nd-degree AV block, Mobitz II",
+  "chips": [
+   "Ventricular 52 bpm",
+   "Atrial 72 bpm",
+   "PR 136 ms",
+   "QRS 85 ms",
+   "QT/QTcF 367/390 ms",
+   "Axis +26° · normal axis"
+  ],
+  "findings": []
+ },
+ "2-to-1-av-block": {
+  "hash": "r=72&b=AVN.two-to-one",
+  "rhythm": "Sinus rhythm with 2:1 AV block",
+  "chips": [
+   "Ventricular 36 bpm",
+   "Atrial 72 bpm",
+   "PR 135 ms",
+   "QRS 85 ms",
+   "QT/QTcF 418/353 ms",
+   "Axis +27° · normal axis"
+  ],
+  "findings": []
+ },
+ "complete-heart-block": {
+  "hash": "r=72&b=AVN.complete",
+  "rhythm": "3rd-degree (complete) AV block with junctional escape rhythm",
+  "chips": [
+   "Ventricular 48 bpm",
+   "Atrial 72 bpm",
+   "PR dissociated",
+   "QRS 85 ms",
+   "QT/QTcF 401/372 ms",
+   "Axis +28° · normal axis"
+  ],
+  "findings": []
+ },
+ "left-bundle-branch-block": {
+  "hash": "r=72&b=LBB.complete",
+  "rhythm": "Normal sinus rhythm; left bundle branch block",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 146 ms",
+   "QRS 129 ms",
+   "QT/QTcF 411/437 ms",
+   "Axis +84° · normal axis"
+  ],
+  "findings": []
+ },
+ "right-bundle-branch-block": {
+  "hash": "r=72&b=RBB.complete",
+  "rhythm": "Normal sinus rhythm; right bundle branch block",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 133 ms",
+   "QT/QTcF 388/412 ms",
+   "Axis (first 60 ms) -29° · normal axis"
+  ],
+  "findings": []
+ },
+ "left-anterior-fascicular-block": {
+  "hash": "r=72&b=LAF.complete",
+  "rhythm": "Normal sinus rhythm; left anterior fascicular block",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 85 ms",
+   "QT/QTcF 377/400 ms",
+   "Axis -42° · left axis deviation"
+  ],
+  "findings": []
+ },
+ "left-posterior-fascicular-block": {
+  "hash": "r=72&b=LPF.complete",
+  "rhythm": "Normal sinus rhythm; left posterior fascicular block",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 141 ms",
+   "QRS 80 ms",
+   "QT/QTcF 370/393 ms",
+   "Axis +90° · normal axis"
+  ],
+  "findings": []
+ },
+ "sinoatrial-exit-block": {
+  "hash": "r=72&b=SAN.sa-exit",
+  "rhythm": "Sinus rhythm with 2nd-degree SA exit block",
+  "chips": [
+   "Rate 48 bpm",
+   "PR 136 ms",
+   "QRS 85 ms",
+   "QT/QTcF 367/390 ms",
+   "Axis +26° · normal axis"
+  ],
+  "findings": []
+ },
+ "inferior-stemi": {
+  "hash": "r=72&o=127&c=2&h=1",
+  "rhythm": "Normal sinus rhythm with 1st-degree AV block",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 223 ms",
+   "QRS 84 ms",
+   "QT/QTcF 358/380 ms",
+   "Axis +13° · normal axis"
+  ],
+  "findings": [
+   "Acute inferior STEMI: ST elevation in II, III, aVF",
+   "Reciprocal ST depression in I, aVL, V2–V6",
+   "ST depression in V1–V3 suggests posterior extension",
+   "T-wave inversion in I, V5, V6",
+   "The occlusion is proximal to the AV-node artery at the crux: slower AV conduction, longer PR"
+  ]
+ },
+ "lateral-stemi": {
+  "hash": "r=72&o=61&c=2&h=1",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 83 ms",
+   "QT/QTcF 373/396 ms",
+   "Axis +122° · right axis deviation"
+  ],
+  "findings": [
+   "Acute lateral STEMI: ST elevation in I, aVL, V5, V6",
+   "Reciprocal ST depression in III, aVR, aVF, V1–V4",
+   "ST depression in V1–V3 suggests posterior extension",
+   "Pathological Q/QS waves in V5"
+  ]
+ },
+ "hyperacute-t-waves": {
+  "hash": "r=72&o=11&c=2&h=0.25",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 81 ms",
+   "QT/QTcF 373/396 ms",
+   "Axis +27° · normal axis"
+  ],
+  "findings": [
+   "Acute anterior STEMI: ST elevation in V3, V4",
+   "Hyperacute T waves in V3, V4"
+  ]
+ },
+ "old-inferior-myocardial-infarction": {
+  "hash": "r=72&o=127&c=2&h=720",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 80 ms",
+   "QT/QTcF 384/408 ms",
+   "Axis -20° · normal axis"
+  ],
+  "findings": [
+   "Old inferior infarct: Q/QS waves in II, III, aVF, T inversion in aVF, ST at baseline"
+  ]
+ },
+ "wellens-syndrome": {
+  "hash": "r=72&wellens=B",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 85 ms",
+   "QT/QTcF 507/539 ms",
+   "Axis +26° · normal axis"
+  ],
+  "findings": [
+   "Deep, symmetric T-wave inversion in V2–V4, no Q waves, ST near baseline, R waves preserved: Wellens pattern type B"
+  ]
+ },
+ "left-ventricular-hypertrophy": {
+  "hash": "r=72&s=lvh",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 95 ms",
+   "QT/QTcF 375/398 ms",
+   "Axis +24° · normal axis"
+  ],
+  "findings": [
+   "Left ventricular hypertrophy by voltage (Sokolow–Lyon 5.2 mV) with repolarization abnormality (strain)"
+  ]
+ },
+ "right-ventricular-hypertrophy": {
+  "hash": "r=72&s=rvh",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 99 ms",
+   "QT/QTcF 386/410 ms",
+   "Axis +142° · right axis deviation"
+  ],
+  "findings": [
+   "Right ventricular hypertrophy: dominant R in V1 (R 1.61 mV) with T inversion in V1–V2 (RV strain)"
+  ]
+ },
+ "wolff-parkinson-white": {
+  "hash": "r=72&s=ap",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 76 ms",
+   "QRS 146 ms",
+   "QT/QTcF 429/456 ms",
+   "Axis +95° · right axis deviation"
+  ],
+  "findings": [
+   "Ventricular pre-excitation (WPW pattern): short PR (76 ms), delta wave, QRS 146 ms. Repolarization changes are secondary."
+  ]
+ },
+ "pericarditis": {
+  "hash": "r=72&s=peri",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 85 ms",
+   "QT/QTcF 372/395 ms",
+   "Axis 0° · normal axis"
+  ],
+  "findings": [
+   "Diffuse ST elevation (I, II, aVF, V2, V3, V4) with ST depression in aVR and PR depression in II (-0.09 mV): acute pericarditis pattern"
+  ]
+ },
+ "brugada-syndrome": {
+  "hash": "r=72&s=brugada",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 85 ms",
+   "QT/QTcF 386/410 ms",
+   "Axis +30° · normal axis"
+  ],
+  "findings": [
+   "Coved ST elevation ≥ 2 mm with T inversion in V2: Brugada type 1 pattern"
+  ]
+ },
+ "hyperkalemia": {
+  "hash": "r=72&hyperK=mild",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 85 ms",
+   "QT/QTcF 298/317 ms",
+   "Axis +26° · normal axis"
+  ],
+  "findings": [
+   "Tall, narrow, peaked T waves (V3 11 mm): hyperkalemia pattern"
+  ]
+ },
+ "hypokalemia": {
+  "hash": "r=72&s=hypoK",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 85 ms",
+   "QT/QTcF 391/415 ms",
+   "Axis +26° · normal axis"
+  ],
+  "findings": [
+   "Flat T waves followed by U waves (best seen in V2–V3), slight ST sagging: hypokalemia pattern"
+  ]
+ },
+ "hypocalcemia": {
+  "hash": "r=72&s=hypoCa",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 85 ms",
+   "QT/QTcF 463/492 ms",
+   "Axis +26° · normal axis"
+  ],
+  "findings": [
+   "Long QTc (492 ms) from a long, flat ST segment with a normal T wave: hypocalcemia pattern"
+  ]
+ },
+ "hypercalcemia": {
+  "hash": "r=72&s=hyperCa",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 136 ms",
+   "QRS 85 ms",
+   "QT/QTcF 318/338 ms",
+   "Axis +26° · normal axis"
+  ],
+  "findings": [
+   "Short QTc (338 ms): the T wave starts almost at the end of the QRS (short ST segment): hypercalcemia pattern"
+  ]
+ },
+ "hypothermia": {
+  "hash": "r=72&s=hypothermia",
+  "rhythm": "Sinus bradycardia",
+  "chips": [
+   "Rate 45 bpm",
+   "PR 162 ms",
+   "QRS 93 ms",
+   "QT/QTcF 491/446 ms",
+   "Axis -1° · normal axis"
+  ],
+  "findings": [
+   "J (Osborn) waves at the end of the QRS, long QT and bradycardia: hypothermia pattern"
+  ]
+ },
+ "right-atrial-enlargement": {
+  "hash": "r=72&s=rae",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 130 ms",
+   "QRS 85 ms",
+   "QT/QTcF 373/396 ms",
+   "Axis +24° · normal axis"
+  ],
+  "findings": [
+   "Right atrial enlargement (P pulmonale): P 0.39 mV in II"
+  ]
+ },
+ "left-atrial-enlargement": {
+  "hash": "r=72&s=lae",
+  "rhythm": "Normal sinus rhythm",
+  "chips": [
+   "Rate 72 bpm",
+   "PR 162 ms",
+   "QRS 85 ms",
+   "QT/QTcF 373/396 ms",
+   "Axis +29° · normal axis"
+  ],
+  "findings": [
+   "Left atrial enlargement (P mitrale): P 153 ms wide, notched in II (humps 56 ms apart)"
+  ]
+ }
+}

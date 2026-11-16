@@ -1,0 +1,25 @@
+# ECG Studio: everything public may be crawled, by search engines and AI assistants alike.
+User-agent: *
+Allow: /
+# (previews of older model versions and the app shell: not for search results)
+Disallow: /app-oldmodel/
+Disallow: /app-48normalaxis/
+Disallow: /app/
+
+# AI search and assistant crawlers: explicitly welcome
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: CCBot
+Allow: /
+Disallow: /app-oldmodel/
+Disallow: /app-48normalaxis/
+
+Sitemap: https://ecgstudio.app/sitemap.xml
