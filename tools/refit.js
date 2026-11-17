@@ -8,7 +8,7 @@ process.env.CS_LITE = process.env.CS_LITE || '1';   // ischaemia is checked by f
 const { check } = require('./fullcheck.js'); const act = require('./acttune.js');
 const BASE_IERR = +(process.env.BASE_IERR || 5);
 function evaluate(p) {
-  const r = check(p, !process.env.CAL), a = act.evaluate(p)   // (CAL=1: gain recalibrated, for a different forward model), ax = r.axes;
+  const r = check(p, !process.env.CAL), a = act.evaluate(p), ax = r.axes;   // (CAL=1: gain recalibrated, for a different forward model)
   const pen = (v, lo, hi) => (v < lo ? lo - v : v > hi ? v - hi : 0);
   // AXES=lenient: fascicular blocks only need the deviation (LAFB ≤ −30°, LPFB ≥ +90°); LBBB not scored
   const len_ = process.env.AXES === 'lenient';
