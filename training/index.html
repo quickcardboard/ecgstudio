@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-16 (8ae278e)">
+<meta name="version" content="2026-11-17 (03d4588)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -973,7 +973,9 @@ body.land #fsClose { display: none; }
     precordialDipoleW: 0.4,
     atrialLimbGain: 1.897,      // atrial sources in the solved-torso limb leads: keeps the P-wave calibration made with the cylinder field (P in II 0.23 mV)
     limbTorso2: true,          // limb leads I, II from the solved torso (src/torso_limb.json: shoulder/axilla and hip contact patches) instead of the cylinder field
-    fullTorso: false,          // with chestTorso: every lead from the solved torso's electrode potentials (limb LA−RA, LL−RA; chest V − WCT), no heart-vector blend
+    fullTorso: false,
+    fullTorsoCavity: false,    // with fullTorso: compute the LV-cavity electrode so the cavity window (infarct Q waves) works on the full-torso path (torso-v3 round 1)
+    fullTorsoAtrialGain: 1,    // with fullTorso: atrial source gain on the limb electrodes (P-wave size; ~3.1–3.4 restores P II 0.22 mV)          // with chestTorso: every lead from the solved torso's electrode potentials (limb LA−RA, LL−RA; chest V − WCT), no heart-vector blend
     chestTorsoT: 1, chestTorsoT0: 40, chestTorsoTRamp: 80, chestTorsoTGain: 1.4, chestTorsoTCav: 0, chestTorsoTLead: [0, 0, 0.5, 0.75, 1, 1],   // ST-T of the chest leads from the solved torso (see the chest leads in Sim)
     chestTorso: false,          // electrodes' local field from the solved torso (src/torso_v2.json) instead of point sources     // share of the precordial signal from the heart-vector projection
     precordialDipoleGain: 2.2,  // precordial lead-vector length relative to the limb leads
@@ -2154,15 +2156,18 @@ body.land #fsClose { display: none; }
         out[tv2.chestT + e] = tv2.scale * h * h * sc * ((G[0] * ex[0] + G[1] * ex[1] + G[2] * ex[2]) + re * (G[0] * rr[0] + G[1] * rr[1] + G[2] * rr[2]) + fe * (G[0] * ff[0] + G[1] * ff[1] + G[2] * ff[2]));
       }
       if (tv2 && tv2.chest) {                                 // torso lead fields for the electrode potentials
+        // (fullTorsoAtrialGain: atrial sources on the limb electrodes only, as atrialLimbGain does for the solved limb leads)
+        const kA0 = kc !== KIND.VENT ? (this.P.fullTorsoAtrialGain || 1) : 1;
         for (let e = 0; e < 9; e++) {
-          const G = tv2.grad(e, m);
-          out[e] = tv2.scale * h * h * sc * ((G[0] * ex[0] + G[1] * ex[1] + G[2] * ex[2]) + re * (G[0] * rr[0] + G[1] * rr[1] + G[2] * rr[2]) + fe * (G[0] * ff[0] + G[1] * ff[1] + G[2] * ff[2]));
+          const G = tv2.grad(e, m), kA = e < 3 ? kA0 : 1;
+          out[e] = kA * tv2.scale * h * h * sc * ((G[0] * ex[0] + G[1] * ex[1] + G[2] * ex[2]) + re * (G[0] * rr[0] + G[1] * rr[1] + G[2] * rr[2]) + fe * (G[0] * ff[0] + G[1] * ff[1] + G[2] * ff[2]));
         }
-        return;
+        if (!(cav && this.P.fullTorsoCavity)) return;          // (fullTorsoCavity: the virtual LV-cavity electrode is filled too, so the cavity window works on this path)
       }
       if (cav) {                                              // virtual electrode in the LV cavity (point-source field)
         const rx = cav.p[0] - m[0], ry = cav.p[1] - m[1], rz = cav.p[2] - m[2], r = Math.max(4, Math.sqrt(rx * rx + ry * ry + rz * rz));
         out[cav.e] = h * h * sc * ((rx * ex[0] + ry * ex[1] + rz * ex[2]) + re * (rx * rr[0] + ry * rr[1] + rz * rr[2]) + fe * (rx * ff[0] + ry * ff[1] + rz * ff[2])) / (r * r * r);
+        if (tv2 && tv2.chest) return;                         // (fullTorsoCavity: the electrodes came from the torso above)
       }
       for (let e = 0; e < 9; e++) {
         const rx = E[e][0] - m[0], ry = E[e][1] - m[1], rz = E[e][2] - m[2];

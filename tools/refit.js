@@ -3,12 +3,12 @@
 // + axis penalties (normal +30–75° per 3°; LAFB −45 to −90°, LPFB +100 to +180°, LBBB −30 to +90°, RVH +110 to +210° per 10°)
 // + 0.5 × the cstune ECG checklist (QRS shape, progression, amplitudes, P, hypertrophy)
 // + 0.5 × the activation score against mapping data (tools/acttune.js; live baseline 12.8)
-//   node tools/refit.js '[{...}]'      require('./refit.js').evaluate(p)
+//   node tools/refit.js '[{...}]'      (CAL=1 recalibrates the gain: needed for another torso field, TV2=...)      require('./refit.js').evaluate(p)
 process.env.CS_LITE = process.env.CS_LITE || '1';   // ischaemia is checked by fullcheck, not twice
 const { check } = require('./fullcheck.js'); const act = require('./acttune.js');
 const BASE_IERR = +(process.env.BASE_IERR || 5);
 function evaluate(p) {
-  const r = check(p, true), a = act.evaluate(p), ax = r.axes;
+  const r = check(p, !process.env.CAL), a = act.evaluate(p)   // (CAL=1: gain recalibrated, for a different forward model), ax = r.axes;
   const pen = (v, lo, hi) => (v < lo ? lo - v : v > hi ? v - hi : 0);
   // AXES=lenient: fascicular blocks only need the deviation (LAFB ≤ −30°, LPFB ≥ +90°); LBBB not scored
   const len_ = process.env.AXES === 'lenient';

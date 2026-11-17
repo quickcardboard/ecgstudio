@@ -2645,3 +2645,42 @@ No engine change. New crawlable content and metadata (plan and outreach drafts: 
 - Contact page `/contact/`: the Google Form in `site.json` `"contactForm"` embedded (`?embedded=true`), linked from the
   library header, Help → About and `llms.txt`; nothing is built while `contactForm` is empty. Privacy policy: a
   "Contact form" section.
+
+## claude/torso-v3 round 1: one torso for every lead (not adopted); an anatomical torso (v3)
+
+**Every lead from the solved torso (`fullTorso`), re-tested on the Round 69 model.** A nine-electrode solve at the live
+orientation reproduces the bundled LA/LL/V3–V6 fields exactly. Scored at a recalibrated gain (fullcheck: ×2.26):
+- R progression is no longer the blocker (V1→V6 0.28, 0.60, 0.73, 1.21, 2.26, 1.49 mV); V5 and V6 now look alike.
+- The cavity electrode was never computed on this path (`pairCoef` returned first), so the window could only attenuate.
+  New `fullTorsoCavity` fills it: infarct Q-wave lead-group errors 3–4 → 1 at every chest depth.
+- Atria: in this mode the atrial gain was missing (P II 0.06 mV). New `fullTorsoAtrialGain` (limb electrodes only;
+  ~3.1–3.4 gives 0.22 mV); applied to all nine electrodes it made AF/flutter/MAT and LAE misread.
+- Chest/limb balance: chest leads about twice the limb leads. `chestGap` 25 (heart 10 mm deeper) brings V5 2.26 → 1.9 mV
+  and LVH Sokolow back in range; 35 is worse.
+- Best (gap 25, cavity on): scorecard 60/66, fullcheck iErr 4, reader 45/57 (5 misses atrial, from the gain above).
+- **Joint refit in that mode** (`tools/fullfit.js`, 200 random candidates over conduction speeds, Purkinje, fascicles,
+  cavity window and injury strengths; 70 dropped beats with LCx injury > 2.4, as in Round 68): best iErr 2 but LAFB −32°,
+  LPFB 77°, refit score 62 (live 30). **Proximal LCx ST in V5 missing in 130/130 candidates, distal LCx ST in V6 in
+  129/130**: not an activation problem. With the lungs at body conductivity, or the chest electrodes 25 mm lower, distal
+  LCx V6 ST appears: the v2 torso's ellipsoid lungs (no cardiac notch) shield the lateral wall.
+
+**Torso v3: a real patient's torso** (`tools/torso_raster.py`, `tools/torso_v3.py`). Patient 16 of Malik et al. 2026
+(Zenodo 10.5281/zenodo.18890229, CC-BY 4.0; credit the authors before any field built from it ships): 23 labelled
+regions from CT, labels identified from geometry (1 soft tissue, 2 skin, 3 bone, 8 liver, 10 lungs, great vessels;
+the patient's heart replaced by ours at its centroid, our fitted orientation kept; their heart lies 24° below horizontal,
+ours 44°). Conductivities: torso/skin 0.22, lung 0.05, bone 0.02, liver 0.05, blood 0.65 S/m; trunk extended below
+the mesh (upper abdomen) to y −360. Chest electrodes moved onto this skin; V6 at the mid-axillary line.
+- **Limb electrodes.** The CT is arms-down (arms against the chest wall). Patches on the arms beside the heart give a
+  near-Einthoven triangle (I : II : III 1 : 0.93 : 0.88, II at 54°) and leftward axes (normal −8°, LPFB 60°). Patches on
+  the shoulder tops, where the arms join the trunk: **1 : 1.37 : 1.27, II at 60°** (the v2 torso: 1 : 1.7 : 1.9).
+  Cutting the arms off the chest wall below the axilla was tried; there is no neck in this CT to cut along.
+- **Live mixed model with the v3 limb and V3–V6 ST-T fields:** scorecard 59/66, fullcheck iErr 2, reader 47/57. Every
+  old inferior infarct (proximal/mid/distal RCA, PDA at 30 d) reads normal; LPFB 80°, RVH 19° (not read), WPW read as RBBB.
+  The v2 torso's 1.7–1.9× inferior leads were holding up the heart's weak inferior and rightward forces (Round 68, part 2's
+  over-cancellation).
+- **The RCA infarct shrinking of Round 69** (`occlusionScarWindow` RCA 0, `occlusionMarginMm` RCA 2) was made for the v2
+  torso. Restoring both (`{}`) brings every old inferior infarct back (reader: all RCA/PDA 1 h and 30 d pass; LCx pass);
+  scorecard 57/66 (Q III −14 mm, R aVL 12.6 mm after the mid-RCA infarct; LPFB 80°, RVH 19°, RBBB −31°, flat T V6).
+- Full-torso mode with v3: iErr 5 (proximal LCx V5 ST and proximal LAD V1/I ST still missing).
+- Next: refit the activation to the v3 torso (live mixed model), aiming at the inferior/rightward forces (LPFB, RVH, WPW)
+  with the infarct reads protected.
