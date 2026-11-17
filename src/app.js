@@ -843,7 +843,7 @@
     g3.lvCenter = new THREE.Vector3(lvc[0] / nl, lvc[1] / nl, lvc[2] / nl);
     g3.lax = lax.clone().normalize();
     g3.cutPresets = {
-      anterior: { n: nrm, p: p0, up: [0, 1, 0], dist: 395 },
+      anterior: { n: nrm, p: p0, up: [0, 1, 0], leadIUp: true, dist: 395 },   // (rolled so lead I is horizontal, for teaching)
       chest: { world: [0, 0, 1], p: g3.lvCenter, up: [0, 1, 0], dist: 395 },          // true anterior: from the front of the chest, head up (frontal plane faces the viewer)
       lateral: { world: [1, 0.05, 0.1], p: g3.lvCenter, up: [0, 1, 0], dist: 375 },   // from the patient's left
       short: { n: saN, p: saP, up: [0, 0, 1], dist: 330 },
@@ -975,7 +975,13 @@
     const dir = pr.world ? new THREE.Vector3(...pr.world).normalize() : pr.n.clone().transformDirection(mw);
     ctl.target.set(0, 0, 0);
     cam.position.copy(dir).multiplyScalar(ui.leads ? LEADS_DIST : pr.dist);
-    cam.up.set(...pr.up); cam.lookAt(0, 0, 0); ctl.update();
+    if (pr.leadIUp) {
+      // roll about the view axis so lead I (the patient's right→left line, world +x) runs level across the screen
+      const f = dir.clone().negate(), l = new THREE.Vector3(1, 0, 0).addScaledVector(f, -f.x).normalize();
+      const up = new THREE.Vector3().crossVectors(l, f).normalize();
+      cam.up.copy(up.y < 0 ? up.negate() : up);
+    } else cam.up.set(...pr.up);
+    cam.lookAt(0, 0, 0); ctl.update();
     g3.planeDirty = true;
   }
 
@@ -1123,7 +1129,6 @@
       if (L === 3) put('LA', x, y, z); else if (L === 4) put('RA', x, y, z);
       else if (L === 1) {
         const ph = A.phi[c];
-        if (Math.abs(ph) < 0.4 && A.zuvc[c] > 0.2 && A.zuvc[c] < 0.8) put('Septum', x, y, z);
         if (shortish) {
           if (ph > 0.7 && ph < 2.2) put('Anterior wall', x, y, z);
           else if (Math.abs(ph) >= 2.4) put('Lateral wall', x, y, z);
@@ -1132,6 +1137,27 @@
       }
     }
     for (const L of [1, 2]) { const a = g3.cavCells[L]; for (let q = 0; q < a.length; q += 3) if (Math.abs(d(a[q], a[q + 1], a[q + 2])) < 3) put(L === 1 ? 'LV' : 'RV', a[q], a[q + 1], a[q + 2]); }
+    { // septum: walk from the RV cavity's centre to the LV cavity's (both in the cut) and label the middle of the wall crossed
+      const rv = acc.RV, lv = acc.LV, [gx, gy, gz] = A.dims, o = A.origin, h = A.h;
+      const wall = (x, y, z) => { const i = Math.floor((x - o[0]) / h), j = Math.floor((y - o[1]) / h), k = Math.floor((z - o[2]) / h);
+        if (i < 0 || j < 0 || k < 0 || i >= gx || j >= gy || k >= gz) return false; const c = A.grid[(i * gy + j) * gz + k]; return c >= 0 && A.label[c] === 1; };
+      const cav = (x, y, z, L) => { const i = Math.floor((x - o[0]) / h), j = Math.floor((y - o[1]) / h), k = Math.floor((z - o[2]) / h);
+        if (i < 0 || j < 0 || k < 0 || i >= gx || j >= gy || k >= gz) return false; const id = A.cavityComp[(i * gy + j) * gz + k]; return id > 0 && A.cavityLabel[id] === L; };
+      if (rv && lv && rv[3] >= 25 && lv[3] >= 25) {
+        // parallel crossings at steps along the long axis (kept to the cut plane); the middle of those that run RV cavity →
+        // one wall → LV cavity is mid-septum
+        const ax = g3.lax.clone().addScaledVector(nL, -g3.lax.dot(nL)).normalize(), hits = [];
+        for (let off = -40; off <= 50; off += 3) {
+          const a = [0, 1, 2].map((q) => rv[q] / rv[3] + ax.getComponent(q) * off), b = [0, 1, 2].map((q) => lv[q] / lv[3] + ax.getComponent(q) * off);
+          let t0 = -1, t1 = -1, inR = false, ok = false;
+          for (let s = 0; s <= 200; s++) { const t = s / 200, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, z = a[2] + (b[2] - a[2]) * t;
+            if (t0 < 0) { if (cav(x, y, z, 2)) inR = true; else if (inR && wall(x, y, z)) t0 = t1 = t; }
+            else if (wall(x, y, z)) t1 = t; else { ok = cav(x, y, z, 1); break; } }
+          if (ok) { const t = (t0 + t1) / 2; hits.push([0, 1, 2].map((q) => a[q] + (b[q] - a[q]) * t)); }
+        }
+        if (hits.length) acc.Septum = hits[hits.length >> 1].map((v) => v * 25).concat(25);   // (as a sum of 25, like the others)
+      }
+    }
     const valve = { 'Mitral valve': A.landmarks.MV.c, 'Tricuspid valve': A.landmarks.TV.c };
     for (const l of g3.labels) {
       if (l.view !== 'cut-dyn') continue;

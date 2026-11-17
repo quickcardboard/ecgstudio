@@ -2756,3 +2756,13 @@ the band on the anatomical path, from the right bundle's septal end forward and 
 papillary muscle (rotational UVC ~45°, zuvc ~0.33; `bandDisplay` in `src/app.js`, `Model.rbbBand` in the engine). Each
 drawn point keeps the colour of the matching band node, so the timing shown is the model's; the label and the tap points
 follow the drawing.
+
+## Four-chamber view: Septum label and lead I level (display only)
+
+- The cut-view Septum label was placed at the centroid of LV-labelled cells with |phi| < 0.4, which in the four-chamber
+  cut sat in the LV cavity. It is now found geometrically: parallel lines from the RV cavity centre to the LV cavity
+  centre (in the cut plane, stepped along the long axis), keeping those that run RV cavity → one wall → LV cavity, and
+  the label goes at the wall midpoint of the middle such line. The same rule places it in the short-axis (Apex) view.
+- The 4-chamber camera preset is rolled about its view axis so lead I (the patient's right → left line, world +x) runs
+  level across the screen, with the head side kept up (`leadIUp` on the preset), for teaching the hexaxial reference
+  against the anatomy. Other presets are unchanged. No engine or ECG change.
