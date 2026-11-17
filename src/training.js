@@ -720,7 +720,9 @@
   // abnormality besides the rhythm, the rhythm is 100% and a finding not present −20%.
   // answers that count as the key's own (full credit): a more specific or more serious reading of the same thing
   const SAME_FINDING = { lvh: ['lvhStrain'], rbbb: ['bifascicular'], lafb: ['bifascicular'] };
-  const SAME_RHYTHM = { avb2to1: ['mobitz2'] };   // (2:1 block: go with the more serious reading, Mobitz II)
+  const SAME_RHYTHM = { avb2to1: ['mobitz2'] };
+  // half credit for a finding: the single ectopic beats named for a pattern of them (the beats seen, the pattern missed)
+  const PART_FINDING = { vbigeminy: ['pvc'], vtrigeminy: ['pvc'], nsvt: ['pvc', 'couplet'], couplet: ['pvc'], abigeminy: ['pac'], atrigeminy: ['pac'], svtrun: ['pac', 'acouplet'], acouplet: ['pac'] };   // (2:1 block: go with the more serious reading, Mobitz II)
   // advanced findings (f.adv, a rating): below that rating in the finding's skill they are shown but not asked: no
   // miss for leaving one out, credited (as a true extra) when named
   function score(key, picked, ratingOf = () => 9999) {
@@ -737,6 +739,8 @@
     for (const f of req) {
       const p = fp.find((x) => x.id === f.id || (SAME_FINDING[f.id] || []).includes(x.id));
       if (p) p.matched = true;
+      const pp = !p && fp.find((x) => !x.matched && (PART_FINDING[f.id] || []).includes(x.id));
+      if (pp) { pp.matched = true; credit(f, 0.5); s += share / 2; out.rows.push({ id: pp.id, cls: 'part', label: chipLabel(pp), tag: `more exactly: ${BY_ID[f.id].name}` }); out.regionMiss = out.regionMiss || f; continue; }
       if (!p) { credit(f, 0); out.rows.push({ id: f.id, cls: 'miss', label: f.regions ? `${BY_ID[f.id].name}, ${regionText(f.regions)}` : BY_ID[f.id].name }); out.missed = out.missed || f; continue; }
       if (!f.regions) { credit(f, 1); s += share; out.rows.push({ id: f.id, cls: 'ok', label: chipLabel(p) }); continue; }
       const allowed = [...f.regions, ...(f.okRegions || [])], regOk = f.regions.every((r) => p.regions.includes(r)) && p.regions.every((r) => allowed.includes(r));

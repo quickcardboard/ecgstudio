@@ -16,6 +16,7 @@ sinus | Sinus rhythm | normal sinus rhythm, NSR, SR, regular sinus rhythm, sinus
 af | Atrial fibrillation | AF, afib, a fib, AFib, fibrillation, AF with RVR, rapid AF, fast AF
 sinusTachy | Sinus tachycardia | ST, sinus tach, stach, s tach, tachycardia
 sinusBrady | Sinus bradycardia | SB, sinus brady, sbrady, bradycardia
+sinusArr | Sinus arrhythmia | respiratory sinus arrhythmia, RSA, phasic sinus arrhythmia, sinus arrythmia
 flutter | Atrial flutter | AFL, flutter, aflutter, a flutter, typical flutter, sawtooth
 svt | Supraventricular tachycardia | SVT, PSVT, paroxysmal SVT, regular narrow complex tachycardia, narrow complex tachycardia, NCT
 avnrt | AVNRT | AV nodal reentrant tachycardia, AV nodal reentry tachycardia, AV nodal re-entry, nodal reentry, AVNRT typical
@@ -62,6 +63,7 @@ wpw | WPW pattern | WPW, Wolff Parkinson White, preexcitation, pre-excitation, d
 pericarditis | Acute pericarditis | pericarditis, diffuse ST elevation, saddle ST, widespread ST elevation
 hyperacute | Hyperacute T waves | hyperacute T, tall T waves, hyperacute | region
 reciprocal | Reciprocal ST depression | reciprocal change, reciprocal changes, mirror image, reciprocity | region
+avrste | ST elevation in aVR | aVR elevation, STE aVR, ST up in aVR, aVR STE, left main pattern, multivessel ischemia, three vessel disease, 3VD, diffuse subendocardial ischemia, LMCA pattern
 posteriorMI | Posterior MI | posterior infarct, posterior STEMI, posterior wall MI, PMI, posterior
 lvhStrain | LVH with strain | strain pattern, LV strain, LVH strain
 ivcd | Nonspecific intraventricular conduction delay | IVCD, intraventricular conduction delay, NSIVCD, wide QRS
@@ -78,3 +80,9 @@ wellens | Wellens syndrome | Wellens, Wellens pattern, Wellens sign, Wellens typ
 dominantRV1 | Dominant R in V1 | tall R in V1, prominent R V1, tall R V1, R V1
 couplet | Ventricular couplet | couplets, paired PVCs, pair
 acouplet | Atrial couplet | paired PACs, PAC couplet, atrial pair, couplet of PACs
+vbigeminy | Ventricular bigeminy | bigeminy, PVC bigeminy, ventricular bigeminal rhythm, bigeminal PVCs, bigeminal, VE bigeminy
+vtrigeminy | Ventricular trigeminy | trigeminy, PVC trigeminy, trigeminal PVCs, trigeminal, VE trigeminy
+nsvt | Non-sustained VT | NSVT, non sustained ventricular tachycardia, nonsustained VT, run of VT, VT run, salvo, triplet, run of PVCs
+abigeminy | Atrial bigeminy | PAC bigeminy, atrial bigeminal rhythm, bigeminal PACs, APC bigeminy
+atrigeminy | Atrial trigeminy | PAC trigeminy, trigeminal PACs, APC trigeminy
+svtrun | Short run of SVT | SVT run, run of SVT, paroxysmal atrial tachycardia, PAT, atrial run, run of PACs, short atrial tachycardia, burst of SVT

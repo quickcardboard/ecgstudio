@@ -204,7 +204,7 @@
     // refractoriness that varies from cell to cell (×(1 ± fibHet)), so AF wavefronts break into wavelets
     // instead of sweeping the atria as one; in sinus rhythm the P wave is broader.
     fibCv: 1, fibHet: 0.45,
-    afDefaultRate: 110, afIrregularity: 0.45, afAvnToV: 110,   // AF ventricular response: mean rate, ±fraction of RR
+    afDefaultRate: 110, afIrregularity: 0.45, afAvnToV: 110, afAvnRvrExp: 2,   // AF ventricular response: mean rate, ±fraction of RR
     flutterRingSlow: 1.1, flutterIsthmusSlow: 2.8, flutterGateTol: 0.03, flutterRadius: 25, flutterBachmannSlow: 40,
     matClMin: 380, matClMax: 640,
     ectopicDist: 25,        // ectopic atrial focus: distance (mm) from the AV node, low in the right atrium
@@ -1674,6 +1674,10 @@
     // The sinus-rate control stands in for autonomic tone: vagal tone slows the
     // sinus node and AV node together, sympathetic tone speeds both, so PR
     // shortens in sinus tachycardia and lengthens in sinus bradycardia.
+    // respiratory sinus arrhythmia: opts { amp: fraction of the cycle (0.15–0.2), period: one breath (ms) }; null turns it off
+    setSinusArrhythmia(opts) {
+      this.sinusArr = opts && opts.amp > 0 ? { amp: Math.min(0.35, opts.amp), period: opts.period || 5000, t0: this.t } : null;
+    }
     setRate(bpm) {
       this.sinusBpm = bpm;
       this._avnTone = Math.pow(72 / bpm, this.P.avnToneExp);
@@ -1728,13 +1732,19 @@
       this._applyAvn();
     }
     clearBlocks() { for (const s of Object.keys(this.blocks)) this.setBlock(s, null); }
+    // AF with a rapid ventricular response: sympathetic tone shortens AV-nodal refractoriness, so the node can follow
+    // 130–180/min (refractoriness scaled by (100 / rate)^afAvnRvrExp above 100/min; sinus rhythm and slower AF unchanged)
+    _afAvnScale() {
+      const v = this.arrhythmia && this.arrhythmia.type === 'af' ? this.vResponse : null;
+      return v && v > 100 ? Math.pow(100 / v, this.P.afAvnRvrExp) : 1;
+    }
     _applyAvn() {
       const tone = this._avnTone || 1;
       for (const c of this.M.avn) {
         this.cvMul[c] = tone * (this.avnBlockMul || 1) * (this._avnLae || 1) * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
         // nodal refractoriness also follows autonomic tone (vagal lengthens, sympathetic shortens)
         // (AV-nodal ischaemia also lengthens nodal refractoriness: 1st-degree block, Wenckebach)
-        if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone * (1 + this.P.ischAvnErp * (this._avnIschemia || 0));
+        if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone * (1 + this.P.ischAvnErp * (this._avnIschemia || 0)) * this._afAvnScale();
       }
       // slow pathway: same autonomic coupling, short refractoriness; open only
       // with dual AV-node physiology and no AV-nodal block
@@ -1847,12 +1857,13 @@
     // Narrowing (flow-limiting stenosis): partial flow, so the territory downstream of the node is
     // ischaemic in its inner wall only (demand ischaemia, the subendocardial time course: ST depression and
     // T changes that resolve, no necrosis through the wall) instead of transmurally as after an occlusion
-    addStenosis(node) {
+    // opts.sev: a factor on the artery's narrowing severity (stenosisSev): <1 milder, >1 tighter (Training's mild/severe)
+    addStenosis(node, opts = {}) {
       const M = this.M, A = M.A, vn = M.coronary.voxNode, aff = new Uint8Array(A.n);
       for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
       const ins = this._makeInsult('subendo', aff, this.P.ischBorderMm);
       const br = M.coronary.nodes[node].branch, fam = this._family(br);
-      const sv = typeof this.P.stenosisSev === 'number' ? this.P.stenosisSev : this.P.stenosisSev[fam];
+      const sv = (typeof this.P.stenosisSev === 'number' ? this.P.stenosisSev : this.P.stenosisSev[fam]) * (opts.sev || 1);
       const dg = this.P.stenosisBaseGain, nodes = M.coronary.nodes;
       for (let q = 0; q < ins.sev.length; q++) { const c = ins.cells[q], b = vn[c] >= 0 ? nodes[vn[c]].branch : ''; ins.sev[q] *= sv * (A.label[c] === LAB.RV ? this.P.subendoRVGain : 1) * (A.zuvc[c] > this.P.stenosisBaseZ ? dg : 1); }   // (thin, low-pressure RV: milder; the basal wall: stenosisBaseGain)
       // (stenosisGlobal: the rest of the LV inner wall shares a little of it (demand): ST depression that does not localise)
@@ -2427,8 +2438,12 @@
     vulnerable() { return this.insults.length > 0 && this.ischemiaHours >= 0.1 && this.ischemiaHours <= 48; }
 
     // ventricular response in AF and flutter (bpm; null = natural for flutter, default for AF)
-    setVentricularResponse(bpm) {
+    // opts.variable (flutter): conduction ratios drawn at random beat by beat (e.g. [2, 4]: variable 2:1–4:1 block),
+    // so the response is irregular; bpm then only sets the first ratio
+    setVentricularResponse(bpm, opts = {}) {
       this.vResponse = bpm || null;
+      this.vVariable = Array.isArray(opts.variable) && opts.variable.length ? opts.variable.slice() : null;
+      if (this.erpExtra) this._applyAvn();
       if (this.arrhythmia && this.arrhythmia.type === 'flutter') this._setFlutterRatio();
     }
     // flutter: the AV node conducts one in N flutter waves (N from the set ventricular rate). The gate
@@ -2441,13 +2456,13 @@
       const n = this.vResponse ? Math.max(2, Math.round(60000 / this.vResponse / cl)) : 0;
       // (the slow pathway enters the node lower down: its last cell is gated by the same rule)
       const slow = this.M.avnSlow || [];
-      this._flutterRatio = n ? { cell: this.M.avn[0], cells: new Set([this.M.avn[0]].concat(slow.length ? [slow[slow.length - 1]] : [])), n, rr: n * cl, cl, lastPass: -1e9, lastT: -1e9, last: true } : null;
+      this._flutterRatio = n ? { cell: this.M.avn[0], cells: new Set([this.M.avn[0]].concat(slow.length ? [slow[slow.length - 1]] : [])), n, rr: n * cl, cl, lastPass: -1e9, lastT: -1e9, last: true, variable: this.vVariable } : null;
     }
     _flutterPass(ta) {
       const g = this._flutterRatio;
       if (ta - g.lastT < 60) return g.last;                    // converging wavelets share one decision
       g.lastT = ta; g.last = ta - g.lastPass >= g.rr - 0.5 * g.cl;
-      if (g.last) g.lastPass = ta;
+      if (g.last) { g.lastPass = ta; if (g.variable) g.rr = g.variable[Math.floor(this.rand() * g.variable.length)] * g.cl; }
       return g.last;
     }
 
@@ -2726,7 +2741,9 @@
       for (const pm of this.pacemakers) {
         if (pm.cl <= 0 || this.blocked[pm.cell] || (pm.armed && !pm.armed())) continue;
         if (pm.name === 'sinus' && (this.sinusArrest || t < this.sinusPauseUntil || (this.arrhythmia && (this.arrhythmia.type === 'ectopic' || this.arrhythmia.type === 'mat')))) continue;
-        if (t - this.tAct[pm.cell] >= pm.cl && t >= this.refEnd[pm.cell]) {
+        // (respiratory sinus arrhythmia: the sinus cycle follows breathing, shorter in inspiration)
+        const cl = pm.name === 'sinus' && this.sinusArr ? pm.cl * (1 + this.sinusArr.amp * Math.sin(2 * Math.PI * (t - this.sinusArr.t0) / this.sinusArr.period)) : pm.cl;
+        if (t - this.tAct[pm.cell] >= cl && t >= this.refEnd[pm.cell]) {
           // SA exit block: the node keeps its rhythm, but every nth impulse fails to exit
           if (pm.name === 'sinus' && this.saExit && ++this.saExit.count % this.saExit.n === 0) {
             this.tAct[pm.cell] = t; this.fireLog.push({ name: 'sinus-blocked', t });

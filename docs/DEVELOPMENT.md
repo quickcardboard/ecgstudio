@@ -2665,6 +2665,48 @@ The `readKeep` filter on the hypothermia library page (`src/learn/topics.json`, 
   The build hides it (`{{CONTACT_HIDDEN}}`) while `site.json` `contactForm` is empty.
 - The "Questions or feedback: the contact form" line is gone from Help → About in the simulator.
 
+## claude/trainer-variety round 1: rhythm mix, rate variety, repeating ectopy, sinus arrhythmia, ischaemia stages, multivessel
+
+**Rhythm mix (the author):** AF weight 3 → 5, Mobitz II 1.2 → 0.4.
+- **AF rate bands** (targets): slow 42–58 (15%), controlled 60–105 (50%), rapid 130–170 (35%). The engine's AF response was
+  capped near 113/min (AV-node refractoriness tuned for sinus rhythm; shortest RR ~520 ms): new `afAvnRvrExp` 2 scales the
+  node's extra refractoriness by (100 / rate)² above 100/min in AF only (sinus and slower AF unchanged). Response now
+  ~110–183/min (targets 140–180); above ~175 the blind read sees V1–V3 ST depression (posterior STEMI), so the band stops at 170.
+  The rhythm line names the response (slow / controlled / rapid, AF with RVR).
+- **Fixed-ratio flutter**: the line now names the ratio (2:1 … 5:1, from the rate). **Irregular flutter** (`flutterVar`, w 0.8,
+  rating 190): engine `setVentricularResponse(bpm, { variable: [2, 4] })` draws the conduction ratio beat by beat (RR ~410 /
+  620 / 810 ms); patterns 2–4, 2–3–4, 2–3 (3–4 alone is too regular: RR CV ~0.15); gated on RR CV ≥ 0.15. Answered as
+  flutter, AF partly correct (`alt`). Share links `fv=2-4` (app: parsed, kept with the rate slider, cleared by Reset and the
+  rhythm menu).
+- **Repeating ectopy and runs** (sinus rhythm, group ectopy): ventricular bigeminy/trigeminy (`vbigeminy`, `vtrigeminy`),
+  atrial bigeminy/trigeminy (`abigeminy`, `atrigeminy`), non-sustained VT (3–6 PVCs, 360–400 ms apart; `nsvt`) and a short SVT
+  run (4–7 PACs, 380–420 ms apart; `svtrun`). Bigeminy/trigeminy are scheduled beat by beat from the engine's own sinus
+  beats (a PVC at a fixed coupling just after the T wave, Bazett QT + 40–80 ms, constant through the strip; a PAC 0.6 RR
+  after the P; the generator checks for new beats every 20 ms and skips a beat it sees too late rather than firing late:
+  the author saw the first PVCs of a strip coupled too late) and gated on every planned beat
+  showing (wide or narrow), ≥ 3 of them, making up ½ or ⅓ of the beats (±0.12). New vocabulary terms with synonyms.
+- **Sinus arrhythmia** (`sinusArr`, w 1.2): engine `setSinusArrhythmia({ amp, period })` modulates the sinus cycle with
+  breathing (amp 0.15–0.22, one breath 4–6 s); gated on an RR span ≥ 120 ms; sinus rhythm partly correct. Share link
+  `sar=amp-period`.
+- **Ischaemia stages**: the evolving STEMI at the simulator's existing 4 h and 12 h stops (`evolving`, ST elevation required,
+  Q waves and T inversion optional; line names the hours). No new time stops in the simulator (the author). **Narrowing
+  severity**: engine `addStenosis(node, { sev })`; Training draws mild ×0.8 (30%, +60 rating), usual (40%), severe ×1.35
+  (30%); ×0.7 was too faint to pass. Share link `ns=`.
+- **Multivessel narrowing** (live model, blind reader; ST at J+80): aVR rises with the number of narrowed vessels (one
+  1.3–2.0 mm, two 2.0–2.7, three 3.0 mm) while ST depression spreads (8 leads with three). New `multinarrow` (two or three of
+  mid LAD, proximal LCx, proximal RCA; w 1.2, rating 160): gated on ST depression in ≥ 4 leads over ≥ 2 territories and aVR
+  ST ≥ 1 mm; answer: ST depression and the new finding `avrste` (ST elevation in aVR). Two simultaneous occlusions read as a
+  combined septal+anterior+inferior STEMI (rare clinically; not used). An old MI with a new STEMI needs a per-insult age in
+  the engine (the ischaemia clock is global): not done.
+- **Scoring (the author):** single ectopic beats named for a pattern of them earn half the finding's share (PVCs for
+  ventricular bigeminy/trigeminy, NSVT or a couplet; PACs for atrial bigeminy/trigeminy, an SVT run or an atrial couplet:
+  `PART_FINDING` in `src/training.js`; 70% with the rhythm right). The patterns are findings, not rhythms (the rhythm stays
+  sinus). Multivessel narrowing asks only for ST depression; ST elevation in aVR is "also true" (+5%), named in the line.
+  Flutter is not paired with multivessel narrowing (flutter waves on the ST segment, as for single narrowing).
+- Audit (`node tools/trainlive.js 120 7`): 89/120 passed (rejections: criteria 22, rhythm 5, extra 4). New items: evolving
+  STEMI 6/6, multivessel 5/8 (fails: flutter or junctional rhythm, aVR under 1 mm), irregular flutter 2/3, sinus arrhythmia
+  3/6 (all three fails from another finding's criteria), ventricular trigeminy 2/2, atrial bigeminy 1/1, SVT run 1/1, NSVT
+  0/1 (P waves hidden with a proximal LAD STEMI at 50/min). Engine checks unchanged: evalecg identical, reader 55/57.
 ## claude/sim-worker round 1: the simulation in a background thread
 
 Phones ran the simulator at ~6 fps (less in VF): the engine stepped on the page's main thread, so keeping real time left
