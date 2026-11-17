@@ -467,6 +467,9 @@
         const PATTERN = { vbig: ['v', 1], vtrig: ['v', 2], abig: ['a', 1], atrig: ['a', 2] }[kind];
         if (PATTERN) {
           // after every (bigeminy) or every second (trigeminy) sinus beat: a PVC 0.6 RR after the QRS, a PAC 0.65 RR after the P
+          // (a fixed coupling interval, as in real bigeminy: a PVC just after the T wave (Bazett QT + 40–80 ms), a PAC
+          // 0.6 RR after the P; constant through the strip; a beat seen too late to keep it is skipped, not fired late)
+          const qt = 410 * Math.sqrt(rr / 1000), vCoup = Math.round(qt + 40 + 40 * er()), aCoup = Math.round(Math.max(380, 0.6 * rr));
           const [chamber, every] = PATTERN, st = { handled: -1e9, n: 0 }, isOwn = (t0x) => stims.some((x) => Math.abs(x.t - t0x) < 80 || (x.kind === 'pac' && t0x > x.t && t0x < x.t + 120));
           repeat = () => {
             if (S.t - t0 < 800 || S.t - t0 > strip - 700) return;
@@ -474,7 +477,8 @@
             if (!b || b.on <= st.handled || isOwn(b.on)) return;
             st.handled = b.on; st.n++;
             if (st.n % every) return;
-            const tp = Math.max(S.t + 5, b.on + (chamber === 'v' ? Math.max(420, 0.6 * rr) : Math.max(420, 0.65 * rr)));
+            const tp = b.on + (chamber === 'v' ? vCoup : aCoup);
+            if (tp < S.t + 2) return;
             S.stimulateAt(cell, tp); stims.push({ t: tp, kind: chamber === 'v' ? 'pvc' : 'pac' });
           };
         } else if (kind === 'nsvt' || kind === 'arun') {
@@ -489,7 +493,7 @@
       }
       for (let t = 0; t < strip; t += 100) {
         for (const e of events) if (!e.done && e.t >= t && e.t < t + 100) { e.done = true; e.fn(S, rec); }
-        if (repeat && t0 !== null) repeat();
+        if (repeat) { for (let u = 0; u < 5; u++) { if (t0 !== null) repeat(); S.run(20); } } else
         S.run(100);
         if (t % 500 === 400) { S.log.atrial.forEach((x) => atr.add(x)); S.log.vent.forEach((x) => ven.add(x)); S.fireLog.forEach((x) => { if (x.name === 'focus') fired.add(x); }); }   // (the logs keep 50 entries)
       }
@@ -989,7 +993,7 @@
       }
       return null;
     }
-    return { make, build, sample, model, itemRating, artifactLeads, ART_MAX, setEctMm: (x) => { ECT_MM = x; } };
+    return { make, build, sample, simulate, model, itemRating, artifactLeads, ART_MAX, setEctMm: (x) => { ECT_MM = x; } };
   }
   TrainGen.RHYTHMS = RHYTHMS; TrainGen.ABN = ABN; TrainGen.SKILLS = SKILLS; TrainGen.itemRating = itemRating; TrainGen.sample = sample;
   if (typeof module !== 'undefined' && module.exports) module.exports = TrainGen; else root.TrainGen = TrainGen;

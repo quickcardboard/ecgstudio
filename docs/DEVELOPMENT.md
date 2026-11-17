@@ -2681,7 +2681,9 @@ The `readKeep` filter on the hypothermia library page (`src/learn/topics.json`, 
 - **Repeating ectopy and runs** (sinus rhythm, group ectopy): ventricular bigeminy/trigeminy (`vbigeminy`, `vtrigeminy`),
   atrial bigeminy/trigeminy (`abigeminy`, `atrigeminy`), non-sustained VT (3–6 PVCs, 360–400 ms apart; `nsvt`) and a short SVT
   run (4–7 PACs, 380–420 ms apart; `svtrun`). Bigeminy/trigeminy are scheduled beat by beat from the engine's own sinus
-  beats (a PVC 0.6 RR after every / every second sinus QRS; a PAC 0.65 RR after the P) and gated on every planned beat
+  beats (a PVC at a fixed coupling just after the T wave, Bazett QT + 40–80 ms, constant through the strip; a PAC 0.6 RR
+  after the P; the generator checks for new beats every 20 ms and skips a beat it sees too late rather than firing late:
+  the author saw the first PVCs of a strip coupled too late) and gated on every planned beat
   showing (wide or narrow), ≥ 3 of them, making up ½ or ⅓ of the beats (±0.12). New vocabulary terms with synonyms.
 - **Sinus arrhythmia** (`sinusArr`, w 1.2): engine `setSinusArrhythmia({ amp, period })` modulates the sinus cycle with
   breathing (amp 0.15–0.22, one breath 4–6 s); gated on an RR span ≥ 120 ms; sinus rhythm partly correct. Share link
