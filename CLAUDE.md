@@ -18,6 +18,10 @@ all rights reserved (LICENSE).
   (`window.ECGStudio`) and in Node (`require('./src/engine.js')`). Parameters live in `DEFAULTS`.
 - `src/app.js`: Three.js view, ECG paper, interpretation, controls, share links, PNG export.
   `window.ECGStudioApp` is a handle for automated tests.
+- `src/simworker.js`: the simulation worker. The engine steps in a background thread; `src/app.js` ("Simulation worker")
+  keeps a replica Sim that never steps: commands run on it and are forwarded, and each frame's snapshot (time, per-cell
+  activation, ECG samples, logs, rhythm state) is written into it. `?noworker` steps on the page as before (also the
+  fallback without workers or if the worker fails).
 - `site.json`: author, contact, year shown in Help → About; the build stamps date + commit. `contactForm` (a Google Form
   link) builds the contact page `/contact/`; `verify` holds search-engine ownership codes.
 - `src/learn/topics.json` → the ECG library at `/ecg/` (`tools/learn_pages.py`, run by the build; images and reads:

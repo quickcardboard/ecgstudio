@@ -2664,3 +2664,28 @@ The `readKeep` filter on the hypothermia library page (`src/learn/topics.json`, 
   its ⋯ menu (phone), and in Training's ⋯ menu (kept in the app, where Training hides its other web links).
   The build hides it (`{{CONTACT_HIDDEN}}`) while `site.json` `contactForm` is empty.
 - The "Questions or feedback: the contact form" line is gone from Help → About in the simulator.
+
+## claude/sim-worker round 1: the simulation in a background thread
+
+Phones ran the simulator at ~6 fps (less in VF): the engine stepped on the page's main thread, so keeping real time left
+little time to draw. Engine cost per simulated ms (desktop, Node): sinus 0.13 ms, AF 0.51, VF 0.90 (`_activate` 34%,
+`_setPiece` 15%, `_ecgEnter` 12% in VF); a mid-range phone is several times slower.
+- **`src/simworker.js`**: the engine runs in a Web Worker started from a blob URL with the engine's own source (the page's
+  `engine-js` script, so variants carry their parameters) and the worker text (`simworker-js`, `tools/build.py`). It keeps
+  a model per structural configuration (hypertrophy), steps the time each frame owes (30 ms budget, at most 250 ms owed)
+  and posts a snapshot: time, `tAct` and `apd` as Float32 (buffers handed back and reused), the ECG samples, the beat logs
+  with `beatEnds` precomputed (no `ts`/`rs` arrays), fire/stim/AP/retro logs, adenosine, the dipole, the flutter cycle and
+  the rhythm.
+- **`src/app.js`**: a replica Sim that never steps. Every `set…/add…/remove…/clear…/start…/stop…/shock/give…/stimulate…`
+  call runs on the replica (so lists, menus and the interpretation see it at once) and is forwarded (outermost call only).
+  Snapshots are written into the replica; the replica follows the worker's rhythm (an R-on-T beat starting VF). `run` (a
+  share link's healthy stretch) runs on both, so the reference beat is there at once. The refractory check of a tap uses
+  the snapshot's activation. The frame loop asks the worker for the time owed (two requests in flight at most).
+  `?noworker`, no Worker support, or a worker error: the page steps the engine as before.
+- **Checks**: 14 share-link scenarios read identically with and without the worker (blocks, fascicular blocks, Mobitz I,
+  complete block, anterior STEMI 1 h, old inferior MI, AVNRT, VT, WPW, LVH); AF and flutter differ by 1–2 bpm (random
+  timing). Live: rhythm menu (VF, AF, sinus), shock, adenosine, pause, ischaemia (occlusion, 30 days, clear), rate slider,
+  Reset and an LVH rebuild work, no page errors; the app shell and Training load. Main-thread simulation time (Pixel 7
+  profile, CPU ×4): sinus 399 → 4 ms per second, VF 804 → 4 ms; the simulation keeps more of real time (sinus 0.60 →
+  0.81, VF 0.24 → 0.49 in the headless browser, where software WebGL shares the cores). Frame rate cannot be judged
+  headless (software WebGL); to be checked on a phone.

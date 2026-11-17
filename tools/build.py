@@ -45,6 +45,10 @@ for key, f in (('/*__THREE__*/', 'three.min.js'), ('/*__ORBIT__*/', 'OrbitContro
     assert '</script' not in js
     html = html.replace(key, js, 1)
 html = html.replace('/*__ENGINE__*/', (src / 'engine.js').read_text(), 1)
+# the simulation worker (src/simworker.js): kept as text, started from a blob URL with the engine's own source
+simw = (src / 'simworker.js').read_text()
+assert '</script' not in simw
+html = html.replace('/*__SIMWORKER__*/', simw, 1)
 html = html.replace('/*__APP__*/', (src / 'app.js').read_text(), 1)
 tour = (src / 'tutorial.js').read_text()   # (the interactive tutorial: the simulator's steps and Training's)
 assert '</script' not in tour

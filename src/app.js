@@ -43,6 +43,7 @@
     if (!window.THREE) { setLoading('The 3D library could not load. Check your connection and reload.'); return; }
     await tick();
     LH.setDefaultTorso(null); LH.setDefaultTorso2(JSON.parse($('torso-data').textContent));   // limb leads from the solved torso
+    startSimWorker();
     const scen = readScenario();
     setMode();
     await buildHeart();
@@ -132,6 +133,7 @@
   function newSim(keepEcg = false) {
     if (keepEcg && S) ecg.t0 = (ecg.t0 + S.t) % PAGE; else ecg.t0 = 0;
     S = new LH.Sim(M, { seed: 1 });
+    bridgeSim(S);
     S.setRate(ui.rate);
     S.setDualAVN(!!ui.struct.dual);                                  // (off unless the condition is on: the slow pathway is open by default in the engine)
     for (const c of CONDITIONS) if (c.apply && ui.struct[c.id]) c.apply(ui.struct[c.id]);
@@ -147,10 +149,90 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Simulation worker (src/simworker.js): the engine steps in a background thread
+  // ---------------------------------------------------------------------------
+  // The page keeps a replica Sim that never steps. Commands (set…, add…, start…, shock, stimulate…) run on the replica
+  // at once, so the controls, lists and interpretation see their effect immediately, and are forwarded to the worker,
+  // which steps the time each frame owes and sends a snapshot back: time, per-cell activation (3D colours), the ECG
+  // samples, the beat and event logs and the rhythm state, written into the replica. Without workers (or with
+  // ?noworker), or if the worker fails, the page steps the engine itself as before.
+  const SIMW = { w: null, on: false, pending: 0, carry: 0, owed: 0, bufs: [], simId: 0 };
+  const SIM_CMD = /^(set|add|remove|clear|start|stop|shock|give|stimulate)/;
+  function startSimWorker() {
+    try {
+      if (!window.Worker || !window.Blob || /(^|[?&])noworker\b/.test(location.search.slice(1))) return;
+      const src = $('engine-js').textContent + '\n' + $('simworker-js').textContent;
+      SIMW.w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+      SIMW.w.onmessage = onSimMessage;
+      SIMW.w.onerror = (e) => { e.preventDefault(); simWorkerFailed(e.message); };
+      SIMW.w.postMessage({ type: 'init', anatomy: $('anatomy-data').textContent, torso: JSON.parse($('torso-data').textContent) });
+      SIMW.on = true;
+    } catch (err) { SIMW.w = null; SIMW.on = false; }
+  }
+  function simWorkerFailed(msg) {
+    if (!SIMW.on) return;
+    console.error('Simulation worker stopped; stepping on the page instead:', msg);
+    SIMW.on = false; try { SIMW.w.terminate(); } catch (e) { /* (already gone) */ }
+    newSim(true);   // (a fresh simulation on the page: the replica's own state never stepped)
+  }
+  // the replica: commands run here and go to the worker too (only the outermost call: a command that calls
+  // another one internally is not sent twice)
+  function bridgeSim(sim) {
+    if (!SIMW.on) return;
+    const proto = Object.getPrototypeOf(sim); let depth = 0;
+    for (const m of Object.getOwnPropertyNames(proto)) {
+      if (!SIM_CMD.test(m) || typeof proto[m] !== 'function') continue;
+      const f = proto[m];
+      sim[m] = function (...args) {
+        depth++; let r;
+        try { r = f.apply(sim, args); } finally { depth--; }
+        if (!depth && SIMW.on && sim === S) SIMW.w.postMessage({ type: 'cmd', m, args });
+        return r;
+      };
+    }
+    // run (a share link's healthy stretch): the replica runs it too, so its beat is there to compare with at once
+    // (its samples are the same as the worker's, written to the same places)
+    const run = proto.run;
+    sim.run = (ms) => { depth++; try { run.call(sim, ms); } finally { depth--; } if (SIMW.on) SIMW.w.postMessage({ type: 'cmd', m: 'run', args: [ms] }); };
+    const ends = proto.beatEnds;
+    sim.beatEnds = (vb) => vb.ends || ends.call(sim, vb);
+    const ho = LH.hypertrophyOptions(ui.struct);
+    SIMW.simId++; SIMW.pending = 0; SIMW.carry = 0;
+    SIMW.w.postMessage({ type: 'heart', key: heartKey(), anatomy: ho.anatomy, params: ho.params });
+    SIMW.w.postMessage({ type: 'sim', simId: SIMW.simId, opts: { seed: 1 } });
+  }
+  function onSimMessage(e) {
+    const s = e.data;
+    if (s.type === 'error') { simWorkerFailed(s.message); return; }
+    if (s.type === 'idle') { SIMW.pending = Math.max(0, SIMW.pending - 1); return; }
+    if (s.type !== 'snap') return;
+    SIMW.pending = Math.max(0, SIMW.pending - 1);
+    SIMW.bufs.push(s.tAct, s.apd);
+    if (s.simId !== SIMW.simId || !S) return;                  // (a snapshot of a simulation since replaced)
+    const tm0 = performance.now(); perf.tSim += s.ms; SIMW.owed = s.owed;
+    S.t = s.t; S.tAct.set(s.tAct); S.apd.set(s.apd);
+    if (s.nS) {
+      const L = new Float32Array(12), ls = S.listeners;
+      for (let i = 0; i < s.nS; i++) { L.set(s.samples.subarray(12 * i, 12 * i + 12)); for (const f of ls) f(s.sT0 + i, L); }
+      perf.steps += s.nS;
+    }
+    S.log.vent = s.vent; S.log.atrial = s.atrial;
+    S.fireLog = s.fireLog; S.stimLog = s.stimLog; if (s.apLog) S.apLog = s.apLog; if (s.retroLog) S.retroLog = s.retroLog;
+    S.rhythmChangedAt = s.rhythmChangedAt; S.sinusPauseUntil = s.sinusPauseUntil; S.adenosine = s.adenosine; S.vResponse = s.vResponse;
+    if (s.dipole) S.dipole = Float32Array.from(s.dipole);
+    // the rhythm can change by itself (an R-on-T beat starts VF): the replica follows the worker
+    if (!s.arr) S.arrhythmia = null;
+    else if (!S.arrhythmia || S.arrhythmia.type !== s.arr.type) S.arrhythmia = { ...s.arr };
+    else Object.assign(S.arrhythmia, s.arr);
+    if (s.cls) { if (!S.drivers[0]) S.drivers[0] = {}; S.drivers[0].cls = s.cls; }
+    perf.tMain += performance.now() - tm0;
+  }
+
+  // ---------------------------------------------------------------------------
   // Main loop: advance simulated time by wall time × time scale (1 ms steps)
   // ---------------------------------------------------------------------------
   let interpTimer = 0;
-  const perf = { frames: 0, steps: 0, tSim: 0, t3d: 0, tEcg: 0 };
+  const perf = { frames: 0, steps: 0, tSim: 0, t3d: 0, tEcg: 0, tMain: 0 };   // (tMain: simulation work on the page's own thread)
   // Adaptive quality: the simulation and the ECG keep real time first. If the
   // simulation falls behind (slow machine, large window), the 3D view is drawn
   // less often (down to ~15 fps) and then at a lower resolution; it recovers
@@ -177,7 +259,19 @@
     if (ui.necTween) animateNecrosis(now);
     // frames slower than ~30 fps (GPU-bound 3D included) count as falling behind
     let behind = raw > 34;
-    if (!ui.paused) {
+    if (!ui.paused && SIMW.on) {
+      // (the simulation steps in the worker: ask for the time this frame owes, at most two requests in flight)
+      ui.acc += dt * SCALES[ui.scaleIdx];
+      const n = Math.floor(ui.acc); ui.acc -= n; SIMW.carry = Math.min(SIMW.carry + n, 250);
+      if (SIMW.pending < 2 && SIMW.carry >= 1) {
+        const bufs = SIMW.bufs.splice(0);
+        SIMW.w.postMessage({ type: 'advance', ms: SIMW.carry, budget: 30, bufs }, bufs.map((b) => b.buffer));
+        SIMW.pending++; SIMW.carry = 0;
+      }
+      if (SIMW.owed > 60 || SIMW.carry > 60) behind = true;
+      checkAvnrt();
+      adaptQuality(behind);
+    } else if (!ui.paused) {
       ui.acc += dt * SCALES[ui.scaleIdx];
       let n = Math.floor(ui.acc); ui.acc -= n;
       if (n > MAX_STEPS_PER_FRAME) { n = MAX_STEPS_PER_FRAME; ui.acc = 0; behind = true; }
@@ -189,7 +283,7 @@
         if ((i & 3) === 3 && performance.now() - t0 > 60) { ui.acc = Math.min(ui.acc + n - i - 1, 150); behind = true; break; }
       }
       if (ui.acc > 60) behind = true;
-      perf.tSim += performance.now() - t0; perf.steps += n;
+      perf.tSim += performance.now() - t0; perf.tMain += performance.now() - t0; perf.steps += n;
       checkAvnrt();
       adaptQuality(behind);
     }
@@ -1321,7 +1415,8 @@
   }
   function stimulateAt(c, x, y) {
     const rec = S.stimulate(c);
-    const refractory = S.t < S.refEnd[c];
+    // (with the worker the page's replica keeps no refractory state: estimated from the snapshot's activation)
+    const refractory = SIMW.on ? S.t < S.tAct[c] + S.apd[c] * S.P.erpFrac + (S.erpExtra[c] || 0) : S.t < S.refEnd[c];
     flash(x, y, refractory ? 'No capture (refractory)' : rec.ronT ? 'R-on-T!' : rec.kind === 'atrial' ? 'PAC' : 'PVC');
     if (!refractory) emit('ectopic', { kind: rec.kind });
   }
