@@ -2731,3 +2731,24 @@ little time to draw. Engine cost per simulated ms (desktop, Node): sinus 0.13 ms
   profile, CPU ×4): sinus 399 → 4 ms per second, VF 804 → 4 ms; the simulation keeps more of real time (sinus 0.60 →
   0.81, VF 0.24 → 0.49 in the headless browser, where software WebGL shares the cores). Frame rate cannot be judged
   headless (software WebGL); to be checked on a phone.
+
+## Moderator band position (the author asked; not changed)
+
+The model's moderator band runs from the mid-septum (torso frame 18, 12, 41 mm) to the RV wall beside the anterior
+interventricular groove at mid height (58, 19, 77; rotational UVC 75°, zuvc 0.42): 40 mm left, 7 mm up, 36 mm forward,
+instead of forward and down to the anterior papillary muscle on the free wall. The default rule picks the mid-height RV
+free-wall point farthest from the band's septal start. Anatomical insertions with `mbPhi`/`mbZ` (30–60°, zuvc 0.3–0.4:
+the band then runs forward and 11–37 mm down) on the live model:
+
+| insertion | scorecard | fullcheck iErr | normal axis | RBBB axis |
+|---|---|---|---|---|
+| default (75°, 0.42) | 61/66 | 1 | +18° | −51° |
+| 60°, 0.35 | 53/66 | 4 | −23° | −51° |
+| 50°, 0.4 | 52/66 | 6 | −27° | −51° |
+| 40°, 0.3–0.4 | 48–50/66 | 7–9 | −33° to −43° | −51° |
+| 30°, 0.3–0.4 | 49–50/66 | 8–9 | −37° to −45° | −51° |
+
+As in rebuild-1 round 10, the anatomical band swings the normal axis into left axis deviation and costs R progression
+and infarct localisation: the high paraseptal insertion is one of the compensations holding the normal axis (with the v2
+torso's inferior gain and the thickened normal LV). It cannot be the RBBB axis's cause: in RBBB the band, the end of the
+right bundle, carries nothing (−51° throughout). Kept; the 3D view draws the band where the physics has it.
