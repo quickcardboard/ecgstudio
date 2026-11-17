@@ -2705,3 +2705,28 @@ axes, ½ cstune checklist, ½ activation score, limb/chest balance).
   fixing those is a conduction-system change (RV activation and the over-cancellation of Round 68 part 2), not a search.
   The v3 tools stay for that work; a refit score for it should include the reader's structural scenarios (RBBB, WPW,
   pericarditis, normal R progression), not only the seven fullcheck sites.
+
+## claude/torso-v3 round 3: RV outflow tract and normal LV wall (not adopted)
+
+Literature check first (Ramanathan et al. 2006 PNAS, ECGI in 7 normal adults; Wyndham et al. 1979; Cardone-Noott et al.
+2016). The normal model already matches the published RV timing (`/tmp`-free script in the notes below): first RV epicardial
+breakthrough 22 ms, anterior paraseptal (ECGI 18–24 ms; Wyndham 7–25, mean 17); LV breakthrough 5 ms later (ECGI ~7);
+last 2% of muscle LV base 52%, RV outflow 37% (ECGI: posterolateral LV base and/or RVOT); total 81 ms. The RV epicardium
+ends at 76 ms (RVOT), later than the ~50 ms of the Durrer-based model, but an RVOT-last pattern is normal. In RBBB 69% of
+the last-activated muscle is outflow tract (facing up). RV wall thickness (2 mm voxels, endo–epi distance + 1 voxel):
+4.0–4.8 mm in every region, outflow 4.8 mm (normal < 5 mm); the normal LV free wall is 12.2 mm (the 2 added layers).
+New test switches (off): `RV_OUTFLOW` / `rvOutflowLayers` (anatomy), `LV_BASE` (normal LV layers, default 2),
+`rvOutflowSourceGain` (sources of the outflow tract alone).
+- Stripping one outflow layer breaks conduction at this resolution (holes in a 2–3-voxel wall; QRS 174 ms): not usable.
+  `rvOutflowSourceGain` 0.6 stands in for a ~3 mm infundibulum.
+
+| v2 torso (live) | scorecard | reader | iErr | normal / LAFB / LPFB / RBBB axis |
+|---|---|---|---|---|
+| live | 61/66 | 55/57 | 1 | 18 / −55 / 92 / −51 |
+| outflow ×0.6 | 61/66 | 53/57 | 1 | 21 / −48 / 90 / −45 |
+| LV 1 layer | 57/66 | 52/57 | 2 | −7 / −54 / 95 / −63 |
+| both | 60/66 | 52/57 | 2 | 9 / −48 / 92 / −57 |
+
+On the v3 torso (RCA settings restored): base 57/66, 51/57, iErr 2; outflow ×0.6 56/66, 48/57; LV 1 layer 53/66, 53/57;
+both 56/66, 53/57 (RVH and LPFB still not read). The outflow tract moves the RBBB axis only 6° for 40% less force, and a
+thinner normal LV swings everything left. Neither is the lever for the weak inferior/rightward forces.

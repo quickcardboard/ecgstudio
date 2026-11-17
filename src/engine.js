@@ -174,7 +174,7 @@
     atrialFrontalRot: 45,   // degrees the atrial sources are turned back (frontal plane) against the ventricular rotation
     atrialSourceGain: 0.31, // atrial source strength (P-wave size; the atria sit high and close to the limb-lead fields)
     rvCvMul: 0.8,           // RV myocardial conduction speed factor (RVH option)
-    lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
+    lvStrain: 0, rvStrain: 0, lvSourceGain: 1, rvSourceGain: 1, rvOutflowSourceGain: 1,   // 0–1, set with hypertrophy (reverses the transmural gradient)
     apdVentEndoExtra: 40,  // endocardium longer than epicardium (upright T waves); Round 67: 85 → 40 (repolarisation refit)
     apdVentApexExtra: -15, // apicobasal APD gradient (+: apex longer); Round 67: 20 → −15 (base longer than apex, as measured)
     apdRVoffset: 0,        // RV and LV action potentials of similar length (a longer RV APD gave a dip before the T wave)
@@ -1436,8 +1436,10 @@
       let sc = kc === KIND.VENT ? (aniso ? anorm : 1) * this.P.ventSourceGain : this.P.atrialSourceGain;
       // hypertrophied myocytes carry more intracellular current (source
       // strength ∝ conductance); scaling the pair keeps uniform plateaus silent
-      if (kc === KIND.VENT && (this.P.lvSourceGain !== 1 || this.P.rvSourceGain !== 1)) {
-        const g = (x) => (A.label[x] === LAB.RV ? this.P.rvSourceGain : this.P.lvSourceGain);
+      // (rvOutflowSourceGain: the RV outflow tract's sources alone, as a thinner infundibulum would give; torso-v3 round 3)
+      if (kc === KIND.VENT && (this.P.lvSourceGain !== 1 || this.P.rvSourceGain !== 1 || this.P.rvOutflowSourceGain !== 1)) {
+        const ot = this.P.rvOutflowSourceGain;
+        const g = (x) => (A.label[x] === LAB.RV ? this.P.rvSourceGain * (ot === 1 ? 1 : 1 + (ot - 1) * rvOutflowWeight(A.phi[x], A.zuvc[x])) : this.P.lvSourceGain);
         sc *= Math.sqrt(g(c) * g(w));
       }
       const m = this.toTorso(lerp(A.p(c), A.p(w), 0.5));   // pair midpoint, torso frame
