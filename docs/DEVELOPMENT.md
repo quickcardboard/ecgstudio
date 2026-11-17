@@ -2709,7 +2709,7 @@ axes, ½ cstune checklist, ½ activation score, limb/chest balance).
 ## claude/torso-v3 round 3: RV outflow tract and normal LV wall (not adopted)
 
 Literature check first (Ramanathan et al. 2006 PNAS, ECGI in 7 normal adults; Wyndham et al. 1979; Cardone-Noott et al.
-2016). The normal model already matches the published RV timing (`/tmp`-free script in the notes below): first RV epicardial
+2016). The normal model already matches the published RV timing: first RV epicardial
 breakthrough 22 ms, anterior paraseptal (ECGI 18–24 ms; Wyndham 7–25, mean 17); LV breakthrough 5 ms later (ECGI ~7);
 last 2% of muscle LV base 52%, RV outflow 37% (ECGI: posterolateral LV base and/or RVOT); total 81 ms. The RV epicardium
 ends at 76 ms (RVOT), later than the ~50 ms of the Durrer-based model, but an RVOT-last pattern is normal. In RBBB 69% of
