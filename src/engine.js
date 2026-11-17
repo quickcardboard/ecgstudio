@@ -353,6 +353,12 @@
     return sm((zMax - z) / 0.2) * sm((z - 0.05) / 0.2);
   }
 
+  // RV outflow tract (infundibulum) map: the top of the RV in UVC height
+  function rvOutflowWeight(phi, z) {
+    const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+    return z >= 0 ? sm((z - 0.78) / 0.1) : 0;
+  }
+
   // ---------------------------------------------------------------------------
   // Anatomy: decode the embedded voxel grid
   // ---------------------------------------------------------------------------
@@ -383,6 +389,10 @@
       // opts.lvApexLayers: extra layers on the apical cap (LV_APEX: Node test override)
       this.lvApexLayers = opts.lvApexLayers !== undefined ? opts.lvApexLayers : (ENV.LV_APEX ? +ENV.LV_APEX : 0);
       if (this.lvApexLayers) this._editLVWall(V, this.lvApexLayers, LAB.LV, lvApexWeight);
+      // opts.rvOutflowLayers: layers added (+) or stripped (−) on the RV outflow tract (infundibulum, zuvc above ~0.83)
+      // only; the normal wall there is ~4.8 mm (2 mm voxels). RV_OUTFLOW: Node test override (torso-v3 round 3)
+      this.rvOutflowLayers = opts.rvOutflowLayers !== undefined ? opts.rvOutflowLayers : (ENV.RV_OUTFLOW ? +ENV.RV_OUTFLOW : 0);
+      if (this.rvOutflowLayers) this._editLVWall(V, this.rvOutflowLayers, LAB.RV, rvOutflowWeight);
       // ventricular hypertrophy (opts.rvWallLayers: RV free wall, outward)
       this.rvWallLayers = opts.rvWallLayers || 0;
       if (this.rvWallLayers) {
@@ -2946,11 +2956,13 @@
   // Ventricular hypertrophy presets: thicker free wall (anatomy), stronger
   // sources (lead fields) and a reversed transmural repolarisation gradient
   // (strain). Validated with tools/hyper.js.
+  // the normal LV free wall's added layers (2: ~12 mm); LV_BASE: Node test override (torso-v3 round 3)
+  const LV_BASE_LAYERS = ENV.LV_BASE !== undefined ? +ENV.LV_BASE : 2;
   function hypertrophyOptions({ lvh = false, rvh = false } = {}) {
     return {
       // RVH: free-wall hypertrophy (thickening centred on the free wall, sparing the septal insertions),
       // slower conduction in the hypertrophied RV muscle, stronger sources and a strain gradient
-      anatomy: { lvWallLayers: lvh ? 6 : 2, rvWallLayers: rvh ? 6 : 0, ...(rvh ? { rvThickPhiC: 0.4, rvThickPhiW: 0.8 } : {}) },
+      anatomy: { lvWallLayers: (lvh ? 4 : 0) + LV_BASE_LAYERS, rvWallLayers: rvh ? 6 : 0, ...(rvh ? { rvThickPhiC: 0.4, rvThickPhiW: 0.8 } : {}) },
       params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1, rvCvMul: (rvh ? 0.8 : 1) * DEFAULTS.rvCvMul },   // (relative to the default RV muscle speed)
     };
   }
