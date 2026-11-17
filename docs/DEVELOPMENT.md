@@ -2698,3 +2698,12 @@ The `readKeep` filter on the hypothermia library page (`src/learn/topics.json`, 
   ST ≥ 1 mm; answer: ST depression and the new finding `avrste` (ST elevation in aVR). Two simultaneous occlusions read as a
   combined septal+anterior+inferior STEMI (rare clinically; not used). An old MI with a new STEMI needs a per-insult age in
   the engine (the ischaemia clock is global): not done.
+- **Scoring (the author):** single ectopic beats named for a pattern of them earn half the finding's share (PVCs for
+  ventricular bigeminy/trigeminy, NSVT or a couplet; PACs for atrial bigeminy/trigeminy, an SVT run or an atrial couplet:
+  `PART_FINDING` in `src/training.js`; 70% with the rhythm right). The patterns are findings, not rhythms (the rhythm stays
+  sinus). Multivessel narrowing asks only for ST depression; ST elevation in aVR is "also true" (+5%), named in the line.
+  Flutter is not paired with multivessel narrowing (flutter waves on the ST segment, as for single narrowing).
+- Audit (`node tools/trainlive.js 120 7`): 89/120 passed (rejections: criteria 22, rhythm 5, extra 4). New items: evolving
+  STEMI 6/6, multivessel 5/8 (fails: flutter or junctional rhythm, aVR under 1 mm), irregular flutter 2/3, sinus arrhythmia
+  3/6 (all three fails from another finding's criteria), ventricular trigeminy 2/2, atrial bigeminy 1/1, SVT run 1/1, NSVT
+  0/1 (P waves hidden with a proximal LAD STEMI at 50/min). Engine checks unchanged: evalecg identical, reader 55/57.

@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-17 (9d1f9bc)">
+<meta name="version" content="2026-11-17 (7bdea9d)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -4162,12 +4162,12 @@ return module.exports; })();
     // below the target: about 40–45, 50–85 and 110–165/min)
     af: { w: 5, open: true, rating: 60, rate: [60, 150], rateBands: [[42, 58, 0.15], [60, 105, 0.5], [130, 170, 0.35]], vLink: true, link: 'a=af', struct: 'fib', start: (S, rec) => { S.setAtrialFibrosis(true); S.run(2000); S.startArrhythmia('af'); S.setVentricularResponse(rec.rate); },   // (AF on its substrate, as in the app)
     read: (r) => r === 'atrial fibrillation' },
-    flutter: { w: 2.5, open: true, notWith: ['stemi', 'evolving', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt', 'wellensA', 'wellensB'],   // (flutter waves sit on the ST segment)
+    flutter: { w: 2.5, open: true, notWith: ['stemi', 'evolving', 'oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB'],   // (flutter waves sit on the ST segment)
       rating: 150, rate: [60, 150], vLink: true, link: 'a=flutter',   // (above ~115/min the response is 2:1: flutter waves hidden in the QRS/T)
       start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate); }, read: (r) => r === 'atrial flutter' },
     // irregular flutter (variable block): the conduction ratio changes beat by beat (2:1–4:1); answered as flutter, with
     // AF as partly correct (an irregular response hides the regular sawtooth less clearly)
-    flutterVar: { w: 0.8, open: true, notWith: ['stemi', 'evolving', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt', 'wellensA', 'wellensB'], rating: 190, rate: [80, 120],
+    flutterVar: { w: 0.8, open: true, notWith: ['stemi', 'evolving', 'oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB'], rating: 190, rate: [80, 120],
       variable: [[2, 4], [2, 3, 4], [2, 3]], vLink: true, link: 'a=flutter', key: 'flutter', alt: ['af'],
       start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate, { variable: rec.fv }); }, read: (r) => /atrial (flutter|fibrillation)/.test(r) },
     // multifocal atrial tachycardia: four atrial foci taking turns (±25% cycle), so ≥ 3 P shapes with varying PR and RR;
@@ -5016,10 +5016,10 @@ return module.exports; })();
         } else if (a.k === 'multinarrow') {
           const terr = terrOf(c.leads), names = a.sites.map((x) => MI_SITES[x].name);
           findings.push({ id: 'std', skill: d.skill, regions: terr.slice(0, 1), okRegions: terr.slice(1) });
-          findings.push({ id: 'avrste', skill: d.skill });
-          mark('std', c.leads); mark('avrste', ['aVR']);
+          optional.add('avrste');   // (the author: ST elevation in aVR is true here but not asked)
+          mark('std', [...c.leads, 'aVR']);
           lines.std = `Widespread ST depression in ${c.leads.join(', ')}: diffuse subendocardial ischemia, not one territory.`;
-          lines.avrste = `ST elevation in aVR (${(r.L.aVR.stJ * 10).toFixed(1)} mm) with the diffuse ST depression: the left main or multivessel pattern (here ${names.join(', ')} narrowed). Urgent: it does not localise to one artery.`;
+          lines.std += ` With ST elevation in aVR (${(r.L.aVR.stJ * 10).toFixed(1)} mm): the left main or multivessel pattern (here ${names.join(', ')} narrowed). Urgent: it does not localise to one artery.`;
           ['reciprocal'].forEach((x) => optional.add(x)); if (twiLeads(r.L).length) optional.add('twi');
         } else if (a.k === 'nsstt') {
           findings.push({ id: 'nsstt', skill: d.skill });
@@ -5876,7 +5876,9 @@ self.onmessage = (e) => {
   // abnormality besides the rhythm, the rhythm is 100% and a finding not present −20%.
   // answers that count as the key's own (full credit): a more specific or more serious reading of the same thing
   const SAME_FINDING = { lvh: ['lvhStrain'], rbbb: ['bifascicular'], lafb: ['bifascicular'] };
-  const SAME_RHYTHM = { avb2to1: ['mobitz2'] };   // (2:1 block: go with the more serious reading, Mobitz II)
+  const SAME_RHYTHM = { avb2to1: ['mobitz2'] };
+  // half credit for a finding: the single ectopic beats named for a pattern of them (the beats seen, the pattern missed)
+  const PART_FINDING = { vbigeminy: ['pvc'], vtrigeminy: ['pvc'], nsvt: ['pvc', 'couplet'], couplet: ['pvc'], abigeminy: ['pac'], atrigeminy: ['pac'], svtrun: ['pac', 'acouplet'], acouplet: ['pac'] };   // (2:1 block: go with the more serious reading, Mobitz II)
   // advanced findings (f.adv, a rating): below that rating in the finding's skill they are shown but not asked: no
   // miss for leaving one out, credited (as a true extra) when named
   function score(key, picked, ratingOf = () => 9999) {
@@ -5893,6 +5895,8 @@ self.onmessage = (e) => {
     for (const f of req) {
       const p = fp.find((x) => x.id === f.id || (SAME_FINDING[f.id] || []).includes(x.id));
       if (p) p.matched = true;
+      const pp = !p && fp.find((x) => !x.matched && (PART_FINDING[f.id] || []).includes(x.id));
+      if (pp) { pp.matched = true; credit(f, 0.5); s += share / 2; out.rows.push({ id: pp.id, cls: 'part', label: chipLabel(pp), tag: `more exactly: ${BY_ID[f.id].name}` }); out.regionMiss = out.regionMiss || f; continue; }
       if (!p) { credit(f, 0); out.rows.push({ id: f.id, cls: 'miss', label: f.regions ? `${BY_ID[f.id].name}, ${regionText(f.regions)}` : BY_ID[f.id].name }); out.missed = out.missed || f; continue; }
       if (!f.regions) { credit(f, 1); s += share; out.rows.push({ id: f.id, cls: 'ok', label: chipLabel(p) }); continue; }
       const allowed = [...f.regions, ...(f.okRegions || [])], regOk = f.regions.every((r) => p.regions.includes(r)) && p.regions.every((r) => allowed.includes(r));

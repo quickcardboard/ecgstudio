@@ -34,12 +34,12 @@
     // below the target: about 40–45, 50–85 and 110–165/min)
     af: { w: 5, open: true, rating: 60, rate: [60, 150], rateBands: [[42, 58, 0.15], [60, 105, 0.5], [130, 170, 0.35]], vLink: true, link: 'a=af', struct: 'fib', start: (S, rec) => { S.setAtrialFibrosis(true); S.run(2000); S.startArrhythmia('af'); S.setVentricularResponse(rec.rate); },   // (AF on its substrate, as in the app)
     read: (r) => r === 'atrial fibrillation' },
-    flutter: { w: 2.5, open: true, notWith: ['stemi', 'evolving', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt', 'wellensA', 'wellensB'],   // (flutter waves sit on the ST segment)
+    flutter: { w: 2.5, open: true, notWith: ['stemi', 'evolving', 'oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB'],   // (flutter waves sit on the ST segment)
       rating: 150, rate: [60, 150], vLink: true, link: 'a=flutter',   // (above ~115/min the response is 2:1: flutter waves hidden in the QRS/T)
       start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate); }, read: (r) => r === 'atrial flutter' },
     // irregular flutter (variable block): the conduction ratio changes beat by beat (2:1–4:1); answered as flutter, with
     // AF as partly correct (an irregular response hides the regular sawtooth less clearly)
-    flutterVar: { w: 0.8, open: true, notWith: ['stemi', 'evolving', 'oldmi', 'recent', 'hyper', 'narrow', 'nsstt', 'wellensA', 'wellensB'], rating: 190, rate: [80, 120],
+    flutterVar: { w: 0.8, open: true, notWith: ['stemi', 'evolving', 'oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB'], rating: 190, rate: [80, 120],
       variable: [[2, 4], [2, 3, 4], [2, 3]], vLink: true, link: 'a=flutter', key: 'flutter', alt: ['af'],
       start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate, { variable: rec.fv }); }, read: (r) => /atrial (flutter|fibrillation)/.test(r) },
     // multifocal atrial tachycardia: four atrial foci taking turns (±25% cycle), so ≥ 3 P shapes with varying PR and RR;
@@ -888,10 +888,10 @@
         } else if (a.k === 'multinarrow') {
           const terr = terrOf(c.leads), names = a.sites.map((x) => MI_SITES[x].name);
           findings.push({ id: 'std', skill: d.skill, regions: terr.slice(0, 1), okRegions: terr.slice(1) });
-          findings.push({ id: 'avrste', skill: d.skill });
-          mark('std', c.leads); mark('avrste', ['aVR']);
+          optional.add('avrste');   // (the author: ST elevation in aVR is true here but not asked)
+          mark('std', [...c.leads, 'aVR']);
           lines.std = `Widespread ST depression in ${c.leads.join(', ')}: diffuse subendocardial ischemia, not one territory.`;
-          lines.avrste = `ST elevation in aVR (${(r.L.aVR.stJ * 10).toFixed(1)} mm) with the diffuse ST depression: the left main or multivessel pattern (here ${names.join(', ')} narrowed). Urgent: it does not localise to one artery.`;
+          lines.std += ` With ST elevation in aVR (${(r.L.aVR.stJ * 10).toFixed(1)} mm): the left main or multivessel pattern (here ${names.join(', ')} narrowed). Urgent: it does not localise to one artery.`;
           ['reciprocal'].forEach((x) => optional.add(x)); if (twiLeads(r.L).length) optional.add('twi');
         } else if (a.k === 'nsstt') {
           findings.push({ id: 'nsstt', skill: d.skill });
