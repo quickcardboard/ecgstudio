@@ -595,8 +595,29 @@
     const l = Math.hypot(d[0], d[1], d[2]);
     return l ? [d[0] / l, d[1] / l, d[2] / l] : [0, 0, 0];
   }
+  // Moderator band, drawing only: the model's band (its physics) runs from the mid-septum to the paraseptal anterior RV
+  // wall high up (docs/DEVELOPMENT.md, "Moderator band position": the anatomical insertion swings the normal axis), so it
+  // is drawn on the anatomical path instead, forward and down to the base of the anterior papillary muscle on the free
+  // wall (rotational UVC ~45°, zuvc ~0.33). Each drawn point still takes the colour of the matching band node, so the
+  // timing shown is the model's.
+  function bandDisplay() {
+    const ids = M.rbbBand || [], out = new Map();
+    if (ids.length < 2) return out;
+    const tgt = 45 * Math.PI / 180; let best = -1, bs = Infinity;
+    for (let c = 0; c < A.n; c++) {
+      if (A.label[c] !== LH.LAB.RV || !A.endo[c] || !(A.zuvc[c] >= 0)) continue;
+      const dphi = Math.abs(Math.atan2(Math.sin(A.phi[c] - tgt), Math.cos(A.phi[c] - tgt))), sc = Math.abs(A.zuvc[c] - 0.33) * 60 + dphi * 40;
+      if (sc < bs) { bs = sc; best = c; }
+    }
+    if (best < 0) return out;
+    const end = A.p(best), first = ids[0], prev = M.csSegments.RBB[M.csSegments.RBB.indexOf(first) - 1];
+    const start = prev !== undefined ? [M.x[prev], M.y[prev], M.z[prev]] : [M.x[first], M.y[first], M.z[first]];
+    ids.forEach((id, i) => { const f = (i + 1) / ids.length; out.set(id, [0, 1, 2].map((k) => start[k] + (end[k] - start[k]) * f)); });
+    return out;
+  }
+  const csPos = (id) => (g3.bandPos && g3.bandPos.get(id)) || [M.x[id], M.y[id], M.z[id]];
   function nodePos(id, lift = 1.6) {
-    const p = [M.x[id], M.y[id], M.z[id]];
+    const p = csPos(id);
     const c = nearestTissue(p[0], p[1], p[2]);
     if (c < 0) return p;
     const d = towardCavity(c);
@@ -606,6 +627,7 @@
   function buildConduction() {
     const grp = g3.cs = new THREE.Group(); g3.inner.add(grp);
     g3.tubes = []; g3.pickTubes = [];
+    g3.bandPos = bandDisplay();
     const segs = M.csSegments;
     const last = (a) => a[a.length - 1];
     const paths = [
@@ -971,7 +993,7 @@
     };
     const lab = (L) => (c) => A.label[c] === L;
     const epiOf = (L) => (c) => A.label[c] === L && A.epi[c];
-    const mid = (ids, f = 0.5) => { const id = ids[Math.floor((ids.length - 1) * f)]; return [M.x[id], M.y[id], M.z[id]]; };
+    const mid = (ids, f = 0.5) => csPos(ids[Math.floor((ids.length - 1) * f)]);
     g3.labels = [];
     const add = (text, p, view, kind = 'anat', nrm = null, cosMin = 0) => {
       const el = document.createElement('div'); el.className = `tag ${kind}`; el.textContent = text; layer.appendChild(el);

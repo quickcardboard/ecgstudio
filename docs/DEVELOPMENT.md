@@ -2751,4 +2751,8 @@ the band then runs forward and 11–37 mm down) on the live model:
 As in rebuild-1 round 10, the anatomical band swings the normal axis into left axis deviation and costs R progression
 and infarct localisation: the high paraseptal insertion is one of the compensations holding the normal axis (with the v2
 torso's inferior gain and the thickened normal LV). It cannot be the RBBB axis's cause: in RBBB the band, the end of the
-right bundle, carries nothing (−51° throughout). Kept; the 3D view draws the band where the physics has it.
+right bundle, carries nothing (−51° throughout). Kept in the physics. **Drawing only** (the author): the 3D view draws
+the band on the anatomical path, from the right bundle's septal end forward and down to the RV free wall at the anterior
+papillary muscle (rotational UVC ~45°, zuvc ~0.33; `bandDisplay` in `src/app.js`, `Model.rbbBand` in the engine). Each
+drawn point keeps the colour of the matching band node, so the timing shown is the model's; the label and the tap points
+follow the drawing.

@@ -768,6 +768,7 @@
       for (let s = 1; s <= nmb; s++) mbPts.push(lerp(rbbMidP, mbEndP, s / nmb));
       const mb = this.chain(KIND.BUNDLE, SEG.RBB, mbPts, P.cvBundle, 2.0, rbbSept[rbbSept.length - 1]);
       this.rbb = rbbSept.concat(mb);
+      this.rbbBand = mb;   // (the moderator band's nodes: the page draws them on an anatomical path, see bandDisplay in src/app.js)
 
       // ---- Purkinje networks: sparse nodes over the endocardium (not basal)
       // each LV Purkinje node belongs to the territory of the nearer fascicle
