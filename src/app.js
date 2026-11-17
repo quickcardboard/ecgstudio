@@ -2097,7 +2097,10 @@
         if (lo - dip > 0.015) notch = Math.max(notch, pk[b] - pk[a]);
       }
       const pDur = ab.last - ab.on + 12;                          // atrial activation plus the last front's own width
-      const tall = pII >= 0.25, broad = pDur >= 120;
+      // hypothermia slows atrial conduction too (P 118 -> 145 ms): a P broadened that way is not left atrial enlargement,
+      // so the width is read against the cold heart's own conduction (an enlarged LA still reads: 188 / 1.25 = 150 ms)
+      const pSlow = ui.struct.hypothermia ? S.P.elecHypothermiaCv : 1;
+      const tall = pII >= 0.25, broad = pDur / pSlow >= 120;
       const notchTxt = notch ? `, notched in II (humps ${Math.round(notch)} ms apart)` : '';
       if (tall && broad) out.push(`Biatrial enlargement: P ${pII.toFixed(2)} mV in II and ${Math.round(pDur)} ms wide${notchTxt}`);
       else if (tall) out.push(`Right atrial enlargement (P pulmonale): P ${pII.toFixed(2)} mV in II`);
@@ -2114,7 +2117,7 @@
     }
     // pericarditis: diffuse ST elevation, ST depression in aVR, PR depression (PR segment against TP)
     const steLeads = ['I', 'II', 'III', 'aVL', 'aVF', 'V2', 'V3', 'V4', 'V5', 'V6'].filter((n) => m[n].st >= 0.08);
-    if (steLeads.length >= 5 && m.aVR.st <= -0.05 && !S.insults.length) {
+    if (steLeads.length >= 5 && m.aVR.st <= -0.05 && !S.insults.length && !ui.struct.hypothermia) {   // (hypothermia's J waves raise the J point everywhere: read as Osborn waves, not pericarditis)
       const prDep = ab ? at(1, Math.floor(vb.on) - 10) - at(1, Math.floor(ab.on) - 15) : 0;
       out.push(`Diffuse ST elevation (${steLeads.join(', ')}) with ST depression in aVR${prDep <= -0.05 ? ` and PR depression in II (${prDep.toFixed(2)} mV)` : ''}: acute pericarditis pattern`);
     }
@@ -3170,6 +3173,7 @@
       shareScenario();
     });
     $('mPng').addEventListener('click', () => { closeLayer('menu'); saveEcgPng(); });
+    $('mContact').addEventListener('click', () => { if (hasLayer('menu')) closeLayer('menu'); });   // (the link opens the contact page)
     $('mHelp').addEventListener('click', () => { showGuide(); swapLayer('menu', 'help', () => { $('guide').hidden = true; }); });
     // heart: view options, floating actions, live lead
     $('mLearn').addEventListener('click', () => { if (sheetOpen() && ui.tab === 'learn') closeLayer('sheet'); else openSheet('learn'); });

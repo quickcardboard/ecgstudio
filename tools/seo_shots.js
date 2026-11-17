@@ -45,9 +45,6 @@ async function dismiss(page) {   // first-visit tip / tutorial offer, if any
     const s0 = await page.evaluate(() => window.ECGStudioApp.sim.t);
     await page.waitForFunction((s0) => window.ECGStudioApp.sim.t > s0 + 600, s0, { timeout: 60000, polling: 300 });
     await page.click('#btnPause').catch(() => {});   // (still, so the sheet and the read match)
-    // readKeep: only the findings containing this text are kept (sheet and page), where the blind reader adds
-    // spurious ones (hypothermia's J waves also read as pericarditis and LAE)
-    if (tp.readKeep) await page.evaluate((k) => { for (const li of document.getElementById('findings').querySelectorAll('li')) if (!li.textContent.toLowerCase().includes(k)) li.remove(); }, tp.readKeep.toLowerCase());
     const read = await page.evaluate(() => ({
       rhythm: document.getElementById('rhythm').textContent.trim(),
       chips: [...document.getElementById('chips').children].map((c) => [...c.childNodes].map((n) => n.textContent.trim()).filter(Boolean).join(' ')),
