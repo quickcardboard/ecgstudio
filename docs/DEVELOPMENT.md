@@ -2684,3 +2684,24 @@ the mesh (upper abdomen) to y −360. Chest electrodes moved onto this skin; V6 
 - Full-torso mode with v3: iErr 5 (proximal LCx V5 ST and proximal LAD V1/I ST still missing).
 - Next: refit the activation to the v3 torso (live mixed model), aiming at the inferior/rightward forces (LPFB, RVH, WPW)
   with the infarct reads protected.
+
+## claude/torso-v3 round 2: refit to the v3 torso (not adopted)
+
+Live mixed model on the v3 torso (shoulder limb patches), RCA infarct settings restored (`occlusionScarWindow` {},
+`occlusionMarginMm` {}); `tools/fullfit.js` with `FIX='{}'`, CAL=1, BASE_IERR=1 (refit.js score: 3 × lead-group misses,
+axes, ½ cstune checklist, ½ activation score, limb/chest balance).
+- Stage 1: 240 random candidates over conduction speeds, Purkinje speed and cross-territory slowing, septal and LPF/LAF
+  territories and roots, RV speed, apical Purkinje, right-septal delay and `rvSourceGain`. **20 candidates reach iErr 0**
+  (live 1): the v3 torso does not stop infarct localisation. But the axes stay left in every candidate: normal ≤ +41° (most
+  +5 to +15°), LPFB ≤ 86°, the RVH preset never right of −20° (fullcheck reads 320–340°). Best score 48 (live 30.5).
+- Stage 2: the top 10 at `heartRotation` 22 and 27 (fields re-solved; Burger triangle ~1 : 1.4 : 1.35 at both). 22: best
+  42.8 (iErr 1, normal 18°, LPFB 83°); 27: ischaemia breaks (iErr 13–16).
+- Full suites on the best (ecgGain recalibrated): 17° scorecard 51/66, reader 42/57; 22° 53/66, 45/57. Worse than the
+  v3 torso without refit (59/66, 47/57) and the live model (61/66, 55/57). The score's seven infarct sites and axes do not
+  protect R progression (candidates slow the fibre speed to 0.5 m/s: poor R progression reads), RBBB (reads IVCD), WPW,
+  pericarditis (reads high-lateral STEMI) or AF.
+- Conclusion: within today's parameters no heart reads as well on an anatomical torso as the live heart does on the v2
+  torso. The v2 torso's 1.7–1.9× inferior leads compensate for weak inferior/rightward forces (LPFB, RVH, the RBBB axis);
+  fixing those is a conduction-system change (RV activation and the over-cancellation of Round 68 part 2), not a search.
+  The v3 tools stay for that work; a refit score for it should include the reader's structural scenarios (RBBB, WPW,
+  pericarditis, normal R progression), not only the seven fullcheck sites.
