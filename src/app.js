@@ -1551,7 +1551,7 @@
     ui.preAtrRate = mode === 'atrial' ? ui.preAtrRate : null;
     ui.rateMode = mode;
     if (vent) {
-      if (ui.vRate) S.setVentricularResponse(ui.vRate);
+      if (ui.vRate) S.setVentricularResponse(ui.vRate, { variable: ui.fVar });
       const v = S.vResponse || (arr === 'af' ? LH.DEFAULTS.afDefaultRate : 145);
       $('rateLab').textContent = 'Ventricular rate'; r.min = 30; r.max = 180; r.value = v; $('rateVal').textContent = `${Math.round(v)} bpm`;
     } else {
@@ -1646,6 +1646,8 @@
     syncRhythmUI();
   }
   function chooseRhythm(type) {
+    ui.fVar = null;   // (variable flutter block comes only from a share link)
+    S.setSinusArrhythmia(null);   // (as is sinus arrhythmia)
     if (type === 'sinus') {
       const cur = currentRhythm();
       ui.avnrt = null; ui.pendingRhythm = null; ui.rhythmFrom = S.t; S.stopArrhythmia(); markChange();
@@ -2453,6 +2455,8 @@
     if (arr && ARR_TYPES.includes(arr)) q.set('a', arr);
     else if (ui.avnrt || (S.retroLog || []).filter((x) => x.t > S.t - 3000).length >= 4) q.set('a', 'avnrt');
     if (arr && (arr === 'af' || arr === 'flutter') && S.vResponse) q.set('v', Math.round(S.vResponse));
+    if (arr === 'flutter' && S.vVariable) q.set('fv', S.vVariable.join('-'));
+    if (S.sinusArr) q.set('sar', `${S.sinusArr.amp}-${S.sinusArr.period}`);   // (variable flutter block, e.g. fv=2-4)
     const blocks = Object.entries(S.blocks).map(([site, b]) => `${site}.${b.type}`);
     if (blocks.length) q.set('b', blocks.join(','));
     const occ = S.insults.filter((x) => x.kind === 'occlusion').map((x) => x.node), sub = S.insults.filter((x) => x.kind === 'subendo' && !x.stenosis).map((x) => x.cell), nar = S.insults.filter((x) => x.stenosis).map((x) => x.node);
@@ -2478,9 +2482,9 @@
     if (q.get('ap')) ui.struct.ap = true;                                // links made when WPW had a site option (ap=left-lateral)
     const a = q.get('a'), v = +q.get('v'), h = +q.get('h');
     return {
-      arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null,
+      arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null, fVar: (q.get('fv') || '').split('-').map(Number).filter((x) => x >= 2 && x <= 6), sar: (q.get('sar') || '').split('-').map(Number),
       blocks: (q.get('b') || '').split(',').map((x) => x.split('.')).filter(([site, type]) => BLOCK_MENU[site] && BLOCK_MENU[site].some((m) => m[0] === type)),
-      occ: ints('o'), nar: ints('n'), legacyCor: q.get('c') !== CORONARY_VERSION, sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
+      occ: ints('o'), nar: ints('n'), nsev: +q.get('ns') || 1, legacyCor: q.get('c') !== CORONARY_VERSION, sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
     };
   }
   function applyScenario(sc) {
@@ -2493,12 +2497,14 @@
     renderBlockList();
     if (occ.length || nar.length || sub.length) {
       for (const n of occ) S.addOcclusion(n);
-      for (const n of nar) S.addStenosis(n);
+      for (const n of nar) S.addStenosis(n, { sev: sc.nsev >= 0.3 && sc.nsev <= 2 ? sc.nsev : 1 });   // (ns: narrowing severity, from Training)
       if (SUBENDO_ON) for (const c of sub) S.addSubendocardial(c, 55);
       setIschTime(sc.h); recolorIschemia(); renderIschList();
     }
+    if (sc.sar[0] > 0) S.setSinusArrhythmia({ amp: sc.sar[0], period: sc.sar[1] || 5000 });   // (sinus arrhythmia: share links from Training)
     if (sc.arr) {
       if (sc.vRate) ui.vRate = sc.vRate;
+      ui.fVar = sc.arr === 'flutter' && sc.fVar.length ? sc.fVar : null;
       const r = ui.rate;
       startRhythm(sc.arr);
       if (sc.arr === 'mat' || sc.arr === 'ectopic') { ui.rate = r; S.setRate(r); }
@@ -3222,7 +3228,7 @@
   function initUI() {
     const rate = $('rate');
     rate.addEventListener('input', () => {
-      if (ui.rateMode === 'ventricular') { ui.vRate = +rate.value; S.setVentricularResponse(ui.vRate); $('rateVal').textContent = `${ui.vRate} bpm`; return; }
+      if (ui.rateMode === 'ventricular') { ui.vRate = +rate.value; S.setVentricularResponse(ui.vRate, { variable: ui.fVar }); $('rateVal').textContent = `${ui.vRate} bpm`; return; }
       ui.rate = +rate.value; $('rateVal').textContent = `${ui.rate} bpm`; S.setRate(ui.rate);
     });
     const ts = $('timescale');
@@ -3243,7 +3249,8 @@
     $('btnPause').addEventListener('click', () => setPaused(!ui.paused));
     // Reset: normal sinus rhythm at 72 bpm with no abnormalities
     $('btnReset').addEventListener('click', async () => {
-      ui.avnrt = null; ui.pendingRhythm = null; ui.preAtrRate = null; ui.vRate = null;
+      ui.avnrt = null; ui.pendingRhythm = null; ui.preAtrRate = null; ui.vRate = null; ui.fVar = null;
+      S.setSinusArrhythmia(null);
       ui.rate = 72; $('rate').value = 72;
       const prev = heartKey(), rebuild = CONDITIONS.some((c) => c.rebuild && ui.struct[c.id]);
       for (const c of CONDITIONS) ui.struct[c.id] = c.options ? '' : false;

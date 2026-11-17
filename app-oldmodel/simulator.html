@@ -934,7 +934,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-16 (2c03fc1).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-17 (4b484d0).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -979,7 +979,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-16 (2c03fc1).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-17 (4b484d0).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -2323,7 +2323,7 @@ THE SOFTWARE.
     // refractoriness that varies from cell to cell (×(1 ± fibHet)), so AF wavefronts break into wavelets
     // instead of sweeping the atria as one; in sinus rhythm the P wave is broader.
     fibCv: 1, fibHet: 0.45,
-    afDefaultRate: 110, afIrregularity: 0.45, afAvnToV: 110,   // AF ventricular response: mean rate, ±fraction of RR
+    afDefaultRate: 110, afIrregularity: 0.45, afAvnToV: 110, afAvnRvrExp: 2,   // AF ventricular response: mean rate, ±fraction of RR
     flutterRingSlow: 1.1, flutterIsthmusSlow: 2.8, flutterGateTol: 0.03, flutterRadius: 25, flutterBachmannSlow: 40,
     matClMin: 380, matClMax: 640,
     ectopicDist: 25,        // ectopic atrial focus: distance (mm) from the AV node, low in the right atrium
@@ -3793,6 +3793,10 @@ THE SOFTWARE.
     // The sinus-rate control stands in for autonomic tone: vagal tone slows the
     // sinus node and AV node together, sympathetic tone speeds both, so PR
     // shortens in sinus tachycardia and lengthens in sinus bradycardia.
+    // respiratory sinus arrhythmia: opts { amp: fraction of the cycle (0.15–0.2), period: one breath (ms) }; null turns it off
+    setSinusArrhythmia(opts) {
+      this.sinusArr = opts && opts.amp > 0 ? { amp: Math.min(0.35, opts.amp), period: opts.period || 5000, t0: this.t } : null;
+    }
     setRate(bpm) {
       this.sinusBpm = bpm;
       this._avnTone = Math.pow(72 / bpm, this.P.avnToneExp);
@@ -3847,13 +3851,19 @@ THE SOFTWARE.
       this._applyAvn();
     }
     clearBlocks() { for (const s of Object.keys(this.blocks)) this.setBlock(s, null); }
+    // AF with a rapid ventricular response: sympathetic tone shortens AV-nodal refractoriness, so the node can follow
+    // 130–180/min (refractoriness scaled by (100 / rate)^afAvnRvrExp above 100/min; sinus rhythm and slower AF unchanged)
+    _afAvnScale() {
+      const v = this.arrhythmia && this.arrhythmia.type === 'af' ? this.vResponse : null;
+      return v && v > 100 ? Math.pow(100 / v, this.P.afAvnRvrExp) : 1;
+    }
     _applyAvn() {
       const tone = this._avnTone || 1;
       for (const c of this.M.avn) {
         this.cvMul[c] = tone * (this.avnBlockMul || 1) * (this._avnLae || 1) * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
         // nodal refractoriness also follows autonomic tone (vagal lengthens, sympathetic shortens)
         // (AV-nodal ischaemia also lengthens nodal refractoriness: 1st-degree block, Wenckebach)
-        if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone * (1 + this.P.ischAvnErp * (this._avnIschemia || 0));
+        if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone * (1 + this.P.ischAvnErp * (this._avnIschemia || 0)) * this._afAvnScale();
       }
       // slow pathway: same autonomic coupling, short refractoriness; open only
       // with dual AV-node physiology and no AV-nodal block
@@ -3966,12 +3976,13 @@ THE SOFTWARE.
     // Narrowing (flow-limiting stenosis): partial flow, so the territory downstream of the node is
     // ischaemic in its inner wall only (demand ischaemia, the subendocardial time course: ST depression and
     // T changes that resolve, no necrosis through the wall) instead of transmurally as after an occlusion
-    addStenosis(node) {
+    // opts.sev: a factor on the artery's narrowing severity (stenosisSev): <1 milder, >1 tighter (Training's mild/severe)
+    addStenosis(node, opts = {}) {
       const M = this.M, A = M.A, vn = M.coronary.voxNode, aff = new Uint8Array(A.n);
       for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
       const ins = this._makeInsult('subendo', aff, this.P.ischBorderMm);
       const br = M.coronary.nodes[node].branch, fam = this._family(br);
-      const sv = typeof this.P.stenosisSev === 'number' ? this.P.stenosisSev : this.P.stenosisSev[fam];
+      const sv = (typeof this.P.stenosisSev === 'number' ? this.P.stenosisSev : this.P.stenosisSev[fam]) * (opts.sev || 1);
       const dg = this.P.stenosisBaseGain, nodes = M.coronary.nodes;
       for (let q = 0; q < ins.sev.length; q++) { const c = ins.cells[q], b = vn[c] >= 0 ? nodes[vn[c]].branch : ''; ins.sev[q] *= sv * (A.label[c] === LAB.RV ? this.P.subendoRVGain : 1) * (A.zuvc[c] > this.P.stenosisBaseZ ? dg : 1); }   // (thin, low-pressure RV: milder; the basal wall: stenosisBaseGain)
       // (stenosisGlobal: the rest of the LV inner wall shares a little of it (demand): ST depression that does not localise)
@@ -4546,8 +4557,12 @@ THE SOFTWARE.
     vulnerable() { return this.insults.length > 0 && this.ischemiaHours >= 0.1 && this.ischemiaHours <= 48; }
 
     // ventricular response in AF and flutter (bpm; null = natural for flutter, default for AF)
-    setVentricularResponse(bpm) {
+    // opts.variable (flutter): conduction ratios drawn at random beat by beat (e.g. [2, 4]: variable 2:1–4:1 block),
+    // so the response is irregular; bpm then only sets the first ratio
+    setVentricularResponse(bpm, opts = {}) {
       this.vResponse = bpm || null;
+      this.vVariable = Array.isArray(opts.variable) && opts.variable.length ? opts.variable.slice() : null;
+      if (this.erpExtra) this._applyAvn();
       if (this.arrhythmia && this.arrhythmia.type === 'flutter') this._setFlutterRatio();
     }
     // flutter: the AV node conducts one in N flutter waves (N from the set ventricular rate). The gate
@@ -4560,13 +4575,13 @@ THE SOFTWARE.
       const n = this.vResponse ? Math.max(2, Math.round(60000 / this.vResponse / cl)) : 0;
       // (the slow pathway enters the node lower down: its last cell is gated by the same rule)
       const slow = this.M.avnSlow || [];
-      this._flutterRatio = n ? { cell: this.M.avn[0], cells: new Set([this.M.avn[0]].concat(slow.length ? [slow[slow.length - 1]] : [])), n, rr: n * cl, cl, lastPass: -1e9, lastT: -1e9, last: true } : null;
+      this._flutterRatio = n ? { cell: this.M.avn[0], cells: new Set([this.M.avn[0]].concat(slow.length ? [slow[slow.length - 1]] : [])), n, rr: n * cl, cl, lastPass: -1e9, lastT: -1e9, last: true, variable: this.vVariable } : null;
     }
     _flutterPass(ta) {
       const g = this._flutterRatio;
       if (ta - g.lastT < 60) return g.last;                    // converging wavelets share one decision
       g.lastT = ta; g.last = ta - g.lastPass >= g.rr - 0.5 * g.cl;
-      if (g.last) g.lastPass = ta;
+      if (g.last) { g.lastPass = ta; if (g.variable) g.rr = g.variable[Math.floor(this.rand() * g.variable.length)] * g.cl; }
       return g.last;
     }
 
@@ -4845,7 +4860,9 @@ THE SOFTWARE.
       for (const pm of this.pacemakers) {
         if (pm.cl <= 0 || this.blocked[pm.cell] || (pm.armed && !pm.armed())) continue;
         if (pm.name === 'sinus' && (this.sinusArrest || t < this.sinusPauseUntil || (this.arrhythmia && (this.arrhythmia.type === 'ectopic' || this.arrhythmia.type === 'mat')))) continue;
-        if (t - this.tAct[pm.cell] >= pm.cl && t >= this.refEnd[pm.cell]) {
+        // (respiratory sinus arrhythmia: the sinus cycle follows breathing, shorter in inspiration)
+        const cl = pm.name === 'sinus' && this.sinusArr ? pm.cl * (1 + this.sinusArr.amp * Math.sin(2 * Math.PI * (t - this.sinusArr.t0) / this.sinusArr.period)) : pm.cl;
+        if (t - this.tAct[pm.cell] >= cl && t >= this.refEnd[pm.cell]) {
           // SA exit block: the node keeps its rhythm, but every nth impulse fails to exit
           if (pm.name === 'sinus' && this.saExit && ++this.saExit.count % this.saExit.n === 0) {
             this.tAct[pm.cell] = t; this.fireLog.push({ name: 'sinus-blocked', t });
@@ -6631,7 +6648,7 @@ THE SOFTWARE.
     ui.preAtrRate = mode === 'atrial' ? ui.preAtrRate : null;
     ui.rateMode = mode;
     if (vent) {
-      if (ui.vRate) S.setVentricularResponse(ui.vRate);
+      if (ui.vRate) S.setVentricularResponse(ui.vRate, { variable: ui.fVar });
       const v = S.vResponse || (arr === 'af' ? LH.DEFAULTS.afDefaultRate : 145);
       $('rateLab').textContent = 'Ventricular rate'; r.min = 30; r.max = 180; r.value = v; $('rateVal').textContent = `${Math.round(v)} bpm`;
     } else {
@@ -6726,6 +6743,8 @@ THE SOFTWARE.
     syncRhythmUI();
   }
   function chooseRhythm(type) {
+    ui.fVar = null;   // (variable flutter block comes only from a share link)
+    S.setSinusArrhythmia(null);   // (as is sinus arrhythmia)
     if (type === 'sinus') {
       const cur = currentRhythm();
       ui.avnrt = null; ui.pendingRhythm = null; ui.rhythmFrom = S.t; S.stopArrhythmia(); markChange();
@@ -7533,6 +7552,8 @@ THE SOFTWARE.
     if (arr && ARR_TYPES.includes(arr)) q.set('a', arr);
     else if (ui.avnrt || (S.retroLog || []).filter((x) => x.t > S.t - 3000).length >= 4) q.set('a', 'avnrt');
     if (arr && (arr === 'af' || arr === 'flutter') && S.vResponse) q.set('v', Math.round(S.vResponse));
+    if (arr === 'flutter' && S.vVariable) q.set('fv', S.vVariable.join('-'));
+    if (S.sinusArr) q.set('sar', `${S.sinusArr.amp}-${S.sinusArr.period}`);   // (variable flutter block, e.g. fv=2-4)
     const blocks = Object.entries(S.blocks).map(([site, b]) => `${site}.${b.type}`);
     if (blocks.length) q.set('b', blocks.join(','));
     const occ = S.insults.filter((x) => x.kind === 'occlusion').map((x) => x.node), sub = S.insults.filter((x) => x.kind === 'subendo' && !x.stenosis).map((x) => x.cell), nar = S.insults.filter((x) => x.stenosis).map((x) => x.node);
@@ -7558,9 +7579,9 @@ THE SOFTWARE.
     if (q.get('ap')) ui.struct.ap = true;                                // links made when WPW had a site option (ap=left-lateral)
     const a = q.get('a'), v = +q.get('v'), h = +q.get('h');
     return {
-      arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null,
+      arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null, fVar: (q.get('fv') || '').split('-').map(Number).filter((x) => x >= 2 && x <= 6), sar: (q.get('sar') || '').split('-').map(Number),
       blocks: (q.get('b') || '').split(',').map((x) => x.split('.')).filter(([site, type]) => BLOCK_MENU[site] && BLOCK_MENU[site].some((m) => m[0] === type)),
-      occ: ints('o'), nar: ints('n'), legacyCor: q.get('c') !== CORONARY_VERSION, sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
+      occ: ints('o'), nar: ints('n'), nsev: +q.get('ns') || 1, legacyCor: q.get('c') !== CORONARY_VERSION, sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
     };
   }
   function applyScenario(sc) {
@@ -7573,12 +7594,14 @@ THE SOFTWARE.
     renderBlockList();
     if (occ.length || nar.length || sub.length) {
       for (const n of occ) S.addOcclusion(n);
-      for (const n of nar) S.addStenosis(n);
+      for (const n of nar) S.addStenosis(n, { sev: sc.nsev >= 0.3 && sc.nsev <= 2 ? sc.nsev : 1 });   // (ns: narrowing severity, from Training)
       if (SUBENDO_ON) for (const c of sub) S.addSubendocardial(c, 55);
       setIschTime(sc.h); recolorIschemia(); renderIschList();
     }
+    if (sc.sar[0] > 0) S.setSinusArrhythmia({ amp: sc.sar[0], period: sc.sar[1] || 5000 });   // (sinus arrhythmia: share links from Training)
     if (sc.arr) {
       if (sc.vRate) ui.vRate = sc.vRate;
+      ui.fVar = sc.arr === 'flutter' && sc.fVar.length ? sc.fVar : null;
       const r = ui.rate;
       startRhythm(sc.arr);
       if (sc.arr === 'mat' || sc.arr === 'ectopic') { ui.rate = r; S.setRate(r); }
@@ -8302,7 +8325,7 @@ THE SOFTWARE.
   function initUI() {
     const rate = $('rate');
     rate.addEventListener('input', () => {
-      if (ui.rateMode === 'ventricular') { ui.vRate = +rate.value; S.setVentricularResponse(ui.vRate); $('rateVal').textContent = `${ui.vRate} bpm`; return; }
+      if (ui.rateMode === 'ventricular') { ui.vRate = +rate.value; S.setVentricularResponse(ui.vRate, { variable: ui.fVar }); $('rateVal').textContent = `${ui.vRate} bpm`; return; }
       ui.rate = +rate.value; $('rateVal').textContent = `${ui.rate} bpm`; S.setRate(ui.rate);
     });
     const ts = $('timescale');
@@ -8323,7 +8346,8 @@ THE SOFTWARE.
     $('btnPause').addEventListener('click', () => setPaused(!ui.paused));
     // Reset: normal sinus rhythm at 72 bpm with no abnormalities
     $('btnReset').addEventListener('click', async () => {
-      ui.avnrt = null; ui.pendingRhythm = null; ui.preAtrRate = null; ui.vRate = null;
+      ui.avnrt = null; ui.pendingRhythm = null; ui.preAtrRate = null; ui.vRate = null; ui.fVar = null;
+      S.setSinusArrhythmia(null);
       ui.rate = 72; $('rate').value = 72;
       const prev = heartKey(), rebuild = CONDITIONS.some((c) => c.rebuild && ui.struct[c.id]);
       for (const c of CONDITIONS) ui.struct[c.id] = c.options ? '' : false;
