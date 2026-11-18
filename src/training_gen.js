@@ -34,14 +34,16 @@
     // below the target: about 40–45, 50–85 and 110–165/min)
     af: { w: 5, open: true, rating: 60, rate: [60, 150], rateBands: [[42, 58, 0.15], [60, 105, 0.5], [130, 170, 0.35]], vLink: true, link: 'a=af', struct: 'fib', start: (S, rec) => { S.setAtrialFibrosis(true); S.run(2000); S.startArrhythmia('af'); S.setVentricularResponse(rec.rate); },   // (AF on its substrate, as in the app)
     read: (r) => r === 'atrial fibrillation' },
-    flutter: { w: 2.5, open: true, notWith: ['stemi', 'evolving', 'oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB'],   // (flutter waves sit on the ST segment)
+    // (the author, 2026-11-18: no electrolyte change with flutter (U waves, flat or peaked T waves blur the sawtooth), and the
+    // blind rhythm read must see flutter (gateRead), so a strip whose sawtooth reads as sinus or AF is not shown)
+    flutter: { w: 2.5, open: true, gateRead: true, notWith: ['stemi', 'evolving', 'oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB', 'hyperK', 'hyperK2', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia'],   // (flutter waves sit on the ST segment)
       rating: 150, rate: [60, 150], vLink: true, link: 'a=flutter',   // (above ~115/min the response is 2:1: flutter waves hidden in the QRS/T)
       start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate); }, read: (r) => r === 'atrial flutter' },
     // irregular flutter (variable block): the conduction ratio changes beat by beat (2:1–4:1); answered as flutter, with
     // AF as partly correct (an irregular response hides the regular sawtooth less clearly)
-    flutterVar: { w: 0.8, open: true, notWith: ['stemi', 'evolving', 'oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB'], rating: 190, rate: [80, 120],
+    flutterVar: { w: 0.8, open: true, gateRead: true, notWith: ['stemi', 'evolving', 'oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB', 'hyperK', 'hyperK2', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia'], rating: 190, rate: [80, 120],
       variable: [[2, 4], [2, 3, 4], [2, 3]], vLink: true, link: 'a=flutter', key: 'flutter', alt: ['af'],
-      start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate, { variable: rec.fv }); }, read: (r) => /atrial (flutter|fibrillation)/.test(r) },
+      start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate, { variable: rec.fv }); }, read: (r) => r === 'atrial flutter' },
     // multifocal atrial tachycardia: four atrial foci taking turns (±25% cycle), so ≥ 3 P shapes with varying PR and RR;
     // the blind rhythm read must see it (gateRead), and the P waves must be visible
     // WAP/MAT: below 100/min a wandering atrial pacemaker, above it multifocal atrial tachycardia (key: 'wap' or 'mat', both
@@ -227,7 +229,9 @@
   // - fascicular block and infarct: LAFB not with an inferior infarct, LPFB not with an LAD or circumflex one
   //   (the infarct moves the axis: see siteOk)
   const QRS = ['lbbb', 'rbbb', 'lafb', 'lpfb', 'lvh', 'rvh', 'brugada', 'wpw'];
-  const BIFASC = [['rbbb', 'lafb'], ['rbbb', 'lpfb']];
+  // (2026-11-18: RBBB + LAFB is out of Training for now: the model's RBBB alone already reads about −51° (its late RV forces
+  // point up), so it cannot be told from RBBB + LAFB (about −63°); see neutral in build. RBBB + LPFB stays: it reads right axis)
+  const BIFASC = [['rbbb', 'lpfb']];
   function compatible(rh, list, k) {
     const a = ABN[k], R = RHYTHMS[rh], all = [...list, k], has = (x) => all.includes(x);
     if (!R.open) return false;
@@ -461,8 +465,12 @@
             if (kind === 'acouplet') { const t2 = tp + Math.max(440, 0.62 * rr); S.stimulateAt(cell, t2); stims.push({ t: t2, kind: 'pac' }); }   // (the second PAC early after the first)
             return;
           }
+          // (the PVC well before the next sinus P, so it cannot fuse with the conducted beat (the author: a couplet's first beat
+          // looked like fusion); seen too late in this cycle: tried again in the next)
           const tp = Math.max(S.t + 5, lv.on + Math.max(420, 0.6 * rr));
-          if (tp < next + 100) { S.stimulateAt(cell, tp); stims.push({ t: tp, kind: 'pvc' }); if (kind === 'couplet') { S.stimulateAt(cell, tp + 380); stims.push({ t: tp + 380, kind: 'pvc' }); } }
+          const la = S.log.atrial[S.log.atrial.length - 1];
+          if (tp > next - 40 || (la && la.on > lv.on)) return false;   // (a sinus P already on its way to the ventricles: fusion)
+          { S.stimulateAt(cell, tp); stims.push({ t: tp, kind: 'pvc' }); if (kind === 'couplet') { S.stimulateAt(cell, tp + 380); stims.push({ t: tp + 380, kind: 'pvc' }); } }
         };
         const PATTERN = { vbig: ['v', 1], vtrig: ['v', 2], abig: ['a', 1], atrig: ['a', 2] }[kind];
         if (PATTERN) {
@@ -492,7 +500,7 @@
         } else for (const t of kind === 'couplet' || kind === 'acouplet' ? [3800] : [2600, 6600]) events.push({ t, fn: fire });
       }
       for (let t = 0; t < strip; t += 100) {
-        for (const e of events) if (!e.done && e.t >= t && e.t < t + 100) { e.done = true; e.fn(S, rec); }
+        for (const e of events) if (!e.done && e.t >= t && e.t < t + 100) { e.done = true; if (e.fn(S, rec) === false && e.t < strip - 2500) { e.done = false; e.t = t + 100; } }
         if (repeat) { for (let u = 0; u < 5; u++) { if (t0 !== null) repeat(); S.run(20); } } else
         S.run(100);
         if (t % 500 === 400) { S.log.atrial.forEach((x) => atr.add(x)); S.log.vent.forEach((x) => ven.add(x)); S.fireLog.forEach((x) => { if (x.name === 'focus') fired.add(x); }); }   // (the logs keep 50 entries)
@@ -573,6 +581,9 @@
     // ST depression (4th UDMI, at the stricter teaching threshold): ≥ 1 mm at J+80 ms, horizontal or
     // downsloping (the ST rises < 0.5 mm from the J point to J+80: upsloping depression is nonspecific), in
     // two contiguous leads (aVR and V1 not counted)
+    // (the lead groups with ≥ 0.5 mm of ST depression in any lead: ST depression does not localise, so naming any of them
+    // is right (the author: V4 was depressed too, and "anterior" cost marks))
+    const dipped = (L) => Object.keys(RL).filter((t) => RL[t].some((n) => L[n].st80 <= -0.05));
     const stdLeads = (L) => contiguous(LEADS.filter((n) => !['aVR', 'V1'].includes(n) && L[n].st80 <= -0.1 && L[n].st80 - L[n].stJ < 0.05));
     // T inversion (4th UDMI): ≥ 1 mm in two contiguous leads with a prominent R wave (R/S > 1); aVR, III and
     // V1 not counted
@@ -728,10 +739,14 @@
       if (R.block && !R.noP && pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.5)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
       const rr = readRhythm(rec12);   // (blind rhythm read: kept for the record and the audit, not the gate, except where the rhythm asks)
       if (R.gateRead && !R.read(rr.rhythm)) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm');
-      let rhythmAlt = tachyHideP ? ['sinus', 'svt'] : null;
+      let rhythmAlt = tachyHideP ? ['sinus', 'svt'] : null, rhythmSame = null;
       if (rec.rhythm === 'sinusArr') {
         const span = Math.max(...rrs) - Math.min(...rrs);
         if (span < 120) return fail(`sinus arrhythmia too slight (RR span ${Math.round(span)} ms)`, 'rhythm');
+        // (the author: sinus arrhythmia is a normal variant, not required; the sinus rhythm of its rate is fully right, the
+        // other sinus names partly)
+        const own = rate < 60 ? 'sinusBrady' : rate > 100 ? 'sinusTachy' : 'sinus';
+        rhythmSame = [own]; rhythmAlt = SINUS.filter((x) => x !== own);
       }
       if (rec.rhythm === 'flutterVar') {
         const mean = rrs.reduce((x, y) => x + y, 0) / rrs.length, sd = Math.sqrt(rrs.reduce((x, y) => x + (y - mean) ** 2, 0) / rrs.length);
@@ -743,13 +758,19 @@
         const n = new Set(sim.foci.map((x) => x.cell)).size;
         if (n < 3) return fail(`only ${n} atrial foci fired`, 'rhythm');
         rhythm = rate < 100 ? 'wap' : 'mat';
-        if (rate >= 95 && rate <= 105) rhythmAlt = [rhythm === 'wap' ? 'mat' : 'wap'];
+        // (the author: WAP for MAT and MAT for WAP earn partial credit, as sinus rhythm does for sinus bradycardia; near
+        // 100/min either is right)
+        if (rate >= 95 && rate <= 105) rhythmSame = [rhythm === 'wap' ? 'mat' : 'wap'];
+        else rhythmAlt = [rhythm === 'wap' ? 'mat' : 'wap'];
       }
       // morphology on the median beat
       const med = R.tachy ? null : medianBeat(sim);
       if (!R.tachy && !med) return fail('too few beats for a median beat', 'rhythm');
       const r = med ? read(med.rec, med.hint, med.rr, { minOff: med.qrsEnd }) : null, b = r ? r.interpret() : { dx: [], f: {} };
-      const findings = [], optional = new Set(), hl = new Set(), lines = {}, checks = [], hlBy = {};
+      const findings = [], optional = new Set(), hl = new Set(), lines = {}, checks = [], hlBy = {}, neutral = new Set();
+      let recentSte = false;   // (a recent infarct whose ST elevation still meets the STEMI criteria)
+      if (rhythm === 'sinusTachy' && !rec.abn.some((a) => a.k === 'avb1')) neutral.add('avb1');   // (the author: the P on the T looked like a long PR)
+      if (rec.abn.some((a) => a.k === 'rbbb') && !rec.abn.some((a) => a.k === 'lafb' || a.k === 'lpfb')) { neutral.add('lafb'); neutral.add('bifascicular'); }   // (RBBB's own left axis in this model)
       const mark = (id, leads) => { for (const l of leads) { hl.add(l); (hlBy[id] = hlBy[id] || []).includes(l) || hlBy[id].push(l); } };   // (each finding's own leads: the result chips show them)
       // (the cheap checks first, so a scenario that fails them costs no twin runs: the blind read, then every
       // abnormality's criteria; the twins run only once all of these pass)
@@ -781,7 +802,7 @@
           if (dx === 'long QT' && ks.length) { optional.add('longqt'); continue; }
           if (dx.startsWith('old MI') && ks.includes('lafb') && !ks.includes('oldmi') && !ks.includes('recent')) { optional.add('qwaves'); continue; }   // (LAFB pseudo-infarct)
           if (dx === '1st-degree AVB' && rca) { optional.add('avb1'); continue; }
-          if (dx.startsWith('STEMI') && ks.includes('recent')) { optional.add('ste'); continue; }   // (residual ST elevation at 2 days)
+          if (dx.startsWith('STEMI') && ks.includes('recent')) { optional.add('ste'); recentSte = true; continue; }   // (residual ST elevation at 2 days)
           if (dx.startsWith('old MI') && ks.includes('stemi')) { optional.add('qwaves'); continue; }   // (Q waves form within hours of a STEMI)
           // (an infarct moves the axis and the R waves: lateral and posterior loss gives right axis and a tall R
           // in V1, inferior loss a tall R in aVL; the reader's RVH/LVH voltage rules have no infarct exception, so
@@ -849,7 +870,7 @@
           const pvcs = (sim.stims || []).filter((x) => x.kind === 'pvc'), pacs = (sim.stims || []).filter((x) => x.kind === 'pac');
           const wide = [...ect].filter((v) => v.last - v.on >= 110), early = [...ect].filter((v) => { const i = V.indexOf(v); return i > 0 && v.on - V[i - 1].on < 0.85 * med; });
           const atrial = ['pac', 'acouplet', 'abig', 'atrig', 'arun'].includes(d.ectopy);
-          let want = 2, ok = atrial ? pacs.length === 2 && ect.size === 2 && wide.length === 0 && early.length === 2 : pvcs.length === 2 && wide.length === 2 && early.length >= 1;
+          let want = 2, ok = atrial ? pacs.length === 2 && ect.size === 2 && wide.length === 0 && early.length === 2 : pvcs.length === 2 && wide.length === 2 && early.length >= (d.ectopy === 'couplet' ? 2 : 1);
           if (['vbig', 'vtrig', 'abig', 'atrig'].includes(d.ectopy)) {
             // the pattern: every planned ectopic beat showed (wide or narrow as it should), at least three of them, and they
             // make up about a half (bigeminy) or a third (trigeminy) of the beats in the stretch they cover
@@ -881,13 +902,13 @@
           // other lead group that shows it is accepted too)
           const site = MI_SITES[a.site], terr = terrOf(c.leads), depth = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].st80));
           const main = terr.slice().sort((x, y) => depth(x) - depth(y))[0];
-          findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok])].filter((t) => t !== main) });
+          findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok, ...dipped(r.L)])].filter((t) => t !== main) });
           mark('std', c.leads); if (r.L.aVR.stJ >= 0.05) mark('std', ['aVR']);
           lines.std = `ST depression in ${c.leads.join(', ')}${r.L.aVR.stJ >= 0.05 ? ', ST up in aVR' : ''}: subendocardial ischemia (NSTEMI pattern). It does not localise the artery.`;
           ['reciprocal'].forEach((x) => optional.add(x)); if (twiLeads(r.L).length) optional.add('twi');
         } else if (a.k === 'multinarrow') {
           const terr = terrOf(c.leads), names = a.sites.map((x) => MI_SITES[x].name);
-          findings.push({ id: 'std', skill: d.skill, regions: terr.slice(0, 1), okRegions: terr.slice(1) });
+          findings.push({ id: 'std', skill: d.skill, regions: terr.slice(0, 1), okRegions: [...new Set([...terr.slice(1), ...dipped(r.L)])].filter((t) => t !== terr[0]) });
           optional.add('avrste');   // (the author: ST elevation in aVR is true here but not asked)
           mark('std', [...c.leads, 'aVR']);
           lines.std = `Widespread ST depression in ${c.leads.join(', ')}: diffuse subendocardial ischemia, not one territory.`;
@@ -911,9 +932,12 @@
           // (T inversion asked where it is: a territory of the site's that shows it in two of its leads, else the territory with the most)
           const most = (ts.length ? ts : tt).slice().sort((x, y) => RL[y].filter((n) => c.leads2.includes(n)).length - RL[x].filter((n) => c.leads2.includes(n)).length);
           const tReq = ts.filter((t) => ex.req.includes(t)).length ? ts.filter((t) => ex.req.includes(t)) : most.slice(0, 1);
-          findings.push({ id: 'twi', skill: d.skill, regions: tReq, okRegions: [...new Set([...tt, ...ex.req, ...ex.ok])].filter((t) => !tReq.includes(t)) });
+          // (the author: where the ST is still up by the STEMI criteria, ST elevation is the more important reading: named
+          // with the Q waves it counts for the T inversion)
+          findings.push({ id: 'twi', skill: d.skill, regions: tReq, okRegions: [...new Set([...tt, ...ex.req, ...ex.ok])].filter((t) => !tReq.includes(t)), ...(recentSte ? { alts: ['ste'] } : {}) });
           mark('qwaves', c.leads); mark('twi', c.leads2);
           lines.qwaves = lines.twi = `Q waves in ${c.leads.join(', ')}, T inversion in ${c.leads2.join(', ')}: recent ${wallName(ex, terr)} infarct (days old).`;
+          if (recentSte) { lines.qwaves += ' The ST is still raised, so ST elevation counts in place of the T inversion: treat it as a STEMI until shown otherwise.'; lines.twi = lines.qwaves; }
           ['ste', 'poorR', 'longqt'].forEach((x) => optional.add(x));
         } else if (a.k === 'stemi' && rec.abn.some((x) => x.k === 'lbbb')) {
           // (STEMI in LBBB: answered as ST elevation, a finding of its own beside the LBBB; seen through the Sgarbossa
@@ -972,6 +996,8 @@
       const flutter21 = rec.rhythm === 'flutter' && rate > 120;
       if (flutter21) rhythmAlt = ['svt', 'avnrt'];
       const key = { rhythm, alt: rhythmAlt || R.alt || (SINUS.includes(rhythm) && rhythm !== 'sinus' ? ['sinus'] : []), findings, optional: [...optional] };
+      if (rhythmSame) key.same = rhythmSame;   // (named instead of the key's rhythm: full credit)
+      if (neutral.size) key.neutral = [...neutral];   // (named: no credit, no penalty: it cannot be judged on this ECG)
       const skills = { rhythm: true }; for (const a of rec.abn) skills[ABN[a.k].skill] = true;
       const title = [rhythm, ...rec.abn.map((a) => (ABN[a.k].isch ? `${a.k} (${(a.sites || [a.site]).join(', ')})` : a.k))].join(' + ');
       // difficulty: rhythm and abnormalities, harder when some P waves are hidden

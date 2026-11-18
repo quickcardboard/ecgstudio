@@ -2731,11 +2731,6 @@
   const BURST_MS = 500, BURST_PX = 40, DOUBLE_MS = 350;
   const ph = { group: 0, peek: null, win: 5000, live: 'II', fsEcg: false, fsHeart: false, flip: false };
   const buzz = (ms = 10) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
-  // true the first time a tip key is seen in this browser
-  function firstTime(key) {
-    try { if (localStorage.getItem(key)) return false; localStorage.setItem(key, '1'); } catch (e) { /* no storage */ }
-    return true;
-  }
 
   function setMode() {
     const b = document.body, was = isM(), tab = MQ_TAB.matches, m = MQ_PORT.matches || MQ_LAND.matches || tab;
@@ -3000,7 +2995,6 @@
     if (on && !ph.fsEcg) {
       ph.fsEcg = true; ui.strips = ['II']; fsClass();
       openLayer('fs-ecg', () => { ph.fsEcg = false; fsClass(); });
-      $('ghint').hidden = true; firstTime('ecgstudio.tipFsEcg');
     } else if (!on && ph.fsEcg) closeLayer('fs-ecg');
   }
   // the desktop layout (tablets held sideways): the ECG alone, the heart hidden (double tap on the ECG, or back)
@@ -3307,7 +3301,7 @@
     });
     const release = (e) => {
       clearTimeout(hold); play.classList.remove('holding');
-      if (e.type === 'pointerup' && !held) { setPaused(!ui.paused); if (ui.paused && firstTime('ecgstudio.tipReset')) toast('Tip: press and hold ⏯ to reset'); }
+      if (e.type === 'pointerup' && !held) { setPaused(!ui.paused); }
     };
     play.addEventListener('pointerup', release); play.addEventListener('pointercancel', release); play.addEventListener('pointerleave', release);
     play.addEventListener('click', (e) => { if (e.detail === 0) setPaused(!ui.paused); });          // keyboard
@@ -3364,8 +3358,6 @@
     $('fsExit').addEventListener('click', () => setFsEcg(false));
     $('fsFlip').addEventListener('click', () => { ph.flip = !ph.flip; fsClass(); });
     $('fsInterp').addEventListener('click', () => { const off = document.body.classList.toggle('fs-nointerp'); $('fsInterp').setAttribute('aria-pressed', String(!off)); });
-    try { if (localStorage.getItem('ecgstudio.tipFsEcg')) $('ghint').hidden = true; } catch (e) { /* no storage */ }
-    if (isM() && MQ_PORT.matches && !isT() && !(window.ECGTour && window.ECGTour.pending()) && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
   }
 
   function initUI() {

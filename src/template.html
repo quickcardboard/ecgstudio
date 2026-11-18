@@ -396,7 +396,6 @@ body.m .gbar { display: flex; align-items: center; gap: 6px; position: absolute;
 .dots button { width: 18px; height: 20px; padding: 0; border: 0; background: none; display: grid; place-items: center; }
 .dots button::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #e2b0bd; }
 .dots button[aria-selected="true"]::before { background: #c2304f; }
-.ghint { position: absolute; right: 6px; bottom: 4px; font-size: 10.5px; color: #8a5a66; background: rgba(255,255,255,0.85); padding: 3px 6px; border-radius: 4px; }
 body.m #interp { order: 2; flex: none; flex-wrap: wrap; gap: 6px; padding: 8px 32px 8px 10px; border-bottom: 0; border-top: 1px solid var(--line); cursor: pointer; position: relative; }
 body.m #interp::after { content: "▴"; position: absolute; right: 12px; top: 8px; color: var(--muted); font-size: 13px; }
 body.m #rhythm { flex: 1 1 100%; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -489,7 +488,6 @@ body.m.t #pane3d { flex: 0 0 50%; }
 body.m.t #controls, body.m.t.sheet-full #controls { left: 0; right: 0; width: auto; max-width: 680px; margin: 0 auto; }   /* (the control sheet: centred, not edge to edge) */
 body.m.t #cecg { display: block; width: 100%; height: 100%; }
 body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { display: none; }
-body.m.t #ghint { display: none; }
 /* tablets held upright: heart above, ECG below */
 @media (min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (min-height: 501px) {
   #split { flex-direction: column; }
@@ -692,7 +690,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <div class="strips" id="strips" role="group" aria-label="Rhythm strip leads (up to three)"><span>Rhythm strips:</span></div>
       </div>
       <div id="ecgWrap"><canvas id="cecg"></canvas><canvas id="cgroup" aria-label="ECG lead group"></canvas><canvas id="cgroup2" aria-hidden="true" hidden></canvas><span class="calnote" id="calnote">II rhythm strip · 10 s</span>
-        <div class="gbar" id="gbar"><button type="button" id="mSecs" class="msecs" aria-label="Seconds shown: 5. Tap to change">5 s</button><div class="dots" id="mDots" role="tablist" aria-label="Lead group"></div><span class="ghint" id="ghint">Double-tap for 12 leads</span></div>
+        <div class="gbar" id="gbar"><button type="button" id="mSecs" class="msecs" aria-label="Seconds shown: 5. Tap to change">5 s</button><div class="dots" id="mDots" role="tablist" aria-label="Lead group"></div></div>
         <div class="fsbar" id="fsbar"><button type="button" id="fsInterp" aria-pressed="true">Interpretation</button><button type="button" id="fsFlip" aria-label="Rotate the other way">⟲</button><button type="button" id="fsExit" aria-label="Close the full ECG">✕</button></div>
       </div>
     </section>

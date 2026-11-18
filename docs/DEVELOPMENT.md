@@ -2766,3 +2766,31 @@ follow the drawing.
 - The 4-chamber camera preset is rolled about its view axis so lead I (the patient's right → left line, world +x) runs
   level across the screen, with the head side kept up (`leadIUp` on the preset), for teaching the hexaxial reference
   against the anatomy. Other presets are unchanged. No engine or ECG change.
+
+## claude/relaxed-mccarthy round 1: Training feedback (2026-11-18 problem reports)
+
+Generator (`src/training_gen.js`):
+- **Flutter**: no electrolyte change with flutter or variable flutter (U waves and flat or peaked T waves blurred the
+  sawtooth; a flutter + hypokalemia strip read blind as sinus rhythm). Both now need the blind rhythm read to say atrial
+  flutter (`gateRead`); variable flutter no longer passes on an AF read (the RBBB case read "fine AF"). A probe of 8 flutter
+  strips: the 5 clean ones read flutter; the hypokalemia, LVH and LAFB ones read sinus, sinus tachycardia or AF.
+- **PVCs and couplets**: a PVC was fired up to 100 ms after the next sinus P (or after a P already on its way), so the first
+  beat of a couplet fused with the conducted beat (QRS 111 ms). It now fires only before the next P and never after a P
+  that has not yet conducted, else it waits a cycle; a couplet needs both beats premature.
+- **Sinus arrhythmia**: the sinus rhythm of its rate (sinus bradycardia at 59/min) is full credit (`key.same`); the other
+  sinus names partly. **WAP/MAT**: each other's half credit at any rate; full credit at 95–105/min (it was half there).
+- **Recent infarct** (2 days) whose ST still meets the STEMI criteria (the mid-RCA case read "STEMI inferior"): ST elevation
+  counts for its T-inversion slot (`finding.alts`), and its line says so.
+- **ST depression** regions: any lead group with ≥ 0.5 mm depression in a lead is accepted (V4 −0.5 mm in the proximal-LCx
+  case cost "anterior").
+- **Neutral answers** (`key.neutral`: shown, no credit, no penalty, tag "cannot be judged here"): first-degree AV block in
+  sinus tachycardia (the P sits on the T; the measured PR was 139 ms), and LAFB or bifascicular block with RBBB alone.
+- **RBBB + LAFB** is out of Training for now: on Training's own ECGs RBBB alone reads −51° and RBBB + LAFB −63° (normal
+  +25°, LAFB −60°), so they cannot be told apart. RBBB + LPFB stays allowed but fails its gate (read as RVH).
+
+Training page: an ECG a fully right answer would raise the overall rating by less than 1 point is dropped and the next
+ones asked for 80 points harder, up to 6 times running (`gainIfRight`, `gen.lift`). Measurement chips left-justified on
+tablets. Simulator: the white first-use tips are gone (the phone "Double tap…" toast, "Tip: press and hold ⏯ to reset",
+and the "Double-tap for 12 leads" label on the phone ECG); the Help text is unchanged.
+
+Review text: `node tools/training_text.js` writes `docs/TRAINING_TEXT.md` (answer names, explanation lines, Learn text).
