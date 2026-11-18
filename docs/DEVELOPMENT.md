@@ -2819,3 +2819,21 @@ a lead in a contiguous pair that meets the Q-wave criteria, `qGroups`). The requ
   its QRS shortens to 114/112/104 ms (read as IVCD, then normal), the normal axis swings to +34°/+41°/+47° and LAFB weakens
   to −52°/−47°/−38° (no longer LAFB at ×3). Not adopted: the outflow tract's speed mostly shortens the RBBB, it does not
   turn its late forces right.
+
+## claude/relaxed-mccarthy round 3: lead groups by the two-contiguous-lead rule; RBBB axis is the RV's position (tested)
+
+**Lead groups (the author: the textbook rule):** the extra groups accepted for a region-specific finding are now those with a
+lead in a pair of contiguous leads that meets the finding's own criteria (`groupsOf` in `src/training_gen.js`): ST
+depression ≥ 0.5 mm, ST elevation by `steLeads` (1 mm; 2 mm in V2–V3), T inversion by `twiLeads` (≥ 1 mm with a prominent
+R), hyperacute T (contiguous leads whose T grew ≥ 0.5 mm), Q waves by `qLeads`. This replaces round 2's one-lead rule. A
+pair may span two groups (V4–V5 accepts anterior and lateral): the proximal-LCx report's V4 still accepts "anterior".
+
+**RBBB axis, the RV route (test options, removed again):**
+- Slowing the LV↔RV free-wall links below zuvc 0.35 (×0.3, ×0.1; the junction is the septal insertion lines, few contacts
+  below zuvc 0.7): RBBB −48° (from −51°), the normal axis +35°; ×0.02 stalls the simulation.
+- The RV Purkinje network is activated backwards in RBBB (first at 60 ms, median 76 ms after QRS onset) and fills the RV.
+  Cutting it (RBBB + all RV Purkinje blocked): QRS 182 ms, axis still −48°.
+- With round 2 (faster outflow tract: narrower RBBB, same direction), every route into the RV gives about the same late
+  force: from the LV toward the RV, which in this anatomy lies up and right of the LV (centroid frontal −147°, rebuild-1
+  round 17). The RBBB axis follows the RV's position, not its activation route; conduction changes cannot fix it. Training
+  keeps the round 1 workaround (RBBB + LAFB paused; LAFB/bifascicular neutral with RBBB alone).

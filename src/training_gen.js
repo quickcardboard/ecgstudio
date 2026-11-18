@@ -581,16 +581,15 @@
     // ST depression (4th UDMI, at the stricter teaching threshold): ≥ 1 mm at J+80 ms, horizontal or
     // downsloping (the ST rises < 0.5 mm from the J point to J+80: upsloping depression is nonspecific), in
     // two contiguous leads (aVR and V1 not counted)
-    // (the lead groups with ≥ 0.5 mm of ST depression in any lead: ST depression does not localise, so naming any of them
-    // is right (the author: V4 was depressed too, and "anterior" cost marks))
-    const dipped = (L) => Object.keys(RL).filter((t) => RL[t].some((n) => L[n].st80 <= -0.05));
-    // (the same caution for the other ST-T findings asked by region (the author, 2026-11-18: rather accept a group where one
-    // lead shows the change than take marks off because its second lead falls short): ST elevation ≥ 0.5 mm at J, T
-    // inversion ≥ 0.5 mm (not V1, where a negative T is normal), in any lead of the group)
-    const raised = (L) => Object.keys(RL).filter((t) => RL[t].some((n) => L[n].stJ >= 0.05));
-    // (Q waves, the author: any lead group with a lead in a pair of contiguous leads that meets the Q-wave criteria)
-    const qGroups = (L) => { const ql = qLeads(L); return Object.keys(RL).filter((t) => RL[t].some((n) => ql.includes(n))); };
-    const inverted = (L) => Object.keys(RL).filter((t) => RL[t].some((n) => n !== 'V1' && L[n].T <= -0.05));
+    // (lead groups also accepted for a region-specific finding (the author, 2026-11-18: err on the side of caution, by the
+    // textbook rule): any group with a lead in a pair of contiguous leads that meets the finding's criteria, so a group whose
+    // second lead falls short, or a pair spanning two groups (V4–V5), costs nothing. ST depression ≥ 0.5 mm (4th UDMI),
+    // ST elevation by steLeads (1 mm; 2 mm in V2–V3), T inversion by twiLeads (≥ 1 mm with a prominent R), Q waves by qLeads)
+    const groupsOf = (leads) => Object.keys(RL).filter((t) => RL[t].some((n) => leads.includes(n)));
+    const dipped = (L) => groupsOf(contiguous(LEADS.filter((n) => n !== 'aVR' && L[n].st80 <= -0.05)));
+    const raised = (L) => groupsOf(steLeads(L));
+    const inverted = (L) => groupsOf(twiLeads(L));
+    const qGroups = (L) => groupsOf(qLeads(L));
     const stdLeads = (L) => contiguous(LEADS.filter((n) => !['aVR', 'V1'].includes(n) && L[n].st80 <= -0.1 && L[n].st80 - L[n].stJ < 0.05));
     // T inversion (4th UDMI): ≥ 1 mm in two contiguous leads with a prominent R wave (R/S > 1); aVR, III and
     // V1 not counted
@@ -927,8 +926,8 @@
           lines.nsstt = `Flat T waves in ${c.leads.join(', ')}, no territory, no ST depression or Q waves: non-specific ST-T changes.`;
         } else if (a.k === 'hyper') {
           // (the T waves must be taller than this heart's own: at least 1.5× the twin's in those leads)
-          let taller = [];   // (lead groups with a lead whose T grew ≥ 0.5 mm over this heart's own)
-          if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr, { minOff: tmed.qrsEnd }).L, risen = c.leads.filter((n) => r.L[n].T >= 1.4 * Math.max(0.05, tr[n].T)); if (risen.length < 2) return fail(`hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); c.leads = risen; taller = Object.keys(RL).filter((t) => RL[t].some((n) => r.L[n].T - tr[n].T >= 0.05)); }
+          let taller = [];   // (lead groups with a lead in a contiguous pair whose T grew ≥ 0.5 mm over this heart's own)
+          if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr, { minOff: tmed.qrsEnd }).L, risen = c.leads.filter((n) => r.L[n].T >= 1.4 * Math.max(0.05, tr[n].T)); if (risen.length < 2) return fail(`hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); c.leads = risen; taller = groupsOf(contiguous(LEADS.filter((n) => n !== 'aVR' && r.L[n].T - tr[n].T >= 0.05))); }
           const site = MI_SITES[a.site], ex = site.ste, terr = terrOf(c.leads), req = ex.req.filter((t) => terr.includes(t)).length ? ex.req.filter((t) => terr.includes(t)) : terr.slice(0, 1);
           findings.push({ id: 'hyperacute', skill: d.skill, regions: req, okRegions: [...new Set([...terr, ...ex.req, ...ex.ok, ...taller])].filter((t) => !req.includes(t)) });
           mark('hyperacute', c.leads);
