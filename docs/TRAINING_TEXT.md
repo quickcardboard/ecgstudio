@@ -171,7 +171,7 @@ scoring messages in `src/training.js` (`oneLine`, `rowLine`, `score`).
 | Q waves (old infarct) | Q waves in ‹leads›: old ‹wall› infarct. |
 | Q waves + T wave inversion (recent infarct, 2 days) | Q waves in ‹leads›, T inversion in ‹leads›: recent ‹wall› infarct (days old). |
 | …when its ST still meets the STEMI criteria (new) | …+ The ST is still raised, so ST elevation counts in place of the T inversion: treat it as a STEMI until shown otherwise. |
-| Hyperacute T waves | Tall, broad T waves in ‹leads›, no ST elevation yet: hyperacute ‹wall› ischemia. Repeat the ECG. |
+| Hyperacute T waves | Broad-based, symmetric T waves in ‹leads›, large for the QRS in front of them, no ST elevation yet: hyperacute ‹wall› ischemia (an occlusion until shown otherwise). Repeat the ECG. |
 | ST depression (one artery narrowed) | ST depression in ‹leads›[, ST up in aVR]: subendocardial ischemia (NSTEMI pattern). It does not localise the artery. |
 | ST depression (several arteries) | Widespread ST depression in ‹leads›: diffuse subendocardial ischemia, not one territory. With ST elevation in aVR (‹x› mm): the left main or multivessel pattern (here ‹arteries› narrowed). Urgent: it does not localise to one artery. |
 | Non-specific ST-T abnormality | Flat T waves in ‹leads›, no territory, no ST depression or Q waves: non-specific ST-T changes. |
@@ -568,10 +568,13 @@ Pitfalls:
 ### Hyperacute phase
 
 - The first minutes: tall, broad, symmetric T waves over the territory before ST elevation develops.
+- Judge the T against the QRS in front of it: a T whose area is large for a small QRS, in two contiguous leads, is more telling than height alone.
+- Symmetric: the T falls about as slowly as it rises, on a broad base (a normal T rises slowly and falls faster).
 
 Pitfalls:
 
 - Compare with the patient’s baseline: hyperacute T waves are easy to miss on a single ECG.
+- Peaked but narrow-based T waves suggest hyperkalemia rather than ischemia.
 
 ### Evolving infarct
 

@@ -121,6 +121,7 @@
   // for leaving it out; credited when named). Wellens, hypothermia's Osborn waves, a STEMI read through LBBB
   // (Sgarbossa), and hypo- and hypercalcemia (interval-only changes)
   const ADV = 1700;
+  let HYPER_SHAPE = true;   // (the hyperacute T shape gate, Meyers et al. 2025; tools can turn it off to compare)
   const MI_SITES = {
     pLAD: { f: (b) => b.LAD[0], name: 'proximal LAD', ste: { req: ['anterior'], ok: ['septal', 'lateral'] }, q: { req: ['anterior'], ok: ['septal', 'lateral'] } },
     mLAD: { f: (b) => b.LAD[Math.round(b.LAD.length * 0.22)], name: 'mid LAD', ste: { req: ['anterior'], ok: ['septal', 'lateral'] }, q: { req: ['anterior'], ok: ['septal', 'lateral'] } },
@@ -525,6 +526,22 @@
       }
       return out;
     }
+    // T-wave shape on a median beat (Meyers et al., JACC Adv 2025, hyperacute T waves: magnitude = T area relative to the QRS
+    // amplitude; symmetry = peak-to-end against onset-to-peak). Per lead: mag = upright T area (mV·ms, above half... the whole
+    // positive lobe from the J point + 20 ms) / QRS peak-to-peak (mV), in ms; sym = falling half-width / rising half-width at
+    // half the T's height (a normal T rises slowly and falls fast, below 1; hyperacute nearer 1). Baseline: the PR segment.
+    function tShape(med, n) {
+      const k = LEADS.indexOf(n), x = (t) => med.rec[t][k], on = Math.round(med.hint), j = Math.round(med.qrsEnd);
+      let b0 = 0; for (let t = on - 20; t < on - 10; t++) b0 += x(t) / 10;
+      let lo = Infinity, hi = -Infinity; for (let t = on; t <= j; t++) { lo = Math.min(lo, x(t) - b0); hi = Math.max(hi, x(t) - b0); }
+      const end = Math.min(med.rec.length - 1, j + 450);
+      let pk = -1, pv = 0; for (let t = j + 40; t < end; t++) if (x(t) - b0 > pv) { pv = x(t) - b0; pk = t; }
+      if (pk < 0 || pv < 0.05) return { mag: 0, sym: 0, amp: +pv.toFixed(2) };
+      let a = pk; while (a > j + 20 && x(a) - b0 > pv / 2) a--;
+      let e = pk; while (e < end && x(e) - b0 > pv / 2) e++;
+      let area = 0; for (let t = j + 20; t < end; t++) area += Math.max(0, x(t) - b0);
+      return { mag: +(area / Math.max(0.1, hi - lo)).toFixed(0), sym: +((e - pk) / Math.max(1, pk - a)).toFixed(2), amp: +pv.toFixed(2) };
+    }
     function medianBeat(sim) {
       // (the RR for QTc and the window: the shorter, sinus cycle, not a pause of SA block or around an ectopic beat)
       const ect = ectopicBeats(sim), { rec12 } = sim, V = sim.V.filter((v) => !ect.has(v)), rrs = V.slice(1).map((v, i) => v.on - V[i].on), rr = rrs.length ? rrs.slice().sort((a, b) => a - b)[Math.floor(rrs.length * 0.25)] : 833;
@@ -927,11 +944,22 @@
         } else if (a.k === 'hyper') {
           // (the T waves must be taller than this heart's own: at least 1.5× the twin's in those leads)
           let taller = [];   // (lead groups with a lead in a contiguous pair whose T grew ≥ 0.5 mm over this heart's own)
-          if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr, { minOff: tmed.qrsEnd }).L, risen = c.leads.filter((n) => r.L[n].T >= 1.4 * Math.max(0.05, tr[n].T)); if (risen.length < 2) return fail(`hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); c.leads = risen; taller = groupsOf(contiguous(LEADS.filter((n) => n !== 'aVR' && r.L[n].T - tr[n].T >= 0.05))); }
+          if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr, { minOff: tmed.qrsEnd }).L, risen = c.leads.filter((n) => r.L[n].T >= 1.4 * Math.max(0.05, tr[n].T)); if (risen.length < 2) return fail(`hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); c.leads = risen;
+            // (Meyers et al. 2025: the T's area against the QRS (magnitude) and its symmetry, in two contiguous leads: magnitude
+            // ≥ 60 ms and ≥ 1.5× this heart's own T in the lead, falling half-width ≥ 0.9× the rising one. This model's normal T
+            // is already about symmetric (1.1), so the symmetry floor only rules out a narrow, peaked T)
+            if (HYPER_SHAPE) {
+              const sh = (n) => { const u = tShape(med, n), v = tShape(tmed, n); return { n, u, v, ok: u.mag >= 60 && u.mag >= 1.5 * v.mag && u.sym >= 0.9 }; }, all = LEADS.filter((n) => n !== 'aVR').map(sh);
+              const good = contiguous(all.filter((x) => x.ok && risen.includes(x.n)).map((x) => x.n));
+              checks.push(`hyperacute T shape (magnitude ms, symmetry; heart's own): ${all.filter((x) => risen.includes(x.n)).map((x) => `${x.n} ${x.u.mag}/${x.u.sym} [${x.v.mag}/${x.v.sym}]`).join(', ')}`);
+              if (good.length < 2) return fail(`hyper ${a.site}: T not broad and symmetric in two contiguous leads (${all.filter((x) => risen.includes(x.n)).map((x) => `${x.n} ${x.u.mag}/${x.u.sym}`).join(', ')})`, 'criteria');
+              c.leads = good;
+            }
+            taller = groupsOf(contiguous(LEADS.filter((n) => n !== 'aVR' && r.L[n].T - tr[n].T >= 0.05))); }
           const site = MI_SITES[a.site], ex = site.ste, terr = terrOf(c.leads), req = ex.req.filter((t) => terr.includes(t)).length ? ex.req.filter((t) => terr.includes(t)) : terr.slice(0, 1);
           findings.push({ id: 'hyperacute', skill: d.skill, regions: req, okRegions: [...new Set([...terr, ...ex.req, ...ex.ok, ...taller])].filter((t) => !req.includes(t)) });
           mark('hyperacute', c.leads);
-          lines.hyperacute = `Tall, broad T waves in ${c.leads.join(', ')}, no ST elevation yet: hyperacute ${req.join('/')} ischemia. Repeat the ECG.`;
+          lines.hyperacute = `Broad-based, symmetric T waves in ${c.leads.join(', ')}, large for the QRS in front of them, no ST elevation yet: hyperacute ${req.join('/')} ischemia (an occlusion until shown otherwise). Repeat the ECG.`;
           ['twi', 'reciprocal'].forEach((x) => optional.add(x));
         } else if (a.k === 'recent') {
           const site = MI_SITES[a.site], ex = site.q, terr = terrOf(c.leads), tt = terrOf(c.leads2), ts = terrStrong(c.leads2);
@@ -1026,7 +1054,7 @@
       }
       return null;
     }
-    return { make, build, sample, simulate, model, itemRating, artifactLeads, ART_MAX, setEctMm: (x) => { ECT_MM = x; } };
+    return { make, build, sample, simulate, model, itemRating, artifactLeads, ART_MAX, setEctMm: (x) => { ECT_MM = x; }, setHyperShape: (x) => { HYPER_SHAPE = !!x; } };
   }
   TrainGen.RHYTHMS = RHYTHMS; TrainGen.ABN = ABN; TrainGen.SKILLS = SKILLS; TrainGen.itemRating = itemRating; TrainGen.sample = sample;
   if (typeof module !== 'undefined' && module.exports) module.exports = TrainGen; else root.TrainGen = TrainGen;
