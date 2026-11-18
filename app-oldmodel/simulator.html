@@ -860,6 +860,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <span class="title">12-lead ECG · 25 mm/s · 10 mm/mV</span>
         <span class="spacer"></span>
         <button id="btnSavePng" type="button" title="Download this ECG as a PNG image">Save PNG</button>
+        <button id="btnPopout" type="button" title="Show the ECG in a second window (for a second screen), with or without the analysis">Pop out</button>
         <button id="focusEcg" type="button" title="Give the ECG more room">Expand</button>
       </div>
       <div id="interp">
@@ -934,7 +935,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-18 (9e4bd3d).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-18 (08f0d76).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -979,7 +980,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-18 (9e4bd3d).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-18 (08f0d76).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -5481,7 +5482,7 @@ THE SOFTWARE.
     const t1 = performance.now();
     if (++Q.frame % Q.every === 0 || ui.paused) update3D();
     const t2 = performance.now();
-    drawECG(); drawPhone();
+    const fullNow = ecg.full; drawECG(); popFrame(fullNow); drawPhone();
     perf.t3d += t2 - t1; perf.tEcg += performance.now() - t2; perf.frames++;
     if ((interpTimer += dt) > 300) { interpTimer = 0; syncRate(); interpret(); updateFloat(); syncRhythmUI(); }
     $('clock').textContent = `t ${(S.t / 1000).toFixed(3)} s · ${SCALE_LABEL[ui.scaleIdx]}${ui.paused ? ' · paused' : ''}`;
@@ -7159,8 +7160,8 @@ THE SOFTWARE.
   function interpret() {
     const arr = S.arrhythmia ? S.arrhythmia.type : null;
     if (arr === 'vf') {
-      $('rhythm').textContent = `Ventricular fibrillation${S.arrhythmia.trigger ? ' (R-on-T PVC in ischemic myocardium)' : ''}: shock now`;
-      $('chips').innerHTML = '<span class="chip flag"><em>Rhythm</em>chaotic, no QRS complexes</span>'; $('findings').innerHTML = '';
+      $('rhythm').textContent = 'Ventricular fibrillation';
+      $('chips').innerHTML = '<span class="chip flag"><em>QRS</em>none</span>'; $('findings').innerHTML = '';
       ui.snap = { rhythm: $('rhythm').textContent, arr: 'vf', B: S.blocks, findings: [] }; if (ui.tab === 'learn') renderLearn(); return;
     }
     if (S.t < ui.acqUntil) { if ($('rhythm').textContent !== 'Acquiring…') showAcquiring(); return; }
@@ -7177,7 +7178,7 @@ THE SOFTWARE.
     const since = (S.rhythmChangedAt || -1e9) + 400;
     const recent = V.filter((b) => b.on > Math.max(since, S.t - (tachy ? (arr === 'af' || arr === 'mat' ? 6000 : 3000) : 10000)));
     if (recent.length < 2) {
-      if (S.adenosine && S.t < S.adenosine.end) { $('rhythm').textContent = 'Adenosine: transient AV-nodal block, no QRS conducted'; $('chips').innerHTML = ''; $('findings').innerHTML = ''; }
+      if (S.adenosine && S.t < S.adenosine.end) { $('rhythm').textContent = 'Transient AV block (adenosine)'; $('chips').innerHTML = ''; $('findings').innerHTML = ''; }
       return;                                                   // otherwise keep the last reading
     }
     const rrs = recent.slice(1).map((b, i) => b.on - recent[i].on);
@@ -7232,21 +7233,21 @@ THE SOFTWARE.
     const flutterCl = arr === 'flutter' && S.drivers[0] && S.drivers[0].cls.length ? S.drivers[0].cls.reduce((a, c) => a + c, 0) / S.drivers[0].cls.length : 0;
     if (arr === 'af') {
       const pre = S.ap && QRS >= 110;
-      rhythm = `Atrial fibrillation with ${vr < 60 ? 'slow' : vr > 100 ? 'rapid' : 'controlled'} ventricular response (${vr} bpm, irregularly irregular)${pre ? ', pre-excited: conducting over the accessory pathway' : ''}`;
+      rhythm = pre ? 'Pre-excited atrial fibrillation' : `Atrial fibrillation with ${vr < 60 ? 'slow' : vr > 100 ? 'rapid' : 'controlled'} ventricular response`;
     } else if (arr === 'flutter') {
       const ar = flutterCl ? 60000 / flutterCl : 0, ratio = ar ? ar / rate : 0, fixed = rrSd < 25 && Math.abs(ratio - Math.round(ratio)) < 0.2;
-      rhythm = `Atrial flutter (${S.arrhythmia.clockwise ? 'atypical, clockwise' : 'typical, counterclockwise'}), atrial ${Math.round(ar)}/min with ${fixed ? Math.round(ratio) + ':1' : 'variable'} AV conduction`;
-    } else if (arr === 'ectopic') rhythm = `Ectopic atrial ${vr > 100 ? 'tachycardia' : 'rhythm'}: low right-atrial focus, ${vr} bpm, inverted P in II, III and aVF`;
-    else if (arr === 'mat') rhythm = vr > 100 ? `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes` : `Wandering atrial pacemaker: ${vr} bpm, irregular, three or more P-wave shapes`;
-    else if (arr === 'vt') rhythm = `Monomorphic ventricular tachycardia, ${vr} bpm, with AV dissociation`;
-    else if (arr === 'tdp') rhythm = `Torsades de pointes: polymorphic ventricular tachycardia, ${vr} bpm, the QRS axis twisting around the baseline (amplitude waxing and waning)`;
-    else if (avnrt) rhythm = `AVNRT (typical slow–fast): ${vr} bpm, narrow QRS, retrograde P hidden at the end of the QRS`;
-    else if (avrt) rhythm = 'Orthodromic AVRT';   // (the author: the name alone; the direction is in the Learn tab) else if (B.SAN && B.SAN.type === 'arrest') rhythm = `Sinus arrest with ${fired('ventricular') || fired('idioventricular') ? 'ventricular' : 'junctional'} escape rhythm`;
+      rhythm = `Atrial flutter with ${fixed ? Math.round(ratio) + ':1' : 'variable'} AV conduction`;
+    } else if (arr === 'ectopic') rhythm = `Ectopic atrial ${vr > 100 ? 'tachycardia' : 'rhythm'}`;
+    else if (arr === 'mat') rhythm = vr > 100 ? 'Multifocal atrial tachycardia' : 'Wandering atrial pacemaker';
+    else if (arr === 'vt') rhythm = 'Monomorphic ventricular tachycardia';
+    else if (arr === 'tdp') rhythm = 'Torsades de pointes';
+    else if (avnrt) rhythm = 'AVNRT';
+    else if (avrt) rhythm = 'Orthodromic AVRT'; else if (B.SAN && B.SAN.type === 'arrest') rhythm = `Sinus arrest with ${fired('ventricular') || fired('idioventricular') ? 'ventricular' : 'junctional'} escape rhythm`;
     else if (avComplete) {
       const esc = fired('idioventricular') ? 'idioventricular' : fired('ventricular') ? 'ventricular' : 'junctional';
       const level = distal && !(B.HIS && B.HIS.type === 'complete') && !(B.AVN && B.AVN.type === 'complete')
         ? (B.LBB ? ' (bilateral bundle branch block)' : ' (trifascicular block)') : '';
-      rhythm = `3rd-degree (complete) AV block${level} with ${esc} escape rhythm`;
+      rhythm = `Complete AV block${level} with ${esc} escape rhythm`;
     } else if (B.SAN && B.SAN.type === 'pause' && S.t < S.sinusPauseUntil + 6000) rhythm = `Sinus rhythm with sinus pause${fired('junctional') ? ' and junctional escape beats' : ''}`;
     else if (B.SAN && B.SAN.type === 'sa-exit') rhythm = 'Sinus rhythm with 2nd-degree SA exit block';
     else if (B.AVN && B.AVN.type === 'wenckebach') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz I (Wenckebach)';
@@ -7275,7 +7276,7 @@ THE SOFTWARE.
     if (nPAC) ect.push(`${nPAC} PAC${nPAC > 1 ? 's' : ''}`);
     if (nBlockedPAC) ect.push(`${nBlockedPAC} non-conducted PAC${nBlockedPAC > 1 ? 's' : ''}`);
     if (nPVC) ect.push(`${nPVC} PVC${nPVC > 1 ? 's' : ''}`);
-    if (S.adenosine && S.t >= S.adenosine.start) rhythm += ' · adenosine: transient AV-nodal block';
+    if (S.adenosine && S.t >= S.adenosine.start) rhythm += '; transient AV block (adenosine)';
     if (ect.length && !tachy) rhythm += ` with ${ect.join(' and ')}`;
 
     const axisTxt = axis < -30 ? 'left axis deviation' : axis > 90 ? 'right axis deviation' : 'normal axis';
@@ -7441,50 +7442,47 @@ THE SOFTWARE.
       // so the width is read against the cold heart's own conduction (an enlarged LA still reads: 188 / 1.25 = 150 ms)
       const pSlow = ui.struct.hypothermia ? S.P.elecHypothermiaCv : 1;
       const tall = pII >= 0.25, broad = pDur / pSlow >= 120;
-      const notchTxt = notch ? `, notched in II (humps ${Math.round(notch)} ms apart)` : '';
-      if (tall && broad) out.push(`Biatrial enlargement: P ${pII.toFixed(2)} mV in II and ${Math.round(pDur)} ms wide${notchTxt}`);
-      else if (tall) out.push(`Right atrial enlargement (P pulmonale): P ${pII.toFixed(2)} mV in II`);
-      else if (broad) out.push(`Left atrial enlargement (P mitrale): P ${Math.round(pDur)} ms wide${notchTxt}`);
+      if (tall && broad) out.push('Biatrial enlargement');
+      else if (tall) out.push('Right atrial enlargement');
+      else if (broad) out.push('Left atrial enlargement');
     }
     const PR = ab ? vb.on - ab.on : null, QRS = S.beatEnds(vb).last - vb.on + 4;
-    if (S.ap && PR !== null && PR < 120) out.push(`Ventricular pre-excitation (WPW pattern): short PR (${Math.round(PR)} ms), delta wave, QRS ${Math.round(QRS)} ms. Repolarization changes are secondary.`);
+    if (S.ap && PR !== null && PR < 120) out.push('WPW pattern');
     if (!S.ap && !Object.keys(S.blocks).length) {
       const sok = m.V1.s + Math.max(m.V5.rMax, m.V6.rMax);
       const strainLat = ['I', 'aVL', 'V5', 'V6'].filter((n) => m[n].t < -0.08).length >= 2;
       const domR = m.V1.rMax > m.V1.s && m.V1.rMax >= 0.5;
-      if (sok >= 3.5) out.push(`Left ventricular hypertrophy by voltage (Sokolow–Lyon ${sok.toFixed(1)} mV)${strainLat ? ' with repolarization abnormality (strain)' : ''}`);   // (Sokolow–Lyon only)
-      if (domR) out.push(`Right ventricular hypertrophy: dominant R in V1 (R ${m.V1.rMax.toFixed(2)} mV)${['V1', 'V2'].every((n) => m[n].t < -0.1) ? ' with T inversion in V1–V2 (RV strain)' : ''}`);
+      if (sok >= 3.5) out.push(`Left ventricular hypertrophy${strainLat ? ' with strain' : ''}`);   // (Sokolow–Lyon only)
+      if (domR) out.push(`Right ventricular hypertrophy${['V1', 'V2'].every((n) => m[n].t < -0.1) ? ' with strain' : ''}`);
     }
     // pericarditis: diffuse ST elevation, ST depression in aVR, PR depression (PR segment against TP)
     const steLeads = ['I', 'II', 'III', 'aVL', 'aVF', 'V2', 'V3', 'V4', 'V5', 'V6'].filter((n) => m[n].st >= 0.08);
     if (steLeads.length >= 5 && m.aVR.st <= -0.05 && !S.insults.length && !ui.struct.hypothermia) {   // (hypothermia's J waves raise the J point everywhere: read as Osborn waves, not pericarditis)
-      const prDep = ab ? at(1, Math.floor(vb.on) - 10) - at(1, Math.floor(ab.on) - 15) : 0;
-      out.push(`Diffuse ST elevation (${steLeads.join(', ')}) with ST depression in aVR${prDep <= -0.05 ? ` and PR depression in II (${prDep.toFixed(2)} mV)` : ''}: acute pericarditis pattern`);
+      out.push('Acute pericarditis');
     }
     // Brugada type 1: coved J-point elevation ≥ 2 mm in V1–V2 ending in a negative T wave
     const cov = ['V1', 'V2'].filter((n) => { const k = L_IDX[n], b0 = at(k, qrsBaseT(vb)), J = S.beatEnds(vb).last + 6; return at(k, J + 10) - b0 >= 0.2 && at(k, vb.on + 300) - b0 < -0.05; });
-    if (cov.length) out.push(`Coved ST elevation ≥ 2 mm with T inversion in ${cov.join(', ')}: Brugada type 1 pattern`);
+    if (cov.length) out.push('Brugada type 1 pattern');
     // non-specific ST-T changes: flat T waves (within ±0.5 mm) in two contiguous leads where T is normally
     // upright, without ischemia or a cause read elsewhere (the normal heart's flattest such T, V6, is 1.2 mm)
     const st = ui.struct;
     // electrolytes and temperature: the patterns they set (Round 51)
-    if (st.hyperK) { const n = ['V2', 'V3', 'V4', 'II'].reduce((a, b) => (m[b].t > m[a].t ? b : a)); out.push(`Tall, narrow, peaked T waves (${n} ${(m[n].t * 10).toFixed(0)} mm)${st.hyperK === 'severe' ? ', flattened P waves, long PR and a wide QRS' : ''}: hyperkalemia pattern`); }
-    if (st.hypoK) out.push('Flat T waves followed by U waves (best seen in V2–V3), slight ST sagging: hypokalemia pattern');
-    if (st.hypoCa) out.push(`Long QTc${QTc ? ` (${Math.round(QTc)} ms)` : ''} from a long, flat ST segment with a normal T wave: hypocalcemia pattern`);
-    if (st.hyperCa) out.push(`Short QTc${QTc ? ` (${Math.round(QTc)} ms)` : ''}: the T wave starts almost at the end of the QRS (short ST segment): hypercalcemia pattern`);
-    if (st.hypothermia) out.push('J (Osborn) waves at the end of the QRS, long QT and bradycardia: hypothermia pattern');
+    if (st.hyperK) out.push(st.hyperK === 'severe' ? 'Severe hyperkalemia pattern' : 'Hyperkalemia pattern');
+    if (st.hypoK) out.push('Hypokalemia pattern');
+    if (st.hypoCa) out.push('Hypocalcemia pattern');
+    if (st.hyperCa) out.push('Hypercalcemia pattern');
+    if (st.hypothermia) out.push('Hypothermia pattern (Osborn waves)');
     // STEMI in LBBB: Smith-modified Sgarbossa criteria (Round 52)
     if (S.blocks.LBB && S.insults.some((x) => x.kind === 'occlusion')) {
       const L = Object.keys(m), net = (n) => m[n].rMax - m[n].s;
       const conc = L.filter((n) => net(n) > 0 && m[n].stJ >= 0.1), dep = ['V1', 'V2', 'V3'].filter((n) => net(n) < 0 && m[n].stJ <= -0.1), exc = L.filter((n) => n !== 'aVR' && net(n) < 0 && m[n].stJ >= 0.1 && m[n].stJ >= 0.25 * m[n].s);
-      const parts = [conc.length ? `concordant ST elevation in ${conc.join(', ')}` : '', dep.length ? `concordant ST depression in ${dep.join(', ')}` : '', exc.length ? `discordant ST elevation ≥ 25% of the S wave in ${exc.join(', ')}` : ''].filter(Boolean);
-      out.push(parts.length ? `LBBB with ${parts.join('; ')}: Sgarbossa criteria (modified) positive, acute STEMI` : 'LBBB: ST changes within the expected discordance (Sgarbossa criteria negative)');
+      out.push(conc.length || dep.length || exc.length ? 'Acute STEMI in LBBB (Sgarbossa positive)' : 'Sgarbossa negative');
     }
-    if (st.wellens) out.push(st.wellens === 'A' ? 'Biphasic T waves (up, then down) in V2–V3, no Q waves, ST near baseline, R waves preserved: Wellens pattern type A' : 'Deep, symmetric T-wave inversion in V2–V4, no Q waves, ST near baseline, R waves preserved: Wellens pattern type B');
+    if (st.wellens) out.push(`Wellens pattern type ${st.wellens}`);
     if (!S.insults.length && !S.ap && !st.lvh && !st.rvh && !st.peri && !st.brugada && !st.hypoK && !st.hyperK && !st.hypothermia && !st.wellens && !Object.keys(S.blocks).some((b) => ['LBB', 'RBB'].includes(b))) {
       const flat = ['I', 'II', 'aVF', 'V3', 'V4', 'V5', 'V6'].filter((n) => Math.abs(m[n].t) <= 0.05);   // (flat: within ±0.5 mm)
       const nb = { I: [], II: ['aVF'], aVF: ['II'], V3: ['V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5'] }, fc = flat.filter((n) => nb[n].some((x) => flat.includes(x)));
-      if (fc.length >= 2) out.push(`Flat T waves in ${fc.join(', ')}: non-specific ST-T changes`);
+      if (fc.length >= 2) out.push('Non-specific ST-T changes');
     }
     return out;
   }
@@ -7571,9 +7569,9 @@ THE SOFTWARE.
       const hd = (n) => !['aVR', 'V1'].includes(n) && m[n].st80 <= -0.1 && m[n].st80 - m[n].stJ < 0.05;
       const Ds = order(contiguous(hd)), Es = order(new Set(LH.LEADS.filter((n) => m[n].st >= 0.08)));
       if (Ds.length >= 2) {
-        out.push({ head: true, text: `ST depression in ${span(Ds)}: subendocardial ischemia (NSTEMI pattern)` });
-        if (Es.length) out.push(`ST elevation in ${span(Es)} mirrors the depression (no transmural injury)`);
-      } else if (ui.ischH > 0.04) out.push({ head: true, text: 'Subendocardial ischemia here produces no diagnostic ST change' });
+        out.push({ head: true, text: `ST depression in ${span(Ds)}` });
+        if (Es.length) out.push(`ST elevation in ${span(Es)}`);
+      } else if (ui.ischH > 0.04) out.push({ head: true, text: 'No diagnostic ST change' });
       if (twi.length) out.push(`T-wave inversion in ${span(twi)}`);
       return out;
     }
@@ -7583,42 +7581,34 @@ THE SOFTWARE.
       out.push({ head: true, text: `${stage[0].toUpperCase() + stage.slice(1)} ${where} STEMI: ST elevation in ${span(order(E))}` });
       const recip = order(new Set([...D].filter((n) => n !== 'aVR' || !inf)));
       if (recip.length) out.push(`Reciprocal ST depression in ${span(recip)}`);
-      if (inf && E.has('V1')) out.push('ST elevation in V1 with an inferior STEMI suggests right ventricular involvement (record right-sided leads)');
-      if (post && !ant) out.push('ST depression in V1–V3 suggests posterior extension');
+      if (inf && E.has('V1')) out.push('Possible right ventricular involvement');
+      if (post && !ant) out.push('Possible posterior extension');
     } else if (post) {
-      out.push({ head: true, text: `ST depression in ${span(['V1', 'V2', 'V3'].filter((n) => D.has(n)))}: consider posterior STEMI (record V7–V9)` });
+      out.push({ head: true, text: `Possible posterior STEMI: ST depression in ${span(['V1', 'V2', 'V3'].filter((n) => D.has(n)))}` });
     } else if (Q.length || rLossC.length || twi.length >= 2) {
       // ST resolved: an infarct read from its Q waves, lost R waves and T waves
       const leads = new Set(Q.concat(twi, rLossC)), has = (g) => g.filter((n) => leads.has(n)).length >= 2;
       const where = [has(['V1', 'V2', 'V3', 'V4']) && 'anterior', has(['II', 'III', 'aVF']) && 'inferior', has(['I', 'aVL', 'V5', 'V6']) && 'lateral'].filter(Boolean).join(' and ');
       // (T inversion with Q waves is seen days to months after an infarct: the age cannot be read)
       const age = twi.length >= 2 ? 'Q-wave' : 'Old';
-      out.push({ head: true, text: `${age}${where ? ' ' + where : ''} infarct${twi.length >= 2 ? ' (age undetermined: recent or old)' : ''}: ${[Q.length && `Q/QS waves in ${span(Q)}`, rLossC.length && `R waves lost in ${span(rLossC)}`, twi.length && `T inversion in ${span(twi)}`].filter(Boolean).join(', ')}, ST at baseline` });
-      return out.concat(nodalNote());
+      out.push({ head: true, text: `${age === 'Old' ? 'Old' : 'Infarct'}${where ? ' ' + where : ''}${age === 'Old' ? ' infarct' : ', age undetermined'}: ${[Q.length && `Q waves in ${span(Q)}`, rLossC.length && `R waves lost in ${span(rLossC)}`, twi.length && `T inversion in ${span(twi)}`].filter(Boolean).join(', ')}` });
+      return out;
     } else if (hyper.length >= 2) {
-      out.push({ head: true, text: `Hyperacute T waves in ${span(hyper)}: earliest sign of coronary occlusion` });
+      out.push({ head: true, text: `Hyperacute T waves in ${span(hyper)}` });
       if (D.size) out.push(`ST depression in ${span(order(D))}`);
     } else if (D.size >= 2) {
-      out.push({ head: true, text: `ST depression in ${span(order(D))}${m.aVR.st >= 0.08 ? ', ST elevation in aVR' : ''}: ischemia` });
+      out.push({ head: true, text: `ST depression in ${span(order(D))}${m.aVR.st >= 0.08 ? ', ST elevation in aVR' : ''}` });
     } else if (ui.ischH > 0.04) {
-      out.push({ head: true, text: 'No diagnostic ST change in the 12 leads' });
+      out.push({ head: true, text: 'No diagnostic ST change' });
     }
     const hyperE = hyper.filter((n) => E.has(n));
     if (hyperE.length >= 2 && out.length && !out[0].text.startsWith('Hyperacute')) out.push(`Hyperacute T waves in ${span(hyperE)}`);
     if (!S.blocks.LBB) {   // (in LBBB, Q/QS waves, R progression and T inversion cannot be read for infarction)
-      if (Q.length) out.push(`Pathological Q/QS waves in ${span(Q)}`);
+      if (Q.length) out.push(`Q waves in ${span(Q)}`);
       if (rLossC.length) out.push(`R waves lost in ${span(rLossC)}`);
       if (twi.length) out.push(`T-wave inversion in ${span(twi)}`);
     }
-    return out.concat(nodalNote());
-  }
-  function nodalNote() {
-    const san = S.insults.some((x) => x.nodal && x.nodal.san), avn = S.insults.some((x) => x.nodal && x.nodal.avn);
-    if (!(ui.ischH > 0.1 && ui.ischH < 100 && (san || avn))) return [];
-    return [san && avn
-      ? 'The occlusion is proximal to the sinus-node and AV-node arteries: sinus slowing and a longer PR'
-      : san ? 'The occlusion is proximal to the sinus-node artery: sinus slowing'
-        : 'The occlusion is proximal to the AV-node artery at the crux: slower AV conduction, longer PR'];
+    return out;
   }
 
   // ---------------------------------------------------------------------------
@@ -7862,6 +7852,84 @@ THE SOFTWARE.
     catch (e) {                                                   // no clipboard access (http, some browsers): show the link to copy by hand
       toast('Copy this link to share the scenario:<input readonly>', 12000);
       const inp = $('toast').querySelector('input'); inp.value = url; inp.focus(); inp.select();
+    }
+  }
+  // ---------------------------------------------------------------------------
+  // Pop-out ECG (website, desktop; the author: the ECG on the main screen for students while the heart is driven on a
+  // side screen). A second window of this page's origin: the same paper drawn into its canvas each frame (the drawing
+  // state swapped in, as for the PNG sheet), the analysis copied in, and a button that hides it (measurements only).
+  // ---------------------------------------------------------------------------
+  const POP_KEYS = ['canvas', 'ctx', 'grid', 'mm', 'W', 'H', 'ox', 'oy', 'lastCursor', 'full'];
+  const pop = { win: null, st: null, paper: null, size: '', strips: '', text: '' };
+  const POP_ONLY_KEY = 'ecgstudio.popMeasOnly';
+  function popOpen() {
+    if (pop.win && !pop.win.closed) { pop.win.focus(); return; }
+    const w = window.open('', 'ecgstudio-ecg', 'popup,width=1280,height=800');
+    if (!w) { toast('The browser blocked the new window: allow pop-ups for this site, then try again.'); return; }
+    let only = false; try { only = localStorage.getItem(POP_ONLY_KEY) === '1'; } catch (e) { /* storage unavailable */ }
+    const d = w.document;
+    d.open();
+    d.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>ECG Studio · ECG</title><style>
+html, body { margin: 0; height: 100%; background: #ffffff; color: #121b26; font: 15px/1.4 "IBM Plex Sans", system-ui, sans-serif; }
+body { display: flex; flex-direction: column; }
+header { display: flex; gap: 14px; align-items: flex-start; padding: 12px 16px 10px; border-bottom: 1px solid #e3e8ec; }
+#info { flex: 1; min-width: 0; }
+#rhythm { font-weight: 600; font-size: 18px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip { font: 500 14px/1 "IBM Plex Mono", ui-monospace, monospace; padding: 6px 9px; border-radius: 5px; background: #f2f5f7; border: 1px solid #dde3e8; }
+.chip em { font: normal 13px/1 "IBM Plex Sans", system-ui, sans-serif; color: #5d6c79; margin-right: 6px; }
+.chip.flag { border-color: #e6a0b0; background: #fdf0f3; }
+ul { margin: 6px 0 0; padding-left: 20px; }
+li.head { font-weight: 600; }
+button { font: inherit; font-size: 14px; padding: 7px 13px; border-radius: 6px; border: 1px solid #c9d2d9; background: #ffffff; color: inherit; cursor: pointer; white-space: nowrap; }
+button:hover { background: #f2f5f7; }
+#wrap { flex: 1; min-height: 0; position: relative; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+body.only #rhythm, body.only ul, body.only .ax { display: none; }
+body.only .chip.flag { border-color: #dde3e8; background: #f2f5f7; }
+body.only .chips { margin-top: 0; }
+</style></head><body${only ? ' class="only"' : ''}><header><div id="info"><div id="rhythm"></div><div class="chips" id="chips"></div><ul id="findings"></ul></div>
+<button type="button" id="toggle">${only ? 'Show analysis' : 'Measurements only'}</button></header><div id="wrap"><canvas id="c"></canvas></div></body></html>`);
+    d.close();
+    d.getElementById('toggle').addEventListener('click', () => {
+      const on = d.body.classList.toggle('only');
+      d.getElementById('toggle').textContent = on ? 'Show analysis' : 'Measurements only';
+      try { localStorage.setItem(POP_ONLY_KEY, on ? '1' : '0'); } catch (e) { /* storage unavailable */ }
+    });
+    const cv = d.getElementById('c');
+    pop.win = w; pop.st = { canvas: cv, ctx: cv.getContext('2d'), grid: document.createElement('canvas'), full: true }; pop.paper = Object.assign({}, PAPER);
+    pop.size = ''; pop.text = '';
+    $('btnPopout').textContent = 'ECG window open';
+  }
+  // draw into the pop-out with its own size and paper (the main page's state put back afterwards)
+  function withPop(fn) {
+    const keep = {}, keepP = Object.assign({}, PAPER);
+    for (const k of POP_KEYS) keep[k] = ecg[k];
+    for (const k of POP_KEYS) ecg[k] = pop.st[k];
+    Object.assign(PAPER, pop.paper);
+    try { fn(); } finally {
+      for (const k of POP_KEYS) pop.st[k] = ecg[k];
+      pop.paper = Object.assign({}, PAPER);
+      for (const k of POP_KEYS) ecg[k] = keep[k];
+      Object.assign(PAPER, keepP);
+    }
+  }
+  function popFrame(full) {
+    if (!pop.win) return;
+    if (pop.win.closed) { pop.win = null; pop.st = null; $('btnPopout').textContent = 'Pop out'; return; }
+    const d = pop.win.document, wrap = d.getElementById('wrap'); if (!wrap) return;
+    const w = wrap.clientWidth, h = wrap.clientHeight, dpr = Math.min(2, pop.win.devicePixelRatio || 1), size = `${w}x${h}x${dpr}`, strips = ui.strips.join();
+    if (!w || !h) return;
+    if (size !== pop.size || strips !== pop.strips) { pop.size = size; pop.strips = strips; withPop(() => resizeECG({ w, h, dpr })); }
+    else if (full) pop.st.full = true;   // (the main paper redrawn in full: a new run, a share link)
+    withPop(drawECG);
+    // the analysis, as on the main page (copied when it changes)
+    const text = $('rhythm').textContent + '|' + $('chips').innerHTML + '|' + $('findings').innerHTML;
+    if (text !== pop.text) {
+      pop.text = text;
+      d.getElementById('rhythm').textContent = $('rhythm').textContent;
+      d.getElementById('chips').innerHTML = $('chips').innerHTML.replace(/ · ([a-z ]+)</g, '<span class="ax"> · $1</span><');   // (measurements only: no "normal axis", no highlighted values)
+      d.getElementById('findings').innerHTML = $('findings').innerHTML;
     }
   }
   // The ECG as shown, with the interpretation above it and a "simulated" stamp
@@ -8626,6 +8694,11 @@ THE SOFTWARE.
       });
     }
     $('btnSavePng').addEventListener('click', saveEcgPng);
+    if (INAPP) $('btnPopout').hidden = true;   // (the website only: not the app or its /app copy)
+    else {
+      $('btnPopout').addEventListener('click', popOpen);
+      window.addEventListener('pagehide', () => { if (pop.win && !pop.win.closed) pop.win.close(); });
+    }
     $('guideClose').addEventListener('click', hideGuide);
     $('guideTour').addEventListener('click', () => { hideGuide(); setTimeout(() => window.ECGTour && window.ECGTour.start(), 350); });
     for (const b of document.querySelectorAll('#guide .toc button')) b.addEventListener('click', () => guidePage(b.dataset.page));

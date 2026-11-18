@@ -2859,3 +2859,20 @@ the fix both atria flutter at 199–215 ms; AF → sinus is a clean 72/min. A sh
 
 **Desktop:** the Blocks, Ischemia and Conditions tabs show the same count badges as the phone tabs (inverted on the open
 tab). A phone tab's label no longer keeps "N active" after its count returns to zero.
+
+## claude/relaxed-mccarthy round 5: simulator analysis trimmed to findings; pop-out ECG (website)
+
+**Analysis text (the author: the findings only; mechanism and criteria belong in the Learn tab):** the rhythm line names
+the rhythm (no rate, mechanism or advice: "Atrial fibrillation with rapid ventricular response", "Torsades de pointes",
+"AVNRT", "Complete AV block with junctional escape rhythm", "Ventricular fibrillation"); structural findings name the
+condition ("Left atrial enlargement", "WPW pattern", "Hyperkalemia pattern", "Acute pericarditis"); ischaemia keeps its
+leads ("Acute inferior STEMI: ST elevation in II, III, aVF", "Possible posterior extension"); the sinus/AV-node artery
+notes are gone. Values stay in the chips. Shared by the website and the app. The ECG library pages keep their stored
+reads until `node tools/seo_shots.js` is rerun. Full list: `docs/SIMULATOR_TEXT.md`.
+
+**Pop-out ECG (website simulator, desktop only):** "Pop out" in the ECG header opens a second window with the live 12-lead
+paper at that window's size and the analysis above it; "Measurements only" hides the rhythm and findings and neutralises
+the chips (no highlighted values, no axis wording), for showing students an ECG while the heart is driven on another
+screen. It draws with the page's own ECG code (the drawing state swapped in each frame, as for the PNG sheet). The button
+is hidden in the app and its /app copy (`INAPP`); phones never show the ECG header; Training is unchanged. The window
+closes with the page; the choice of mode is remembered in this browser.
