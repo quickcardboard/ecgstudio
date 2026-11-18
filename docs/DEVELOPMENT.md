@@ -2794,3 +2794,28 @@ tablets. Simulator: the white first-use tips are gone (the phone "Double tap…"
 and the "Double-tap for 12 leads" label on the phone ECG); the Help text is unchanged.
 
 Review text: `node tools/training_text.js` writes `docs/TRAINING_TEXT.md` (answer names, explanation lines, Learn text).
+
+## claude/relaxed-mccarthy round 2: lenient lead groups; RBBB axis and the RV outflow tract (tested, not changed)
+
+**No +0 ECGs (from round 1, restated):** Training no longer offers an ECG whose fully right answer would add less than one
+point to the overall rating (`gainIfRight` in `src/training.js`): it is dropped and the next ones are asked 80 points
+harder, up to six times running.
+
+**Lead groups (the author: err on the side of caution):** a region-specific finding now also accepts any lead group where
+one lead shows it, so a group is not marked wrong because its second lead falls short: ST depression ≥ 0.5 mm (round 1),
+ST elevation ≥ 0.5 mm at J (acute and evolving STEMI, Sgarbossa), T inversion ≥ 0.5 mm (not V1; the recent infarct, and
+its ST-elevation stand-in), hyperacute T (a lead whose T grew ≥ 0.5 mm over the heart's own), and Q waves (any group with
+a lead in a contiguous pair that meets the Q-wave criteria, `qGroups`). The required group is unchanged.
+
+**RBBB axis (the author asked: measure the RV, test faster outflow-tract conduction):**
+- Area by RV region (`REG=rv AREA=1 BLOCK=RBB TMAX=140 tools/regiondecomp.js`): RBBB moves the QRS area axis from −5° to
+  −87°; every RV region adds negative aVF (mid anterior −8.7, apex −6.6, mid posterior −5.9, base −3.7/−3.1 mV·ms), the LV
+  −8.4; lead I changes little (−6.8 in all).
+- Activation (RBBB): the RV apex fills first through the LV apex (mean 59 ms after QRS onset), then a slow wave climbs the
+  free wall to the mid RV (81 ms) and the base/outflow (84 ms). The last 15% sit right, level and anterior (−36, −5, 36 mm),
+  as in the textbook; the superior axis comes from the climb, not from the last region. In the normal heart the RV is done
+  by 81 ms. The RBBB aVF is nearly flat (R 0, S 0 mm), so the axis rests on small numbers.
+- Test option (upper-RV speed ×1.5/2/3 above zuvc 0.6, also from 0.45 and 0.3; removed again): RBBB −47°/−37°/−21°, but
+  its QRS shortens to 114/112/104 ms (read as IVCD, then normal), the normal axis swings to +34°/+41°/+47° and LAFB weakens
+  to −52°/−47°/−38° (no longer LAFB at ×3). Not adopted: the outflow tract's speed mostly shortens the RBBB, it does not
+  turn its late forces right.
