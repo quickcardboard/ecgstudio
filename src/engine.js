@@ -2497,6 +2497,17 @@
     // DC shock: every excitable cell is depolarised at once, so no wavefront
     // can find excitable tissue ahead of it; drivers stop; the sinus node
     // (reset by the shock) takes over again.
+    // end every wave in the atria (and nothing else): leaving AF for another rhythm, so no fibrillatory wavelet
+    // survives in the left atrium (the ventricles and the conduction system are untouched)
+    resetAtria() {
+      const M = this.M, t = this.t;
+      for (let c = 0; c < M.nCells; c++) {
+        if (M.kind[c] !== KIND.ATRIAL || M.seg[c] || this.blocked[c]) continue;
+        if (t < this.refEnd[c]) this.refEnd[c] = Math.max(this.refEnd[c], t + this.P.shockRefractory);
+        this.arrive[c] = Infinity;
+      }
+      this.rhythmChangedAt = t;
+    }
     shock() {
       this.stopArrhythmia();
       const M = this.M, t = this.t;

@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-18 (414f89d)">
+<meta name="version" content="2026-11-18 (9e4bd3d)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -3174,6 +3174,17 @@ body.land #fsClose { display: none; }
     // DC shock: every excitable cell is depolarised at once, so no wavefront
     // can find excitable tissue ahead of it; drivers stop; the sinus node
     // (reset by the shock) takes over again.
+    // end every wave in the atria (and nothing else): leaving AF for another rhythm, so no fibrillatory wavelet
+    // survives in the left atrium (the ventricles and the conduction system are untouched)
+    resetAtria() {
+      const M = this.M, t = this.t;
+      for (let c = 0; c < M.nCells; c++) {
+        if (M.kind[c] !== KIND.ATRIAL || M.seg[c] || this.blocked[c]) continue;
+        if (t < this.refEnd[c]) this.refEnd[c] = Math.max(this.refEnd[c], t + this.P.shockRefractory);
+        this.arrive[c] = Infinity;
+      }
+      this.rhythmChangedAt = t;
+    }
     shock() {
       this.stopArrhythmia();
       const M = this.M, t = this.t;

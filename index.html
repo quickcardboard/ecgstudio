@@ -301,6 +301,8 @@ button.primary { background: var(--accent); color: var(--accent-fg); border-colo
 #pane3d .pane-head .tabs button { padding: 6px 11px; font-size: 13px; border-radius: 5px; background: transparent; border-color: transparent; color: var(--panel-muted); }
 #pane3d .pane-head .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 #pane3d .pane-head .tabs button:hover { color: var(--viewport-fg); }
+#pane3d .pane-head .tabs .badge { display: inline-block; margin-left: 6px; min-width: 17px; height: 17px; padding: 0 5px; box-sizing: border-box; border-radius: 9px; background: var(--viewport-fg); color: var(--panel); font: 600 11px/17px var(--font-ui); text-align: center; vertical-align: 1px; pointer-events: none; }
+#pane3d .pane-head .tabs button[aria-selected="true"] .badge { background: var(--accent-fg); color: var(--accent); }
 .tabpanel { display: flex; flex-direction: column; gap: 14px; }
 .clicknote { border-left: 2px solid var(--accent); padding-left: 8px; }
 .foot { border-top: 1px solid var(--panel-line); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -932,7 +934,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-18 (414f89d).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-18 (9e4bd3d).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -977,7 +979,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-18 (414f89d).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-18 (9e4bd3d).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -4614,6 +4616,17 @@ THE SOFTWARE.
     // DC shock: every excitable cell is depolarised at once, so no wavefront
     // can find excitable tissue ahead of it; drivers stop; the sinus node
     // (reset by the shock) takes over again.
+    // end every wave in the atria (and nothing else): leaving AF for another rhythm, so no fibrillatory wavelet
+    // survives in the left atrium (the ventricles and the conduction system are untouched)
+    resetAtria() {
+      const M = this.M, t = this.t;
+      for (let c = 0; c < M.nCells; c++) {
+        if (M.kind[c] !== KIND.ATRIAL || M.seg[c] || this.blocked[c]) continue;
+        if (t < this.refEnd[c]) this.refEnd[c] = Math.max(this.refEnd[c], t + this.P.shockRefractory);
+        this.arrive[c] = Infinity;
+      }
+      this.rhythmChangedAt = t;
+    }
     shock() {
       this.stopArrhythmia();
       const M = this.M, t = this.t;
@@ -5332,7 +5345,7 @@ THE SOFTWARE.
   // samples, the beat and event logs and the rhythm state, written into the replica. Without workers (or with
   // ?noworker), or if the worker fails, the page steps the engine itself as before.
   const SIMW = { w: null, on: false, pending: 0, carry: 0, owed: 0, bufs: [], simId: 0 };
-  const SIM_CMD = /^(set|add|remove|clear|start|stop|shock|give|stimulate)/;
+  const SIM_CMD = /^(set|add|remove|clear|start|stop|shock|give|stimulate|reset)/;
   function startSimWorker() {
     try {
       if (!window.Worker || !window.Blob || /(^|[?&])noworker\b/.test(location.search.slice(1))) return;
@@ -6964,6 +6977,7 @@ THE SOFTWARE.
     syncRhythmUI();
   }
   function chooseRhythm(type) {
+    if (type === 'sinus' && S.arrhythmia && S.arrhythmia.type === 'af') leaveAF();   // (other rhythms: in startRhythm)
     ui.fVar = null;   // (variable flutter block comes only from a share link)
     S.setSinusArrhythmia(null);   // (as is sinus arrhythmia)
     if (type === 'sinus') {
@@ -6973,8 +6987,15 @@ THE SOFTWARE.
     } else startRhythm(type);
     syncRate(); interpret(); updateFloat(); syncRhythmUI();
   }
+  // leaving AF for another rhythm: its substrate (atrial fibrosis, added with it) goes too, and every atrial wavelet is
+  // ended, so the left atrium does not keep fibrillating under the new rhythm (the author, 2026-11-18)
+  function leaveAF() {
+    if (ui.struct.fib) setCondition('fib', false);
+    S.resetAtria();
+  }
   // start a rhythm (Rhythm menu and the heart gestures)
   function startRhythm(type) {
+    if (type !== 'af' && S.arrhythmia && S.arrhythmia.type === 'af') leaveAF();
     ui.avnrt = null; ui.pendingRhythm = null; markChange();
     if (type === 'avnrt') {
       if (S.ap) setCondition('ap', false);
@@ -6990,7 +7011,7 @@ THE SOFTWARE.
       S.stimulateAt(A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === 3), S.nextSinus() + 270);
       return;
     }
-    if (type === 'af' && !ui.struct.fib) { setCondition('fib', true); toast('AF needs a substrate: atrial fibrosis added. It stays after a shock; remove it under Conditions.', 4200); }
+    if (type === 'af' && !ui.struct.fib) { setCondition('fib', true); toast('AF needs a substrate: atrial fibrosis added. It stays after a shock and goes when you choose another rhythm.', 4200); }
     if (type === 'vt') { let best = -1; for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.epi[c] && A.zuvc[c] > 0.35 && A.zuvc[c] < 0.45 && A.phi[c] < -2.2) { best = c; break; } S.startArrhythmia('vt', { cell: best }); return; }
     if (type === 'mat') { ui.preAtrRate = ui.preAtrRate || ui.rate; ui.rateMode = ''; }   // WAP/MAT starts at the current rate (below 100: wandering atrial pacemaker); the slider sets it
     S.startArrhythmia(type);
@@ -7218,10 +7239,7 @@ THE SOFTWARE.
     else if (arr === 'vt') rhythm = `Monomorphic ventricular tachycardia, ${vr} bpm, with AV dissociation`;
     else if (arr === 'tdp') rhythm = `Torsades de pointes: polymorphic ventricular tachycardia, ${vr} bpm, the QRS axis twisting around the baseline (amplitude waxing and waning)`;
     else if (avnrt) rhythm = `AVNRT (typical slow–fast): ${vr} bpm, narrow QRS, retrograde P hidden at the end of the QRS`;
-    else if (avrt) {
-      const SITE = { 'left-lateral': 'left lateral', 'left-posterior': 'left posterior', posteroseptal: 'posteroseptal', 'right-free-wall': 'right free wall', 'right-anteroseptal': 'right anteroseptal' };
-      rhythm = `Orthodromic AVRT: down the AV node, back up the ${SITE[S.apLocation] || ''} accessory pathway (narrow QRS, no pre-excitation)`;
-    } else if (B.SAN && B.SAN.type === 'arrest') rhythm = `Sinus arrest with ${fired('ventricular') || fired('idioventricular') ? 'ventricular' : 'junctional'} escape rhythm`;
+    else if (avrt) rhythm = 'Orthodromic AVRT';   // (the author: the name alone; the direction is in the Learn tab) else if (B.SAN && B.SAN.type === 'arrest') rhythm = `Sinus arrest with ${fired('ventricular') || fired('idioventricular') ? 'ventricular' : 'junctional'} escape rhythm`;
     else if (avComplete) {
       const esc = fired('idioventricular') ? 'idioventricular' : fired('ventricular') ? 'ventricular' : 'junctional';
       const level = distal && !(B.HIS && B.HIS.type === 'complete') && !(B.AVN && B.AVN.type === 'complete')
@@ -7677,17 +7695,18 @@ THE SOFTWARE.
   }
   function choose(id, v) { if (v) noteRecent(id, v); setCondition(id, v); }
 
-  // what is switched on, shown outside its tab: a count on the phone's Blocks, Ischemia and Conditions tabs; on desktop
+  // what is switched on, shown outside its tab: a count on the Blocks, Ischemia and Conditions tabs (phone and desktop); on desktop also
   // the active conditions under the view name (most of them do not change the model)
   function updateBadges() {
     const n = { blocks: S ? Object.keys(S.blocks).length : 0, ischemia: S ? S.insults.length : 0, conditions: CONDITIONS.filter((c) => ui.struct[c.id]).length };
     for (const [tab, k] of Object.entries(n)) {
-      const b = document.querySelector(`#mTabs [data-tab="${tab}"]`); if (!b) continue;
-      let el = b.querySelector('.badge');
-      if (!k) { if (el) el.remove(); continue; }
-      if (!el) { el = document.createElement('span'); el.className = 'badge'; el.setAttribute('aria-hidden', 'true'); b.appendChild(el); }
-      el.textContent = k;
-      b.setAttribute('aria-label', `${b.textContent.replace(/\d+$/, '').trim()}, ${k} active`);
+      for (const b of document.querySelectorAll(`#mTabs [data-tab="${tab}"], #tabs [data-tab="${tab}"]`)) {   // (phone tabs and, the author: desktop tabs too)
+        let el = b.querySelector('.badge');
+        if (!k) { if (el) el.remove(); b.removeAttribute('aria-label'); continue; }
+        if (!el) { el = document.createElement('span'); el.className = 'badge'; el.setAttribute('aria-hidden', 'true'); b.appendChild(el); }
+        el.textContent = k;
+        b.setAttribute('aria-label', `${b.textContent.replace(/\d+$/, '').trim()}, ${k} active`);
+      }
     }
     const on = CONDITIONS.filter((c) => ui.struct[c.id]), sum = $('condSum');
     sum.hidden = !on.length;

@@ -126,6 +126,8 @@ button.primary { background: var(--accent); color: var(--accent-fg); border-colo
 #pane3d .pane-head .tabs button { padding: 6px 11px; font-size: 13px; border-radius: 5px; background: transparent; border-color: transparent; color: var(--panel-muted); }
 #pane3d .pane-head .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 #pane3d .pane-head .tabs button:hover { color: var(--viewport-fg); }
+#pane3d .pane-head .tabs .badge { display: inline-block; margin-left: 6px; min-width: 17px; height: 17px; padding: 0 5px; box-sizing: border-box; border-radius: 9px; background: var(--viewport-fg); color: var(--panel); font: 600 11px/17px var(--font-ui); text-align: center; vertical-align: 1px; pointer-events: none; }
+#pane3d .pane-head .tabs button[aria-selected="true"] .badge { background: var(--accent-fg); color: var(--accent); }
 .tabpanel { display: flex; flex-direction: column; gap: 14px; }
 .clicknote { border-left: 2px solid var(--accent); padding-left: 8px; }
 .foot { border-top: 1px solid var(--panel-line); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }

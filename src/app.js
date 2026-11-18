@@ -157,7 +157,7 @@
   // samples, the beat and event logs and the rhythm state, written into the replica. Without workers (or with
   // ?noworker), or if the worker fails, the page steps the engine itself as before.
   const SIMW = { w: null, on: false, pending: 0, carry: 0, owed: 0, bufs: [], simId: 0 };
-  const SIM_CMD = /^(set|add|remove|clear|start|stop|shock|give|stimulate)/;
+  const SIM_CMD = /^(set|add|remove|clear|start|stop|shock|give|stimulate|reset)/;
   function startSimWorker() {
     try {
       if (!window.Worker || !window.Blob || /(^|[?&])noworker\b/.test(location.search.slice(1))) return;
@@ -1789,6 +1789,7 @@
     syncRhythmUI();
   }
   function chooseRhythm(type) {
+    if (type === 'sinus' && S.arrhythmia && S.arrhythmia.type === 'af') leaveAF();   // (other rhythms: in startRhythm)
     ui.fVar = null;   // (variable flutter block comes only from a share link)
     S.setSinusArrhythmia(null);   // (as is sinus arrhythmia)
     if (type === 'sinus') {
@@ -1798,8 +1799,15 @@
     } else startRhythm(type);
     syncRate(); interpret(); updateFloat(); syncRhythmUI();
   }
+  // leaving AF for another rhythm: its substrate (atrial fibrosis, added with it) goes too, and every atrial wavelet is
+  // ended, so the left atrium does not keep fibrillating under the new rhythm (the author, 2026-11-18)
+  function leaveAF() {
+    if (ui.struct.fib) setCondition('fib', false);
+    S.resetAtria();
+  }
   // start a rhythm (Rhythm menu and the heart gestures)
   function startRhythm(type) {
+    if (type !== 'af' && S.arrhythmia && S.arrhythmia.type === 'af') leaveAF();
     ui.avnrt = null; ui.pendingRhythm = null; markChange();
     if (type === 'avnrt') {
       if (S.ap) setCondition('ap', false);
@@ -1815,7 +1823,7 @@
       S.stimulateAt(A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === 3), S.nextSinus() + 270);
       return;
     }
-    if (type === 'af' && !ui.struct.fib) { setCondition('fib', true); toast('AF needs a substrate: atrial fibrosis added. It stays after a shock; remove it under Conditions.', 4200); }
+    if (type === 'af' && !ui.struct.fib) { setCondition('fib', true); toast('AF needs a substrate: atrial fibrosis added. It stays after a shock and goes when you choose another rhythm.', 4200); }
     if (type === 'vt') { let best = -1; for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.epi[c] && A.zuvc[c] > 0.35 && A.zuvc[c] < 0.45 && A.phi[c] < -2.2) { best = c; break; } S.startArrhythmia('vt', { cell: best }); return; }
     if (type === 'mat') { ui.preAtrRate = ui.preAtrRate || ui.rate; ui.rateMode = ''; }   // WAP/MAT starts at the current rate (below 100: wandering atrial pacemaker); the slider sets it
     S.startArrhythmia(type);
@@ -2043,10 +2051,7 @@
     else if (arr === 'vt') rhythm = `Monomorphic ventricular tachycardia, ${vr} bpm, with AV dissociation`;
     else if (arr === 'tdp') rhythm = `Torsades de pointes: polymorphic ventricular tachycardia, ${vr} bpm, the QRS axis twisting around the baseline (amplitude waxing and waning)`;
     else if (avnrt) rhythm = `AVNRT (typical slow–fast): ${vr} bpm, narrow QRS, retrograde P hidden at the end of the QRS`;
-    else if (avrt) {
-      const SITE = { 'left-lateral': 'left lateral', 'left-posterior': 'left posterior', posteroseptal: 'posteroseptal', 'right-free-wall': 'right free wall', 'right-anteroseptal': 'right anteroseptal' };
-      rhythm = `Orthodromic AVRT: down the AV node, back up the ${SITE[S.apLocation] || ''} accessory pathway (narrow QRS, no pre-excitation)`;
-    } else if (B.SAN && B.SAN.type === 'arrest') rhythm = `Sinus arrest with ${fired('ventricular') || fired('idioventricular') ? 'ventricular' : 'junctional'} escape rhythm`;
+    else if (avrt) rhythm = 'Orthodromic AVRT';   // (the author: the name alone; the direction is in the Learn tab) else if (B.SAN && B.SAN.type === 'arrest') rhythm = `Sinus arrest with ${fired('ventricular') || fired('idioventricular') ? 'ventricular' : 'junctional'} escape rhythm`;
     else if (avComplete) {
       const esc = fired('idioventricular') ? 'idioventricular' : fired('ventricular') ? 'ventricular' : 'junctional';
       const level = distal && !(B.HIS && B.HIS.type === 'complete') && !(B.AVN && B.AVN.type === 'complete')
@@ -2502,17 +2507,18 @@
   }
   function choose(id, v) { if (v) noteRecent(id, v); setCondition(id, v); }
 
-  // what is switched on, shown outside its tab: a count on the phone's Blocks, Ischemia and Conditions tabs; on desktop
+  // what is switched on, shown outside its tab: a count on the Blocks, Ischemia and Conditions tabs (phone and desktop); on desktop also
   // the active conditions under the view name (most of them do not change the model)
   function updateBadges() {
     const n = { blocks: S ? Object.keys(S.blocks).length : 0, ischemia: S ? S.insults.length : 0, conditions: CONDITIONS.filter((c) => ui.struct[c.id]).length };
     for (const [tab, k] of Object.entries(n)) {
-      const b = document.querySelector(`#mTabs [data-tab="${tab}"]`); if (!b) continue;
-      let el = b.querySelector('.badge');
-      if (!k) { if (el) el.remove(); continue; }
-      if (!el) { el = document.createElement('span'); el.className = 'badge'; el.setAttribute('aria-hidden', 'true'); b.appendChild(el); }
-      el.textContent = k;
-      b.setAttribute('aria-label', `${b.textContent.replace(/\d+$/, '').trim()}, ${k} active`);
+      for (const b of document.querySelectorAll(`#mTabs [data-tab="${tab}"], #tabs [data-tab="${tab}"]`)) {   // (phone tabs and, the author: desktop tabs too)
+        let el = b.querySelector('.badge');
+        if (!k) { if (el) el.remove(); b.removeAttribute('aria-label'); continue; }
+        if (!el) { el = document.createElement('span'); el.className = 'badge'; el.setAttribute('aria-hidden', 'true'); b.appendChild(el); }
+        el.textContent = k;
+        b.setAttribute('aria-label', `${b.textContent.replace(/\d+$/, '').trim()}, ${k} active`);
+      }
     }
     const on = CONDITIONS.filter((c) => ui.struct[c.id]), sum = $('condSum');
     sum.hidden = !on.length;

@@ -2837,3 +2837,25 @@ pair may span two groups (V4–V5 accepts anterior and lateral): the proximal-LC
   force: from the LV toward the RV, which in this anatomy lies up and right of the LV (centroid frontal −147°, rebuild-1
   round 17). The RBBB axis follows the RV's position, not its activation route; conduction changes cannot fix it. Training
   keeps the round 1 workaround (RBBB + LAFB paused; LAFB/bifascicular neutral with RBBB alone).
+
+## claude/relaxed-mccarthy round 4: hyperacute T shape; AVRT text; AF→other rhythms; desktop badges
+
+**Hyperacute T waves (Meyers et al., JACC Adv 2025;4:102120):** `tShape` in `src/training_gen.js` measures per lead the
+T's magnitude (upright T area from J+20 ms / QRS peak-to-peak, in ms) and symmetry (falling / rising half-width at half
+the T's height). The hyperacute gate now also needs two contiguous leads with magnitude ≥ 60 ms and ≥ 1.5× the heart's
+own, and symmetry ≥ 0.9. This model's normal T is already about symmetric (1.08–1.15; a real normal T is about 0.6–0.8),
+so symmetry only rules out narrow, peaked T waves. Hyperacute leads measured 72–297 ms against the heart's own 20–52.
+Pass rate over 24 random hyperacute Training scenarios: 6/24 without the gate, 5/24 with it (one mid-LAD case with
+symmetry 0.57/0.61 dropped); 11 LAD scenarios fail the older textbook height rule ("T not tall") first, 4 RCA ones with a
+fascicular block "ST elevation already". Learn text and the chip line name both features.
+
+**Simulator:** the AVRT rhythm line is "Orthodromic AVRT" alone (the direction is in the Learn tab). The diagnosis text for
+review: `docs/SIMULATOR_TEXT.md`.
+
+**AF → another rhythm (bug):** the fibrillatory wavelets lived on in the left atrium under flutter (LA appendage cycles
+71–134 ms while the high RA flutters at ~200 ms). Choosing any other rhythm from AF now removes the atrial fibrosis that AF
+added and ends every atrial wave (`Sim.resetAtria`, forwarded to the simulation worker: `reset` joins `SIM_CMD`). After
+the fix both atria flutter at 199–215 ms; AF → sinus is a clean 72/min. A shock still keeps the fibrosis (the toast says so).
+
+**Desktop:** the Blocks, Ischemia and Conditions tabs show the same count badges as the phone tabs (inverted on the open
+tab). A phone tab's label no longer keeps "N active" after its count returns to zero.
