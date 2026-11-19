@@ -935,7 +935,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (67d5532).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (6ec84b0).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -980,7 +980,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (67d5532).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (6ec84b0).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -5971,6 +5971,7 @@ THE SOFTWARE.
     g3.clots = new THREE.Group(); grp.add(g3.clots);
     g3.restCol = new Float32Array(M.nVox * 3);
     recolorIschemia();
+    corVisible();   // (a rebuilt heart in the full cut: still hidden)
   }
 
   // artery segment name for a tree node, e.g. "proximal LAD"
@@ -6490,7 +6491,7 @@ THE SOFTWARE.
     g3.slab.im.visible = cut;
     // clip tissue and arteries; the conduction system stays whole so it can be seen (and clicked)
     for (const m of g3.clipMats) { m.clippingPlanes = cut ? [g3.plane] : null; m.needsUpdate = true; }
-    g3.cs.visible = cut; g3.stencil.visible = cut; g3.cor.visible = true;
+    g3.cs.visible = cut; g3.stencil.visible = cut; corVisible();
     $('legendCs').hidden = !cut;
     $('legendBlock').hidden = !cut || !Object.keys(S.blocks).length;
     updateActionNote(); hideBlockMenu();
@@ -6498,12 +6499,16 @@ THE SOFTWARE.
     g3.controls.enableRotate = true;
     if (cut) g3.planeDirty = true; else $('viewName').textContent = 'external view';
   }
+  // the coronary arteries hide in the full cut (the author: as the conduction system hides in the outside view); hidden,
+  // they take no taps
+  function corVisible() { if (g3.cor) g3.cor.visible = !(ui.view === 'cutaway' && ui.cutFrac >= 100); }
   const CUT_R = 85;   // mm from the centre at which the cut plane clears the heart
   function setCut(f) {
     ui.cutFrac = f; ui.cutDepth = (1 - f / 100) * CUT_R;
     $('cutDepth').value = f; $('cutExt').setAttribute('aria-pressed', String(f === 0)); $('cutFull').setAttribute('aria-pressed', String(f === 100));
     const v = f > 0 ? 'cutaway' : 'external';
     if (v !== ui.view) setView(v);
+    corVisible();
     g3.planeDirty = true;
   }
   // camera presets: Anterior (from the chest), 4-chamber, Lateral, Apex (short axis)
@@ -6753,6 +6758,7 @@ THE SOFTWARE.
   // nearest vessel on screen within a fingertip (phones) or a few pixels (mouse) that is in sight (only the vessels
   // offered: side-branch nodes are not). Vessels behind the heart or behind the cut face do not count.
   function arteryAt(ray, x, y) {
+    if (!g3.cor.visible) return -1;
     const corHit = ray.intersectObjects(g3.corPick, false).find((h) => h.object.userData.seeThrough || inSight(h.point));
     if (corHit) return corHit.object.userData.map[corHit.face.a];
     const cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld, R = (isM() ? 30 : 20) ** 2, near = [];
@@ -6766,7 +6772,7 @@ THE SOFTWARE.
     for (const [, i] of near.slice(0, 12)) if (SEE_THROUGH.includes(cor.nodes[i].branch) || inSight(g3.corPos[i].clone().applyMatrix4(mw))) return i;
     return -1;
   }
-  const clotAt = (ray) => ray.intersectObjects(g3.clots.children, false).find((h) => h.object.userData.seeThrough || inSight(h.point));
+  const clotAt = (ray) => g3.cor.visible && ray.intersectObjects(g3.clots.children, false).find((h) => h.object.userData.seeThrough || inSight(h.point));
   const onArtery = (ray, x, y) => !!clotAt(ray) || arteryAt(ray, x, y) >= 0;   // (a marker counts too)
   function pickIschemia(ray, x, y, mode = 'occlude') {
     const cut = ui.view !== 'external';

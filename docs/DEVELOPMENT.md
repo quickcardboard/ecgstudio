@@ -2970,3 +2970,10 @@ The author: S1 floated in the cut view (no visible origin or direction). Now:
   behind the pulmonary trunk and when the cut removes that part of the LAD; it greys with the LAD's own occlusions.
 - Taps: every S1 point from the anterior, four-chamber (but its second point, where the bundle branches come first) and
   apex views; from the lateral view the two points nearest the origin lie behind D1.
+
+## claude/relaxed-mccarthy round 11: coronary arteries hidden in the full cut
+
+The author: all coronary arteries (with their markers, S1's see-through drawing and its LAD junction) hide when the cut
+slider is at full (`corVisible`, from setView, setCut and after a heart rebuild), as the conduction system hides in the
+outside view. Hidden, they take no taps (the 3D picking still hits invisible meshes, so `arteryAt` and `clotAt` check);
+taps there go to the conduction system and the muscle. Any partial cut still shows them.
