@@ -3040,3 +3040,12 @@ place, for desktop and phones; the degree of block should follow from the physio
   it (the slider returns to Normal). Share links: `b=AVN.s60,HIS.s50`; old named blocks (Training links) show on the
   sliders at a matching place. Tab instructions (phones) and the Help's Blocks line: one clause added each for the sliders.
 - Not yet: Training still uses the named blocks.
+
+## claude/relaxed-mccarthy round 17: AV conduction as named levels and one block entry
+
+The author: the sliders step through named levels (Normal, Mild, Moderate, Severe, Complete; `LEVEL_SEV` AV node 0 /
+0.3 / 0.6 / 0.8 / 1, His–Purkinje 0 / 0.45 / 0.7 / 0.85 / 1), and the AV node and His–Purkinje make one entry in Active
+blocks, "AV block: <degree>" from the reading (1st-degree; 2nd-degree, Mobitz I (Wenckebach); 2nd-degree, Mobitz II;
+2nd-degree, 2:1; high-grade; 3rd-degree (complete)), without percentages; its × clears both. Checked at 72/min: AV node
+mild/moderate/severe/complete → 1st degree / Wenckebach / 2:1 / complete with junctional escape; His mild and moderate →
+Mobitz II (more drops at moderate), severe → high grade, complete → complete with ventricular escape.

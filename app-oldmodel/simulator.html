@@ -763,9 +763,9 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
           <section class="tabpanel" data-panel="blocks" hidden>
             <div class="ctl" id="avCtl">
               <div class="row"><span class="lab">AV node</span><span class="val" id="avnVal">Normal</span></div>
-              <input id="avnSev" type="range" min="0" max="100" step="1" value="0" aria-label="AV node disease, from normal to complete block">
+              <input id="avnSev" type="range" min="0" max="4" step="1" value="0" aria-label="AV node disease, from normal to complete block">
               <div class="row"><span class="lab">His–Purkinje</span><span class="val" id="hisVal">Normal</span></div>
-              <input id="hisSev" type="range" min="0" max="100" step="1" value="0" aria-label="His–Purkinje disease, from normal to complete block">
+              <input id="hisSev" type="range" min="0" max="4" step="1" value="0" aria-label="His–Purkinje disease, from normal to complete block">
             </div>
             <div class="ctl" id="blockListWrap">
               <span class="lab">Active blocks</span>
@@ -943,7 +943,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (97c1329).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (07a053a).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -988,7 +988,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (97c1329).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (07a053a).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -6631,13 +6631,16 @@ THE SOFTWARE.
   function restColourOf(id) { const site = SEG_SITE[M.seg[id]]; return site && S.blocks[site] ? blockColour(site) : C.cs; }
   // graded AV conduction (the AV node and His–Purkinje sliders, 2026-11-19): a severity 0–1; the degree of block emerges
   // from it and the rate (engine: setBlock(site, 'severity', { s }))
-  const SEV_WORD = (v) => (v >= 0.97 ? 'complete block' : v >= 0.75 ? 'severe' : v >= 0.5 ? 'moderate' : v >= 0.25 ? 'mild' : v > 0 ? 'minimal' : 'normal');
+  // (the author: named levels, not percentages) each level's severity, chosen so that at 72/min the AV node gives 1st degree,
+  // Wenckebach, 2:1 and complete block, and the His–Purkinje occasional drops, frequent drops, high grade and complete
+  const AV_LEVELS = ['Normal', 'Mild', 'Moderate', 'Severe', 'Complete'];
+  const LEVEL_SEV = { AVN: [0, 0.3, 0.6, 0.8, 1], HIS: [0, 0.45, 0.7, 0.85, 1] };
+  const levelOf = (site, v) => { const L = LEVEL_SEV[site]; let k = 0; for (let i = 0; i < L.length; i++) if (Math.abs(L[i] - v) < Math.abs(L[k] - v)) k = i; return k; };
   const OLD_SEV = { AVN: { first: 0.3, wenckebach: 0.6, 'two-to-one': 0.8, complete: 1 }, HIS: { mobitz2: 0.5, complete: 1 } };   // (named blocks from Training and old links: where the slider shows them)
   const sevOf = (site) => { const b = S.blocks[site]; return !b ? 0 : b.type === 'severity' ? b.s : (OLD_SEV[site] || {})[b.type] || 0; };
   function syncAvSliders() {
     for (const [site, id, val] of [['AVN', 'avnSev', 'avnVal'], ['HIS', 'hisSev', 'hisVal']]) {
-      const v = sevOf(site), w = SEV_WORD(v); $(id).value = Math.round(v * 100);
-      $(val).textContent = v ? `${w[0].toUpperCase()}${w.slice(1)} (${Math.round(v * 100)}%)` : 'Normal';
+      const k = levelOf(site, sevOf(site)); $(id).value = k; $(val).textContent = AV_LEVELS[k];
     }
   }
   function setSeverity(site, v) {
@@ -6652,10 +6655,7 @@ THE SOFTWARE.
   }
   function blockLabel(site) {
     const b = S.blocks[site]; if (!b) return '';
-    if (b.type === 'severity') {   // (the block it is producing, from the reading; before one, or with 1:1 conduction, its severity)
-      const deg = ui.avDegree && ui.avDegree[site], w = SEV_WORD(b.s);
-      return `${deg || `${w[0].toUpperCase()}${w.slice(1)}`} · ${Math.round(b.s * 100)}%`;
-    }
+    if (b.type === 'severity') return `${AV_LEVELS[levelOf(site, b.s)].toLowerCase()}`;
     const item = BLOCK_MENU[site].find((x) => x[0] === b.type);
     return item ? item[1] : `${SITE_NAME[site]} block`;
   }
@@ -6664,12 +6664,23 @@ THE SOFTWARE.
     markChange(); updateBadges(); emit('blocks'); syncAvSliders(); drawBlockChips();
   }
   // the Active blocks list (also redrawn when a graded AV block's reading changes, without restarting the reading)
+  // (the AV node and His–Purkinje make one entry, "AV block: <the degree it is producing>", and its × clears both)
   function drawBlockChips() {
-    const sites = Object.keys(S.blocks);
+    const sites = Object.keys(S.blocks), av = sites.filter((k) => k === 'AVN' || k === 'HIS'), rest = sites.filter((k) => !av.includes(k));
     $('noBlocks').hidden = !!sites.length;
     $('legendBlock').hidden = !sites.length || ui.view === 'external';
-    $('blockList').innerHTML = sites.map((s) => `<div class="bchip${isComplete(S.blocks[s]) ? '' : ' partial'}"><span>${SITE_NAME[s]}: ${blockLabel(s)}</span><button type="button" data-site="${s}" aria-label="Remove ${SITE_NAME[s]} block">×</button></div>`).join('');
-    for (const b of $('blockList').querySelectorAll('button')) b.addEventListener('click', () => { S.setBlock(b.dataset.site, null); renderBlockList(); interpret(true); });
+    const chip = (key, cls, text, aria) => `<div class="bchip${cls}"><span>${text}</span><button type="button" data-site="${key}" aria-label="Remove ${aria}">×</button></div>`;
+    const avChip = av.length ? chip('AV', av.some((k) => isComplete(S.blocks[k])) ? '' : ' partial', `AV block: ${avDegreeText(av)}`, 'the AV block') : '';
+    $('blockList').innerHTML = avChip + rest.map((k) => chip(k, isComplete(S.blocks[k]) ? '' : ' partial', `${SITE_NAME[k]}: ${blockLabel(k)}`, `${SITE_NAME[k]} block`)).join('');
+    for (const b of $('blockList').querySelectorAll('button')) b.addEventListener('click', () => { for (const k of b.dataset.site === 'AV' ? ['AVN', 'HIS'] : [b.dataset.site]) S.setBlock(k, null); renderBlockList(); interpret(true); });
+  }
+  // the degree and type the AV conduction is producing: from the reading for the sliders (before a reading, or with 1:1
+  // conduction and a normal PR, the levels set); a named block (Training, old links) by its own name
+  function avDegreeText(av) {
+    const named = av.filter((k) => S.blocks[k].type !== 'severity');
+    if (named.length) return named.map((k) => blockLabel(k)).join(', ');
+    if (ui.avDegree) return ui.avDegree;
+    return av.map((k) => `${k === 'AVN' ? 'AV node' : 'His–Purkinje'} ${AV_LEVELS[levelOf(k, S.blocks[k].s)].toLowerCase()}`).join(', ') + ' (conducting at this rate)';
   }
 
   function showBlockMenu(site, defType, x, y) {
@@ -7407,9 +7418,9 @@ THE SOFTWARE.
     { // (graded AV conduction: what each slider is producing, for the Active blocks list)
       const graded = ['AVN', 'HIS'].filter((k) => B[k] && B[k].type === 'severity');
       if (graded.length) {
-        const deg = sevPattern ? sevPattern.replace('Sinus rhythm with ', '').replace('2nd-degree AV block, ', '') : avComplete ? 'complete AV block' : PR !== null && PR > 200 && !prVar && !tachy ? '1st-degree AV block' : null;
-        const next = {}; for (const k of graded) next[k] = deg ? deg[0].toUpperCase() + deg.slice(1) : null;
-        if (JSON.stringify(next) !== JSON.stringify(ui.avDegree || {})) { ui.avDegree = next; drawBlockChips(); }
+        const deg = sevPattern ? (/Mobitz I \(/.test(sevPattern) ? '2nd-degree, Mobitz I (Wenckebach)' : /Mobitz II/.test(sevPattern) ? '2nd-degree, Mobitz II' : /2:1/.test(sevPattern) ? '2nd-degree, 2:1' : 'high-grade')
+          : avComplete ? '3rd-degree (complete)' : PR !== null && PR > 200 && !prVar && !tachy ? '1st-degree' : null;
+        if (deg !== ui.avDegree) { ui.avDegree = deg; drawBlockChips(); }
       } else if (ui.avDegree) ui.avDegree = null;
     }
     if ((B.AVN && B.AVN.type === 'first') || ((!B.AVN || B.AVN.type === 'severity') && !sevPattern && !avComplete && !tachy && PR !== null && PR > 200 && !prVar)) rhythm += ' with 1st-degree AV block';
@@ -8857,7 +8868,7 @@ body.only .chips { margin-top: 0; }
     });
     // AV conduction sliders: the block follows the slider as it moves; the list, badge and reading when it is let go
     for (const [site, id] of [['AVN', 'avnSev'], ['HIS', 'hisSev']]) {
-      $(id).addEventListener('input', (e) => setSeverity(site, +e.target.value / 100));
+      $(id).addEventListener('input', (e) => setSeverity(site, LEVEL_SEV[site][+e.target.value]));
       $(id).addEventListener('change', () => { renderBlockList(); interpret(true); });
     }
     initRhythmMenu();
