@@ -152,9 +152,17 @@
     OM1: { fam: 'LCx', f: (b) => b.OM1[0], name: 'first obtuse marginal', kinds: ['stemi', 'evolving', 'oldmi', 'recent', 'narrow'], ste: { req: ['lateral'], ok: [] }, q: { req: ['lateral'], ok: [] } },
     OM2: { fam: 'LCx', f: (b) => b.OM2[0], name: 'second obtuse marginal', kinds: ['stemi', 'evolving', 'oldmi', 'recent', 'narrow'], ste: { req: ['inferior'], ok: ['lateral'] }, q: { req: ['lateral'], ok: ['inferior'] } },
     dLCx: { fam: 'LCx', f: (b) => b.LCx[Math.round(b.LCx.length * 0.6)], name: 'distal circumflex', kinds: ['oldmi'], ste: { req: ['lateral'], ok: ['inferior'] }, q: { req: ['lateral'], ok: ['inferior'] } },
+    // (2026-11-19, the author: finer regions) the first septal perforator (septal STEMI: ST↑ V1–V3 and aVR; old: QS V1–V3)
+    // and the first diagonal (high lateral: ST↑ I and aVL from 4 h, mirror ST↓ in III and aVF). Only the stages that pass their
+    // criteria: S1 acute (ST↑ V1–V3) and old (Q V2–V3); D1 evolving (4 h, 12 h). S1 at 4 h, recent and narrowing, and D1 old,
+    // recent and narrowing fail them (no ST↑ at 4 h; T inversion missing; Q waves under the criteria; ST↓ under 1 mm)
+    S1: { fam: 'LAD', f: (b) => b.S1[0], name: 'first septal perforator', kinds: ['stemi', 'oldmi'], ste: { req: ['septal'], ok: ['anterior'] }, q: { req: ['septal'], ok: ['anterior', 'lateral'] } },
+    D1: { fam: 'LAD', f: (b) => b.D1[0], name: 'first diagonal', kinds: ['evolving'], ste: { req: ['lateral'], ok: [] }, q: { req: ['lateral'], ok: [] } },
     dRCA: { fam: 'RCA', f: (b) => b.RCA[Math.round(b.RCA.length * 0.8)], name: 'distal RCA', kinds: ['stemi', 'evolving', 'oldmi', 'recent', 'narrow'], ste: { req: ['inferior'], ok: ['lateral'] }, q: { req: ['inferior'], ok: ['lateral'] } },
     PDA: { fam: 'RCA', f: (b) => b.PDA[0], name: 'posterior descending artery', kinds: ['stemi', 'evolving', 'oldmi', 'recent', 'narrow'], ste: { req: ['inferior'], ok: [] }, q: { req: ['inferior'], ok: [] } },
   };
+  // the vessels a site is looked up in: the simulator's offered ones plus the site branches (S1, D1: occludable, not drawn)
+  const brOf = (M) => Object.assign({}, M.coronary.branches, M.coronary.sites || {});
   const famOf = (site) => MI_SITES[site].fam || site.replace(/^[pmd]/, '');
   const ABN = {
     avb1: { group: 'av', skill: 'conduction', needP: true, rating: 0, dx: '1st-degree AVB', block: ['AVN', 'first'], leads: [], line: 'PR over 200 ms with every P conducted: first-degree AV block.' },
@@ -439,7 +447,7 @@
         if (pm) { if (rec.esc.focus) { const c = escapeCell(M, rec.esc.focus); if (c >= 0) { pm.cell = c; S.tAct[c] = 0; S.refEnd[c] = 0; S.repEnd[c] = 0; } } pm.cl = 60000 / rec.esc.rate; }
       }
       const isch = rec.abn.find((a) => ABN[a.k].isch);
-      if (isch) { for (const st of isch.sites || [isch.site]) { const node = MI_SITES[st].f(M.coronary.branches); if (ABN[isch.k].stenosis) S.addStenosis(node, { sev: isch.sev || 1 }); else S.addOcclusion(node); } S.setIschemiaTime(isch.h || ABN[isch.k].isch); }
+      if (isch) { for (const st of isch.sites || [isch.site]) { const node = MI_SITES[st].f(brOf(M)); if (ABN[isch.k].stenosis) S.addStenosis(node, { sev: isch.sev || 1 }); else S.addOcclusion(node); } S.setIschemiaTime(isch.h || ABN[isch.k].isch); }
       return S;
     }
     function induce(M, rec) {
@@ -761,7 +769,7 @@
       for (const a of rec.abn) { const d = ABN[a.k]; if (d.block) blocks.push(`${d.block[0]}.${d.block[1]}`); if (d.struct) struct.push(d.struct); if (d.link) q.push(d.link); if (d.isch) isch = a; }
       if (blocks.length) q.push(`b=${blocks.join(',')}`);
       if (struct.length) q.push(`s=${struct.join(',')}`);
-      if (isch) { const M = model(rec.abn.some((a) => ABN[a.k].hyp) ? ABN[rec.abn.find((a) => ABN[a.k].hyp).k].hyp : null); q.push(`${ABN[isch.k].stenosis ? 'n' : 'o'}=${(isch.sites || [isch.site]).map((x) => MI_SITES[x].f(M.coronary.branches)).join(',')}&c=2&h=${isch.h || ABN[isch.k].isch}${isch.sev && isch.sev !== 1 ? `&ns=${isch.sev}` : ''}`); }
+      if (isch) { const M = model(rec.abn.some((a) => ABN[a.k].hyp) ? ABN[rec.abn.find((a) => ABN[a.k].hyp).k].hyp : null); q.push(`${ABN[isch.k].stenosis ? 'n' : 'o'}=${(isch.sites || [isch.site]).map((x) => MI_SITES[x].f(brOf(M))).join(',')}&c=2&h=${isch.h || ABN[isch.k].isch}${isch.sev && isch.sev !== 1 ? `&ns=${isch.sev}` : ''}`); }
       return q.join('&');
     }
     function build(rec, opts = {}) {

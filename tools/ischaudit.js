@@ -6,7 +6,7 @@ const M = new LH.Model(A, JSON.parse(process.env.MP || '{}')); const C = M.coron
 const SITES = { LM: br.LM[0], pLAD: br.LAD[0], mLAD: br.LAD[Math.round(br.LAD.length * +(process.env.MLAD_F || 0.22))], dLAD: br.LAD[Math.round(br.LAD.length * 0.7)],
   pLCx: br.LCx[0], dLCx: br.LCx[Math.round(br.LCx.length * 0.6)], pRCA: br.RCA[0], mRCA: br.RCA[Math.round(br.RCA.length * 0.45)], dRCA: br.RCA[Math.round(br.RCA.length * 0.8)], PDA: br.PDA[0],
   OM1: br.OM1[0], OM2: br.OM2[0], AM: br.AM[0] };
-for (const b of ['S1', 'D1', 'D2', 'PLV']) if (br[b]) SITES[b] = br[b][0];   // (offered only with MP='{"extraBranches":[...]}')
+for (const b of ['S1', 'D1', 'D2', 'PLV']) { const ids = br[b] || (C.sites && C.sites[b]); if (ids) SITES[b] = ids[0]; }   // (S1, D1: site branches; D2, PLV only with MP extraBranches)   // (offered only with MP='{"extraBranches":[...]}')
 const L = LH.LEADS;
 function beat(S) {
   const rec = []; S.onSample((t, v) => rec.push(Array.from(v))); S.run(3600);

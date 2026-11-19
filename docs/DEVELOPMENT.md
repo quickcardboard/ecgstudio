@@ -2927,3 +2927,18 @@ septum is split into four perforator bands (`septalPerf` 0.14/0.3/0.45/0.6 along
 S1 and D1 add distinct teachable patterns (septal; high lateral, ~1 mm in aVL); D2 has one acute lead; PLV repeats the
 RCA sites. Not yet wired into the simulator (drawing, taps, share links) or Training (MI_SITES), and not yet run through
 the reader, scorecard and fullcheck with the option on.
+
+## claude/relaxed-mccarthy round 8: S1 and D1 as occlusion sites (Training, share links)
+
+- Engine: `siteBranches` (default ['S1', 'D1']): occludable side branches that are **not drawn or offered** in the
+  simulator. S1 is always built (one node appended after all others; its territory is the `covers` list: the septum of the
+  first three perforator bands) and D1 keeps its own territory instead of being folded into the LAD
+  (D1 is downstream of the LAD at its origin, so every LAD site takes it as before). `coronary.sites` lists them;
+  `coronary.branches` (what the simulator draws and offers) is unchanged.
+- Simulator: share links accept site-branch nodes (Training's "Show me why"); the ischemia list names them ("first septal
+  perforator", "first diagonal"); a STEMI whose ST elevation stops at V3 is named anteroseptal.
+- Training (`MI_SITES`): S1 as an acute STEMI (septal required, anterior accepted) and an old infarct (Q V2–V3); D1 as an
+  evolving STEMI (lateral: ST↑ I and aVL at 4 h and 12 h). The other stages failed their criteria and are not used.
+- Checks with the new defaults: scorecard 61/66, fullcheck iErr 1, reader 55/57 (the live code's reader also 55/57);
+  proximal and mid LAD and left main audits identical at every stop. Links checked in the browser (S1 → "Acute
+  anteroseptal STEMI: ST elevation in V1–V3"; D1 → "Acute lateral STEMI: ST elevation in I, aVL").

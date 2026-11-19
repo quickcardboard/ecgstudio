@@ -275,7 +275,9 @@
     d1Path: null, d2Path: null,   // diagonal waypoints [[rotational UVC, apicobasal UVC], ...] (null = built-in)
     septalPerf: [0.14, 0.3, 0.45, 0.6],      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
     septalSpread: 0.15,
-    extraBranches: null,   // TEST (off): also offer these side branches as occlusion sites, e.g. ['S1', 'D1', 'D2', 'PLV'] (S1: the first septal perforator band as its own vessel)    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
+    siteBranches: ['S1', 'D1'],   // occludable side branches that are not drawn or offered in the simulator (Training, share links): the
+                                  // first septal perforator (S1: the septum of the first s1Bands perforator bands) and the first diagonal
+    extraBranches: null,   // TEST (off): also offer (draw) these side branches, e.g. ['S1', 'D1', 'D2', 'PLV']    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     occlusionDeadS: null, occlusionBorderMm: { LAD: 18 }, occlusionScarWindow: { RCA: 0 },   // occlusionScarWindow: per family, the scar window instead of scarWindow
     occlusionMarginMm: { RCA: 2 },   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
@@ -918,8 +920,8 @@
       addBranch('PLV', RCA[RCA.length - 1], [lvEpi(-1.5, 0.8), lvEpi(-1.9, 0.65)]);
       // (test option) the first septal perforator as a vessel of its own: one node in the mid septum below its LAD origin,
       // appended after every other node so share-link node numbers do not move
-      const X = P.extraBranches || [];
-      if (X.includes('S1') && P.septalPerf && P.septalPerf.length) {
+      const X = P.extraBranches || [], SB = P.siteBranches || [];
+      if ((X.includes('S1') || SB.includes('S1')) && P.septalPerf && P.septalPerf.length) {
         const o = branches.LAD[Math.min(branches.LAD.length - 1, Math.round(Math.min(...P.septalPerf) * (branches.LAD.length - 1)))];
         const c = this._nearestWhere((q) => A.label[q] === LAB.LV && !A.epi[q] && !A.endo[q] && A.zuvc[q] >= 0, (q) => Math.abs(A.phi[q] - 0.9) * 20 + Math.abs(A.zuvc[q] - (A.zuvc[nodes[o].vox] - 0.08)) * 80);
         const p = A.p(c); nodes.push({ x: p[0], y: p[1], z: p[2], parent: o, branch: 'S1', vox: c }); branches.S1 = [nodes.length - 1];
@@ -970,15 +972,16 @@
       // (obtuse marginals OM1/OM2 of the LCx, acute marginal AM of the RCA). The other
       // side branches' territories go to the point where each branch leaves its
       // parent, so an occlusion proximal to that point still takes them.
-      const MAIN = ['LM', 'LAD', 'LCx', 'RCA', 'PDA', 'OM1', 'OM2', 'AM'].concat(X);
-      const mainOf = (id) => { while (id >= 0 && !MAIN.includes(nodes[id].branch)) id = nodes[id].parent; return id; };
+      const MAIN = ['LM', 'LAD', 'LCx', 'RCA', 'PDA', 'OM1', 'OM2', 'AM'].concat(X), OWN = MAIN.concat(SB);   // (site branches keep their own territory)
+      const mainOf = (id) => { while (id >= 0 && !OWN.includes(nodes[id].branch)) id = nodes[id].parent; return id; };
       for (let c = 0; c < A.n; c++) if (voxNode[c] >= 0) voxNode[c] = mainOf(voxNode[c]);
       const allBranches = Object.assign({}, branches);                  // (every branch, offered or not: maps old share-link node numbers)
+      const sites = {}; for (const b of SB) if (branches[b] && !MAIN.includes(b)) sites[b] = branches[b];   // (occludable, not drawn)
       for (const b of Object.keys(branches)) if (!MAIN.includes(b)) delete branches[b];
       // the septal site's territory: the septum (not the free wall) of the first s1Bands perforator bands. Not a subtree:
       // an LAD occlusion keeps taking these bands exactly as before; occluding S1 takes them alone
-      if (branches.S1 && perf) { const take = new Set(perf.slice(0, s1Bands)); nodes[branches.S1[0]].covers = (c) => A.label[c] === LAB.LV && A.phi[c] > 0.1 && A.phi[c] < 1.7 && A.zuvc[c] >= 0.2 && take.has(voxNode[c]); }
-      this.coronary = { nodes, branches, allBranches, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
+      if (allBranches.S1 && perf) { const take = new Set(perf.slice(0, s1Bands)); nodes[allBranches.S1[0]].covers = (c) => A.label[c] === LAB.LV && A.phi[c] > 0.1 && A.phi[c] < 1.7 && A.zuvc[c] >= 0.2 && take.has(voxNode[c]); }
+      this.coronary = { nodes, branches, allBranches, sites, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
     }
 
     // Flutter circuit geometry: every right-atrial voxel's angle around the

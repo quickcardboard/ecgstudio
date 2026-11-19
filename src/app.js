@@ -739,9 +739,9 @@
   }
 
   // artery segment name for a tree node, e.g. "proximal LAD"
-  const BRANCH_NAME = { LM: 'left main', LAD: 'LAD', D1: 'first diagonal', D2: 'second diagonal', LCx: 'circumflex', OM1: 'first obtuse marginal', OM2: 'second obtuse marginal', RCA: 'RCA', AM: 'acute marginal', PDA: 'posterior descending', PLV: 'posterolateral branch' };
+  const BRANCH_NAME = { S1: 'first septal perforator', LM: 'left main', LAD: 'LAD', D1: 'first diagonal', D2: 'second diagonal', LCx: 'circumflex', OM1: 'first obtuse marginal', OM2: 'second obtuse marginal', RCA: 'RCA', AM: 'acute marginal', PDA: 'posterior descending', PLV: 'posterolateral branch' };
   function segmentName(id) {
-    const cor = M.coronary, b = cor.nodes[id].branch, list = cor.branches[b], k = list.indexOf(id), f = k / Math.max(1, list.length - 1);
+    const cor = M.coronary, b = cor.nodes[id].branch, list = cor.branches[b] || (cor.sites && cor.sites[b]) || [id], k = list.indexOf(id), f = k / Math.max(1, list.length - 1);
     if (b === 'LM') return 'left main';
     if (!['LAD', 'LCx', 'RCA'].includes(b)) return BRANCH_NAME[b];
     // proximal = up to the first side branch (D1, OM1, acute marginal)
@@ -2385,7 +2385,8 @@
       return out;
     }
     if (inf || ant || lat) {
-      const where = [ant && (lat ? 'anterolateral' : 'anterior'), inf && (lat && !ant ? 'inferolateral' : 'inferior'), lat && !ant && !inf && 'lateral'].filter(Boolean).join(' and ');
+      const sept = ant && !lat && !['V4', 'V5', 'V6'].some((n) => E.has(n));   // (V1–V3 only: the septal perforator)
+      const where = [ant && (lat ? 'anterolateral' : sept ? 'anteroseptal' : 'anterior'), inf && (lat && !ant ? 'inferolateral' : 'inferior'), lat && !ant && !inf && 'lateral'].filter(Boolean).join(' and ');
       const stage = Q.length ? (twi.length ? 'evolving' : 'acute') : 'acute';
       out.push({ head: true, text: `${stage[0].toUpperCase() + stage.slice(1)} ${where} STEMI: ST elevation in ${span(order(E))}` });
       const recip = order(new Set([...D].filter((n) => n !== 'aVR' || !inf)));
@@ -2627,7 +2628,7 @@
   }
   function applyScenario(sc) {
     const nodes = M.coronary.nodes.length, sub = !SUBENDO_ON ? [] : sc.sub.filter((c) => c < A.n && (A.label[c] === LH.LAB.LV || A.label[c] === LH.LAB.RV));
-    const cor = M.coronary, offered = (list) => (sc.legacyCor ? list.map(legacyNode) : list).filter((n) => n >= 0).filter((n) => n < nodes && cor.branches[cor.nodes[n].branch]);   // offered vessels only (links made before an anatomy change may name side branches)
+    const cor = M.coronary, offered = (list) => (sc.legacyCor ? list.map(legacyNode) : list).filter((n) => n >= 0).filter((n) => n < nodes && (cor.branches[cor.nodes[n].branch] || (cor.sites && cor.sites[cor.nodes[n].branch])));   // (site branches too: S1, D1 from Training)   // offered vessels only (links made before an anatomy change may name side branches)
     const occ = offered(sc.occ), nar = offered(sc.nar);
     // a healthy stretch first, so the interpretation has this heart's normal beat to compare with
     if (sc.blocks.length || occ.length || nar.length || sub.length) { S.run(2600); captureRef(); ecg.full = true; }
