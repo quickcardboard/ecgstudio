@@ -3049,3 +3049,19 @@ blocks, "AV block: <degree>" from the reading (1st-degree; 2nd-degree, Mobitz I 
 2nd-degree, 2:1; high-grade; 3rd-degree (complete)), without percentages; its × clears both. Checked at 72/min: AV node
 mild/moderate/severe/complete → 1st degree / Wenckebach / 2:1 / complete with junctional escape; His mild and moderate →
 Mobitz II (more drops at moderate), severe → high grade, complete → complete with ventricular escape.
+
+## claude/relaxed-mccarthy round 18: Training's AV blocks from the AV conduction severities
+
+Training's AV blocks now come from the same graded AV node / His–Purkinje disease as the simulator's sliders, with a
+random sinus rate (`avSev`: sites and severity range; `rec.avs`; share links `AVN.s58`, `HIS.s100`):
+- Mobitz I: AV node, rate 62–98, severity on the measured Wenckebach diagonal (`avSevAt`: 0.66 − 0.0053 × (rate − 65),
+  ± 0.03; it passed at ~0.66 at 65/min, 0.58 at 75, 0.50 at 95).
+- Mobitz II: His–Purkinje 0.35–0.72, rate 60–95 (random drops, constant PR).
+- 2:1 (answered as Mobitz II, as before): AV node 0.76–0.88 or His–Purkinje 0.82–0.9, rate 60–85 (faster gave high grade).
+- Complete block: AV node (narrow junctional escape, 48/min) or His (wide ventricular escape, 32/min; its QRS shape is
+  not a finding, like the idioventricular rhythm's); the rate exclusions use the escape's own rate.
+- First-degree block (a finding): AV node 0.22–0.42, so the PR varies.
+- Gate: these rhythms are gated on the engine's own beats (`avPattern`, the simulator analysis's rules) with P waves
+  visible in ≥ 80% of beats, not on the blind rhythm read, which took grouped Wenckebach beating for AF when P's sat on the
+  T. Sampled: 12/18 AV items passed (the rest on unrelated criteria or hidden P's); `tools/trainlive.js 40 7` 29/40 as
+  before.

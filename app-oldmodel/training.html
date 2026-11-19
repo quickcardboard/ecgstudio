@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-19 (07a053a)">
+<meta name="version" content="2026-11-19 (df76f14)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -4252,12 +4252,18 @@ return module.exports; })();
     avrt: { w: 0.8, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt', 'flutter', 'avnrt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
     // (Round 66: the blind read must see the Wenckebach pattern; a proximal RCA infarct slowing the node turned one into a
     // steady first-degree block)
-    mobitz1: { w: 2, open: true, gateRead: true, rating: 150, block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
-    mobitz2: { w: 0.4, open: true, rating: 180, block: ['HIS', 'mobitz2', { n: 4 }], read: (r) => /Mobitz II /.test(r) },
-    avb2to1: { w: 0.6, open: true, rating: 200, block: ['AVN', 'two-to-one'], read: (r) => /2:1 AV block/.test(r) },
+    // (2026-11-19, the AV conduction sliders: each AV block is a graded AV node or His–Purkinje disease (avSev: the sites and
+    // severity range) at a random sinus rate, the degree emerging as in the simulator; every one gated on the blind rhythm
+    // read so the key is what the strip shows. block stays for the P-visibility checks)
+    // (Wenckebach lies on a diagonal: the faster the rate the milder the node that gives it; measured on the gate, it passes at
+    // about 0.66 at 65/min, 0.58 at 75, 0.50 at 95: avSevAt sets the severity from the rate, ± 0.03)
+    mobitz1: { w: 2, open: true, gateRead: true, avPattern: 'mobitz1', rating: 150, rate: [62, 98], avSev: [['AVN', 0.45, 0.72]], avSevAt: (rate) => 0.66 - 0.0053 * (rate - 65), block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
+    mobitz2: { w: 0.5, open: true, gateRead: true, avPattern: 'mobitz2', rating: 180, rate: [60, 95], avSev: [['HIS', 0.35, 0.72]], block: ['HIS', 'mobitz2', { n: 4 }], read: (r) => /Mobitz II /.test(r) },
+    avb2to1: { w: 0.6, open: true, gateRead: true, avPattern: '2:1', rating: 200, rate: [60, 85], avSev: [['AVN', 0.76, 0.88], ['HIS', 0.82, 0.9]], block: ['AVN', 'two-to-one'], read: (r) => /2:1 AV block/.test(r) },
     // (the atrial rate must not be a whole or half multiple of the 48/min junctional escape: at 72 or 96 the P waves
     // fall in the same places beat after beat instead of marching through)
-    chb: { w: 0.9, open: true, rating: 120, rate: [60, 100], rateOk: (x) => ![1, 1.5, 2, 2.5].some((q) => Math.abs(x / 48 - q) < 0.04 * q), block: ['AVN', 'complete'], read: (r) => /complete AV block/.test(r) },
+    // (complete block at the AV node: a narrow junctional escape at 48/min; in the His bundle: a wide ventricular escape at 32/min)
+    chb: { w: 0.9, open: true, gateRead: true, rating: 120, rate: [60, 100], avSev: [['AVN', 1, 1], ['HIS', 1, 1]], rateOk: (x, esc = 48) => ![1, 1.5, 2, 2.5, 3].some((q) => Math.abs(x / esc - q) < 0.04 * q), block: ['AVN', 'complete'], read: (r) => /complete AV block/.test(r) },
     vt: { w: 1.2, tachy: true, rating: 120, link: 'a=vt', vt: true, read: (r) => r === 'ventricular tachycardia' },
     // torsades de pointes (Round 53): polymorphic VT, the QRS axis twisting (a focus moving around the LV each beat)
     tdp: { w: 0.3, tachy: true, rating: 180, link: 'a=tdp', poly: true, start: (S) => { S.run(2000); S.startArrhythmia('tdp'); }, read: (r) => /ventricular/.test(r) },
@@ -4363,7 +4369,7 @@ return module.exports; })();
   const brOf = (M) => Object.assign({}, M.coronary.branches, M.coronary.sites || {});
   const famOf = (site) => MI_SITES[site].fam || site.replace(/^[pmd]/, '');
   const ABN = {
-    avb1: { group: 'av', skill: 'conduction', needP: true, rating: 0, dx: '1st-degree AVB', block: ['AVN', 'first'], leads: [], line: 'PR over 200 ms with every P conducted: first-degree AV block.' },
+    avb1: { group: 'av', skill: 'conduction', needP: true, rating: 0, dx: '1st-degree AVB', block: ['AVN', 'first'], avSev: [['AVN', 0.22, 0.42]], leads: [], line: 'PR over 200 ms with every P conducted: first-degree AV block.' },
     rae: { group: 'atria', skill: 'conditions', needP: true, rating: 40, dx: 'RAE', atria: { ra: true }, struct: 'rae', leads: ['II', 'V1'], line: 'P taller than 2.5 mm in II: right atrial enlargement.' },
     lae: { group: 'atria', skill: 'conditions', needP: true, rating: 40, dx: 'LAE', atria: { la: true }, struct: 'lae', leads: ['II', 'V1'], line: 'Broad notched P (≥ 120 ms) in II: left atrial enlargement.' },
     bae: { group: 'atria', skill: 'conditions', needP: true, rating: 80, dx: 'biatrial enlargement', atria: { ra: true, la: true }, struct: 'rae,lae', leads: ['II', 'V1'], line: 'Tall and broad notched P: biatrial enlargement.' },
@@ -4536,8 +4542,13 @@ return module.exports; })();
     }).filter(Boolean);
     let rate = 72;
     const band = R.rateBands ? pickW(rand, R.rateBands.map((b) => [b, b[2]])) : R.rate;
-    if (R.rate) for (let i = 0; i < 50; i++) { rate = Math.round(band[0] + rand() * (band[1] - band[0])); if (!R.rateOk || R.rateOk(rate)) break; }
+    const avs = R.avSev ? (([site, lo, hi]) => ({ site, s: +(lo + rand() * (hi - lo)).toFixed(2) }))(R.avSev[Math.floor(rand() * R.avSev.length)]) : null;
+    const esc = avs && avs.site === 'HIS' ? 32 : 48;
+    if (R.rate) for (let i = 0; i < 50; i++) { rate = Math.round(band[0] + rand() * (band[1] - band[0])); if (!R.rateOk || R.rateOk(rate, esc)) break; }
     const rec = { rhythm, abn, seed: 1 + Math.floor(rand() * 1e6), rate };
+    if (avs && R.avSevAt) avs.s = +Math.max(0.3, Math.min(0.9, R.avSevAt(rate) + (rand() - 0.5) * 0.06)).toFixed(2);
+    if (avs) rec.avs = avs;
+    for (const a of abn) if (ABN[a.k].avSev) { const [site, lo, hi] = ABN[a.k].avSev[0]; a.avs = { site, s: +(lo + rand() * (hi - lo)).toFixed(2) }; }
     if (R.variable) rec.fv = R.variable[Math.floor(rand() * R.variable.length)];
     if (R.atrialFoci) rec.focus = R.atrialFoci[Math.floor(rand() * R.atrialFoci.length)];
     if (R.escRate) { rec.esc = { rate: Math.round(R.escRate[0] + rand() * (R.escRate[1] - R.escRate[0])) }; if (R.escFoci) rec.esc.focus = R.escFoci[Math.floor(rand() * R.escFoci.length)]; }
@@ -4628,7 +4639,7 @@ return module.exports; })();
       const atria = {};
       for (const a of rec.abn) {
         const d = ABN[a.k];
-        if (d.block) S.setBlock(d.block[0], d.block[1], d.block[2] || {});
+        if (a.avs) S.setBlock(a.avs.site, 'severity', { s: a.avs.s }); else if (d.block) S.setBlock(d.block[0], d.block[1], d.block[2] || {});
         if (d.atria) Object.assign(atria, d.atria);
         if (d.ap) S.setAccessoryPathway('left-lateral');
         if (d.peri) S.setPericarditis(true);
@@ -4638,7 +4649,7 @@ return module.exports; })();
         if (d.nsstt) S.setNonspecificSTT(true);
       }
       if (atria.ra || atria.la) S.setAtrialEnlargement(atria);
-      if (R.block) S.setBlock(R.block[0], R.block[1], R.block[2] || {});
+      if (rec.avs) S.setBlock(rec.avs.site, 'severity', { s: rec.avs.s }); else if (R.block) S.setBlock(R.block[0], R.block[1], R.block[2] || {});
       if (R.block2) S.setBlock(R.block2[0], R.block2[1], R.block2[2] || {});
       if (rec.esc) {   // (the escape pacemaker's rate, and for a ventricular escape its site)
         const pm = S.pacemakers.find((p) => p.name === (rec.rhythm === 'junctional' ? 'junctional' : 'ventricular'));
@@ -4951,11 +4962,28 @@ return module.exports; })();
 
     // ---------------------------------------------------------------- one item
     const b64 = (i16) => { let s = ''; const u = new Uint8Array(i16.buffer); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return typeof btoa === 'function' ? btoa(s) : Buffer.from(s, 'binary').toString('base64'); };
+    // the AV conduction pattern of a strip from the engine's beats (as the simulator's analysis reads a graded AV block):
+    // each P conducted if a QRS follows within 650 ms and before the next P; none conducted: complete; alternate P's
+    // blocked: 2:1; two in a row: high grade; the PR before a blocked P > 25 ms longer than after it: Mobitz I; else Mobitz II;
+    // all conducted: first degree when the PR is over 200 ms
+    function avPattern(A, V) {
+      const As = A.filter((a) => a.on > 300 && a.on < STRIP - 700);
+      const pr = As.map((a, i) => { const nx = As[i + 1] ? As[i + 1].on : a.on + 2000, v = V.find((q) => q.on > a.on + 60 && q.on < Math.min(a.on + 650, nx + 60)); return v ? v.on - a.on : null; });
+      if (As.length < 4) return null;
+      const drops = pr.map((x, i) => (x === null ? i : -1)).filter((i) => i >= 0);
+      if (drops.length === pr.length || drops.length >= pr.length - 1) return 'complete';
+      if (!drops.length) return Math.min(...pr) > 200 ? 'first' : 'normal';
+      if (drops.length >= 2 && pr.every((x, i) => (x === null) === ((i - drops[0]) % 2 === 0))) return '2:1';
+      if (drops.some((i, k) => k > 0 && i - drops[k - 1] === 1)) return 'high';
+      const steps = drops.filter((i) => pr[i - 1] != null && pr[i + 1] != null).map((i) => pr[i - 1] - pr[i + 1]);
+      return steps.length && steps.reduce((x, y) => x + y, 0) / steps.length > 25 ? 'mobitz1' : 'mobitz2';
+    }
     function linkOf(rec) {
       const q = [], R = RHYTHMS[rec.rhythm], blocks = [], struct = [];
       q.push(`r=${R.rate ? rec.rate : 72}`);
       if (R.link) q.push(R.link);
-      if (R.block) blocks.push(`${R.block[0]}.${R.block[1]}`);
+      const sevLink = (v) => `${v.site}.s${Math.round(v.s * 100)}`;   // (the simulator's AV conduction sliders)
+      if (rec.avs) blocks.push(sevLink(rec.avs)); else if (R.block) blocks.push(`${R.block[0]}.${R.block[1]}`);
       if (R.block2) blocks.push(`${R.block2[0]}.${R.block2[1]}`);
       if (R.struct) struct.push(R.struct);
       if (R.linkBlock) blocks.push(R.linkBlock);
@@ -4964,7 +4992,7 @@ return module.exports; })();
       if (rec.fv) q.push(`fv=${rec.fv.join('-')}`);
       if (rec.sa) q.push(`sar=${rec.sa[0]}-${rec.sa[1]}`);
       let isch = null;
-      for (const a of rec.abn) { const d = ABN[a.k]; if (d.block) blocks.push(`${d.block[0]}.${d.block[1]}`); if (d.struct) struct.push(d.struct); if (d.link) q.push(d.link); if (d.isch) isch = a; }
+      for (const a of rec.abn) { const d = ABN[a.k]; if (a.avs) blocks.push(sevLink(a.avs)); else if (d.block) blocks.push(`${d.block[0]}.${d.block[1]}`); if (d.struct) struct.push(d.struct); if (d.link) q.push(d.link); if (d.isch) isch = a; }
       if (blocks.length) q.push(`b=${blocks.join(',')}`);
       if (struct.length) q.push(`s=${struct.join(',')}`);
       if (isch) { const M = model(rec.abn.some((a) => ABN[a.k].hyp) ? ABN[rec.abn.find((a) => ABN[a.k].hyp).k].hyp : null); q.push(`${ABN[isch.k].stenosis ? 'n' : 'o'}=${(isch.sites || [isch.site]).map((x) => MI_SITES[x].f(brOf(M))).join(',')}&c=2&h=${isch.h || ABN[isch.k].isch}${isch.sev && isch.sev !== 1 ? `&ns=${isch.sev}` : ''}`); }
@@ -4994,7 +5022,14 @@ return module.exports; })();
       }
       if (R.block && !R.noP && pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.5)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
       const rr = readRhythm(rec12);   // (blind rhythm read: kept for the record and the audit, not the gate, except where the rhythm asks)
-      if (R.gateRead && rec.focus !== 'la' && !R.read(rr.rhythm)) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm');   // (a left-atrial focus: its own P check on the median beat, below)
+      // (graded AV blocks: gated on the engine's own beats, read as the simulator's analysis reads them, and on visible P
+      // waves; the blind reader takes grouped Wenckebach beating for AF when P's sit on the T)
+      let avPat = null;
+      if (rec.avs && R.avPattern) {
+        const pat = avPat = avPattern(A, V);
+        if (pat !== R.avPattern) return fail(`AV pattern ${pat || 'none'}, not ${R.avPattern}`, 'rhythm');
+        if (pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.2)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
+      } else if (R.gateRead && rec.focus !== 'la' && !R.read(rr.rhythm)) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm');   // (a left-atrial focus: its own P check on the median beat, below)
       let rhythmAlt = tachyHideP ? ['sinus', 'svt'] : null, rhythmSame = null;
       if (rec.rhythm === 'sinusArr') {
         const span = Math.max(...rrs) - Math.min(...rrs);
@@ -5029,10 +5064,12 @@ return module.exports; })();
         if (!(pa.I <= -0.05 && pa.aVL <= -0.05 && pa.V1 > 0)) return fail(`left-atrial P not inverted in I and aVL (I ${pa.I}, aVL ${pa.aVL}, V1 ${pa.V1} mV)`, 'rhythm');
       }
       const findings = [], optional = new Set(), hl = new Set(), lines = {}, checks = [], hlBy = {}, neutral = new Set();
+      if (avPat) checks.push(`AV conduction (engine): ${avPat}`);
+      const wideEsc = R.wide || (rec.avs && rec.avs.site === 'HIS' && rec.avs.s >= 0.97);   // (a ventricular escape: its QRS shape is not a finding)
       let recentSte = false;   // (a recent infarct whose ST elevation still meets the STEMI criteria)
       if (rhythm === 'sinusTachy' && !rec.abn.some((a) => a.k === 'avb1')) neutral.add('avb1');   // (the author: the P on the T looked like a long PR)
       if (rec.abn.some((a) => a.k === 'rbbb') && !rec.abn.some((a) => a.k === 'lafb' || a.k === 'lpfb')) { neutral.add('lafb'); neutral.add('bifascicular'); }   // (RBBB's own left axis in this model)
-      if (R.wide) ['lad', 'rad', 'ead', 'lbbb', 'rbbb', 'ivcd'].forEach((x) => neutral.add(x));   // (a ventricular escape's own QRS shape and axis: describing it is neither right nor wrong)
+      if (wideEsc) ['lad', 'rad', 'ead', 'lbbb', 'rbbb', 'ivcd'].forEach((x) => neutral.add(x));   // (a ventricular escape's own QRS shape and axis: describing it is neither right nor wrong)
       const mark = (id, leads) => { for (const l of leads) { hl.add(l); (hlBy[id] = hlBy[id] || []).includes(l) || hlBy[id].push(l); } };   // (each finding's own leads: the result chips show them)
       // (the cheap checks first, so a scenario that fails them costs no twin runs: the blind read, then every
       // abnormality's criteria; the twins run only once all of these pass)
@@ -5040,7 +5077,7 @@ return module.exports; })();
       // "not present" for a student who names it); true consequences become optional
       (R.optional || []).forEach((x) => optional.add(x));   // (naming the sinus arrest behind an escape rhythm is true)
       for (const a of rec.abn) (ABN[a.k].optional || []).forEach((x) => optional.add(x));   // (true consequences named by the abnormality itself)
-      if (r && !R.vt && !R.wide) {   // (a ventricular escape beat is wide and abnormal by nature: its shape is not a finding)
+      if (r && !R.vt && !wideEsc) {   // (a ventricular escape beat is wide and abnormal by nature: its shape is not a finding)
         const ks = rec.abn.map((a) => a.k), words = rec.abn.flatMap((a) => (a.k === 'recent' ? ['old MI', 'T inversion'] : a.k === 'evolving' ? ['STEMI', 'old MI', 'T inversion'] : ABN[a.k].isch ? [ABN[a.k].isch < 24 ? 'STEMI' : 'old MI'] : [ABN[a.k].dx]));
         const rca = rec.abn.some((a) => /RCA/.test(a.site || ''));
         for (const dx of b.dx) {
@@ -5241,7 +5278,7 @@ return module.exports; })();
       // what the median beat measurably shows beyond the key (ST depression, Q waves, T inversion by the same criteria)
       // is accepted as also true, with a line saying where (Round 61: testers named them and lost points). Not in LBBB,
       // where Q waves and ST-T cannot be read for themselves, nor in ventricular rhythms.
-      if (r && !R.vt && !R.wide && !R.poly && !rec.abn.some((a) => a.k === 'lbbb')) {
+      if (r && !R.vt && !wideEsc && !R.poly && !rec.abn.some((a) => a.k === 'lbbb')) {
         const have = new Set(findings.map((f) => f.id)), ks = rec.abn.map((a) => a.k), rightAxis = ks.includes('rvh') || ks.includes('lpfb') || (b.f && b.f.axis === 'RAD');
         const said = { std: (ls) => `ST depression in ${ls.join(', ')}${ks.includes('lvh') ? ', the strain pattern of LVH' : ''}: also true on this ECG.`,
           qwaves: (ls) => (rightAxis && ls.every((n) => ['II', 'III', 'aVF'].includes(n)) ? `Q waves in ${ls.join(', ')}: a qR pattern from the right axis, not an infarct; also true on this ECG.` : `Q waves in ${ls.join(', ')}: also true on this ECG.`),
@@ -5254,7 +5291,7 @@ return module.exports; })();
       if (!R.pRhythm && lines.pericarditis) lines.pericarditis = 'Diffuse concave ST elevation with ST depression in aVR (no PR segment to read): pericarditis.';
       // measurements: rate from the engine; intervals and axis from the median beat
       const sm = R.vf ? null : R.tachy ? sinusRead(M).m : r.m;
-      const m = R.vf ? { rate: null, pr: null, qrs: null, qtc: null, axis: null } : { rate, pr: R.pRhythm ? shownPR : null, qrs: R.vt || R.poly ? null : sm.qrs, qtc: R.noP ? null : R.tachy || R.block || R.at || rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].ectopy || ABN[x.k].sinusNode) || ['af', 'flutter', 'mat'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt || R.wide || R.poly ? null : sm.axis };
+      const m = R.vf ? { rate: null, pr: null, qrs: null, qtc: null, axis: null } : { rate, pr: R.pRhythm ? shownPR : null, qrs: R.vt || R.poly ? null : sm.qrs, qtc: R.noP ? null : R.tachy || R.block || R.at || rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].ectopy || ABN[x.k].sinusNode) || ['af', 'flutter', 'mat'].includes(rec.rhythm) || !r || r.m.qtc < 320 || r.m.qtc > 620 ? null : r.m.qtc, axis: R.vt || wideEsc || R.poly ? null : sm.axis };
       // caliper on the interval that decides it (engine timing)
       const within = (lo, hi) => V.filter((v) => v.on > lo && v.on < hi);
       let caliper = null;
