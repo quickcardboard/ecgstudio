@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-19 (b5c7798)">
+<meta name="version" content="2026-11-19 (3babd57)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -954,7 +954,7 @@ body.land #fsClose { display: none; }
     septalSpread: 0.15,
     siteBranches: ['S1', 'D1'],   // occludable side branches that are not drawn or offered in the simulator (Training, share links): the
                                   // first septal perforator (S1: the septum of the first s1Bands perforator bands) and the first diagonal
-    extraBranches: null,   // TEST (off): also offer (draw) these side branches, e.g. ['S1', 'D1', 'D2', 'PLV']    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
+    extraBranches: ['S1', 'D1'],   // side branches drawn and offered in the simulator besides the main vessels (D2, PLV: possible, weaker patterns)    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     occlusionDeadS: null, occlusionBorderMm: { LAD: 18 }, occlusionScarWindow: { RCA: 0 },   // occlusionScarWindow: per family, the scar window instead of scarWindow
     occlusionMarginMm: { RCA: 2 },   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
@@ -1601,7 +1601,13 @@ body.land #fsClose { display: none; }
       if ((X.includes('S1') || SB.includes('S1')) && P.septalPerf && P.septalPerf.length) {
         const o = branches.LAD[Math.min(branches.LAD.length - 1, Math.round(Math.min(...P.septalPerf) * (branches.LAD.length - 1)))];
         const c = this._nearestWhere((q) => A.label[q] === LAB.LV && !A.epi[q] && !A.endo[q] && A.zuvc[q] >= 0, (q) => Math.abs(A.phi[q] - 0.9) * 20 + Math.abs(A.zuvc[q] - (A.zuvc[nodes[o].vox] - 0.08)) * 80);
-        const p = A.p(c); nodes.push({ x: p[0], y: p[1], z: p[2], parent: o, branch: 'S1', vox: c }); branches.S1 = [nodes.length - 1];
+        // (drawn as a short vessel from the LAD into the septum: three nodes, the first carrying the septal territory)
+        const o0 = [nodes[o].x, nodes[o].y, nodes[o].z], p1 = A.p(c), ids = []; let par = o;
+        for (const f of [0.34, 0.67, 1]) {
+          const q = [o0[0] + (p1[0] - o0[0]) * f, o0[1] + (p1[1] - o0[1]) * f, o0[2] + (p1[2] - o0[2]) * f], v = f === 1 ? c : A.nearest(q, (w) => A.label[w] === LAB.LV);
+          nodes.push({ x: q[0], y: q[1], z: q[2], parent: par, branch: 'S1', vox: v }); par = nodes.length - 1; ids.push(par);
+        }
+        branches.S1 = ids;
       }
       const s1Bands = P.s1Bands || 3;   // (how many septal perforator bands, from the base, the septal site takes)
       // node UVC (for LV territory assignment)

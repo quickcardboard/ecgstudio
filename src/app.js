@@ -710,7 +710,8 @@
     const l = Math.hypot(d[0], d[1], d[2]);
     return l ? [d[0] / l, d[1] / l, d[2] / l] : [0, 0, 0];
   }
-  const MAJOR = { LM: 1.9, LAD: 1.45, LCx: 1.45, RCA: 1.5 };
+  const MAJOR = { LM: 1.9, LAD: 1.45, LCx: 1.45, RCA: 1.5, S1: 0.8 };
+  const SEE_THROUGH = ['S1'];   // (vessels inside the muscle)
   function buildCoronaries() {
     const cor = M.coronary, grp = g3.cor = new THREE.Group(); g3.inner.add(grp);
     g3.corTubes = []; g3.corPick = [];
@@ -729,8 +730,12 @@
       const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x553333 }));
       g3.clipMats.push(mesh.material);
       grp.add(mesh); g3.corTubes.push({ geo, col, map });
+      // (the septal perforator runs inside the septum: drawn see-through over the tissue, as the conduction system is, and
+      // tappable through it)
+      const deep = SEE_THROUGH.includes(name);
+      if (deep) { const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, depthTest: false, depthWrite: false })); ghost.renderOrder = 9; grp.add(ghost); }
       const pick = new THREE.Mesh(new THREE.TubeGeometry(curve, tub, name === 'LM' ? 5 : 3.6, rad, false), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-      pick.userData.map = map; grp.add(pick); g3.corPick.push(pick);
+      pick.userData.map = map; pick.userData.seeThrough = deep; grp.add(pick); g3.corPick.push(pick);
     }
     g3.corPos = posOf;
     g3.clots = new THREE.Group(); grp.add(g3.clots);
@@ -806,13 +811,14 @@
       tb.geo.attributes.color.needsUpdate = true;
     }
     g3.clots.clear();
+    const deepMark = (m, x) => { if (SEE_THROUGH.includes(M.coronary.nodes[x.node].branch)) { m.material.depthTest = false; m.material.transparent = true; m.material.opacity = 0.85; m.renderOrder = 10; m.userData.seeThrough = true; } };
     for (const x of occl) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(2.8, 14, 10), new THREE.MeshPhongMaterial({ color: 0xffd84a, emissive: 0x6a5200 }));
-      m.position.copy(g3.corPos[x.node]); m.userData.insult = x.id; g3.clots.add(m);
+      m.position.copy(g3.corPos[x.node]); m.userData.insult = x.id; deepMark(m, x); g3.clots.add(m);
     }
     for (const x of narrow) {                                     // a narrowing: a smaller orange plaque marker
       const m = new THREE.Mesh(new THREE.SphereGeometry(2.1, 14, 10), new THREE.MeshPhongMaterial({ color: 0xff8a2a, emissive: 0x5a2a00 }));
-      m.position.copy(g3.corPos[x.node]); m.userData.insult = x.id; g3.clots.add(m);
+      m.position.copy(g3.corPos[x.node]); m.userData.insult = x.id; deepMark(m, x); g3.clots.add(m);
     }
     const any = S.insults.length > 0;
     $('legendIsch').hidden = !any;
@@ -1517,7 +1523,7 @@
   // nearest vessel on screen within a fingertip (phones) or a few pixels (mouse) that is in sight (only the vessels
   // offered: side-branch nodes are not). Vessels behind the heart or behind the cut face do not count.
   function arteryAt(ray, x, y) {
-    const corHit = ray.intersectObjects(g3.corPick, false).find((h) => inSight(h.point));
+    const corHit = ray.intersectObjects(g3.corPick, false).find((h) => h.object.userData.seeThrough || inSight(h.point));
     if (corHit) return corHit.object.userData.map[corHit.face.a];
     const cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld, R = (isM() ? 30 : 20) ** 2, near = [];
     g3.corPos.forEach((q, i) => {
@@ -1527,10 +1533,10 @@
       if (d < R) near.push([d, i]);
     });
     near.sort((a, b) => a[0] - b[0]);
-    for (const [, i] of near.slice(0, 12)) if (inSight(g3.corPos[i].clone().applyMatrix4(mw))) return i;
+    for (const [, i] of near.slice(0, 12)) if (SEE_THROUGH.includes(cor.nodes[i].branch) || inSight(g3.corPos[i].clone().applyMatrix4(mw))) return i;
     return -1;
   }
-  const clotAt = (ray) => ray.intersectObjects(g3.clots.children, false).find((h) => inSight(h.point));
+  const clotAt = (ray) => ray.intersectObjects(g3.clots.children, false).find((h) => h.object.userData.seeThrough || inSight(h.point));
   const onArtery = (ray, x, y) => !!clotAt(ray) || arteryAt(ray, x, y) >= 0;   // (a marker counts too)
   function pickIschemia(ray, x, y, mode = 'occlude') {
     const cut = ui.view !== 'external';
@@ -2156,7 +2162,9 @@
     adenosine: { t: 'Adenosine', f: ['Transient AV-nodal block for seconds: P or flutter waves continue without QRS complexes.'], p: [] },
   };
   const ISCH_TEACH = {
-    stemi: { t: 'ST-elevation myocardial infarction', f: ['ST elevation ≥ 1 mm in two contiguous leads (≥ 1.5–2.5 mm in V2–V3, depending on age and sex), measured at the J point.', 'Reciprocal ST depression in the opposite leads supports a true infarction.', 'Territory: V1–V4 anterior (LAD; add I, aVL for proximal); II, III, aVF inferior (RCA or LCx; ST elevation III > II suggests RCA); I, aVL, V5–V6 lateral (LCx, diagonals); ST depression V1–V3 posterior.'], p: ['Pericarditis gives diffuse concave ST elevation without reciprocal depression (except aVR) and with PR depression.', 'With inferior STEMI look at V1 (and right-sided leads) for right ventricular involvement.'] },
+    stemi: { t: 'ST-elevation myocardial infarction', f: ['ST elevation ≥ 1 mm in two contiguous leads (≥ 1.5–2.5 mm in V2–V3, depending on age and sex), measured at the J point.', 'Reciprocal ST depression in the opposite leads supports a true infarction.', 'Territory: V1–V2 (with V3 and aVR) septal (septal perforator); V1–V4 anterior (LAD; add I, aVL for proximal); I and aVL high lateral (first diagonal); II, III, aVF inferior (RCA or LCx; ST elevation III > II suggests RCA); I, aVL, V5–V6 lateral (LCx, diagonals); ST depression V1–V3 posterior.'], p: ['Pericarditis gives diffuse concave ST elevation without reciprocal depression (except aVR) and with PR depression.'] },
+    rvInv: { t: 'Right ventricular involvement', f: ['Any inferior STEMI can involve the right ventricle when the RCA is blocked proximally. ST elevation in V1, or more ST elevation in III than in II, makes it more likely.', 'The standard 12 leads can only suggest it. Record a 15-lead ECG: ST elevation ≥ 1 mm in the right-sided lead V4R confirms it.'], p: ['A right ventricular infarct depends on its filling pressure: nitrates and diuretics can drop the blood pressure sharply; treat hypotension with fluids.'] },
+    postInv: { t: 'Posterior involvement', f: ['Horizontal ST depression in V1–V3, often with upright T waves and a tall R wave in V2, is the mirror image of ST elevation on the posterior wall.', 'The standard 12 leads can only suggest it. Record a 15-lead ECG: ST elevation ≥ 0.5 mm in the posterior leads V7–V9 confirms a posterior STEMI.'], p: ['Read as anterior ischemia (an NSTEMI pattern), a posterior STEMI loses the urgent reperfusion it needs.'] },
     hyper: { t: 'Hyperacute phase', f: ['The first minutes: tall, broad, symmetric T waves over the territory before ST elevation develops.', 'Judge the T against the QRS in front of it: a T whose area is large for a small QRS, in two contiguous leads, is more telling than height alone.', 'Symmetric: the T falls about as slowly as it rises, on a broad base (a normal T rises slowly and falls faster).'], p: ['Compare with the patient’s baseline: hyperacute T waves are easy to miss on a single ECG.', 'Peaked but narrow-based T waves suggest hyperkalemia rather than ischemia.'] },
     evolving: { t: 'Evolving infarct', f: ['Q waves (≥ 40 ms or ≥ 1 mm deep in two contiguous leads) or QS complexes appear within hours.', 'ST elevation resolves over days while T waves invert.', 'Lost R waves (poor R-wave progression) are the precordial equivalent of Q waves.'], p: ['Persistent ST elevation weeks after an infarct suggests a ventricular aneurysm.'] },
     old: { t: 'Old (healed) infarct', f: ['Q waves remain; ST is at baseline; T inversion often persists for months but may normalise.'], p: ['Q waves alone cannot date an infarct.'] },
@@ -2185,6 +2193,10 @@
       const sub = S.insults.every((x) => x.kind === 'subendo'), h = ui.ischH;
       if (sub) ischK.push('subendo');
       else { if (h < 0.5) ischK.push('hyper'); if (h >= 0.5 && h < 100) ischK.push('stemi'); if (h >= 3 && h < 300) ischK.push('evolving'); if (h >= 300) ischK.push('old'); }
+      // (involvement the 12 leads only suggest, read from the analysis: right ventricle from V1, posterior wall from V1–V3)
+      const fl = (s.findings || []).join(' | ');
+      if (/right ventricular involvement|inferior STEMI|inferolateral STEMI/.test(fl)) ischK.push('rvInv');   // (right-sided leads for every inferior STEMI)
+      if (/posterior/i.test(fl)) ischK.push('postInv');
     }
     const sec = (title, list) => list.length ? `<h4>${title}</h4><ul>${list.map((x) => `<li>${x}</li>`).join('')}</ul>` : '';
     const items = keys.map((k) => TEACH[k]).filter(Boolean).concat(ischK.map((k) => ISCH_TEACH[k]));

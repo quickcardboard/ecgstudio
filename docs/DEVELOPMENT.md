@@ -2942,3 +2942,19 @@ the reader, scorecard and fullcheck with the option on.
 - Checks with the new defaults: scorecard 61/66, fullcheck iErr 1, reader 55/57 (the live code's reader also 55/57);
   proximal and mid LAD and left main audits identical at every stop. Links checked in the browser (S1 → "Acute
   anteroseptal STEMI: ST elevation in V1–V3"; D1 → "Acute lateral STEMI: ST elevation in I, aVL").
+
+## claude/relaxed-mccarthy round 9: S1 and D1 drawn and tappable; Learn text for RV and posterior involvement
+
+- `extraBranches` default ['S1', 'D1']: both are drawn and offered in the simulator (and so in the app). S1 is now three
+  nodes from its LAD origin (LAD node 4, behind the pulmonary trunk from the front) into the mid septum; the first carries
+  the septal territory, and a tap anywhere on it acts on that node (regionNode). S1 lies inside the muscle, so it is drawn
+  see-through over the tissue like the conduction system (`SEE_THROUGH`, a depth-test-off ghost of its tube) and tapped
+  through it; its occlusion/narrowing marker is drawn and tapped through the tissue too.
+- Taps (double click occludes): S1 from the anterior and apex views at all three points; D1 from the anterior, lateral and
+  apex views. From the lateral view S1 lies behind D1 (D1 wins); in the four-chamber cut the deeper S1 points go to the
+  bundle branches first (the tap order). The marker taps off.
+- Learn (ISCH_TEACH): the STEMI territory line names septal (V1–V2 with V3, aVR: septal perforator) and high lateral (I,
+  aVL: first diagonal); new entries "Right ventricular involvement" (every inferior or inferolateral STEMI, or "possible
+  right ventricular involvement") and "Posterior involvement" (any posterior reading), each closing on the 15-lead ECG (V4R;
+  V7–V9) that confirms it.
+- Audits of S1, D1 and the LAD sites unchanged from round 8; pages load without errors.
