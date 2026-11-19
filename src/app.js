@@ -349,6 +349,7 @@
     const ctl = g3.controls = new THREE.OrbitControls(cam, canvas);
     ctl.enableDamping = true; ctl.dampingFactor = 0.12; ctl.enablePan = true; ctl.screenSpacePanning = true;   // (two fingers: pinch, pan and, below, twist)
     ctl.minDistance = 140; ctl.maxDistance = 900;
+    ctl.enableRotate = false;   // (turning is the trackball's, initTrackball: about the screen's axes, no lock at the poles)
     setView('external'); setCut(0); cameraPreset('front');
     new ResizeObserver(resize3D).observe($('pane3d'));
     resize3D();
@@ -1005,14 +1006,13 @@
       const l = new THREE.Vector3(1, 0, 0).addScaledVector(f, -f.x).normalize();
       up = new THREE.Vector3().crossVectors(l, f).normalize(); if (up.y < 0) up.negate();
     } else up = new THREE.Vector3(...pr.up);
-    // (the author: dragging tipped the heart in the four-chamber view; anterior and lateral felt right) OrbitControls orbits
-    // the camera about the body's vertical (world +y, its up when made), as in the anterior and lateral views. The preset's
-    // roll is a fixed turn of the camera about its own view axis, put back after every controls update (g3.viewRoll), so it
-    // stays the same as the heart turns instead of drifting (a rolled camera.up, the old way, rolled more and more)
+    // the camera stays upright; the preset's roll is given to the heart (the world group turns about the view axis), and
+    // drags then turn the heart about the screen's own axes (initTrackball)
     up.addScaledVector(f, -up.dot(f)).normalize();
     const y = new THREE.Vector3(0, 1, 0).addScaledVector(f, -f.y).normalize();
-    g3.viewRoll = up.lengthSq() > 0.5 && y.lengthSq() > 0.5 ? Math.atan2(f.dot(new THREE.Vector3().crossVectors(up, y)), up.dot(y)) : 0;
-    cam.up.set(0, 1, 0); cam.lookAt(0, 0, 0); ctl.update(); rollView();
+    if (up.lengthSq() > 0.5 && y.lengthSq() > 0.5) g3.world.quaternion.setFromAxisAngle(f, Math.atan2(f.dot(new THREE.Vector3().crossVectors(up, y)), up.dot(y)));
+    g3.viewRoll = 0;
+    cam.up.set(0, 1, 0); cam.lookAt(0, 0, 0); ctl.update();
     g3.planeDirty = true;
   }
 
@@ -1290,7 +1290,6 @@
     $('legendBlock').hidden = !cut || !Object.keys(S.blocks).length;
     updateActionNote(); hideBlockMenu();
     $('hint').textContent = cut ? 'Drag to rotate · the cut always faces you' : 'Drag to rotate · scroll to zoom';
-    g3.controls.enableRotate = true;
     if (cut) g3.planeDirty = true; else $('viewName').textContent = 'external view';
   }
   // the coronary arteries hide in the full cut (the author: as the conduction system hides in the outside view); hidden,
@@ -3259,6 +3258,31 @@ body.only .chips { margin-top: 0; }
     // (the sheet stays as it is: the time scrubber appears on the heart, and opening the Ischemia tab would move the view)
     return pickIschemia(rayAt(x, y), x, y, mode);
   }
+  // trackball (the author, 2026-11-19): a one-finger or left-mouse drag turns the heart about the screen's axes, a
+  // sideways drag about the screen's vertical and an up-down drag about its horizontal, with no lock at the top or bottom
+  // (OrbitControls orbits about one fixed axis and stops at the poles). The heart (the world group) turns about the view's
+  // centre; zoom and pan stay the orbit controls', the two-finger twist is initTwist's. Taps keep their own movement checks.
+  function initTrackball() {
+    const canvas = $('c3d'), live = new Set(); let drag = null;
+    canvas.addEventListener('pointerdown', (e) => {
+      live.add(e.pointerId);
+      if (live.size > 1 || (e.pointerType === 'mouse' && e.button !== 0) || e.ctrlKey || e.metaKey || e.shiftKey) { drag = null; return; }   // (two fingers, right button, modifier keys: pan and zoom)
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!drag || e.pointerId !== drag.id || live.size > 1) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+      if (!dx && !dy) return;
+      const k = 2 * Math.PI / Math.max(200, canvas.clientHeight), cam = g3.camera;
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion), right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+      const q = new THREE.Quaternion().setFromAxisAngle(up, dx * k).multiply(new THREE.Quaternion().setFromAxisAngle(right, dy * k));
+      const tgt = g3.controls.target, w = g3.world;
+      w.position.sub(tgt).applyQuaternion(q).add(tgt); w.quaternion.premultiply(q);
+      if (ui.view === 'cutaway') g3.planeDirty = true;
+    });
+    const end = (e) => { live.delete(e.pointerId); if (drag && drag.id === e.pointerId) drag = null; };
+    canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
+  }
   // two-finger twist (touch screens): turns the view about the line of sight, as in a map; the pinch and pan of the
   // same gesture are the orbit controls'
   function initTwist() {
@@ -3519,7 +3543,7 @@ body.only .chips { margin-top: 0; }
     $('btnShock').addEventListener('click', () => { ui.avnrt = null; ui.pendingRhythm = null; ui.rhythmFrom = S.t; S.shock(); ui.shockAt = performance.now(); markChange(); syncRate(); interpret(); syncRhythmUI(); });
     initConditions();
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
-    initPicking(); initTwist(); updateActionNote();
+    initPicking(); initTrackball(); initTwist(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     $('cutDepth').addEventListener('input', (e) => setCut(+e.target.value));
     { // the view bar scrolls sideways when the pane is narrow: a fade at the right edge says there is more

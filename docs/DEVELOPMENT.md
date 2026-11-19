@@ -2997,3 +2997,15 @@ did, and a preset's roll (lead I level in the four-chamber view; the Apex view's
 own view axis (`g3.viewRoll`, `rollView()` after each controls update and saved with a view), so it no longer drifts as
 the heart turns (the original rolled camera.up did). The heart is no longer rolled. Presets look as before; taps
 unchanged.
+
+## claude/relaxed-mccarthy round 14: trackball rotation about the screen's axes, no polar lock
+
+The author: a sideways drag must turn the heart about the screen's vertical in every view, and up-down drags must turn it
+freely about the screen's horizontal (OrbitControls stops at the poles and orbits about one fixed axis, which tilted the
+heart in the rolled four-chamber and Apex views). OrbitControls' rotation is off (`enableRotate = false`; zoom and pan
+stay); `initTrackball` turns the world group about the camera's up (sideways drag) and right (up-down drag) axes through
+the view centre, 2π per canvas height, for a one-finger touch or the left mouse button (right button and modifier keys:
+pan; two fingers: pinch, pan and twist as before). Presets give their roll to the heart again (round 12's way) with the
+camera upright; `g3.viewRoll` stays 0. Checks: a 60 px sideways drag moves the apex and base 19–118 px sideways and ≤ 5 px
+vertically (perspective) in the anterior, four-chamber, lateral and Apex views; four long up-down drags turn the heart
+over continuously; a phone one-finger drag turns it without tapping; artery taps unchanged. Applies to the app too.
