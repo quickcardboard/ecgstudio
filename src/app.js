@@ -988,6 +988,7 @@
   }
 
   const LEADS_DIST = 480;   // camera distance with the lead vectors shown (they reach past the heart)
+  function rollView() { if (g3.viewRoll) { g3.camera.rotateZ(g3.viewRoll); g3.camera.updateMatrixWorld(); } }
   function cutPreset(name) {
     const pr = g3.cutPresets[name], cam = g3.camera, ctl = g3.controls;
     g3.world.position.set(0, 0, 0); g3.world.quaternion.identity();   // (a preset undoes any twist and pan)
@@ -1004,14 +1005,14 @@
       const l = new THREE.Vector3(1, 0, 0).addScaledVector(f, -f.x).normalize();
       up = new THREE.Vector3().crossVectors(l, f).normalize(); if (up.y < 0) up.negate();
     } else up = new THREE.Vector3(...pr.up);
-    // (the author: dragging tipped the heart about the apex) OrbitControls orbits about the camera's up as it was when it
-    // was made (world +y), so the camera stays upright and the roll is given to the heart instead: the world group turns
-    // about the view axis by the angle between the wanted up and world +y. Same picture; a sideways drag now turns the
-    // heart about the screen's vertical
+    // (the author: dragging tipped the heart in the four-chamber view; anterior and lateral felt right) OrbitControls orbits
+    // the camera about the body's vertical (world +y, its up when made), as in the anterior and lateral views. The preset's
+    // roll is a fixed turn of the camera about its own view axis, put back after every controls update (g3.viewRoll), so it
+    // stays the same as the heart turns instead of drifting (a rolled camera.up, the old way, rolled more and more)
     up.addScaledVector(f, -up.dot(f)).normalize();
     const y = new THREE.Vector3(0, 1, 0).addScaledVector(f, -f.y).normalize();
-    if (up.lengthSq() > 0.5 && y.lengthSq() > 0.5) g3.world.quaternion.setFromAxisAngle(f, Math.atan2(f.dot(new THREE.Vector3().crossVectors(up, y)), up.dot(y)));
-    cam.up.set(0, 1, 0); cam.lookAt(0, 0, 0); ctl.update();
+    g3.viewRoll = up.lengthSq() > 0.5 && y.lengthSq() > 0.5 ? Math.atan2(f.dot(new THREE.Vector3().crossVectors(up, y)), up.dot(y)) : 0;
+    cam.up.set(0, 1, 0); cam.lookAt(0, 0, 0); ctl.update(); rollView();
     g3.planeDirty = true;
   }
 
@@ -1355,7 +1356,7 @@
         tb.geo.attributes.color.needsUpdate = true;
       }
     }
-    g3.controls.update();
+    g3.controls.update(); rollView();
     g3.renderer.render(g3.scene, g3.camera);
     updateOverlays();
   }
@@ -2929,12 +2930,12 @@ body.only .chips { margin-top: 0; }
         if (isM() && sheetOpen()) toggleControls(false);   // (the desktop panel stays as the user left it)
         hideBlockMenu();
       },
-      saveView() { saved = { pos: g3.camera.position.clone(), up: g3.camera.up.clone(), tgt: g3.controls.target.clone(), wp: g3.world.position.clone(), wq: g3.world.quaternion.clone(), cut: ui.cutFrac }; },
+      saveView() { saved = { pos: g3.camera.position.clone(), up: g3.camera.up.clone(), tgt: g3.controls.target.clone(), wp: g3.world.position.clone(), wq: g3.world.quaternion.clone(), cut: ui.cutFrac, roll: g3.viewRoll || 0 }; },
       restoreView() {
         if (!saved) return;
         setCut(saved.cut);
         g3.world.position.copy(saved.wp); g3.world.quaternion.copy(saved.wq);
-        g3.controls.target.copy(saved.tgt); g3.camera.position.copy(saved.pos); g3.camera.up.copy(saved.up); g3.camera.lookAt(saved.tgt); g3.controls.update();
+        g3.viewRoll = saved.roll; g3.controls.target.copy(saved.tgt); g3.camera.position.copy(saved.pos); g3.camera.up.copy(saved.up); g3.camera.lookAt(saved.tgt); g3.controls.update(); rollView();
         g3.planeDirty = true;
       },
       outside() { setCut(0); cameraPreset('chest'); },

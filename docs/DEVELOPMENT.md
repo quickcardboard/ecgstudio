@@ -2987,3 +2987,13 @@ apex instead of turning. `cutPreset` now keeps the camera upright and gives the 
 two-finger twist's) turns about the view axis by the angle between the wanted up and world +y. The presets look the same
 (screenshots compared, old and new); a sideways drag now turns the heart about the screen's vertical. The next preset
 resets the twist as before.
+
+## claude/relaxed-mccarthy round 13: four-chamber drag turns about the body's vertical
+
+Round 12 turned the heart about the screen's vertical after the four-chamber preset; the author found the anterior and
+lateral views right and the four-chamber still wrong (the heart's long axis is diagonal there, so a turn about the
+screen's vertical tilts it). Now every view orbits about the body's vertical (world +y), as anterior and lateral always
+did, and a preset's roll (lead I level in the four-chamber view; the Apex view's) is a fixed turn of the camera about its
+own view axis (`g3.viewRoll`, `rollView()` after each controls update and saved with a view), so it no longer drifts as
+the heart turns (the original rolled camera.up did). The heart is no longer rolled. Presets look as before; taps
+unchanged.
