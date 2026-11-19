@@ -128,6 +128,13 @@
     avnFirstDegreeMul: 2.6, // AV-nodal delay factor for 1st-degree block
     // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
     wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
+    // graded AV conduction disease (setBlock(site, 'severity', { s }), 0 normal … 1 complete; 2026-11-19): the degree of block
+    // emerges from the severity and the atrial rate. AV node: the Wenckebach recovery curve with AH_min, its rise and the
+    // effective recovery time growing with s (mild: long PR; then Wenckebach; then 2:1; s ≥ avnSevComplete: complete).
+    // His–Purkinje: all-or-none, an effective recovery time growing with s (constant PR, sudden 2:1) and below it a
+    // per-beat failure chance (intermittent drops: Mobitz II); s ≥ hisSevComplete: complete
+    avnSevAH: [85, 240], avnSevAlpha: 320, avnSevTau: 180, avnSevReff: [200, 1100], avnSevComplete: 0.97,
+    hisSevReff: [300, 1300], hisSevDrop: 0.35, hisSevComplete: 0.97,
     avnToneExp: 0.45,      // AV-nodal delay ∝ (72/rate)^exp (autonomic coupling)
     rbbSeptalFrac: 0.3,   // distal fraction of septal RBB giving off RV septal Purkinje (right septal face ~10 ms after the left, Durrer)
     rbbSeptalDelay: 25,    // ms extra delay into the RV septal Purkinje
@@ -1746,9 +1753,19 @@
           // recovery for the next beat, so PR lengthens until a P is blocked.
           this.gates.set(M.avn[0], { mode: 'av-recovery', site: 'AVN', count: 0 });
         } else if (type === 'two-to-one') gate(M.avn[0], 'conduct-1-of', 2);
+        else if (type === 'severity') {
+          const sv = Math.max(0, Math.min(1, opts.s || 0));
+          if (sv >= P.avnSevComplete) for (const c of M.avn) this.blocked[c] = 1;
+          else if (sv > 0) this.gates.set(M.avn[0], { mode: 'av-recovery', site: 'AVN', count: 0, s: sv });
+        }
         else if (type === 'complete') for (const c of M.avn) this.blocked[c] = 1;
       } else if (site === 'HIS') {
         if (type === 'mobitz2') gate(cs.HIS[1], 'drop-1-of', opts.n || 4);
+        else if (type === 'severity') {
+          const sv = Math.max(0, Math.min(1, opts.s || 0));
+          if (sv >= P.hisSevComplete) for (const c of cs.HIS) this.blocked[c] = 1;
+          else if (sv > 0) this.gates.set(cs.HIS[1], { mode: 'his-safety', site: 'HIS', count: 0, s: sv });
+        }
         else if (type === 'complete') for (const c of cs.HIS) this.blocked[c] = 1;
       } else if (type === 'complete') for (const c of cells) this.blocked[c] = 1;
       // conduction delay (incomplete block): the bundle/fascicle conducts, slowed by opts.mul
@@ -1794,12 +1811,23 @@
       if (g.mode === 'av-recovery') {
         const P = this.P, M = this.M, R = ta - this.tAct[M.his[0]];   // recovery since last nodal output
         g.lastT = ta;
-        if (R < P.wkReff) { g.last = false; return false; }
-        const ah = P.wkAHmin + P.wkAlpha * Math.exp(-(R - P.wkReff) / P.wkTau);
+        // (graded severity g.s: the curve's three numbers from avnSev*; else the fixed Wenckebach node)
+        const sv = g.s, lerp = (r, f) => r[0] + (r[1] - r[0]) * f;
+        const reff = sv !== undefined ? lerp(P.avnSevReff, sv * sv) : P.wkReff, ahMin = sv !== undefined ? lerp(P.avnSevAH, sv) : P.wkAHmin;
+        const alpha = sv !== undefined ? P.avnSevAlpha * sv : P.wkAlpha, tau = sv !== undefined ? P.avnSevTau : P.wkTau;
+        if (R < reff) { g.last = false; return false; }
+        const ah = ahMin + alpha * Math.exp(-(R - reff) / tau);
         // spread the required nodal delay over the AV-node segments for this beat
         const mul = ah / (P.avnSegDelay * (M.avn.length - 1));
         for (const c of M.avn) this.cvMul[c] = mul;
         g.last = true; return true;
+      }
+      if (g.mode === 'his-safety') {   // (infranodal: all-or-none; the PR does not change)
+        const P = this.P, R = ta - this.tAct[this.M.csSegments.HIS[1]], sv = g.s;
+        g.lastT = ta;
+        const reff = P.hisSevReff[0] + (P.hisSevReff[1] - P.hisSevReff[0]) * sv * sv;
+        g.last = R >= reff && this.rand() >= P.hisSevDrop * sv;
+        return g.last;
       }
       g.count++; g.lastT = ta;
       g.last = g.mode === 'conduct-1-of' ? g.count % g.n === 1 % g.n    // conducts 1 of every n

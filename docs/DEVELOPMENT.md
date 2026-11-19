@@ -3017,3 +3017,26 @@ or a finger on a tablet held sideways) opens the Blocks panel, and adding an occ
 opens the Ischemia panel, so the time since onset can be set at once. The view and cut stay as they are (`setTab`'s new
 keepView; a tab click still opens its tab's view). Removing one does not switch. Checked: occluding the LAD from the
 Rhythm tab opened Ischemia with the outside view kept; clicking the right bundle in a 70% cut opened Blocks at 70%.
+
+## claude/relaxed-mccarthy round 16: AV conduction sliders (graded AV node and His–Purkinje disease)
+
+The author: replace picking AV blocks from a list (desktop) or cycling them by taps (phones) with two sliders in one
+place, for desktop and phones; the degree of block should follow from the physiology (and give Training more variety).
+- Engine: `setBlock('AVN' | 'HIS', 'severity', { s })`, s 0–1. AV node: the existing Wenckebach recovery curve with AH_min
+  (`avnSevAH` 85→240 ms), its rise (`avnSevAlpha` × s) and the effective recovery time (`avnSevReff` 200→1100 ms over s²)
+  growing with s; s ≥ 0.97 complete. His–Purkinje (`his-safety` gate on the His bundle): all-or-none, an effective
+  recovery time (`hisSevReff` 300→1300 ms over s²) and below it a per-beat failure chance (`hisSevDrop` 0.35 × s, seeded);
+  s ≥ 0.97 complete. The named blocks are unchanged (`tools/blocks.js` output identical to the live code's).
+- Emergent at 72/min: AV node 15% normal (PR 182), 30% 1st degree (PR 215), 45% PR 266, 60% Wenckebach (PR 259→353→422,
+  drop), 70–90% 2:1, 97% complete with junctional escape; faster rates worsen it (45%: Wenckebach at 100, 2:1 at 130),
+  slower ease it. His 40–70%: intermittent drops with a constant PR (Mobitz II), 85% at 72 high grade, 97% complete with
+  a ventricular escape.
+- Simulator: the Blocks panel has the AV node and His–Purkinje sliders (with a severity word and %). A click or tap on
+  the AV node or His bundle opens them (Blocks panel; phones: the sheet) and highlights them, instead of the block menu
+  or the tap cycle; three taps still start AVNRT. The analysis reads the degree from the beats when a slider is set
+  (2:1 alternate P's blocked; high grade two in a row; Mobitz I the PR before a blocked P > 25 ms longer than after it;
+  else Mobitz II; PR > 200 with all conducted: 1st degree); Learn follows the reading. The Active blocks list names the
+  block each slider is producing ("AV node: Mobitz I (Wenckebach) · 60%"), updated as the reading changes, and × removes
+  it (the slider returns to Normal). Share links: `b=AVN.s60,HIS.s50`; old named blocks (Training links) show on the
+  sliders at a matching place. Tab instructions (phones) and the Help's Blocks line: one clause added each for the sliders.
+- Not yet: Training still uses the named blocks.

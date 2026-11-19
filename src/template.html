@@ -213,6 +213,8 @@ body.m #controls .rlist button { padding: 12px 10px; font-size: 14.5px; }
 .flash::before { content: ""; position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ffffff; animation: ring 0.9s ease-out forwards; }
 .flash span { position: absolute; left: 14px; top: -24px; white-space: nowrap; font: 600 12px/1 var(--font-ui); color: #fff; background: rgba(10,18,26,0.8); padding: 4px 7px; border-radius: 4px; }
 @keyframes ring { from { transform: scale(0.3); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+#avCtl.pulse { animation: avpulse 1.2s ease-out; border-radius: 8px; }   /* (the AV sliders, opened by a tap on the AV node or His bundle) */
+@keyframes avpulse { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 2px transparent; } }
 @media (prefers-reduced-motion: reduce) { .flash::before { animation: none; } }
 
 #controls select { font: 500 12.5px/1.2 var(--font-ui); color: var(--viewport-fg); background: rgba(255,255,255,0.06); border: 1px solid var(--panel-line); border-radius: 6px; padding: 6px 8px; }
@@ -582,6 +584,12 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
           </section>
 
           <section class="tabpanel" data-panel="blocks" hidden>
+            <div class="ctl" id="avCtl">
+              <div class="row"><span class="lab">AV node</span><span class="val" id="avnVal">Normal</span></div>
+              <input id="avnSev" type="range" min="0" max="100" step="1" value="0" aria-label="AV node disease, from normal to complete block">
+              <div class="row"><span class="lab">His–Purkinje</span><span class="val" id="hisVal">Normal</span></div>
+              <input id="hisSev" type="range" min="0" max="100" step="1" value="0" aria-label="His–Purkinje disease, from normal to complete block">
+            </div>
             <div class="ctl" id="blockListWrap">
               <span class="lab">Active blocks</span>
               <div class="blocklist" id="blockList"></div>
@@ -789,7 +797,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
             <li>On the heart: tap an atrium or ventricle for an ectopic beat; three quick taps start flutter (atria) or VT (ventricles), four start AF or VF.</li>
           </ul>
         </li>
-        <li><b>Blocks:</b> opens the cut view. Tap the conduction system to cycle through its blocks.</li>
+        <li><b>Blocks:</b> opens the cut view. Tap the conduction system to cycle through its blocks; the AV node and His bundle open the AV node and His–Purkinje sliders.</li>
         <li><b>View:</b> External ↔ Cut slider, the Anterior / 4-chamber / Lateral / Apex views, and the Labels, Leads and Legend switches.</li>
         <li><b>Ischemia:</b> opens the outside view. From any tab, tap a coronary artery to narrow it (partial flow: ST depression and T changes) or double-tap to occlude it; taps elsewhere on the heart still give ectopic beats. Each region (for example proximal, mid or distal LAD) holds one marker, and one tap on it removes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
         <li><b>Conditions:</b> add or remove chronic and acute heart conditions.</li>

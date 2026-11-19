@@ -388,6 +388,8 @@ body.m #controls .rlist button { padding: 12px 10px; font-size: 14.5px; }
 .flash::before { content: ""; position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ffffff; animation: ring 0.9s ease-out forwards; }
 .flash span { position: absolute; left: 14px; top: -24px; white-space: nowrap; font: 600 12px/1 var(--font-ui); color: #fff; background: rgba(10,18,26,0.8); padding: 4px 7px; border-radius: 4px; }
 @keyframes ring { from { transform: scale(0.3); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+#avCtl.pulse { animation: avpulse 1.2s ease-out; border-radius: 8px; }   /* (the AV sliders, opened by a tap on the AV node or His bundle) */
+@keyframes avpulse { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 2px transparent; } }
 @media (prefers-reduced-motion: reduce) { .flash::before { animation: none; } }
 
 #controls select { font: 500 12.5px/1.2 var(--font-ui); color: var(--viewport-fg); background: rgba(255,255,255,0.06); border: 1px solid var(--panel-line); border-radius: 6px; padding: 6px 8px; }
@@ -759,6 +761,12 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
           </section>
 
           <section class="tabpanel" data-panel="blocks" hidden>
+            <div class="ctl" id="avCtl">
+              <div class="row"><span class="lab">AV node</span><span class="val" id="avnVal">Normal</span></div>
+              <input id="avnSev" type="range" min="0" max="100" step="1" value="0" aria-label="AV node disease, from normal to complete block">
+              <div class="row"><span class="lab">His–Purkinje</span><span class="val" id="hisVal">Normal</span></div>
+              <input id="hisSev" type="range" min="0" max="100" step="1" value="0" aria-label="His–Purkinje disease, from normal to complete block">
+            </div>
             <div class="ctl" id="blockListWrap">
               <span class="lab">Active blocks</span>
               <div class="blocklist" id="blockList"></div>
@@ -935,7 +943,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (ab43570).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (97c1329).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -966,7 +974,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
             <li>On the heart: tap an atrium or ventricle for an ectopic beat; three quick taps start flutter (atria) or VT (ventricles), four start AF or VF.</li>
           </ul>
         </li>
-        <li><b>Blocks:</b> opens the cut view. Tap the conduction system to cycle through its blocks.</li>
+        <li><b>Blocks:</b> opens the cut view. Tap the conduction system to cycle through its blocks; the AV node and His bundle open the AV node and His–Purkinje sliders.</li>
         <li><b>View:</b> External ↔ Cut slider, the Anterior / 4-chamber / Lateral / Apex views, and the Labels, Leads and Legend switches.</li>
         <li><b>Ischemia:</b> opens the outside view. From any tab, tap a coronary artery to narrow it (partial flow: ST depression and T changes) or double-tap to occlude it; taps elsewhere on the heart still give ectopic beats. Each region (for example proximal, mid or distal LAD) holds one marker, and one tap on it removes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
         <li><b>Conditions:</b> add or remove chronic and acute heart conditions.</li>
@@ -980,7 +988,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (ab43570).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (97c1329).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -2248,6 +2256,13 @@ THE SOFTWARE.
     avnFirstDegreeMul: 2.6, // AV-nodal delay factor for 1st-degree block
     // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
     wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
+    // graded AV conduction disease (setBlock(site, 'severity', { s }), 0 normal … 1 complete; 2026-11-19): the degree of block
+    // emerges from the severity and the atrial rate. AV node: the Wenckebach recovery curve with AH_min, its rise and the
+    // effective recovery time growing with s (mild: long PR; then Wenckebach; then 2:1; s ≥ avnSevComplete: complete).
+    // His–Purkinje: all-or-none, an effective recovery time growing with s (constant PR, sudden 2:1) and below it a
+    // per-beat failure chance (intermittent drops: Mobitz II); s ≥ hisSevComplete: complete
+    avnSevAH: [85, 240], avnSevAlpha: 320, avnSevTau: 180, avnSevReff: [200, 1100], avnSevComplete: 0.97,
+    hisSevReff: [300, 1300], hisSevDrop: 0.35, hisSevComplete: 0.97,
     avnToneExp: 0.45,      // AV-nodal delay ∝ (72/rate)^exp (autonomic coupling)
     rbbSeptalFrac: 0.3,   // distal fraction of septal RBB giving off RV septal Purkinje (right septal face ~10 ms after the left, Durrer)
     rbbSeptalDelay: 25,    // ms extra delay into the RV septal Purkinje
@@ -3866,9 +3881,19 @@ THE SOFTWARE.
           // recovery for the next beat, so PR lengthens until a P is blocked.
           this.gates.set(M.avn[0], { mode: 'av-recovery', site: 'AVN', count: 0 });
         } else if (type === 'two-to-one') gate(M.avn[0], 'conduct-1-of', 2);
+        else if (type === 'severity') {
+          const sv = Math.max(0, Math.min(1, opts.s || 0));
+          if (sv >= P.avnSevComplete) for (const c of M.avn) this.blocked[c] = 1;
+          else if (sv > 0) this.gates.set(M.avn[0], { mode: 'av-recovery', site: 'AVN', count: 0, s: sv });
+        }
         else if (type === 'complete') for (const c of M.avn) this.blocked[c] = 1;
       } else if (site === 'HIS') {
         if (type === 'mobitz2') gate(cs.HIS[1], 'drop-1-of', opts.n || 4);
+        else if (type === 'severity') {
+          const sv = Math.max(0, Math.min(1, opts.s || 0));
+          if (sv >= P.hisSevComplete) for (const c of cs.HIS) this.blocked[c] = 1;
+          else if (sv > 0) this.gates.set(cs.HIS[1], { mode: 'his-safety', site: 'HIS', count: 0, s: sv });
+        }
         else if (type === 'complete') for (const c of cs.HIS) this.blocked[c] = 1;
       } else if (type === 'complete') for (const c of cells) this.blocked[c] = 1;
       // conduction delay (incomplete block): the bundle/fascicle conducts, slowed by opts.mul
@@ -3914,12 +3939,23 @@ THE SOFTWARE.
       if (g.mode === 'av-recovery') {
         const P = this.P, M = this.M, R = ta - this.tAct[M.his[0]];   // recovery since last nodal output
         g.lastT = ta;
-        if (R < P.wkReff) { g.last = false; return false; }
-        const ah = P.wkAHmin + P.wkAlpha * Math.exp(-(R - P.wkReff) / P.wkTau);
+        // (graded severity g.s: the curve's three numbers from avnSev*; else the fixed Wenckebach node)
+        const sv = g.s, lerp = (r, f) => r[0] + (r[1] - r[0]) * f;
+        const reff = sv !== undefined ? lerp(P.avnSevReff, sv * sv) : P.wkReff, ahMin = sv !== undefined ? lerp(P.avnSevAH, sv) : P.wkAHmin;
+        const alpha = sv !== undefined ? P.avnSevAlpha * sv : P.wkAlpha, tau = sv !== undefined ? P.avnSevTau : P.wkTau;
+        if (R < reff) { g.last = false; return false; }
+        const ah = ahMin + alpha * Math.exp(-(R - reff) / tau);
         // spread the required nodal delay over the AV-node segments for this beat
         const mul = ah / (P.avnSegDelay * (M.avn.length - 1));
         for (const c of M.avn) this.cvMul[c] = mul;
         g.last = true; return true;
+      }
+      if (g.mode === 'his-safety') {   // (infranodal: all-or-none; the PR does not change)
+        const P = this.P, R = ta - this.tAct[this.M.csSegments.HIS[1]], sv = g.s;
+        g.lastT = ta;
+        const reff = P.hisSevReff[0] + (P.hisSevReff[1] - P.hisSevReff[0]) * sv * sv;
+        g.last = R >= reff && this.rand() >= P.hisSevDrop * sv;
+        return g.last;
       }
       g.count++; g.lastT = ta;
       g.last = g.mode === 'conduct-1-of' ? g.count % g.n === 1 % g.n    // conducts 1 of every n
@@ -6588,17 +6624,45 @@ THE SOFTWARE.
     LAF: [['complete', 'Left anterior fascicular block']], LPF: [['complete', 'Left posterior fascicular block']],
   };
   const SEG_SITE = { [LH.SEG.AVN]: 'AVN', [LH.SEG.HIS]: 'HIS', [LH.SEG.LBB]: 'LBB', [LH.SEG.RBB]: 'RBB', [LH.SEG.LAF]: 'LAF', [LH.SEG.LPF]: 'LPF' };   // septal fibres: drawn and blocked with the LPF
-  const isComplete = (b) => b && (b.type === 'complete' || b.type === 'arrest');
+  const isComplete = (b) => b && (b.type === 'complete' || b.type === 'arrest' || (b.type === 'severity' && b.s >= 0.97));
   function blockColour(site) { const b = S.blocks[site]; return isComplete(b) ? C.blocked : C.partial; }
   function restColourOf(id) { const site = SEG_SITE[M.seg[id]]; return site && S.blocks[site] ? blockColour(site) : C.cs; }
+  // graded AV conduction (the AV node and His–Purkinje sliders, 2026-11-19): a severity 0–1; the degree of block emerges
+  // from it and the rate (engine: setBlock(site, 'severity', { s }))
+  const SEV_WORD = (v) => (v >= 0.97 ? 'complete block' : v >= 0.75 ? 'severe' : v >= 0.5 ? 'moderate' : v >= 0.25 ? 'mild' : v > 0 ? 'minimal' : 'normal');
+  const OLD_SEV = { AVN: { first: 0.3, wenckebach: 0.6, 'two-to-one': 0.8, complete: 1 }, HIS: { mobitz2: 0.5, complete: 1 } };   // (named blocks from Training and old links: where the slider shows them)
+  const sevOf = (site) => { const b = S.blocks[site]; return !b ? 0 : b.type === 'severity' ? b.s : (OLD_SEV[site] || {})[b.type] || 0; };
+  function syncAvSliders() {
+    for (const [site, id, val] of [['AVN', 'avnSev', 'avnVal'], ['HIS', 'hisSev', 'hisVal']]) {
+      const v = sevOf(site), w = SEV_WORD(v); $(id).value = Math.round(v * 100);
+      $(val).textContent = v ? `${w[0].toUpperCase()}${w.slice(1)} (${Math.round(v * 100)}%)` : 'Normal';
+    }
+  }
+  function setSeverity(site, v) {
+    if (v > 0) S.setBlock(site, 'severity', { s: v }); else S.setBlock(site, null);
+    syncAvSliders();
+  }
+  // a tap on the AV node or His bundle: the sliders (Blocks panel; phones: the sheet), instead of a list or cycling
+  function showAvSliders(x, y) {
+    if (isM()) openSheet('blocks'); else if (INAPP) setTab('blocks', false, true); else autoTab('blocks');
+    const el = $('avCtl'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
+    if (x !== undefined) flash(x, y, 'AV node and His–Purkinje: use the sliders');
+  }
   function blockLabel(site) {
     const b = S.blocks[site]; if (!b) return '';
+    if (b.type === 'severity') {   // (the block it is producing, from the reading; before one, or with 1:1 conduction, its severity)
+      const deg = ui.avDegree && ui.avDegree[site], w = SEV_WORD(b.s);
+      return `${deg || `${w[0].toUpperCase()}${w.slice(1)}`} · ${Math.round(b.s * 100)}%`;
+    }
     const item = BLOCK_MENU[site].find((x) => x[0] === b.type);
     return item ? item[1] : `${SITE_NAME[site]} block`;
   }
 
   function renderBlockList() {
-    markChange(); updateBadges(); emit('blocks');
+    markChange(); updateBadges(); emit('blocks'); syncAvSliders(); drawBlockChips();
+  }
+  // the Active blocks list (also redrawn when a graded AV block's reading changes, without restarting the reading)
+  function drawBlockChips() {
     const sites = Object.keys(S.blocks);
     $('noBlocks').hidden = !!sites.length;
     $('legendBlock').hidden = !sites.length || ui.view === 'external';
@@ -6645,7 +6709,7 @@ THE SOFTWARE.
   }
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
-    blocks: 'Tap the conduction system to cycle through blocks.',
+    blocks: 'Tap the conduction system to cycle through blocks; the AV node and His bundle open the sliders below.',
     ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marker again to remove it.',
   };
 
@@ -6695,9 +6759,8 @@ THE SOFTWARE.
       flash(x, y, label);
       return;
     }
-    let def = BLOCK_MENU[site][0][0];
-    if (site === 'AVN') def = M.avn.indexOf(id) <= 1 ? 'first' : 'wenckebach';   // proximal node: 1st degree; distal: Wenckebach
-    showBlockMenu(site, def, x, y);
+    if (site === 'AVN' || site === 'HIS') { showAvSliders(x, y); return; }   // (the AV conduction sliders)
+    showBlockMenu(site, BLOCK_MENU[site][0][0], x, y);
   }
 
   function tissueAt(ray) {
@@ -7291,7 +7354,25 @@ THE SOFTWARE.
     // complete AV block at any level: AV node, His, or every ventricular route
     // (RBB + LBB, or RBB + both left fascicles = bilateral/trifascicular block)
     const distal = B.RBB && (B.LBB || (B.LAF && B.LPF));
-    const avComplete = (B.AVN && B.AVN.type === 'complete') || (B.HIS && B.HIS.type === 'complete') || distal;
+    const sevFull = (b, k) => b && b.type === 'severity' && b.s >= S.P[k];
+    const avComplete = (B.AVN && B.AVN.type === 'complete') || (B.HIS && B.HIS.type === 'complete') || distal || sevFull(B.AVN, 'avnSevComplete') || sevFull(B.HIS, 'hisSevComplete');
+    // graded AV conduction (the sliders): the degree is read from the beats, as on paper. Every P in the last 10 s
+    // (before the last 0.7 s): conducted if a QRS follows within 650 ms and before the next P; then 2:1 (alternate P's
+    // blocked), high-grade (two in a row blocked), Mobitz I (the PR before a blocked P longer than after it by > 25 ms) or
+    // Mobitz II (a constant PR around the blocked P's)
+    let sevPattern = null;
+    if (((B.AVN && B.AVN.type === 'severity') || (B.HIS && B.HIS.type === 'severity')) && !avComplete && !arr) {
+      const As = Aa.filter((a) => a.on > Math.max(since, S.t - 10000) && a.on < S.t - 700);
+      const pr = As.map((a, i) => { const nx = As[i + 1] ? As[i + 1].on : a.on + 2000, v = S.log.vent.find((q) => q.on > a.on + 60 && q.on < Math.min(a.on + 650, nx + 60)); return v ? v.on - a.on : null; });
+      const drops = pr.map((x, i) => (x === null ? i : -1)).filter((i) => i >= 0);
+      if (drops.length && As.length >= 4) {
+        const alt = drops.length >= 2 && drops.every((i, k) => k === 0 || i - drops[k - 1] === 2) && pr.every((x, i) => (x === null) === ((i - drops[0]) % 2 === 0));
+        const run = drops.some((i, k) => k > 0 && i - drops[k - 1] === 1);
+        const steps = drops.filter((i) => pr[i - 1] != null && pr[i + 1] != null).map((i) => pr[i - 1] - pr[i + 1]);
+        sevPattern = alt ? 'Sinus rhythm with 2:1 AV block' : run ? 'Sinus rhythm with high-grade AV block'
+          : steps.length && steps.reduce((x, y) => x + y, 0) / steps.length > 25 ? 'Sinus rhythm with 2nd-degree AV block, Mobitz I (Wenckebach)' : 'Sinus rhythm with 2nd-degree AV block, Mobitz II';
+      }
+    }
     let rhythm;
     const vr = Math.round(rate), rrSd = rrs.length > 2 ? Math.sqrt(rrs.reduce((a, c) => a + (c - RR) ** 2, 0) / rrs.length) : 0;
     const flutterCl = arr === 'flutter' && S.drivers[0] && S.drivers[0].cls.length ? S.drivers[0].cls.reduce((a, c) => a + c, 0) / S.drivers[0].cls.length : 0;
@@ -7317,10 +7398,19 @@ THE SOFTWARE.
     else if (B.AVN && B.AVN.type === 'wenckebach') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz I (Wenckebach)';
     else if (B.AVN && B.AVN.type === 'two-to-one') rhythm = 'Sinus rhythm with 2:1 AV block';
     else if (B.HIS && B.HIS.type === 'mobitz2') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz II';
+    else if (sevPattern) rhythm = sevPattern;
     else if (fired('junctional')) rhythm = 'Junctional escape rhythm';
     else if (fired('ventricular') || fired('idioventricular')) rhythm = 'Ventricular escape rhythm';
     else rhythm = sinusLabel(aRate || rate);
-    if ((B.AVN && B.AVN.type === 'first') || (!B.AVN && !avComplete && !tachy && PR !== null && PR > 200 && !prVar)) rhythm += ' with 1st-degree AV block';
+    { // (graded AV conduction: what each slider is producing, for the Active blocks list)
+      const graded = ['AVN', 'HIS'].filter((k) => B[k] && B[k].type === 'severity');
+      if (graded.length) {
+        const deg = sevPattern ? sevPattern.replace('Sinus rhythm with ', '').replace('2nd-degree AV block, ', '') : avComplete ? 'complete AV block' : PR !== null && PR > 200 && !prVar && !tachy ? '1st-degree AV block' : null;
+        const next = {}; for (const k of graded) next[k] = deg ? deg[0].toUpperCase() + deg.slice(1) : null;
+        if (JSON.stringify(next) !== JSON.stringify(ui.avDegree || {})) { ui.avDegree = next; drawBlockChips(); }
+      } else if (ui.avDegree) ui.avDegree = null;
+    }
+    if ((B.AVN && B.AVN.type === 'first') || ((!B.AVN || B.AVN.type === 'severity') && !sevPattern && !avComplete && !tachy && PR !== null && PR > 200 && !prVar)) rhythm += ' with 1st-degree AV block';
     // ventricular conduction
     const iv = [];
     if (!avComplete) {
@@ -7425,7 +7515,9 @@ THE SOFTWARE.
     if (arr && TEACH[arr]) keys.push(arr);
     else if (s.avnrt) keys.push('avnrt'); else if (s.avrt) keys.push('avrt');
     else if (s.avComplete) keys.push('complete', 'escape');
-    else if (B.AVN && B.AVN.type === 'wenckebach') keys.push('sinus', 'wenckebach');
+    else if ((B.AVN && B.AVN.type === 'wenckebach') || /Mobitz I \(/.test(s.rhythm || '')) keys.push('sinus', 'wenckebach');
+    else if (/2:1 AV block/.test(s.rhythm || '')) keys.push('sinus', 'twoone');
+    else if (/Mobitz II|high-grade/.test(s.rhythm || '')) keys.push('sinus', 'mobitz2');
     else if (B.AVN && B.AVN.type === 'two-to-one') keys.push('sinus', 'twoone');
     else if (B.HIS && B.HIS.type === 'mobitz2') keys.push('sinus', 'mobitz2');
     else if (B.SAN && B.SAN.type === 'sa-exit') keys.push('sinus', 'saexit');
@@ -7857,7 +7949,7 @@ THE SOFTWARE.
     if (arr && (arr === 'af' || arr === 'flutter') && S.vResponse) q.set('v', Math.round(S.vResponse));
     if (arr === 'flutter' && S.vVariable) q.set('fv', S.vVariable.join('-'));
     if (S.sinusArr) q.set('sar', `${S.sinusArr.amp}-${S.sinusArr.period}`);   // (variable flutter block, e.g. fv=2-4)
-    const blocks = Object.entries(S.blocks).map(([site, b]) => `${site}.${b.type}`);
+    const blocks = Object.entries(S.blocks).map(([site, b]) => (b.type === 'severity' ? `${site}.s${Math.round(b.s * 100)}` : `${site}.${b.type}`));
     if (blocks.length) q.set('b', blocks.join(','));
     const occ = S.insults.filter((x) => x.kind === 'occlusion').map((x) => x.node), sub = S.insults.filter((x) => x.kind === 'subendo' && !x.stenosis).map((x) => x.cell), nar = S.insults.filter((x) => x.stenosis).map((x) => x.node);
     if (occ.length) q.set('o', occ.join(','));
@@ -7883,7 +7975,7 @@ THE SOFTWARE.
     const a = q.get('a'), v = +q.get('v'), h = +q.get('h');
     return {
       arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null, fVar: (q.get('fv') || '').split('-').map(Number).filter((x) => x >= 2 && x <= 6), sar: (q.get('sar') || '').split('-').map(Number),
-      blocks: (q.get('b') || '').split(',').map((x) => x.split('.')).filter(([site, type]) => BLOCK_MENU[site] && BLOCK_MENU[site].some((m) => m[0] === type)),
+      blocks: (q.get('b') || '').split(',').map((x) => x.split('.')).filter(([site, type]) => BLOCK_MENU[site] && (BLOCK_MENU[site].some((m) => m[0] === type) || ((site === 'AVN' || site === 'HIS') && /^s\d{1,3}$/.test(type)))),
       occ: ints('o'), nar: ints('n'), nsev: +q.get('ns') || 1, legacyCor: q.get('c') !== CORONARY_VERSION, sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
     };
   }
@@ -7893,7 +7985,10 @@ THE SOFTWARE.
     const occ = offered(sc.occ), nar = offered(sc.nar);
     // a healthy stretch first, so the interpretation has this heart's normal beat to compare with
     if (sc.blocks.length || occ.length || nar.length || sub.length) { S.run(2600); captureRef(); ecg.full = true; }
-    for (const [site, type] of sc.blocks) { const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type, m[2] || {}); }
+    for (const [site, type] of sc.blocks) {
+      if (/^s\d/.test(type)) { const v = Math.min(100, +type.slice(1)) / 100; if (v > 0) S.setBlock(site, 'severity', { s: v }); continue; }   // (AV conduction sliders: AVN.s45)
+      const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type, m[2] || {});
+    }
     renderBlockList();
     if (occ.length || nar.length || sub.length) {
       for (const n of occ) S.addOcclusion(n);
@@ -8402,8 +8497,7 @@ body.only .chips { margin-top: 0; }
         clearTimeout(avTaps.timer);
         const n = avTaps.n; avTaps.n = 0;
         if (n >= 3) { setAV(0); startRhythm('avnrt'); syncRate(); interpret(); buzz(40); flash(x, y, 'Inducing AVNRT'); return; }
-        const i = (avStep() + n) % AV_CYCLE.length, e = AV_CYCLE[i];
-        setAV(i); flash(x, y, e ? blockText(e[0], e[1]) : 'AV conduction normal');
+        showAvSliders(x, y);   // (one or two taps: the AV node and His–Purkinje sliders)
       };
       avTaps.timer = setTimeout(avTaps.commit, DOUBLE_MS);
       return;
@@ -8759,6 +8853,11 @@ body.only .chips { margin-top: 0; }
       ui.ischPending = ui.ischH;                                  // applied once per frame
       syncScrub();
     });
+    // AV conduction sliders: the block follows the slider as it moves; the list, badge and reading when it is let go
+    for (const [site, id] of [['AVN', 'avnSev'], ['HIS', 'hisSev']]) {
+      $(id).addEventListener('input', (e) => setSeverity(site, +e.target.value / 100));
+      $(id).addEventListener('change', () => { renderBlockList(); interpret(true); });
+    }
     initRhythmMenu();
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); ui.adenoFrom = S.t; });
     $('btnShock').addEventListener('click', () => { ui.avnrt = null; ui.pendingRhythm = null; ui.rhythmFrom = S.t; S.shock(); ui.shockAt = performance.now(); markChange(); syncRate(); interpret(); syncRhythmUI(); });

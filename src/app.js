@@ -1372,17 +1372,45 @@
     LAF: [['complete', 'Left anterior fascicular block']], LPF: [['complete', 'Left posterior fascicular block']],
   };
   const SEG_SITE = { [LH.SEG.AVN]: 'AVN', [LH.SEG.HIS]: 'HIS', [LH.SEG.LBB]: 'LBB', [LH.SEG.RBB]: 'RBB', [LH.SEG.LAF]: 'LAF', [LH.SEG.LPF]: 'LPF' };   // septal fibres: drawn and blocked with the LPF
-  const isComplete = (b) => b && (b.type === 'complete' || b.type === 'arrest');
+  const isComplete = (b) => b && (b.type === 'complete' || b.type === 'arrest' || (b.type === 'severity' && b.s >= 0.97));
   function blockColour(site) { const b = S.blocks[site]; return isComplete(b) ? C.blocked : C.partial; }
   function restColourOf(id) { const site = SEG_SITE[M.seg[id]]; return site && S.blocks[site] ? blockColour(site) : C.cs; }
+  // graded AV conduction (the AV node and His–Purkinje sliders, 2026-11-19): a severity 0–1; the degree of block emerges
+  // from it and the rate (engine: setBlock(site, 'severity', { s }))
+  const SEV_WORD = (v) => (v >= 0.97 ? 'complete block' : v >= 0.75 ? 'severe' : v >= 0.5 ? 'moderate' : v >= 0.25 ? 'mild' : v > 0 ? 'minimal' : 'normal');
+  const OLD_SEV = { AVN: { first: 0.3, wenckebach: 0.6, 'two-to-one': 0.8, complete: 1 }, HIS: { mobitz2: 0.5, complete: 1 } };   // (named blocks from Training and old links: where the slider shows them)
+  const sevOf = (site) => { const b = S.blocks[site]; return !b ? 0 : b.type === 'severity' ? b.s : (OLD_SEV[site] || {})[b.type] || 0; };
+  function syncAvSliders() {
+    for (const [site, id, val] of [['AVN', 'avnSev', 'avnVal'], ['HIS', 'hisSev', 'hisVal']]) {
+      const v = sevOf(site), w = SEV_WORD(v); $(id).value = Math.round(v * 100);
+      $(val).textContent = v ? `${w[0].toUpperCase()}${w.slice(1)} (${Math.round(v * 100)}%)` : 'Normal';
+    }
+  }
+  function setSeverity(site, v) {
+    if (v > 0) S.setBlock(site, 'severity', { s: v }); else S.setBlock(site, null);
+    syncAvSliders();
+  }
+  // a tap on the AV node or His bundle: the sliders (Blocks panel; phones: the sheet), instead of a list or cycling
+  function showAvSliders(x, y) {
+    if (isM()) openSheet('blocks'); else if (INAPP) setTab('blocks', false, true); else autoTab('blocks');
+    const el = $('avCtl'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
+    if (x !== undefined) flash(x, y, 'AV node and His–Purkinje: use the sliders');
+  }
   function blockLabel(site) {
     const b = S.blocks[site]; if (!b) return '';
+    if (b.type === 'severity') {   // (the block it is producing, from the reading; before one, or with 1:1 conduction, its severity)
+      const deg = ui.avDegree && ui.avDegree[site], w = SEV_WORD(b.s);
+      return `${deg || `${w[0].toUpperCase()}${w.slice(1)}`} · ${Math.round(b.s * 100)}%`;
+    }
     const item = BLOCK_MENU[site].find((x) => x[0] === b.type);
     return item ? item[1] : `${SITE_NAME[site]} block`;
   }
 
   function renderBlockList() {
-    markChange(); updateBadges(); emit('blocks');
+    markChange(); updateBadges(); emit('blocks'); syncAvSliders(); drawBlockChips();
+  }
+  // the Active blocks list (also redrawn when a graded AV block's reading changes, without restarting the reading)
+  function drawBlockChips() {
     const sites = Object.keys(S.blocks);
     $('noBlocks').hidden = !!sites.length;
     $('legendBlock').hidden = !sites.length || ui.view === 'external';
@@ -1429,7 +1457,7 @@
   }
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
-    blocks: 'Tap the conduction system to cycle through blocks.',
+    blocks: 'Tap the conduction system to cycle through blocks; the AV node and His bundle open the sliders below.',
     ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marker again to remove it.',
   };
 
@@ -1479,9 +1507,8 @@
       flash(x, y, label);
       return;
     }
-    let def = BLOCK_MENU[site][0][0];
-    if (site === 'AVN') def = M.avn.indexOf(id) <= 1 ? 'first' : 'wenckebach';   // proximal node: 1st degree; distal: Wenckebach
-    showBlockMenu(site, def, x, y);
+    if (site === 'AVN' || site === 'HIS') { showAvSliders(x, y); return; }   // (the AV conduction sliders)
+    showBlockMenu(site, BLOCK_MENU[site][0][0], x, y);
   }
 
   function tissueAt(ray) {
@@ -2075,7 +2102,25 @@
     // complete AV block at any level: AV node, His, or every ventricular route
     // (RBB + LBB, or RBB + both left fascicles = bilateral/trifascicular block)
     const distal = B.RBB && (B.LBB || (B.LAF && B.LPF));
-    const avComplete = (B.AVN && B.AVN.type === 'complete') || (B.HIS && B.HIS.type === 'complete') || distal;
+    const sevFull = (b, k) => b && b.type === 'severity' && b.s >= S.P[k];
+    const avComplete = (B.AVN && B.AVN.type === 'complete') || (B.HIS && B.HIS.type === 'complete') || distal || sevFull(B.AVN, 'avnSevComplete') || sevFull(B.HIS, 'hisSevComplete');
+    // graded AV conduction (the sliders): the degree is read from the beats, as on paper. Every P in the last 10 s
+    // (before the last 0.7 s): conducted if a QRS follows within 650 ms and before the next P; then 2:1 (alternate P's
+    // blocked), high-grade (two in a row blocked), Mobitz I (the PR before a blocked P longer than after it by > 25 ms) or
+    // Mobitz II (a constant PR around the blocked P's)
+    let sevPattern = null;
+    if (((B.AVN && B.AVN.type === 'severity') || (B.HIS && B.HIS.type === 'severity')) && !avComplete && !arr) {
+      const As = Aa.filter((a) => a.on > Math.max(since, S.t - 10000) && a.on < S.t - 700);
+      const pr = As.map((a, i) => { const nx = As[i + 1] ? As[i + 1].on : a.on + 2000, v = S.log.vent.find((q) => q.on > a.on + 60 && q.on < Math.min(a.on + 650, nx + 60)); return v ? v.on - a.on : null; });
+      const drops = pr.map((x, i) => (x === null ? i : -1)).filter((i) => i >= 0);
+      if (drops.length && As.length >= 4) {
+        const alt = drops.length >= 2 && drops.every((i, k) => k === 0 || i - drops[k - 1] === 2) && pr.every((x, i) => (x === null) === ((i - drops[0]) % 2 === 0));
+        const run = drops.some((i, k) => k > 0 && i - drops[k - 1] === 1);
+        const steps = drops.filter((i) => pr[i - 1] != null && pr[i + 1] != null).map((i) => pr[i - 1] - pr[i + 1]);
+        sevPattern = alt ? 'Sinus rhythm with 2:1 AV block' : run ? 'Sinus rhythm with high-grade AV block'
+          : steps.length && steps.reduce((x, y) => x + y, 0) / steps.length > 25 ? 'Sinus rhythm with 2nd-degree AV block, Mobitz I (Wenckebach)' : 'Sinus rhythm with 2nd-degree AV block, Mobitz II';
+      }
+    }
     let rhythm;
     const vr = Math.round(rate), rrSd = rrs.length > 2 ? Math.sqrt(rrs.reduce((a, c) => a + (c - RR) ** 2, 0) / rrs.length) : 0;
     const flutterCl = arr === 'flutter' && S.drivers[0] && S.drivers[0].cls.length ? S.drivers[0].cls.reduce((a, c) => a + c, 0) / S.drivers[0].cls.length : 0;
@@ -2101,10 +2146,19 @@
     else if (B.AVN && B.AVN.type === 'wenckebach') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz I (Wenckebach)';
     else if (B.AVN && B.AVN.type === 'two-to-one') rhythm = 'Sinus rhythm with 2:1 AV block';
     else if (B.HIS && B.HIS.type === 'mobitz2') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz II';
+    else if (sevPattern) rhythm = sevPattern;
     else if (fired('junctional')) rhythm = 'Junctional escape rhythm';
     else if (fired('ventricular') || fired('idioventricular')) rhythm = 'Ventricular escape rhythm';
     else rhythm = sinusLabel(aRate || rate);
-    if ((B.AVN && B.AVN.type === 'first') || (!B.AVN && !avComplete && !tachy && PR !== null && PR > 200 && !prVar)) rhythm += ' with 1st-degree AV block';
+    { // (graded AV conduction: what each slider is producing, for the Active blocks list)
+      const graded = ['AVN', 'HIS'].filter((k) => B[k] && B[k].type === 'severity');
+      if (graded.length) {
+        const deg = sevPattern ? sevPattern.replace('Sinus rhythm with ', '').replace('2nd-degree AV block, ', '') : avComplete ? 'complete AV block' : PR !== null && PR > 200 && !prVar && !tachy ? '1st-degree AV block' : null;
+        const next = {}; for (const k of graded) next[k] = deg ? deg[0].toUpperCase() + deg.slice(1) : null;
+        if (JSON.stringify(next) !== JSON.stringify(ui.avDegree || {})) { ui.avDegree = next; drawBlockChips(); }
+      } else if (ui.avDegree) ui.avDegree = null;
+    }
+    if ((B.AVN && B.AVN.type === 'first') || ((!B.AVN || B.AVN.type === 'severity') && !sevPattern && !avComplete && !tachy && PR !== null && PR > 200 && !prVar)) rhythm += ' with 1st-degree AV block';
     // ventricular conduction
     const iv = [];
     if (!avComplete) {
@@ -2209,7 +2263,9 @@
     if (arr && TEACH[arr]) keys.push(arr);
     else if (s.avnrt) keys.push('avnrt'); else if (s.avrt) keys.push('avrt');
     else if (s.avComplete) keys.push('complete', 'escape');
-    else if (B.AVN && B.AVN.type === 'wenckebach') keys.push('sinus', 'wenckebach');
+    else if ((B.AVN && B.AVN.type === 'wenckebach') || /Mobitz I \(/.test(s.rhythm || '')) keys.push('sinus', 'wenckebach');
+    else if (/2:1 AV block/.test(s.rhythm || '')) keys.push('sinus', 'twoone');
+    else if (/Mobitz II|high-grade/.test(s.rhythm || '')) keys.push('sinus', 'mobitz2');
     else if (B.AVN && B.AVN.type === 'two-to-one') keys.push('sinus', 'twoone');
     else if (B.HIS && B.HIS.type === 'mobitz2') keys.push('sinus', 'mobitz2');
     else if (B.SAN && B.SAN.type === 'sa-exit') keys.push('sinus', 'saexit');
@@ -2641,7 +2697,7 @@
     if (arr && (arr === 'af' || arr === 'flutter') && S.vResponse) q.set('v', Math.round(S.vResponse));
     if (arr === 'flutter' && S.vVariable) q.set('fv', S.vVariable.join('-'));
     if (S.sinusArr) q.set('sar', `${S.sinusArr.amp}-${S.sinusArr.period}`);   // (variable flutter block, e.g. fv=2-4)
-    const blocks = Object.entries(S.blocks).map(([site, b]) => `${site}.${b.type}`);
+    const blocks = Object.entries(S.blocks).map(([site, b]) => (b.type === 'severity' ? `${site}.s${Math.round(b.s * 100)}` : `${site}.${b.type}`));
     if (blocks.length) q.set('b', blocks.join(','));
     const occ = S.insults.filter((x) => x.kind === 'occlusion').map((x) => x.node), sub = S.insults.filter((x) => x.kind === 'subendo' && !x.stenosis).map((x) => x.cell), nar = S.insults.filter((x) => x.stenosis).map((x) => x.node);
     if (occ.length) q.set('o', occ.join(','));
@@ -2667,7 +2723,7 @@
     const a = q.get('a'), v = +q.get('v'), h = +q.get('h');
     return {
       arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null, fVar: (q.get('fv') || '').split('-').map(Number).filter((x) => x >= 2 && x <= 6), sar: (q.get('sar') || '').split('-').map(Number),
-      blocks: (q.get('b') || '').split(',').map((x) => x.split('.')).filter(([site, type]) => BLOCK_MENU[site] && BLOCK_MENU[site].some((m) => m[0] === type)),
+      blocks: (q.get('b') || '').split(',').map((x) => x.split('.')).filter(([site, type]) => BLOCK_MENU[site] && (BLOCK_MENU[site].some((m) => m[0] === type) || ((site === 'AVN' || site === 'HIS') && /^s\d{1,3}$/.test(type)))),
       occ: ints('o'), nar: ints('n'), nsev: +q.get('ns') || 1, legacyCor: q.get('c') !== CORONARY_VERSION, sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
     };
   }
@@ -2677,7 +2733,10 @@
     const occ = offered(sc.occ), nar = offered(sc.nar);
     // a healthy stretch first, so the interpretation has this heart's normal beat to compare with
     if (sc.blocks.length || occ.length || nar.length || sub.length) { S.run(2600); captureRef(); ecg.full = true; }
-    for (const [site, type] of sc.blocks) { const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type, m[2] || {}); }
+    for (const [site, type] of sc.blocks) {
+      if (/^s\d/.test(type)) { const v = Math.min(100, +type.slice(1)) / 100; if (v > 0) S.setBlock(site, 'severity', { s: v }); continue; }   // (AV conduction sliders: AVN.s45)
+      const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type, m[2] || {});
+    }
     renderBlockList();
     if (occ.length || nar.length || sub.length) {
       for (const n of occ) S.addOcclusion(n);
@@ -3186,8 +3245,7 @@ body.only .chips { margin-top: 0; }
         clearTimeout(avTaps.timer);
         const n = avTaps.n; avTaps.n = 0;
         if (n >= 3) { setAV(0); startRhythm('avnrt'); syncRate(); interpret(); buzz(40); flash(x, y, 'Inducing AVNRT'); return; }
-        const i = (avStep() + n) % AV_CYCLE.length, e = AV_CYCLE[i];
-        setAV(i); flash(x, y, e ? blockText(e[0], e[1]) : 'AV conduction normal');
+        showAvSliders(x, y);   // (one or two taps: the AV node and His–Purkinje sliders)
       };
       avTaps.timer = setTimeout(avTaps.commit, DOUBLE_MS);
       return;
@@ -3543,6 +3601,11 @@ body.only .chips { margin-top: 0; }
       ui.ischPending = ui.ischH;                                  // applied once per frame
       syncScrub();
     });
+    // AV conduction sliders: the block follows the slider as it moves; the list, badge and reading when it is let go
+    for (const [site, id] of [['AVN', 'avnSev'], ['HIS', 'hisSev']]) {
+      $(id).addEventListener('input', (e) => setSeverity(site, +e.target.value / 100));
+      $(id).addEventListener('change', () => { renderBlockList(); interpret(true); });
+    }
     initRhythmMenu();
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); ui.adenoFrom = S.t; });
     $('btnShock').addEventListener('click', () => { ui.avnrt = null; ui.pendingRhythm = null; ui.rhythmFrom = S.t; S.shock(); ui.shockAt = performance.now(); markChange(); syncRate(); interpret(); syncRhythmUI(); });
