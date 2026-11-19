@@ -274,7 +274,8 @@
     lmRoute: [[6, 11, -10], [17, 11, -8]],   // left main: from the aortic root ~1 cm leftward to the LAD/LCx split (offsets from the aortic-valve centre, mm; null = the old 7 mm trunk)
     d1Path: null, d2Path: null,   // diagonal waypoints [[rotational UVC, apicobasal UVC], ...] (null = built-in)
     septalPerf: [0.14, 0.3, 0.45, 0.6],      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
-    septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
+    septalSpread: 0.15,
+    extraBranches: null,   // TEST (off): also offer these side branches as occlusion sites, e.g. ['S1', 'D1', 'D2', 'PLV'] (S1: the first septal perforator band as its own vessel)    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     occlusionDeadS: null, occlusionBorderMm: { LAD: 18 }, occlusionScarWindow: { RCA: 0 },   // occlusionScarWindow: per family, the scar window instead of scarWindow
     occlusionMarginMm: { RCA: 2 },   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
@@ -915,6 +916,15 @@
       addBranch('AM', acuteIdx, [A.nearest(add([nodes[acuteIdx].x, nodes[acuteIdx].y, nodes[acuteIdx].z], [8, -45, 10]), (c) => A.label[c] === LAB.RV && A.epi[c])]);
       const PDA = addBranch('PDA', RCA[RCA.length - 1], [lvEpi(-0.7, 0.7), lvEpi(-0.75, 0.45), lvEpi(-0.7, 0.2), lvEpi(-0.5, 0.08)]);   // down the inferior groove almost to the apex
       addBranch('PLV', RCA[RCA.length - 1], [lvEpi(-1.5, 0.8), lvEpi(-1.9, 0.65)]);
+      // (test option) the first septal perforator as a vessel of its own: one node in the mid septum below its LAD origin,
+      // appended after every other node so share-link node numbers do not move
+      const X = P.extraBranches || [];
+      if (X.includes('S1') && P.septalPerf && P.septalPerf.length) {
+        const o = branches.LAD[Math.min(branches.LAD.length - 1, Math.round(Math.min(...P.septalPerf) * (branches.LAD.length - 1)))];
+        const c = this._nearestWhere((q) => A.label[q] === LAB.LV && !A.epi[q] && !A.endo[q] && A.zuvc[q] >= 0, (q) => Math.abs(A.phi[q] - 0.9) * 20 + Math.abs(A.zuvc[q] - (A.zuvc[nodes[o].vox] - 0.08)) * 80);
+        const p = A.p(c); nodes.push({ x: p[0], y: p[1], z: p[2], parent: o, branch: 'S1', vox: c }); branches.S1 = [nodes.length - 1];
+      }
+      const s1Bands = P.s1Bands || 3;   // (how many septal perforator bands, from the base, the septal site takes)
       // node UVC (for LV territory assignment)
       for (const n of nodes) { const c = n.vox; n.phi = A.phi[c]; n.zz = A.zuvc[c]; n.lv = A.label[c] === LAB.LV; }
       // ---- territories
@@ -960,11 +970,14 @@
       // (obtuse marginals OM1/OM2 of the LCx, acute marginal AM of the RCA). The other
       // side branches' territories go to the point where each branch leaves its
       // parent, so an occlusion proximal to that point still takes them.
-      const MAIN = ['LM', 'LAD', 'LCx', 'RCA', 'PDA', 'OM1', 'OM2', 'AM'];
+      const MAIN = ['LM', 'LAD', 'LCx', 'RCA', 'PDA', 'OM1', 'OM2', 'AM'].concat(X);
       const mainOf = (id) => { while (id >= 0 && !MAIN.includes(nodes[id].branch)) id = nodes[id].parent; return id; };
       for (let c = 0; c < A.n; c++) if (voxNode[c] >= 0) voxNode[c] = mainOf(voxNode[c]);
       const allBranches = Object.assign({}, branches);                  // (every branch, offered or not: maps old share-link node numbers)
       for (const b of Object.keys(branches)) if (!MAIN.includes(b)) delete branches[b];
+      // the septal site's territory: the septum (not the free wall) of the first s1Bands perforator bands. Not a subtree:
+      // an LAD occlusion keeps taking these bands exactly as before; occluding S1 takes them alone
+      if (branches.S1 && perf) { const take = new Set(perf.slice(0, s1Bands)); nodes[branches.S1[0]].covers = (c) => A.label[c] === LAB.LV && A.phi[c] > 0.1 && A.phi[c] < 1.7 && A.zuvc[c] >= 0.2 && take.has(voxNode[c]); }
       this.coronary = { nodes, branches, allBranches, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
     }
 
@@ -1843,7 +1856,7 @@
     // h hours after onset (see _ischemicState); the ECG follows on its own.
     addOcclusion(node) {
       const M = this.M, A = M.A, vn = M.coronary.voxNode, aff = new Uint8Array(A.n);
-      for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
+      for (let c = 0; c < A.n; c++) if (M.coronary.nodes[node].covers ? M.coronary.nodes[node].covers(c) : vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
       const fam0 = this._family(M.coronary.nodes[node].branch), ob = this.P.occlusionBorderMm;
       const ins = this._makeInsult('occlusion', aff, ob && ob[fam0] !== undefined ? ob[fam0] : this.P.ischBorderMm);
       ins.node = node; ins.branch = M.coronary.nodes[node].branch;
@@ -1861,7 +1874,7 @@
     // opts.sev: a factor on the artery's narrowing severity (stenosisSev): <1 milder, >1 tighter (Training's mild/severe)
     addStenosis(node, opts = {}) {
       const M = this.M, A = M.A, vn = M.coronary.voxNode, aff = new Uint8Array(A.n);
-      for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
+      for (let c = 0; c < A.n; c++) if (M.coronary.nodes[node].covers ? M.coronary.nodes[node].covers(c) : vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
       const ins = this._makeInsult('subendo', aff, this.P.ischBorderMm);
       const br = M.coronary.nodes[node].branch, fam = this._family(br);
       const sv = (typeof this.P.stenosisSev === 'number' ? this.P.stenosisSev : this.P.stenosisSev[fam]) * (opts.sev || 1);
@@ -1879,7 +1892,7 @@
       ins.node = node; ins.branch = M.coronary.nodes[node].branch; ins.stenosis = true;
       return this._addInsult(ins);
     }
-    _family(br) { return /^(LAD|D\d)$/.test(br) ? 'LAD' : /^(LCx|OM\d|PLV)$/.test(br) ? 'LCx' : /^(RCA|PDA|AM)$/.test(br) ? 'RCA' : 'LM'; }
+    _family(br) { return /^(LAD|D\d|S\d)$/.test(br) ? 'LAD' : /^(LCx|OM\d|PLV)$/.test(br) ? 'LCx' : /^(RCA|PDA|AM)$/.test(br) ? 'RCA' : 'LM'; }
     // a patch of the clicked wall (same chamber, nearby in the ventricular
     // coordinates, so the opposite wall across the cavity is not included)
     addSubendocardial(cell, radiusMm = 28) {
@@ -1929,7 +1942,7 @@
       this.wellens = type === 'A' || type === 'B' ? type : null;
       if (this.wellens && !this._wellensMap) {
         const M = this.M, A = M.A, vn = M.coronary.voxNode, lad = M.coronary.branches.LAD, node = lad[Math.round(lad.length * this.P.wellensAt)], aff = new Uint8Array(A.n);
-        for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
+        for (let c = 0; c < A.n; c++) if (M.coronary.nodes[node].covers ? M.coronary.nodes[node].covers(c) : vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
         const ins = this._makeInsult('wellens', aff, this.P.ischBorderMm);
         this._wellensMap = new Map(); for (let q = 0; q < ins.cells.length; q++) this._wellensMap.set(ins.cells[q], ins.sev[q]);
       }

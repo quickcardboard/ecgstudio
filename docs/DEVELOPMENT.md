@@ -2901,3 +2901,29 @@ Training only (the simulator is unchanged; "Show me why" opens the simulator's o
   neutral: neither credited nor counted against.
 - Sampled check: 11/12 random ectopic-atrial, junctional and ventricular-escape scenarios passed (the other on an
   unrelated infarct criterion).
+
+## claude/relaxed-mccarthy round 7: finer coronary sites (prototype, option off)
+
+The author asked for a septal perforator site and, in general, finer regions to show and quiz regional ischaemia. The tree
+already builds D1, D2 and PLV but folds their territories into the parent vessel (`MAIN` in `_buildCoronaries`), and the
+septum is split into four perforator bands (`septalPerf` 0.14/0.3/0.45/0.6 along the LAD). Test option `extraBranches`
+(default null: the live model is unchanged) offers ['S1', 'D1', 'D2', 'PLV']:
+- **S1** is a new node (appended after every other node, so share-link numbers do not move) in the mid septum below the
+  first perforator's LAD origin. Its territory is not a subtree but a list (`covers`): the septum (rotational UVC
+  0.1–1.7, zuvc ≥ 0.2) of the first `s1Bands` (3) perforator bands. LAD occlusions keep taking those bands exactly as
+  before (proximal and mid LAD audits identical with the option on). With one band (the basal septum only) S1 gave no ST
+  elevation in V1–V2 (ST depression II, V3–V5); with three bands it gives the septal pattern.
+- `_family` counts S\d as LAD.
+
+`MP='{"extraBranches":["S1","D1","D2","PLV"]}' node tools/ischaudit.js S1,D1,D2,PLV <h>` (sites added to the tool):
+
+| site | 1 h | 4 h | 2 days | 30 days |
+|---|---|---|---|---|
+| S1 | ST↑ aVR V1–V3; ST↓ I II III aVF V4–V6 | ST↑ aVR V1 V3; Q aVL V1–V3 | Q aVL V1–V3, R loss V1–V3, TWI aVL V2 | Q aVL V1–V3, R loss V1–V3, TWI V2 |
+| D1 | ST↑ aVL; ST↓ III aVF | ST↑ I aVL | Q V5 V6, TWI I aVL V5 | Q V5 V6, TWI I aVL V5 |
+| D2 | ST↑ V5 only; ST↓ III | same | Q V5 V6, TWI I aVL V5 V6 | same |
+| PLV | ST↑ II III aVF; ST↓ I aVL V1–V5 | same, Q II | Q II V6 | Q II V6 |
+
+S1 and D1 add distinct teachable patterns (septal; high lateral, ~1 mm in aVL); D2 has one acute lead; PLV repeats the
+RCA sites. Not yet wired into the simulator (drawing, taps, share links) or Training (MI_SITES), and not yet run through
+the reader, scorecard and fullcheck with the option on.
