@@ -935,7 +935,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (3babd57).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (67d5532).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -980,7 +980,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (3babd57).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-19 (67d5532).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -3043,11 +3043,16 @@ THE SOFTWARE.
       const X = P.extraBranches || [], SB = P.siteBranches || [];
       if ((X.includes('S1') || SB.includes('S1')) && P.septalPerf && P.septalPerf.length) {
         const o = branches.LAD[Math.min(branches.LAD.length - 1, Math.round(Math.min(...P.septalPerf) * (branches.LAD.length - 1)))];
-        const c = this._nearestWhere((q) => A.label[q] === LAB.LV && !A.epi[q] && !A.endo[q] && A.zuvc[q] >= 0, (q) => Math.abs(A.phi[q] - 0.9) * 20 + Math.abs(A.zuvc[q] - (A.zuvc[nodes[o].vox] - 0.08)) * 80);
-        // (drawn as a short vessel from the LAD into the septum: three nodes, the first carrying the septal territory)
-        const o0 = [nodes[o].x, nodes[o].y, nodes[o].z], p1 = A.p(c), ids = []; let par = o;
-        for (const f of [0.34, 0.67, 1]) {
-          const q = [o0[0] + (p1[0] - o0[0]) * f, o0[1] + (p1[1] - o0[1]) * f, o0[2] + (p1[2] - o0[2]) * f], v = f === 1 ? c : A.nearest(q, (w) => A.label[w] === LAB.LV);
+        // (drawn along its course: from the LAD into the septum, then down the mid septum through the bands it feeds, to the
+        // level of the next perforator after them; the first node carries the septal territory)
+        const fr = P.septalPerf.slice().sort((a, b) => a - b), nb = P.s1Bands || 3, ladAt = (f) => nodes[branches.LAD[Math.min(branches.LAD.length - 1, Math.round(f * (branches.LAD.length - 1)))]];
+        const z0 = A.zuvc[nodes[o].vox], zEnd = fr[nb] !== undefined ? ladAt(fr[nb]).zz !== undefined ? ladAt(fr[nb]).zz : A.zuvc[ladAt(fr[nb]).vox] : 0.3;
+        const sept = (zz) => this._nearestWhere((q) => A.label[q] === LAB.LV && !A.epi[q] && !A.endo[q] && A.zuvc[q] >= 0, (q) => Math.abs(A.phi[q] - 0.9) * 20 + Math.abs(A.zuvc[q] - zz) * 80);
+        const way = [sept(z0 - 0.05)].concat([1, 2, 3].map((k) => sept(z0 - 0.05 - (z0 - 0.05 - zEnd) * k / 3))).map((c) => A.p(c));
+        const o0 = [nodes[o].x, nodes[o].y, nodes[o].z], pts = [[0.5, o0, way[0]], [1, o0, way[0]]].map(([f, a, b]) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]).concat(way.slice(1));
+        const ids = []; let par = o;
+        for (const q of pts) {
+          const v = A.nearest(q, (w) => A.label[w] === LAB.LV);
           nodes.push({ x: q[0], y: q[1], z: q[2], parent: par, branch: 'S1', vox: v }); par = nodes.length - 1; ids.push(par);
         }
         branches.S1 = ids;
@@ -5939,7 +5944,7 @@ THE SOFTWARE.
       for (let v = 0; v < nv; v++) { const ring = Math.floor(v / (rad + 1)); map[v] = ids[Math.max(par >= 0 ? 1 : 0, Math.round(ring / tub * (ids.length - 1)))]; }
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
       const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x553333 }));
-      g3.clipMats.push(mesh.material);
+      if (!SEE_THROUGH.includes(name)) g3.clipMats.push(mesh.material);   // (a vessel inside the muscle is not cut: solid where nothing hides it, as the bundle branches)
       grp.add(mesh); g3.corTubes.push({ geo, col, map });
       // (the septal perforator runs inside the septum: drawn see-through over the tissue, as the conduction system is, and
       // tappable through it)
@@ -5947,6 +5952,20 @@ THE SOFTWARE.
       if (deep) { const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, depthTest: false, depthWrite: false })); ghost.renderOrder = 9; grp.add(ghost); }
       const pick = new THREE.Mesh(new THREE.TubeGeometry(curve, tub, name === 'LM' ? 5 : 3.6, rad, false), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
       pick.userData.map = map; pick.userData.seeThrough = deep; grp.add(pick); g3.corPick.push(pick);
+    }
+    // where a see-through vessel leaves its parent: a short stretch of the parent drawn the same way (whole, solid where
+    // nothing hides it, see-through where it is hidden), so the branch point shows behind the pulmonary trunk and in cuts
+    for (const name of SEE_THROUGH) {
+      const ids0 = cor.branches[name]; if (!ids0) continue;
+      const par = cor.nodes[ids0[0]].parent, list = par >= 0 ? cor.branches[cor.nodes[par].branch] : null; if (!list) continue;
+      const k = list.indexOf(par), ids = list.slice(Math.max(0, k - 2), k + 3); if (ids.length < 2) continue;
+      const curve = new THREE.CatmullRomCurve3(ids.map((id) => posOf[id])), tub = (ids.length - 1) * 4, rad = 6, r = MAJOR[cor.nodes[par].branch] || 1.0;
+      const geo = new THREE.TubeGeometry(curve, tub, r, rad, false), nv = geo.attributes.position.count, col = new Float32Array(nv * 3), map = new Int32Array(nv);
+      for (let v = 0; v < nv; v++) map[v] = ids[Math.round(Math.floor(v / (rad + 1)) / tub * (ids.length - 1))];
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      grp.add(new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x553333 })));
+      const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, depthTest: false, depthWrite: false })); ghost.renderOrder = 9; grp.add(ghost);
+      g3.corTubes.push({ geo, col, map });
     }
     g3.corPos = posOf;
     g3.clots = new THREE.Group(); grp.add(g3.clots);

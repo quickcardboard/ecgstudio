@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-19 (3babd57)">
+<meta name="version" content="2026-11-19 (67d5532)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -1600,11 +1600,16 @@ body.land #fsClose { display: none; }
       const X = P.extraBranches || [], SB = P.siteBranches || [];
       if ((X.includes('S1') || SB.includes('S1')) && P.septalPerf && P.septalPerf.length) {
         const o = branches.LAD[Math.min(branches.LAD.length - 1, Math.round(Math.min(...P.septalPerf) * (branches.LAD.length - 1)))];
-        const c = this._nearestWhere((q) => A.label[q] === LAB.LV && !A.epi[q] && !A.endo[q] && A.zuvc[q] >= 0, (q) => Math.abs(A.phi[q] - 0.9) * 20 + Math.abs(A.zuvc[q] - (A.zuvc[nodes[o].vox] - 0.08)) * 80);
-        // (drawn as a short vessel from the LAD into the septum: three nodes, the first carrying the septal territory)
-        const o0 = [nodes[o].x, nodes[o].y, nodes[o].z], p1 = A.p(c), ids = []; let par = o;
-        for (const f of [0.34, 0.67, 1]) {
-          const q = [o0[0] + (p1[0] - o0[0]) * f, o0[1] + (p1[1] - o0[1]) * f, o0[2] + (p1[2] - o0[2]) * f], v = f === 1 ? c : A.nearest(q, (w) => A.label[w] === LAB.LV);
+        // (drawn along its course: from the LAD into the septum, then down the mid septum through the bands it feeds, to the
+        // level of the next perforator after them; the first node carries the septal territory)
+        const fr = P.septalPerf.slice().sort((a, b) => a - b), nb = P.s1Bands || 3, ladAt = (f) => nodes[branches.LAD[Math.min(branches.LAD.length - 1, Math.round(f * (branches.LAD.length - 1)))]];
+        const z0 = A.zuvc[nodes[o].vox], zEnd = fr[nb] !== undefined ? ladAt(fr[nb]).zz !== undefined ? ladAt(fr[nb]).zz : A.zuvc[ladAt(fr[nb]).vox] : 0.3;
+        const sept = (zz) => this._nearestWhere((q) => A.label[q] === LAB.LV && !A.epi[q] && !A.endo[q] && A.zuvc[q] >= 0, (q) => Math.abs(A.phi[q] - 0.9) * 20 + Math.abs(A.zuvc[q] - zz) * 80);
+        const way = [sept(z0 - 0.05)].concat([1, 2, 3].map((k) => sept(z0 - 0.05 - (z0 - 0.05 - zEnd) * k / 3))).map((c) => A.p(c));
+        const o0 = [nodes[o].x, nodes[o].y, nodes[o].z], pts = [[0.5, o0, way[0]], [1, o0, way[0]]].map(([f, a, b]) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]).concat(way.slice(1));
+        const ids = []; let par = o;
+        for (const q of pts) {
+          const v = A.nearest(q, (w) => A.label[w] === LAB.LV);
           nodes.push({ x: q[0], y: q[1], z: q[2], parent: par, branch: 'S1', vox: v }); par = nodes.length - 1; ids.push(par);
         }
         branches.S1 = ids;

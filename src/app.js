@@ -728,7 +728,7 @@
       for (let v = 0; v < nv; v++) { const ring = Math.floor(v / (rad + 1)); map[v] = ids[Math.max(par >= 0 ? 1 : 0, Math.round(ring / tub * (ids.length - 1)))]; }
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
       const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x553333 }));
-      g3.clipMats.push(mesh.material);
+      if (!SEE_THROUGH.includes(name)) g3.clipMats.push(mesh.material);   // (a vessel inside the muscle is not cut: solid where nothing hides it, as the bundle branches)
       grp.add(mesh); g3.corTubes.push({ geo, col, map });
       // (the septal perforator runs inside the septum: drawn see-through over the tissue, as the conduction system is, and
       // tappable through it)
@@ -736,6 +736,20 @@
       if (deep) { const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, depthTest: false, depthWrite: false })); ghost.renderOrder = 9; grp.add(ghost); }
       const pick = new THREE.Mesh(new THREE.TubeGeometry(curve, tub, name === 'LM' ? 5 : 3.6, rad, false), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
       pick.userData.map = map; pick.userData.seeThrough = deep; grp.add(pick); g3.corPick.push(pick);
+    }
+    // where a see-through vessel leaves its parent: a short stretch of the parent drawn the same way (whole, solid where
+    // nothing hides it, see-through where it is hidden), so the branch point shows behind the pulmonary trunk and in cuts
+    for (const name of SEE_THROUGH) {
+      const ids0 = cor.branches[name]; if (!ids0) continue;
+      const par = cor.nodes[ids0[0]].parent, list = par >= 0 ? cor.branches[cor.nodes[par].branch] : null; if (!list) continue;
+      const k = list.indexOf(par), ids = list.slice(Math.max(0, k - 2), k + 3); if (ids.length < 2) continue;
+      const curve = new THREE.CatmullRomCurve3(ids.map((id) => posOf[id])), tub = (ids.length - 1) * 4, rad = 6, r = MAJOR[cor.nodes[par].branch] || 1.0;
+      const geo = new THREE.TubeGeometry(curve, tub, r, rad, false), nv = geo.attributes.position.count, col = new Float32Array(nv * 3), map = new Int32Array(nv);
+      for (let v = 0; v < nv; v++) map[v] = ids[Math.round(Math.floor(v / (rad + 1)) / tub * (ids.length - 1))];
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      grp.add(new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x553333 })));
+      const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, depthTest: false, depthWrite: false })); ghost.renderOrder = 9; grp.add(ghost);
+      g3.corTubes.push({ geo, col, map });
     }
     g3.corPos = posOf;
     g3.clots = new THREE.Group(); grp.add(g3.clots);

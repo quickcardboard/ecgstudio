@@ -2958,3 +2958,15 @@ the reader, scorecard and fullcheck with the option on.
   right ventricular involvement") and "Posterior involvement" (any posterior reading), each closing on the 15-lead ECG (V4R;
   V7–V9) that confirms it.
 - Audits of S1, D1 and the LAD sites unchanged from round 8; pages load without errors.
+
+## claude/relaxed-mccarthy round 10: S1 drawn along its course, with its LAD junction
+
+The author: S1 floated in the cut view (no visible origin or direction). Now:
+- S1 runs from its LAD origin into the mid septum and down through the three bands it feeds (zuvc 0.76 → 0.39), five
+  nodes; the first (and so share links and Training) is unchanged, and so is its territory (audit identical).
+- S1 is no longer clipped by the cut plane: solid where nothing hides it, see-through behind tissue, as the bundle
+  branches are.
+- A short stretch of the LAD around S1's origin (two nodes either side) is drawn the same way, so the branch point shows
+  behind the pulmonary trunk and when the cut removes that part of the LAD; it greys with the LAD's own occlusions.
+- Taps: every S1 point from the anterior, four-chamber (but its second point, where the bundle branches come first) and
+  apex views; from the lateral view the two points nearest the origin lie behind D1.
