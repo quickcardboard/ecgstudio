@@ -2977,3 +2977,13 @@ The author: all coronary arteries (with their markers, S1's see-through drawing 
 slider is at full (`corVisible`, from setView, setCut and after a heart rebuild), as the conduction system hides in the
 outside view. Hidden, they take no taps (the 3D picking still hits invisible meshes, so `arteryAt` and `clotAt` check);
 taps there go to the conduction system and the muscle. Any partial cut still shows them.
+
+## claude/relaxed-mccarthy round 12: view rotation (the heart tipped about the apex)
+
+OrbitControls takes the camera's up when it is created (world +y) and orbits about it. The four-chamber preset rolled the
+camera's up so lead I lies level (2026-11-17), and the Apex (short-axis) preset has always set up to world +z, so after
+those presets a sideways drag orbited about one axis while the camera was rolled about another: the heart tipped about the
+apex instead of turning. `cutPreset` now keeps the camera upright and gives the roll to the heart: the world group (the
+two-finger twist's) turns about the view axis by the angle between the wanted up and world +y. The presets look the same
+(screenshots compared, old and new); a sideways drag now turns the heart about the screen's vertical. The next preset
+resets the twist as before.

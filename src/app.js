@@ -996,13 +996,22 @@
     const dir = pr.world ? new THREE.Vector3(...pr.world).normalize() : pr.n.clone().transformDirection(mw);
     ctl.target.set(0, 0, 0);
     cam.position.copy(dir).multiplyScalar(ui.leads ? LEADS_DIST : pr.dist);
+    // the screen's "up" for this preset: lead I level (the four-chamber view, for teaching) or the preset's own direction
+    const f = dir.clone().negate();
+    let up;
     if (pr.leadIUp) {
       // roll about the view axis so lead I (the patient's right→left line, world +x) runs level across the screen
-      const f = dir.clone().negate(), l = new THREE.Vector3(1, 0, 0).addScaledVector(f, -f.x).normalize();
-      const up = new THREE.Vector3().crossVectors(l, f).normalize();
-      cam.up.copy(up.y < 0 ? up.negate() : up);
-    } else cam.up.set(...pr.up);
-    cam.lookAt(0, 0, 0); ctl.update();
+      const l = new THREE.Vector3(1, 0, 0).addScaledVector(f, -f.x).normalize();
+      up = new THREE.Vector3().crossVectors(l, f).normalize(); if (up.y < 0) up.negate();
+    } else up = new THREE.Vector3(...pr.up);
+    // (the author: dragging tipped the heart about the apex) OrbitControls orbits about the camera's up as it was when it
+    // was made (world +y), so the camera stays upright and the roll is given to the heart instead: the world group turns
+    // about the view axis by the angle between the wanted up and world +y. Same picture; a sideways drag now turns the
+    // heart about the screen's vertical
+    up.addScaledVector(f, -up.dot(f)).normalize();
+    const y = new THREE.Vector3(0, 1, 0).addScaledVector(f, -f.y).normalize();
+    if (up.lengthSq() > 0.5 && y.lengthSq() > 0.5) g3.world.quaternion.setFromAxisAngle(f, Math.atan2(f.dot(new THREE.Vector3().crossVectors(up, y)), up.dot(y)));
+    cam.up.set(0, 1, 0); cam.lookAt(0, 0, 0); ctl.update();
     g3.planeDirty = true;
   }
 
