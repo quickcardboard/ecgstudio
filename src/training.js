@@ -815,6 +815,7 @@
     if (r.cls === 'bad') return `${r.label}: not present on this ECG.`;
     if (r.neutral && r.id === 'avb1') return `${r.label}: at this rate the P wave sits on the end of the T wave, so the PR is hard to judge by eye. The measured PR is ${it.m.pr} ms. Neither credited nor counted against you.`;
     if (r.neutral && (r.id === 'lafb' || r.id === 'bifascicular')) return `${r.label}: in this simulator a right bundle branch block on its own already turns the axis left (about −50°), so an added left anterior fascicular block cannot be told apart. Neither credited nor counted against you.`;
+    if (r.neutral && it.key.rhythm === 'idioventricular') return `${r.label}: the QRS shape of a ventricular escape beat comes from where it starts, so this describes the escape beat rather than a separate finding. Neither credited nor counted against you.`;
     if (r.neutral) return `${r.label}: cannot be judged on this ECG. Neither credited nor counted against you.`;
     if (L[r.id]) return L[r.id];
     return `${name}: also true on this ECG (a secondary finding), credited but not required.`;

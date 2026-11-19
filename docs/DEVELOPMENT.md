@@ -2876,3 +2876,28 @@ the chips (no highlighted values, no axis wording), for showing students an ECG 
 screen. It draws with the page's own ECG code (the drawing state swapped in each frame, as for the PNG sheet). The button
 is hidden in the app and its /app copy (`INAPP`); phones never show the ECG header; Training is unchanged. The window
 closes with the page; the choice of mode is remembered in this browser.
+
+## claude/relaxed-mccarthy round 6: Training escape rhythms and a left-atrial focus
+
+Training only (the simulator is unchanged; "Show me why" opens the simulator's own focus and escape):
+- **Ectopic atrial rhythm**: a left-atrial focus in a third of them (the LA appendage, `leftAtrialCell`). In this heart a
+  left-atrial focus anywhere gives the high left-atrial pattern: P inverted in I (−0.7 mm) and aVL (−1.3), upright in V1
+  (+0.7) and in II/III/aVF (+1.4); PR ~190 ms. The blind reader calls it sinus (it looks only at P in II), so the gate for
+  it is its own: P ≤ −0.5 mm in I and aVL and upright in V1 on the median beat. Atrial tachycardia keeps the low-RA focus
+  only (at 120/min the left-atrial P sits on the T: it failed its check).
+- **Escape rates**: junctional 41–59/min, ventricular 22–38/min (`escRate`; the engine's 48 and 32 were fixed), set on the
+  escape pacemaker itself (`rec.esc`).
+- **Ventricular escape sites** (`escapeCell`, mid-wall for the muscle sites), measured at 30/min:
+
+  | site | QRS | axis | shape |
+  |---|---|---|---|
+  | left posterior fascicle (the engine's) | 135 ms | −82° | left, superior axis |
+  | left anterior fascicle | 131 ms | +118° | right axis |
+  | RV free wall | 135 ms | +112° | LBBB-like, QS in V1 |
+  | LV lateral wall | 190 ms | −158° | dominant R in V1, extreme axis |
+  | LV apex | 149 ms | −86° | QS inferiorly, superior axis |
+
+  The rhythm line names the site and its shape. Naming the escape beat's own shape (axis deviation, LBBB, RBBB, IVCD) is
+  neutral: neither credited nor counted against.
+- Sampled check: 11/12 random ectopic-atrial, junctional and ventricular-escape scenarios passed (the other on an
+  unrelated infarct criterion).

@@ -69,12 +69,14 @@
     // ectopic atrial rhythm and atrial tachycardia (Round 66): a low right-atrial focus (the simulator's "Ectopic atrial
     // rhythm"), P inverted in II, III and aVF before every QRS; the blind rhythm read must see it
     ectopicAtrial: { w: 0.7, open: true, pRhythm: true, gateRead: true, rating: 130, rate: [62, 95], link: 'a=ectopic', notWith: ['rae', 'lae', 'bae', 'wpw', 'peri'],
-      start: (S, rec, M) => { S.run(2000); S.startArrhythmia('ectopic', { cell: lowAtrialCell(M) }); S.setRate(rec.rate); }, read: (r) => /ectopic atrial/.test(r) },
+      start: (S, rec, M) => { S.run(2000); S.startArrhythmia('ectopic', { cell: atrialFocusCell(M, rec.focus) }); S.setRate(rec.rate); }, read: (r) => /ectopic atrial/.test(r), atrialFoci: ['ra', 'ra', 'la'] },
     atrialTach: { w: 0.6, open: true, pRhythm: true, gateRead: true, rating: 170, rate: [112, 150], link: 'a=ectopic', alt: ['svt'], notWith: ['rae', 'lae', 'bae', 'wpw', 'peri'],
-      start: (S, rec, M) => { S.run(2000); S.startArrhythmia('ectopic', { cell: lowAtrialCell(M) }); S.setRate(rec.rate); }, read: (r) => /ectopic atrial|atrial tachycardia/.test(r) },
+      start: (S, rec, M) => { S.run(2000); S.startArrhythmia('ectopic', { cell: atrialFocusCell(M, rec.focus) }); S.setRate(rec.rate); }, read: (r) => /ectopic atrial|atrial tachycardia/.test(r) },   // (no left-atrial focus: at 112–150/min its P sits on the T)
     junctional: { w: 0.8, open: true, noP: true, notWith: ['lbbb', 'rbbb', 'nsstt'],   // (a wide QRS would pass for a ventricular escape; the retrograde P sits on the ST-T)
-      rating: 140, block: ['SAN', 'arrest'], optional: ['sinusPause'], read: () => true },
-    idioventricular: { w: 0.5, noP: true, wide: true, rating: 160, block: ['SAN', 'arrest'], block2: ['HIS', 'complete'], optional: ['sinusPause'], read: () => true },
+      rating: 140, block: ['SAN', 'arrest'], optional: ['sinusPause'], read: () => true, escRate: [41, 59] },
+    // (2026-11-18, the author: the escape rate varies, 40–60 junctional and 20–40 ventricular, and the ventricular escape
+    // comes from one of five sites, each with its own QRS shape: escapeCell)
+    idioventricular: { w: 0.5, noP: true, wide: true, rating: 160, block: ['SAN', 'arrest'], block2: ['HIS', 'complete'], optional: ['sinusPause'], read: () => true, escRate: [22, 38], escFoci: ['lpf', 'laf', 'rv', 'lvLat', 'apex'] },
   };
   // the focus of the atrial rhythms: the right-atrial cell nearest the AV node at least ECT_MM from it (low in the right
   // atrium, so the P is inverted in II, III and aVF; far enough for a normal PR)
@@ -88,6 +90,21 @@
     }
     return c;
   };
+  // the left-atrial focus (Training, 2026-11-18): the LA appendage. In this heart it gives the high left-atrial pattern: P
+  // inverted in I and aVL, upright in V1 and in II, III, aVF (measured: I −0.7, aVL −1.3, II +1.4, V1 +0.7 mm; PR ~190 ms)
+  const leftAtrialCell = (M) => M.A.nearest(M.A.landmarks.LAA.c, (c) => M.A.label[c] === 3 && M.kind[c] === 1 && !M.seg[c]);
+  const atrialFocusCell = (M, f) => (f === 'la' ? leftAtrialCell(M) : lowAtrialCell(M));
+  // ventricular escape sites: the left posterior fascicle (the engine's own, 30% along it), the left anterior fascicle
+  // (half way), and the muscle of the RV free wall, the LV lateral wall and the LV apex (mid-wall)
+  function escapeCell(M, f) {
+    const A = M.A, V = (c) => M.kind[c] === 2, best = (ok, cost) => { let c0 = -1, b = Infinity; for (let c = 0; c < M.nVox; c++) if (V(c) && ok(c)) { const x = cost(c); if (x < b) { b = x; c0 = c; } } return c0; };
+    const ang = (p, q) => Math.abs(Math.atan2(Math.sin(p - q), Math.cos(p - q)));
+    if (f === 'laf') return M.laf[Math.floor(M.laf.length * 0.5)];
+    if (f === 'rv') return best((c) => A.label[c] === 2 && !A.endo[c] && !A.epi[c], (c) => Math.abs(A.zuvc[c] - 0.5) * 100 + ang(A.phi[c], Math.PI));
+    if (f === 'lvLat') return best((c) => A.label[c] === 1 && !A.endo[c] && !A.epi[c], (c) => Math.abs(A.zuvc[c] - 0.55) * 100 + ang(A.phi[c], Math.PI) * 10);
+    if (f === 'apex') return best((c) => A.label[c] === 1 && !A.endo[c] && !A.epi[c], (c) => A.zuvc[c] * 100 + Math.abs(A.phi[c]) * 0.1);
+    return M.ventEscapeCell;
+  }
   const RHYTHM_LINE = {
     sinus: 'Regular, a P before every QRS at a normal rate: sinus rhythm.',
     sinusBrady: 'A P before every QRS, rate under 60: sinus bradycardia.',
@@ -316,6 +333,8 @@
     if (R.rate) for (let i = 0; i < 50; i++) { rate = Math.round(band[0] + rand() * (band[1] - band[0])); if (!R.rateOk || R.rateOk(rate)) break; }
     const rec = { rhythm, abn, seed: 1 + Math.floor(rand() * 1e6), rate };
     if (R.variable) rec.fv = R.variable[Math.floor(rand() * R.variable.length)];
+    if (R.atrialFoci) rec.focus = R.atrialFoci[Math.floor(rand() * R.atrialFoci.length)];
+    if (R.escRate) { rec.esc = { rate: Math.round(R.escRate[0] + rand() * (R.escRate[1] - R.escRate[0])) }; if (R.escFoci) rec.esc.focus = R.escFoci[Math.floor(rand() * R.escFoci.length)]; }
     if (rhythm === 'sinusArr') rec.sa = [+(0.15 + 0.07 * rand()).toFixed(2), Math.round(4000 + 2000 * rand())];
     if (abn.some((a) => a.k === 'sinusPause')) rec.pauseEscape = rand() < 0.5;
     if (art) rec.art = art;
@@ -415,6 +434,10 @@
       if (atria.ra || atria.la) S.setAtrialEnlargement(atria);
       if (R.block) S.setBlock(R.block[0], R.block[1], R.block[2] || {});
       if (R.block2) S.setBlock(R.block2[0], R.block2[1], R.block2[2] || {});
+      if (rec.esc) {   // (the escape pacemaker's rate, and for a ventricular escape its site)
+        const pm = S.pacemakers.find((p) => p.name === (rec.rhythm === 'junctional' ? 'junctional' : 'ventricular'));
+        if (pm) { if (rec.esc.focus) { const c = escapeCell(M, rec.esc.focus); if (c >= 0) { pm.cell = c; S.tAct[c] = 0; S.refEnd[c] = 0; S.repEnd[c] = 0; } } pm.cl = 60000 / rec.esc.rate; }
+      }
       const isch = rec.abn.find((a) => ABN[a.k].isch);
       if (isch) { for (const st of isch.sites || [isch.site]) { const node = MI_SITES[st].f(M.coronary.branches); if (ABN[isch.k].stenosis) S.addStenosis(node, { sev: isch.sev || 1 }); else S.addOcclusion(node); } S.setIschemiaTime(isch.h || ABN[isch.k].isch); }
       return S;
@@ -713,6 +736,10 @@
       if (rec.rhythm === 'flutterVar') return RHYTHM_LINE.flutterVar;
       if (rec.rhythm === 'flutter' && rate) return `Sawtooth flutter waves at about 300/min, every ${['', '', 'second', 'third', 'fourth', 'fifth', 'sixth'][Math.max(2, Math.min(6, Math.round(290 / rate)))]} one conducted: atrial flutter with ${Math.max(2, Math.min(6, Math.round(290 / rate)))}:1 block.`;
       if (rhythm === 'af' && rate) return rate < 60 ? 'Irregularly irregular, no P waves, ventricular rate under 60: atrial fibrillation with a slow ventricular response.' : rate > 100 ? 'Irregularly irregular, no P waves, ventricular rate over 100: atrial fibrillation with a rapid ventricular response (AF with RVR).' : 'Irregularly irregular, no P waves, ventricular rate 60–100: atrial fibrillation with a controlled ventricular response.';
+      if (rec.focus === 'la' && rhythm === 'ectopicAtrial') return 'A P before every QRS, but inverted in I and aVL and upright in V1 (a left atrial focus), rate under 100: ectopic atrial rhythm (left atrial).';
+      if (rec.focus === 'la' && rhythm === 'atrialTach') return 'Regular, rate over 100, a P before every QRS but inverted in I and aVL and upright in V1 (a left atrial focus): atrial tachycardia.';
+      if (rec.esc && rhythm === 'junctional') return `No P waves before the QRS (sinus arrest); regular narrow QRS at ${rate}/min (40–60): junctional escape rhythm.`;
+      if (rec.esc && rhythm === 'idioventricular') return `No P waves (sinus arrest); regular wide QRS at ${rate}/min (20–40): ventricular escape (idioventricular) rhythm. The QRS shape shows where it starts${{ lpf: ': here the left posterior fascicle, with a left, superior axis', laf: ': here the left anterior fascicle, with a right axis', rv: ': here the right ventricle, with an LBBB-like shape (QS in V1)', lvLat: ': here the LV lateral wall, with a dominant R in V1 and an extreme axis', apex: ': here the LV apex, with QS waves inferiorly and a superior axis' }[rec.esc.focus] || ''}.`;
       return RHYTHM_LINE[rhythm];
     }
 
@@ -761,7 +788,7 @@
       }
       if (R.block && !R.noP && pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.5)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
       const rr = readRhythm(rec12);   // (blind rhythm read: kept for the record and the audit, not the gate, except where the rhythm asks)
-      if (R.gateRead && !R.read(rr.rhythm)) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm');
+      if (R.gateRead && rec.focus !== 'la' && !R.read(rr.rhythm)) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm');   // (a left-atrial focus: its own P check on the median beat, below)
       let rhythmAlt = tachyHideP ? ['sinus', 'svt'] : null, rhythmSame = null;
       if (rec.rhythm === 'sinusArr') {
         const span = Math.max(...rrs) - Math.min(...rrs);
@@ -790,10 +817,16 @@
       const med = R.tachy ? null : medianBeat(sim);
       if (!R.tachy && !med) return fail('too few beats for a median beat', 'rhythm');
       const r = med ? read(med.rec, med.hint, med.rr, { minOff: med.qrsEnd }) : null, b = r ? r.interpret() : { dx: [], f: {} };
+      // (left-atrial focus: the P must be visibly inverted in I and aVL (≥ 0.5 mm) and upright in V1)
+      if (rec.focus === 'la' && r) {
+        const pa = r.m.pAmp || {};
+        if (!(pa.I <= -0.05 && pa.aVL <= -0.05 && pa.V1 > 0)) return fail(`left-atrial P not inverted in I and aVL (I ${pa.I}, aVL ${pa.aVL}, V1 ${pa.V1} mV)`, 'rhythm');
+      }
       const findings = [], optional = new Set(), hl = new Set(), lines = {}, checks = [], hlBy = {}, neutral = new Set();
       let recentSte = false;   // (a recent infarct whose ST elevation still meets the STEMI criteria)
       if (rhythm === 'sinusTachy' && !rec.abn.some((a) => a.k === 'avb1')) neutral.add('avb1');   // (the author: the P on the T looked like a long PR)
       if (rec.abn.some((a) => a.k === 'rbbb') && !rec.abn.some((a) => a.k === 'lafb' || a.k === 'lpfb')) { neutral.add('lafb'); neutral.add('bifascicular'); }   // (RBBB's own left axis in this model)
+      if (R.wide) ['lad', 'rad', 'ead', 'lbbb', 'rbbb', 'ivcd'].forEach((x) => neutral.add(x));   // (a ventricular escape's own QRS shape and axis: describing it is neither right nor wrong)
       const mark = (id, leads) => { for (const l of leads) { hl.add(l); (hlBy[id] = hlBy[id] || []).includes(l) || hlBy[id].push(l); } };   // (each finding's own leads: the result chips show them)
       // (the cheap checks first, so a scenario that fails them costs no twin runs: the blind read, then every
       // abnormality's criteria; the twins run only once all of these pass)
