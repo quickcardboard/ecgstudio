@@ -3009,3 +3009,11 @@ pan; two fingers: pinch, pan and twist as before). Presets give their roll to th
 camera upright; `g3.viewRoll` stays 0. Checks: a 60 px sideways drag moves the apex and base 19–118 px sideways and ≤ 5 px
 vertically (perspective) in the anterior, four-chamber, lateral and Apex views; four long up-down drags turn the heart
 over continuously; a phone one-finger drag turns it without tapping; artery taps unchanged. Applies to the app too.
+
+## claude/relaxed-mccarthy round 15: blocks and ischemia open their tab (website)
+
+On the website (not phones or the app: `autoTab`), adding a block (the block menu, a single-choice bundle or fascicle,
+or a finger on a tablet held sideways) opens the Blocks panel, and adding an occlusion or narrowing (click, double click)
+opens the Ischemia panel, so the time since onset can be set at once. The view and cut stay as they are (`setTab`'s new
+keepView; a tab click still opens its tab's view). Removing one does not switch. Checked: occluding the LAD from the
+Rhythm tab opened Ischemia with the outside view kept; clicking the right bundle in a 70% cut opened Blocks at 70%.

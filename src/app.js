@@ -1398,7 +1398,7 @@
       const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem');
       b.textContent = (cur && cur.type === type ? '✓ ' : '') + label;
       if (type === defType) b.classList.add('default');
-      b.addEventListener('click', () => { S.setBlock(site, type, opts || {}); hideBlockMenu(); renderBlockList(); interpret(true); });
+      b.addEventListener('click', () => { S.setBlock(site, type, opts || {}); hideBlockMenu(); renderBlockList(); interpret(true); autoTab('blocks'); });
       return b;
     });
     if (cur) {
@@ -1475,7 +1475,7 @@
     if (BLOCK_MENU[site].length === 1) {
       if (S.blocks[site]) { S.setBlock(site, null); renderBlockList(); interpret(true); flash(x, y, 'Block removed'); return; }
       const [type, label, opts] = BLOCK_MENU[site][0];
-      S.setBlock(site, type, opts || {}); renderBlockList(); interpret(true);
+      S.setBlock(site, type, opts || {}); renderBlockList(); interpret(true); autoTab('blocks');
       flash(x, y, label);
       return;
     }
@@ -1616,6 +1616,7 @@
     if (ui.ischH === 0) setIschTime(1);                         // start an hour in, so the change is visible
     else S.setIschemiaTime(ui.ischH);
     recolorIschemia(); renderIschList(); interpret(true);
+    if (added) autoTab('ischemia');
     return added;
   }
   // click/tap = narrow (after DOUBLE_MS, so a second one can occlude instead); a second within DOUBLE_MS (by the
@@ -1633,7 +1634,7 @@
       if (d.prev === 'occlude') { flash(d.x, d.y, 'Occlusion removed'); return; }
       captureRef(); S.addOcclusion(d.node); flash(d.x, d.y, `Occluded: ${segmentName(d.node)}`);
       if (ui.ischH === 0) setIschTime(1); else S.setIschemiaTime(ui.ischH);
-      recolorIschemia(); renderIschList(); interpret(true);
+      recolorIschemia(); renderIschList(); interpret(true); autoTab('ischemia');
       return;
     }
     const e = st.last = { t: now, x, y, done: null };
@@ -1701,7 +1702,10 @@
   }
   // tabs (top row of the heart view): the open tab also sets what a click on
   // the heart does; clicking the open tab again hides the panel
-  function setTab(t, fromClick = false) {
+  // the website (not phones or the app): a block or an occlusion/narrowing just added opens its tab, so its settings (the
+  // time since onset) are at hand; the view stays as it is (the author, 2026-11-19)
+  function autoTab(t) { if (INAPP || isM() || ui.tab === t) return; setTab(t, false, true); }
+  function setTab(t, fromClick = false, keepView = false) {
     const collapsed = $('controls').classList.contains('collapsed');
     if (fromClick && t === ui.tab && !collapsed) { toggleControls(false); return; }
     const changed = t !== ui.tab;
@@ -1711,7 +1715,7 @@
     toggleControls(true);
     // opening a tab shows the view it works in: blocks cut open (the conduction system), ischemia from the outside (the
     // arteries). Only the cut changes: the heart keeps the way the user turned it (Round 66, the author)
-    if (changed || fromClick) {
+    if ((changed || fromClick) && !keepView) {
       if (t === 'blocks' && ui.cutFrac < 100) setCut(100);
       if (t === 'ischemia' && ui.cutFrac > 0) setCut(0);
     }
@@ -3161,6 +3165,7 @@ body.only .chips { margin-top: 0; }
   function setBlockFrom(site, type) {
     const m = BLOCK_MENU[site].find((x) => x[0] === type);
     S.setBlock(site, type, (m && m[2]) || {});
+    autoTab('blocks');   // (tablets held sideways; nothing on phones)
   }
   function avStep() {
     const a = S.blocks.AVN, h = S.blocks.HIS;
