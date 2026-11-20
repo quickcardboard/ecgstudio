@@ -44,11 +44,11 @@ const EVENTS = [
 // captions [t0, t1, text, colour legend] on the final timeline
 const CAPTIONS = [
   [0.6, 5.3, 'Watch a heartbeat spread through the heart, cell by cell', true],
-  [7.0, 10.4, 'Cut inside: the conduction system fires in sequence'],
-  [11.7, 14.5, 'Block the left bundle branch, and the wave takes the long way round'],
-  [16.1, 18.4, 'Ventricular tachycardia: a wave chasing its own tail'],
-  [19.6, 21.5, 'Block a coronary artery and watch the muscle starve'],
-  [22.6, 25.0, 'Every beat drives a live 12-lead ECG'],
+  [7.0, 10.4, 'The bundle branches activated the ventricles'],
+  [11.7, 14.5, 'Block the left bundle branch, and the wave takes the long way'],
+  [16.1, 18.4, 'Trigger a VT, then defibrillate'],
+  [19.6, 21.5, 'Block a coronary artery and see the change on the ECG'],
+  [22.6, 25.0, 'Every beat drives a live simulated ECG'],
 ];
 const FLASH = [18.6];
 
@@ -224,7 +224,7 @@ const CSS = `${FONTS}
 html, body { margin: 0; width: 1920px; height: 1080px; background: transparent; overflow: hidden; font-family: 'IBM Plex Sans', sans-serif; color: #fff; }
 .cap { position: absolute; left: 50%; bottom: 90px; transform: translateX(-50%); width: max-content; max-width: 1560px; text-align: center; }
 .cap b { display: inline-block; padding: 22px 44px 24px; border-radius: 24px; background: rgba(9, 15, 22, 0.74); font: 700 52px/1.15 'IBM Plex Sans', sans-serif;
-  border-bottom: 6px solid #ef5b7a; box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
+  border-bottom: 6px solid #ef5b7a; box-shadow: 0 10px 40px rgba(0,0,0,0.35); max-width: 1240px; text-wrap: balance; }
 .cap i { display: block; margin-top: 14px; font-style: normal; font-size: 32px; font-weight: 500; color: #d6e0e8; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
 .cap i span { display: inline-block; width: 22px; height: 22px; border-radius: 50%; vertical-align: -2px; margin: 0 8px 0 18px; }
 #scene { position: absolute; inset: 0; background: radial-gradient(ellipse at 60% 50%, #172533, #0b131a 75%); overflow: hidden; }
@@ -265,10 +265,10 @@ html, body { margin: 0; width: 1920px; height: 1080px; background: transparent; 
   }
   // the closing scene, frame by frame: the app slides away, Training on a phone slides in, then the logo
   const dataUri = (p) => 'data:image/' + (p.endsWith('.png') ? 'png' : 'jpeg') + ';base64,' + fs.readFileSync(p).toString('base64');
-  await setPage(`<div id="scene"><div id="ttl"><h2>Then <span>test</span> yourself</h2><p>Training: ECGs chosen for your level, with ratings and reviews</p></div>
+  await setPage(`<div id="scene"><div id="ttl"><h2>Then <span>test</span> yourself in training mode</h2><p>ECGs chosen for your level, with ratings and reviews</p></div>
     <div id="phone"><img src="${dataUri(f('store-training.png'))}"></div><img id="app" src="${dataUri(f('store-app-last.png'))}">
     <div id="veil"></div><div id="mark"></div><div id="name">ECG <span>Studio</span></div>
-    <div id="tag">A 3D heart that computes its own 12-lead ECG</div><div id="sub">RHYTHMS · BLOCKS · INFARCTS · TRAINING</div></div>`);
+    <div id="tag">A 3D heart that computes its own 12-lead ECG</div><div id="sub">LEARN · EXPLORE · PRACTICE</div></div>`);
   const sdir = path.join(tmp, 'seq'); fs.mkdirSync(sdir);
   const nS = Math.round((TRAIN + LOGO) * FPS);
   for (let k = 0; k < nS; k++) {
