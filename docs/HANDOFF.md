@@ -95,6 +95,9 @@ in docs/DEVELOPMENT.md; do not propose it again without new evidence.
 
 ## Working with the author
 
+- **Text documents for the author's review go to their Google Drive**, folder "ECG studio"
+  (https://drive.google.com/drive/folders/1Ev6DR64-wHHWtrG9bYeq2JBkHEEmWnbP), as Google Docs (the author, 2026-11-20).
+  The repo copy in `docs/` stays the source for the code side.
 - The author is a UI designer, not a coder: explain choices in plain clinical and visual terms, and give recommendations, not
   surveys.
 - They answer quickly and change direction when something feels wrong in use. Keep each change small, with a preview link.

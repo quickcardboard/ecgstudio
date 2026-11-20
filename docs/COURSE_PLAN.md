@@ -60,7 +60,7 @@ Every lesson follows the same five beats, so the student always knows where they
 | 2. **Predict** | A question about one lead: "The right bundle is cut. What will **V1** draw?" | Pick one of 3–4 small tracings, each labelled with the lead |
 | 3. **Watch** | The change is made (by the student where possible: tap the bundle, double-tap the artery) and plays in slow motion | Time bar to scrub one beat; overlays on the heart (below) |
 | 4. **Why** | Two or three sentences linking what they saw to one of the five rules | Tap a lead to see it on the heart; the matching part of the trace is highlighted |
-| 5. **Try it** | 2–3 ECGs from Training's generator with that finding, answered the Training way | Not rated; a miss links back to the lesson's Watch step |
+| 5. **Try it** | The bridge to real paper: a fixed 12-lead at normal speed, no heart, with one or two quick questions | Tap the lead that shows it, or name it; not rated; a miss links back to the Watch step |
 
 ### Interaction types
 
@@ -111,7 +111,7 @@ Rough size: about 50 lessons, 3–4 hours in all.
 Example lessons, as the student meets them:
 - **Atrial flutter (unit 4):** a wave circles the right atrium on the heart, one lap every 200 ms. Predict: "What does
   the baseline look like in lead II?" Four strips. Watch: each lap draws one sawtooth; every second lap gets through the
-  AV node. Why: the circuit never stops, so there is no flat baseline. Try it: three flutter ECGs.
+  AV node. Why: the circuit never stops, so there is no flat baseline. Try it: one flutter ECG.
 - **RBBB (unit 5):** the cut view; tap the right bundle to cut it. Predict V1. Watch the left side fire as normal, then
   the right ventricle fire late and alone, toward V1. Why: the R′ is the right ventricle on its own; toward V1 it draws
   up, away from I and V6 it draws a broad S. The QRS is wide because muscle is slow.
