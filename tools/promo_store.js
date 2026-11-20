@@ -6,12 +6,15 @@
 // sweeps across them. The page is index.html from file:// with the panels hidden; time is stepped one frame
 // per capture (any machine, smooth 60 fps). Captions, the shock flash and the logo animation are composited with ffmpeg.
 // Not part of the build.
-//   node tools/promo_store.js <outdir> [--skip-take]     (--skip-take: reuse the recorded parts in <outdir>, redo the rest)
+//   node tools/promo_store.js <outdir> [--skip-take] [--music song.mp3 [--music-start s]]
+//   (--skip-take: reuse the recorded parts in <outdir>, redo the rest)
 // TAKE_SECONDS=n records only the take's first n s and logs the timing of each speed segment (for tuning).
 const fs = require('fs'), path = require('path'), { spawn, execFileSync } = require('child_process'), { chromium } = require('playwright');
 const G = require('./logo/gen.js');
 const root = path.resolve(__dirname, '..'), out = path.resolve(process.argv[2] || '.');
 const SKIP_TAKE = process.argv.includes('--skip-take');
+const argAfter = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null; };
+const MUSIC = argAfter('--music'), MUSIC_AT = +(argAfter('--music-start') || 0);   // (a soundtrack: from MUSIC_AT s, faded out over the end screen)
 const FPS = 60, CW = 1280, CH = 720, DSF = 1.5, TAKE = 21.6, APP = 3.8, XF = 0.4, TRAIN = 2.4, LOGO = 2.6;
 const TOTAL = TAKE + APP - XF + TRAIN + LOGO;   // 30 s
 
@@ -289,7 +292,8 @@ html, body { margin: 0; width: 1920px; height: 1080px; background: transparent; 
   // compose: take ⨯ app (crossfade), then the closing scene; captions, the shock flash; a silent audio track
   const args = ['-y', '-loglevel', 'error', '-i', f('store-take.mp4'), '-i', f('store-app.mp4'), '-framerate', String(FPS), '-i', path.join(sdir, 's%04d.png')];
   for (const [fc, t0, t1] of ov) args.push('-loop', '1', '-framerate', String(FPS), '-t', String(t1 - t0), '-i', fc);
-  args.push('-f', 'lavfi', '-t', String(TOTAL), '-i', 'anullsrc=r=48000:cl=stereo');
+  if (MUSIC) args.push('-ss', String(MUSIC_AT), '-t', String(TOTAL), '-i', path.resolve(MUSIC));
+  else args.push('-f', 'lavfi', '-t', String(TOTAL), '-i', 'anullsrc=r=48000:cl=stereo');
   const g = [`[0:v]settb=1/${FPS},fps=${FPS}[a0]`, `[1:v]settb=1/${FPS},fps=${FPS}[a1]`, `[2:v]format=yuv420p,settb=1/${FPS},fps=${FPS}[a2]`,
     `[a0][a1]xfade=transition=fade:duration=${XF}:offset=${TAKE - XF}[x1]`, `[x1][a2]concat=n=2:v=1:a=0[x2]`];
   let v = '[x2]';
@@ -303,9 +307,11 @@ html, body { margin: 0; width: 1920px; height: 1080px; background: transparent; 
     v = `[f${j}]`;
   }
   g.push(`${v}format=yuv420p[vout]`);
+  const END_AT = TAKE + APP - XF + TRAIN;   // (the end screen)
+  g.push(`[${ov.length + 3}:a]` + (MUSIC ? `aresample=48000,afade=t=in:st=0:d=0.2,afade=t=out:st=${END_AT.toFixed(2)}:d=${(TOTAL - END_AT).toFixed(2)},loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000` : 'anull') + '[aout]');
   const final = f('ecgstudio-play-promo.mp4');
-  args.push('-filter_complex', g.join(';'), '-map', '[vout]', '-map', `${ov.length + 3}:a`, '-c:v', 'libx264', '-preset', 'slow', '-crf', '16', '-r', String(FPS),
-    '-c:a', 'aac', '-b:a', '128k', '-t', TOTAL.toFixed(3), '-movflags', '+faststart', final);
+  args.push('-filter_complex', g.join(';'), '-map', '[vout]', '-map', '[aout]', '-c:v', 'libx264', '-preset', 'slow', '-crf', '16', '-r', String(FPS),
+    '-c:a', 'aac', '-b:a', '192k', '-t', TOTAL.toFixed(3), '-movflags', '+faststart', final);
   execFileSync('ffmpeg', args, { stdio: 'inherit' });
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log(final, TOTAL.toFixed(2) + ' s');
