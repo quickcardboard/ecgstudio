@@ -7,6 +7,7 @@
 // per capture (any machine, smooth 60 fps). Captions, the shock flash and the logo animation are composited with ffmpeg.
 // Not part of the build.
 //   node tools/promo_store.js <outdir> [--skip-take]     (--skip-take: reuse the recorded parts in <outdir>, redo the rest)
+// TAKE_SECONDS=n records only the take's first n s and logs the timing of each speed segment (for tuning).
 const fs = require('fs'), path = require('path'), { spawn, execFileSync } = require('child_process'), { chromium } = require('playwright');
 const G = require('./logo/gen.js');
 const root = path.resolve(__dirname, '..'), out = path.resolve(process.argv[2] || '.');
@@ -16,18 +17,18 @@ const TOTAL = TAKE + APP - XF + TRAIN + LOGO;   // 30 s
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The take. Camera keyframes [t, azimuth °, elevation °, distance (1: the app's framing), cut %], eased between consecutive
-// keyframes. Azimuth and elevation are relative to the app's chest view.
-const CAM = [
-  [0.0, -40, 12, 1.55, 0], [2.0, -16, 6, 0.82, 0], [5.5, 4, 2, 0.78, 0],             // arrive from the distance; a sinus beat
-  [7.0, 0, 0, 0.86, 100], [10.5, 6, 0, 0.8, 100],                                     // the cut opens: conduction system
-  [11.6, -35, 0, 0.82, 100], [14.6, -45, 0, 0.8, 100],                                // sweep round the cut: LBBB
-  [16.0, -100, 8, 0.86, 0], [18.4, -150, 16, 0.84, 0],                                // the cut closes; around the back: VT
-  [19.4, -205, 10, 0.86, 0], [21.6, -300, 4, 0.82, 0],                                // shock; round to the front: occlusion
+// keyframes. Azimuth and elevation are relative to the app's chest view; roll tilts the camera about its line of sight.
+const CAM = [   // [t, azimuth, elevation, distance, cut %, roll °]
+  [0.0, -60, 35, 1.7, 0, -18], [2.0, -18, 10, 0.84, 0, 6], [5.5, 6, -6, 0.74, 0, -4],     // swoop down from far above; a sinus beat
+  [7.0, 0, 0, 0.86, 100, 0], [10.5, 8, 4, 0.78, 100, 3],                                    // level out as the cut opens: conduction
+  [11.6, -35, -10, 0.82, 100, -8], [14.6, -48, 6, 0.78, 100, 5],                            // dip under while sweeping round: LBBB
+  [16.0, -105, 25, 0.9, 0, -14], [18.4, -160, -12, 0.8, 0, 12],                             // rise over, then swing under, leaning: VT
+  [19.4, -215, 8, 0.9, 0, -6], [21.6, -300, 4, 0.82, 0, 0],                                 // shock; level again for the reveal
 ];
 // Simulated time per frame: [t0, t1, speed] (×real time), or [t0, t1, 'align', lead]: arrive lead ms before the next sinus
 // beat (atrial onset) at t1, spread evenly over the frames
 const SPEED = [
-  [0, 2.0, 'align', 60], [2.0, 3.0, 0.15], [3.0, 5.5, 0.04],
+  [0, 2.0, 'align', 20], [2.0, 2.9, 0.13], [2.9, 5.5, 0.065],   // (outside: the atria, then the wave breaking through to the ventricular surface)
   [5.5, 7.0, 'align', 40], [7.0, 7.8, 0.15], [7.8, 10.5, 0.06],
   [10.5, 11.6, 'align', -90], [11.6, 14.6, 0.06],
   [14.6, 16.0, 1], [16.0, 18.4, 0.33], [18.4, 19.4, 0.5], [19.4, 99, 0.33],
@@ -76,22 +77,27 @@ async function take(browser, file) {
     const A = window.ECGStudioApp, C = A.tour.controls(), cam = C.object, V = window.THREE.Vector3;
     const off0 = cam.position.clone().sub(C.target), up = cam.up.clone(), side = new V().crossVectors(up, off0).normalize();
     let cut = -1;
-    window.__cam = (az, el, dist, c) => {
+    window.__cam = (az, el, dist, c, roll = 0) => {
       const off = off0.clone().applyAxisAngle(side, -el * Math.PI / 180).applyAxisAngle(up, az * Math.PI / 180).multiplyScalar(dist);
-      cam.position.copy(C.target).add(off); cam.lookAt(C.target); C.update(); C.dispatchEvent({ type: 'change' });
+      cam.position.copy(C.target).add(off); cam.up.copy(up); C.update();
+      cam.up.copy(up).applyAxisAngle(off.clone().normalize(), roll * Math.PI / 180); cam.lookAt(C.target);   // (the tilt)
+      C.dispatchEvent({ type: 'change' });
       const ci = Math.round(c);
       if (ci !== cut) { cut = ci; const s = document.getElementById('cutDepth'); s.value = ci; s.dispatchEvent(new Event('input')); }
     };
     window.__step = (dt, camv) => { window.__t += dt; if (camv) window.__cam(...camv); const cbs = q; q = []; for (const cb of cbs) cb(window.__t); };
-    window.__nextBeat = (lead) => { const S = A.sim, a = S.log.atrial, per = 60000 / 72; let n = a[a.length - 1].on + per; while (n - lead < S.t + 30) n += per; return n - lead - S.t; };
+    window.__nextBeat = (lead) => { const S = A.sim, per = 60000 / 72; let n = S.nextSinus(); while (n - lead < S.t + 30) n += per; return n - lead - S.t; };   // (the sinus node's next firing)
   });
   await page.waitForTimeout(100);
   const step = (dt, camv) => page.evaluate(([dt, camv]) => window.__step(dt, camv), [dt, camv]);
-  for (let i = 0; i < 20; i++) await step(250, camAt(0));   // pre-roll (5 s)
+  // pre-roll (5 s) in steps under the app's 'falling behind' threshold (34 ms), so its adaptive quality never drops the
+  // frame rate or resolution of the 3D view
+  for (let i = 0; i < 160; i++) await step(1000 / 32, camAt(0));
+  if (process.env.TAKE_SECONDS) console.log('quality', await page.evaluate(() => { const Q = window.ECGStudioApp.quality; return [Q.every, Q.dpr]; }));
   const cdp = await ctx.newCDPSession(page);
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
     '-vf', 'scale=1920:1080:flags=lanczos', '-c:v', 'libx264', '-preset', 'slow', '-crf', '14', '-pix_fmt', 'yuv420p', '-r', String(FPS), file], { stdio: ['pipe', 'inherit', 'inherit'] });
-  const n = Math.round(TAKE * FPS), ev = [...EVENTS];
+  const n = Math.round((+process.env.TAKE_SECONDS || TAKE) * FPS), ev = [...EVENTS];
   let seg = null, perFrame = 0;
   for (let f = 0; f < n; f++) {
     const t = f / FPS;
@@ -101,11 +107,13 @@ async function take(browser, file) {
       seg = s;
       if (s[2] === 'align') { const ms = await page.evaluate((l) => window.__nextBeat(l), s[3]); perFrame = ms / Math.round((s[1] - s[0]) * FPS); }
       else perFrame = 1000 / FPS * s[2];
+      if (process.env.TAKE_SECONDS) console.log('seg', s, 'S.t', await page.evaluate(() => [window.ECGStudioApp.sim.t, window.ECGStudioApp.sim.nextSinus()]), 'perFrame', perFrame);
     }
     await step(perFrame, camAt(t));
     const r = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 95 });
     if (!ff.stdin.write(Buffer.from(r.data, 'base64'))) await new Promise((res) => ff.stdin.once('drain', res));
     if (f % (FPS * 5) === 0) console.log(`  take ${t} s`);
+    if (process.env.TAKE_SECONDS && f % 12 === 0) console.log('f', f, await page.evaluate(() => [window.ECGStudioApp.sim.t, window.ECGStudioApp.quality.every]));
   }
   ff.stdin.end(); await new Promise((r) => ff.on('close', r));
   await ctx.close();
@@ -173,7 +181,7 @@ async function appReveal(browser, file, lastPng) {
   await page.waitForTimeout(100);
   const [az, el, dist] = camAt(TAKE);
   await page.evaluate(([az, el, dist, js]) => { window.__cam(az, el, dist); const A = window.ECGStudioApp; eval(js); }, [az, el, dist, OCCLUDE]);
-  for (let i = 0; i < 48; i++) await page.evaluate(() => window.__step(250));   // 12 s: the ECG is acquired and read
+  for (let i = 0; i < 384; i++) await page.evaluate(() => window.__step(1000 / 32));   // 12 s: the ECG is acquired and read (small steps: full quality)
   const R = await page.evaluate(() => Object.fromEntries(['pane3d', 'cecg'].map((id) => { const r = document.getElementById(id).getBoundingClientRect(); return [id, { x: r.x, y: r.y, w: r.width, h: r.height }]; })));
   const fit = (cx, cy, w) => { w = Math.min(w, CW); const h = w * 9 / 16; return { x: Math.min(Math.max(cx - w / 2, 0), CW - w), y: Math.min(Math.max(cy - h / 2, 0), CH - h), w }; };
   const p = R.pane3d, e = R.cecg;

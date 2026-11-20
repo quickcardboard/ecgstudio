@@ -39,6 +39,11 @@ people who teach and learn ECGs. Cost: none except time.
   node tools/promo_edit.js <outdir>                 # adds captions, flash and end card: ecgstudio-<name>-edited.mp4
   ```
   The editor also writes `ecgstudio-<name>-script.txt` (timed voice-over, title, post text, hashtags).
+- Google Play promo video (30 s, 1920×1080, 60 fps): `node tools/promo_store.js <outdir>` (~25 min). One continuous camera
+  take through the heart in slow motion (sinus beat, the cut into the conduction system, LBBB, VT, shock, LAD occlusion),
+  a pull-back revealing the app and its 12-lead ECG, Training on a phone, and the animated logo. Camera keyframes, speed
+  ramps, events and captions are tables at the top of the script. Upload it to YouTube (unlisted is fine) and paste the
+  link into Play Console → Store listing → Video.
 
 ## Why this is the right first step
 
