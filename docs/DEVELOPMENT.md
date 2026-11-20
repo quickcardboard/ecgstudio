@@ -3065,3 +3065,22 @@ random sinus rate (`avSev`: sites and severity range; `rec.avs`; share links `AV
   visible in ≥ 80% of beats, not on the blind rhythm read, which took grouped Wenckebach beating for AF when P's sat on the
   T. Sampled: 12/18 AV items passed (the rest on unrelated criteria or hidden P's); `tools/trainlive.js 40 7` 29/40 as
   before.
+
+## claude/relaxed-goodall-p59d4n round 1: lesson presets for RBBB and LPFB (no engine change)
+
+For the planned course (`docs/COURSE_PLAN.md`): engine settings used only inside one lesson, searched with scratch
+scripts (random screens of ~200 candidates, scorecard checks plus the reader's V1 r/R′ and axis; ~600 candidates in all).
+- **With the normal beat held to the scorecard** (17/17): RBBB axis −51° → −16° (`rvSourceGain` 0.7, `purkZmaxRV` 0.88,
+  `septalTerrHalf` 0.6, `cvVentTrans` 0.34, `cvVentSheet` 0.3), but R′ in V1 3.5 mm over an r of 2.8–3.3; LPFB R III
+  31 → 19 mm with the axis held at 92°. Not good enough for teaching (the author: R′ too small, no clear right axis).
+- **Why R′ and the RBBB axis trade**: a scratch switch weakening only the basal RV sources (apicobasal UVC > 0.5–0.7)
+  moved the RBBB axis −44 → −8° and shrank R′ 4.9 → 3.1 mm. The R′ and the superior pull come from the same late basal
+  RV / outflow tissue, which in this heart lies above V1. Chest-lead blend settings (`precordialDipoleW`, `dowerChest`)
+  scale r and R′ together. Reverted.
+- **Block-only presets** (normal beat not required), adopted for the course plan:
+  - `lpfb`: axis 100° (its normal beat 29°), rS in I 3.1/6.0 mm, qR in III with R 20 mm, QRS 92 ms; the normal beat's
+    voltage is low (`lvSourceGain` 0.6). Candidates up to 111° (R III ~10 mm) got their right axis from the preset
+    itself (normal beats −26° to 137°), so the block did not explain them: not used.
+  - `rbbb`: V1 r 4.1 / R′ 6.2 mm, axis −19° (normal beat 63°, QRS 100 ms), QRS 138 ms, wide S in I and V6, no QS in aVF.
+    The best R′ (7.5 over 4.6 mm) came with −26 to −41°.
+  - Settings: `docs/COURSE_PLAN.md` (Model accuracy rules).
