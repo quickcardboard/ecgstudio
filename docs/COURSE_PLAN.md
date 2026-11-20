@@ -166,8 +166,17 @@ The course must never teach a model quirk as fact.
 4. **The other units**, a few lessons at a time, each checked against the model first.
 5. **Premium**: the Learn product and its trial, in the shell's `PRODUCTS`.
 
-## Open questions for the author
+## Answered (2026-11-20)
 
-1. The trial: units 1–3 free, or a time limit, or the first lesson of each unit?
-2. The cell and chain views: zoom into the real heart wall (proposed), or a separate close-up panel of real model cells?
-3. Should "Try it" use Training's generator (varied, sometimes with extra findings) or a fixed set per lesson (cleaner)?
+- Trial: not decided yet (unimportant for now).
+- Cell and chain views: zoom into the real heart wall, kept short (3–4 screens), mostly to explain depolarisation and
+  repolarisation.
+- "Try it" (proposed, see the phone mock-ups): the bridge from the slow heart to a real ECG at normal speed. One or two
+  quick questions on a fixed 12-lead per lesson ("tap the lead where the R′ stands out", "name it"), not rated.
+
+## Phone layout (first mock-ups, 2026-11-20)
+
+Real heart frames and engine tracings in phone frames: the RBBB lesson step by step, a flutter baseline question, the
+cell close-up and "Try it". Principles: one big lead at a time (no 12-lead until "Try it"); heart on top, one lesson
+sheet below whose content changes with each step; choices and the main button in thumb reach; two lines of text per
+step; the simulator's tabs, speed and menu hidden during a lesson (close, title and progress only).
