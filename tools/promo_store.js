@@ -44,9 +44,9 @@ const EVENTS = [
 // captions [t0, t1, text, colour legend] on the final timeline
 const CAPTIONS = [
   [0.6, 5.3, 'Watch a heartbeat spread through the heart, cell by cell', true],
-  [7.0, 10.4, 'The bundle branches activated the ventricles'],
+  [7.0, 10.4, 'The bundle branches activate the ventricles'],
   [11.7, 14.5, 'Block the left bundle branch, and the wave takes the long way'],
-  [16.1, 18.4, 'Trigger a VT, then defibrillate'],
+  [16.1, 19.3, 'Trigger a VT, then defibrillate'],
   [19.6, 21.5, 'Block a coronary artery and see the change on the ECG'],
   [22.6, 25.0, 'Every beat drives a live simulated ECG'],
 ];
