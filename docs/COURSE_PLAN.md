@@ -1,6 +1,6 @@
 # ECG course ("Learn"): plan
 
-Status: planning. Last reconciled 2026-11-21 with the author's edits of 2026-11-20. Pricing is still open.
+Status: planning. Last updated 2026-11-21: the author's edits of 2026-11-20 reconciled, then the rhythm units reordered and the lead overlay left out. Pricing is still open.
 
 ## The concept
 
@@ -32,7 +32,7 @@ Each lesson teaches one thing in 3–5 minutes on a phone, in four steps. The st
 
 - **Set-up.** One or two sentences and the heart in the view the lesson needs, the target ringed. Example: "This is the right bundle. It carries the wave to the right ventricle."
 - **Predict.** A question about one named lead or strip, answered by picking one of three or four tracings. Example: "The right bundle is cut. What will V1 draw?" Nothing moves until the student commits.
-- **Watch.** The change is made, by the student where possible (cut the bundle, block the artery, tap the muscle), and plays in slow motion. A time bar scrubs through one beat; the overlays show the wave's direction and the lead it is drawn in.
+- **Watch.** The change is made, by the student where possible (cut the bundle, block the artery, tap the muscle), and plays in slow motion. A time bar scrubs through one beat; the heart vector arrow shows where the wave is heading and how strong it is.
 - **Explain.** A few sentences linking what was seen to the physiology, with the relevant part of the strip highlighted. A wrong prediction gets its own short explanation here.
 
 There is no quiz at the end of a lesson. A single lesson is too narrow to test on its own (an RBBB quiz before LBBB and the fascicular blocks only asks "RBBB or not?"). Predict already makes the student commit to an answer in every lesson. Testing happens at the end of each unit, where findings can be mixed.
@@ -40,8 +40,8 @@ There is no quiz at the end of a lesson. A single lesson is too narrow to test o
 ### Unit tests
 
 - At the end of every unit, about 10 questions, cumulative: the findings of this unit mixed with everything learned before.
-- From the rhythm units on, the questions are whole ECGs from Training's generator, limited to the findings already taught (each finding has its own key in the generator, so the limit is a list per unit).
-- The early units (anatomy, electrophysiology, the ECG, the cardiac cycle) have no abnormal ECGs yet. Their tests use the other question types: pick the structure, pick the lead, which way will it deflect, which event of the beat is this wave.
+- From unit 4 (normal sinus rhythm) on, the questions are whole ECGs from Training's generator, limited to the findings already taught (each finding has its own key in the generator, so the limit is a list per unit).
+- Units 1–3 (anatomy, electrophysiology, the ECG) have no ECGs to read yet. Their tests use the other question types: pick the structure, pick the lead, which way will it deflect, which event of the beat is this wave.
 - A test shows a score and, for each miss, the lesson to revisit. It does not lock the next unit and does not change Training's ratings.
 
 ### Question and interaction types
@@ -56,18 +56,15 @@ There is no quiz at the end of a lesson. A single lesson is too narrow to test o
 ### Overlays on the 3D heart
 
 - **Wavefront colours:** already in the simulator (resting pink, the blue wavefront, green recovery).
-- **Heart vector arrow:** the sum of everything active at that moment, drawn as a 3D arrow from the centre of the heart that grows and turns through the beat. The simulator already computes it. The student turns the heart to see its direction.
-- **The lead:** the chosen lead drawn in 3D as a beam with width and length from the heart toward its positive electrode, so it is clear where it points. It shows whether the wave is moving toward or away from the lead. Toward/away is the point; the size of the arrow's shadow is not shown, because in this model the chest leads also include the tissue right under each electrode and the shadow's size would not always match the trace.
+- **Heart vector arrow:** the sum of everything active at that moment, drawn as a moving 3D arrow from the centre of the heart whose length is its size: it grows, turns and shrinks through the beat, like the simulator's heart vector but as a solid 3D arrow. The student turns the heart to see its direction.
 - **Point targets:** the current pulsing ring, for something to tap (a bundle, the sinus node, an artery).
 - **Area targets:** a tint over a region, dimming the rest (an artery's territory, the RV free wall, a fascicle's territory), close to the ischaemia view.
 
-Not planned: a trace cursor on the strip and a close-up of individual cells. A close-up only shows a blue patch and does not explain electrophysiology; that unit uses the whole heart plus a graph in the sheet.
+Not planned: a trace cursor on the strip and a close-up of individual cells (a close-up only shows a blue patch and does not explain electrophysiology; that unit uses the whole heart plus a graph in the sheet). Left out for now: a lead drawn in 3D with the arrow's shadow on it.
 
 ## Curriculum
 
 Fourteen units following clinical categories, matching Training's skills. Each unit lists its lessons, what the student does in them, and notes. Roughly 60 lessons, 4–5 hours.
-
-Order note (suggestion): the PR/AV unit is placed before the tachycardias, because flutter with 2:1 block and AVRT both need the AV node and the accessory pathway first. The author's original order was supraventricular, ventricular, then AV blocks.
 
 **Lesson 0, the teaser (2 minutes, before unit 1):** the heart beats; tap the muscle and an extra wide beat appears on the strip; block an artery and the ST segment rises. "By the end of this course you will know exactly why." This is the "wow" moment, and it belongs in the free trial.
 
@@ -97,7 +94,7 @@ Test: which way the curve goes next; where the beat starts; which is faster.
 
 The core of the course. Toward and away is taught with many short Predict questions, one lead and one wave at a time, until it is automatic.
 
-- **A lead is a viewpoint:** each lead has a positive electrode and looks at the heart from that side. The limb leads (frontal plane), then the chest leads (the horizontal plane, V1 over the right ventricle to V6 at the left side). The lead beam overlay is introduced here.
+- **A lead is a viewpoint:** each lead has a positive electrode and looks at the heart from that side. The limb leads (frontal plane), then the chest leads (the horizontal plane, V1 over the right ventricle to V6 at the left side).
 - **Toward and away:** a wave of activation moving toward a lead's positive electrode draws upward; away, downward; across it, a small up-and-down. Many predictions: the same wave seen from different leads; different waves seen from one lead.
 - **Recovery seen by a lead:** a wave of recovery draws the opposite way: moving toward the electrode it draws downward. In the ventricles recovery runs outside to inside, so it moves away from the electrode and draws upward: the normal T is upright. This explains later why the T flips when activation is abnormal (bundle branch blocks, hypertrophy) and in ischaemia.
 - **The sum:** a lead draws the sum of everything active at that moment, often a tug of war between the left and right ventricles (and between parts of the left ventricle). The bigger left ventricle usually wins. The heart vector arrow is introduced here.
@@ -106,50 +103,52 @@ The core of the course. Toward and away is taught with many short Predict questi
 
 Test: pick the deflection for a wave and a lead; pick the lead that would see a wave best; which wall a lead faces.
 
-### 4. The cardiac cycle and the normal ECG
+### 4. The cardiac cycle and normal sinus rhythm
 
-The sequence of one heartbeat, mechanical and electrical side by side: what the heart is doing during each wave.
+The sequence of one heartbeat, mechanical and electrical side by side: what the heart is doing during each wave. Normal sinus rhythm is taught here, as the rhythm this cycle makes.
 
 - **The sequence:** the atria fire (P) and then squeeze; the AV node holds the beat (PR) so the ventricles can fill; the ventricles fire (QRS) and then squeeze through the ST and T; they relax after the T.
 - **The normal beat wave by wave:** P, PR, the septal q, R, S, ST, T, each linked to the wave on the heart, with R growing from V1 to V6.
 - **Rate and intervals by eye:** rate from the big squares; a normal PR, a narrow QRS and a QT that ends before halfway to the next beat, judged by eye. The few numbers worth knowing are listed under Numbers below.
+- **Sinus rhythm:** every beat starts at the sinus node, a P before every QRS; slow and fast sinus rhythm; sinus arrhythmia with breathing.
 
-Test: match each wave to its event; normal or not by eye.
+Test: match each wave to its event; normal or not by eye; the first whole ECGs (sinus rhythms, from Training's generator).
 
-### 5. The sinus node and its pauses
-
-- **Sinus rhythm, slow and fast;** sinus arrhythmia with breathing.
-- **Sinus pause and arrest:** the sinus node stops.
-- **SA exit block:** the node fires but the beat does not get out; the pause is an exact multiple of the cycle.
-- **Escape rhythms:** the back-ups from unit 2 take over: junctional (narrow, no P) and ventricular (wide, slow).
-
-Test: the first rhythm ECGs (from here on, Training's generator).
-
-### 6. The PR interval and AV block
-
-- **First-degree block:** the AV node holds every beat too long.
-- **Wenckebach (Mobitz I):** the hold grows until a beat is dropped. Watch the AV node tire beat by beat.
-- **Mobitz II and 2:1:** sudden drops below the AV node; why this one is more dangerous.
-- **Complete heart block:** atria and ventricles each at their own rate; the escape rhythm from unit 5.
-- **A short PR: WPW.** A second path through the fibrous skeleton (unit 1). The wave leaks early into the ventricle: short PR, delta wave, wide QRS. Pick the structure: which side is the pathway on.
-
-Test: AV blocks mixed with the sinus rhythms.
-
-### 7. Supraventricular rhythms
+### 5. Supraventricular rhythms
 
 - **Premature atrial beats.**
 - **Atrial fibrillation:** many small wavelets, no organised atrial beat; an irregularly irregular rhythm.
-- **Atrial flutter:** one wave circling the right atrium; the sawtooth; 2:1 conduction (with unit 6).
+- **Atrial flutter:** one wave circling the right atrium; the sawtooth; the AV node lets only some waves through (often every second one).
 - **Multifocal atrial rhythm (WAP and MAT).**
-- **Re-entry: AVNRT and AVRT:** a loop through the AV node, or through the accessory pathway (unit 6). Regular narrow tachycardias, and why they are hard to tell apart (SVT is an acceptable answer).
+- **Re-entry: AVNRT and AVRT:** a loop through the AV node, or through an accessory pathway across the fibrous skeleton (unit 1). Regular narrow tachycardias, and why they are hard to tell apart (SVT is an acceptable answer).
 
-### 8. Ventricular rhythms
+Test: supraventricular rhythms mixed with sinus rhythms.
+
+### 6. Ventricular rhythms
 
 - **Premature ventricular beats:** tap the muscle; wide because they travel through muscle (unit 2). Couplets, bigeminy, trigeminy. Pick the structure: where did it start.
 - **Ventricular tachycardia:** a run of wide beats; why it is wide and regular.
 - **Ventricular fibrillation:** no organised activation at all.
 
-Test: rhythms of units 5–8 mixed.
+Test: all rhythms so far mixed.
+
+### 7. Sinus pauses and SA block
+
+- **Sinus pause and arrest:** the sinus node stops.
+- **SA exit block:** the node fires but the beat does not get out; the pause is an exact multiple of the cycle.
+- **Escape rhythms:** the back-ups from unit 2 take over: junctional (narrow, no P) and ventricular (wide, slow).
+
+Test: pauses mixed with the rhythms of units 5–6.
+
+### 8. The PR interval and AV block
+
+- **First-degree block:** the AV node holds every beat too long.
+- **Wenckebach (Mobitz I):** the hold grows until a beat is dropped. Watch the AV node tire beat by beat.
+- **Mobitz II and 2:1:** sudden drops below the AV node; why this one is more dangerous.
+- **Complete heart block:** atria and ventricles each at their own rate; the escape rhythms from unit 7.
+- **A short PR: WPW.** A second path through the fibrous skeleton (unit 1). The wave leaks early into the ventricle: short PR, delta wave, wide QRS. Pick the structure: which side is the pathway on.
+
+Test: AV blocks mixed with all the rhythms.
 
 ### 9. Bundle branch and fascicular blocks
 
@@ -240,7 +239,6 @@ Known gaps to design around:
 - An old apical infarct also shows inferior Q waves, and the acute marginal (RV) branch gives an inferior pattern: avoid both as lesson examples.
 - Training's hyperacute mid-LAD T is often not tall enough: check it before the time-course lesson.
 - LAFB works in the live model (−55°). The bifascicular lesson needs the rbbb preset (RBBB −19°, with LAFB −54°); the live model's RBBB alone already reads about −51°.
-- The heart vector's shadow does not always match the size of a chest-lead deflection (the chest leads include the tissue under the electrode): show toward/away only.
 
 ## Where it lives
 
@@ -257,7 +255,7 @@ Known gaps to design around:
 ## Build order
 
 - **1. This plan.**
-- **2. Prototype on a branch,** previewed on a phone at app/index.html: the lesson player (four steps, built on the tutorial's ring, card and step machinery), full-screen heart for touch steps, the 3D heart vector arrow and lead beam, area tint, three-beat strip choices drawn by the engine, lesson presets. Two lessons: "toward and away" (unit 3) and RBBB (unit 9).
+- **2. Prototype on a branch,** previewed on a phone at app/index.html: the lesson player (four steps, built on the tutorial's ring, card and step machinery), full-screen heart for touch steps, the 3D heart vector arrow, area tint, three-beat strip choices drawn by the engine, lesson presets. Two lessons: "toward and away" (unit 3) and RBBB (unit 9).
 - **3. Lesson 0 and units 1–4,** the foundation.
 - **4. The other units,** a few lessons at a time, each checked against the model first, with their unit tests (Training's generator limited per unit).
 - **5. The purchase and trial.**
