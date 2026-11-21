@@ -1,182 +1,263 @@
 # ECG course ("Learn"): plan
 
-Goal: take someone with **no prior knowledge** to reading ECGs by **understanding why** each pattern looks the way it
-does, not by memorising criteria. Everything happens on the app's own 3D heart: the student sees the wave move, predicts
-what a lead will draw, then watches the heart draw it.
+Status: planning. Last reconciled 2026-11-21 with the author's edits of 2026-11-20. Pricing is still open.
 
-Decided by the author (2026-11-20):
-- Audience: complete beginners.
-- Place: a **Learn** mode inside Training (module tab), next to Train and the skills.
-- Product: premium with a trial, its own purchase separate from Training (the "lessons" add-on of `docs/PREMIUM_PLAN.md`).
-- Visuals: **only the 3D heart**, with overlays. No separate 2D diagram model (an arrow-diagram mock-up was tried on
-  2026-11-20 and rejected: a second model to learn, and too busy).
-- Style: **practical**. Numbers and hard criteria only where a clinician really uses them; recognise by eye first.
+## The concept
 
-## The idea in one line
+Most ECG teaching starts from criteria and shapes to memorise. This course starts from the heart. The student sees the wave of activation move through the app's own 3D heart, predicts what a lead will draw, then watches the heart draw it. Every pattern is explained by what the heart is doing, so a student who understands the normal beat can work out an abnormal one before being told its name.
 
-Learn what one cell does, then what a chain of cells does, then the whole heart. Then, for every new pattern:
-**watch the heart, predict the lead, see it drawn.** This makes a normally abstract subject visual and interactive.
+The course is practical: ECGs are read the way clinicians read them, by eye and in a fixed order (rhythm, then the QRS, then ischaemia and the ST-T).
 
-## Teaching principles
+- **Audience:** complete beginners.
+- **Where:** a Learn mode inside Training.
+- **Visuals:** the 3D heart, with overlays. No separate diagram model (an arrow-diagram mock-up was tried on 2026-11-20 and rejected: a second model to learn, and too busy). Graphs such as an action potential curve sit in the lesson sheet below the heart.
+- **Product:** premium with a trial. How it relates to Training's purchase is open (see Pricing).
 
-1. **Five rules carry the whole course.** Every lesson uses them, and the student is reminded which rule a pattern comes from.
-   - A wave moving **toward** a lead draws **up**; moving **away** draws **down**; across it draws a small up-down.
-   - The ECG is the **sum** of everything active at that moment. The big left ventricle usually wins.
-   - The wiring (conduction system) is **fast**, muscle is **slow**: narrow QRS = the wave used the wiring; wide QRS = it
-     crawled through muscle somewhere.
-   - Recovery runs **outside to inside**, the opposite order to activation, so the normal T points the same way as the QRS.
-     When activation is abnormal, the T flips with it.
-   - **Injured** muscle leaks current (the ST segment moves); **dead** muscle is silent (a Q wave: a window onto the far wall).
-2. **Predict before you see.** Every new pattern is first a question: "what will V1 look like?" The student commits to an
-   answer, then the heart shows it. Being wrong and seeing why is the point.
-3. **By eye first, numbers only when needed.** Clinicians do not measure every wave. The course teaches the look ("this
-   QRS is wide", "the PR is long") and keeps a short list of numbers that are worth knowing (below). Everything else is
-   described, not measured.
-4. **The same heart all the way through.** Colours, views and gestures are the simulator's. What the student learns in a
-   lesson works in the simulator and in Training straight away.
-5. **Short.** One idea per lesson, 3–5 minutes on a phone, ending with a few real ECGs to try.
+## Teaching style
 
-### The numbers worth keeping (the whole list)
+What every lesson does, whatever its topic. This is what sets the course apart from other ECG courses.
 
-| What | By eye | Number, for when you are unsure |
-|---|---|---|
-| Rate | Count big squares between beats | 300 ÷ big squares |
-| Wide QRS | Looks broad and blunt | More than 3 small squares |
-| Long PR | P far from the QRS | More than 1 big square |
-| ST elevation | The segment sits above the baseline | 1 small square (2 in V2–V3) |
-| Long QT | The T ends past halfway to the next beat | — |
-| Axis | Leads I and aVF both upright = normal | — |
+- **Heart first, paper second.** Every pattern is first seen happening on the 3D heart, then on the strip. The student never meets a tracing without having watched what made it.
+- **Commit before you see.** Each new pattern starts as a prediction about one named lead. The student picks an answer before anything moves. Being wrong, then seeing why, is part of the lesson.
+- **The student causes it.** Wherever possible the student makes the change: cuts the bundle, blocks the artery, taps the muscle. It is their heart doing it, not a picture being shown.
+- **The name comes last.** A lesson explains what happened before it names it. "RBBB" and its textbook description arrive after the student has worked out why V1 looks that way.
+- **Every abnormal beat is a change to a normal one.** Each pattern is explained as a difference from the normal beat or from something learned earlier, never as a new thing to memorise.
+- **Both directions.** Forward: from the heart to the strip (predict). Backward: from the strip to the heart (pick the structure). Reading an ECG is the backward direction, so the course trains both.
+- **Real strips, read by eye.** Choices are real three-beat strips on ECG paper at the usual scale. Numbers are used only where a clinician would reach for them.
+- **The same heart everywhere.** The heart, colours and gestures are the simulator's. What is learned in a lesson works straight away in the simulator and in Training.
 
-Everything else in the course (pathological Q size, voltage criteria, Sgarbossa and so on) is shown as a pattern with its
-reason, and the number is optional "reference" text the student can open, never a quiz question.
+## How a lesson works
 
-## Lesson format
+Each lesson teaches one thing in 3–5 minutes on a phone, in four steps. The student always knows where they are.
 
-Every lesson follows the same five beats, so the student always knows where they are:
+- **Set-up.** One or two sentences and the heart in the view the lesson needs, the target ringed. Example: "This is the right bundle. It carries the wave to the right ventricle."
+- **Predict.** A question about one named lead or strip, answered by picking one of three or four tracings. Example: "The right bundle is cut. What will V1 draw?" Nothing moves until the student commits.
+- **Watch.** The change is made, by the student where possible (cut the bundle, block the artery, tap the muscle), and plays in slow motion. A time bar scrubs through one beat; the overlays show the wave's direction and the lead it is drawn in.
+- **Explain.** A few sentences linking what was seen to the physiology, with the relevant part of the strip highlighted. A wrong prediction gets its own short explanation here.
 
-| Beat | What happens | Interaction |
-|---|---|---|
-| 1. **Set-up** | One sentence and a view of the heart: "This is the right bundle. It carries the wave to the right ventricle." | The heart turns to the right view by itself; the target is ringed (as in the tutorial) |
-| 2. **Predict** | A question about one lead: "The right bundle is cut. What will **V1** draw?" | Pick one of 3–4 small tracings, each labelled with the lead |
-| 3. **Watch** | The change is made (by the student where possible: tap the bundle, double-tap the artery) and plays in slow motion | Time bar to scrub one beat; overlays on the heart (below) |
-| 4. **Why** | Two or three sentences linking what they saw to one of the five rules | Tap a lead to see it on the heart; the matching part of the trace is highlighted |
-| 5. **Try it** | The bridge to real paper: a fixed 12-lead at normal speed, no heart, with one or two quick questions | Tap the lead that shows it, or name it; not rated; a miss links back to the Watch step |
+There is no quiz at the end of a lesson. A single lesson is too narrow to test on its own (an RBBB quiz before LBBB and the fascicular blocks only asks "RBBB or not?"). Predict already makes the student commit to an answer in every lesson. Testing happens at the end of each unit, where findings can be mixed.
 
-### Interaction types
+### Unit tests
 
-- **Pick the morphology** (the core one): 3–4 single-beat tracings for one named lead. The correct one is the engine's
-  own output for the scenario; the wrong ones are the same lead from other scenarios (for example V1 in normal, RBBB,
-  LBBB). The tracings are drawn by the engine, so they always match what the student then sees.
-- **Pick the baseline / rhythm strip**: for rhythms. Example: the atria flutter on the heart; pick the lead II strip
-  (sawtooth, wavy and irregular, flat with P waves, flat with no P waves).
-- **Pick the leads**: a tappable 12-lead map. "The LAD is blocked. Which leads will show ST elevation?" Then the heart
-  and the ECG show it.
-- **Make it happen**: the student does the action on the heart (tap the muscle for an ectopic, cut a bundle, occlude an
-  artery, drag the ischaemia time). This reuses the simulator's tap rules and the tutorial's step machinery.
-- **Scrub one beat**: drag through a single beat in slow motion. The wave moves on the heart and a cursor moves along the
-  chosen leads.
+- At the end of every unit, about 10 questions, cumulative: the findings of this unit mixed with everything learned before.
+- From the rhythm units on, the questions are whole ECGs from Training's generator, limited to the findings already taught (each finding has its own key in the generator, so the limit is a list per unit).
+- The early units (anatomy, electrophysiology, the ECG, the cardiac cycle) have no abnormal ECGs yet. Their tests use the other question types: pick the structure, pick the lead, which way will it deflect, which event of the beat is this wave.
+- A test shows a score and, for each miss, the lesson to revisit. It does not lock the next unit and does not change Training's ratings.
 
-### Overlays on the 3D heart (to build)
+### Question and interaction types
 
-- **Wavefront colours**: already there (resting pink, the blue wavefront, green recovery).
-- **Heart vector arrow**: the sum arrow from the centre of the heart, growing and turning through the beat. The
-  simulator already computes it (`S.dipole`) and shows lead vectors in the "leads" layer.
-- **One lead's eye**: a line from the heart toward the chosen electrode, with the heart vector's shadow on it coloured up
-  (toward) or down (away). This is the "toward = up" rule made visible.
-- **Region highlight**: the part of the heart that the step is about (septum, RV free wall, a fascicle's territory, an
-  artery's territory), dimming the rest.
-- **Trace cursor**: the moment shown on the heart, marked on the chosen leads; the trace before it dark, after it faint.
-- **Cell and chain view** (units 1–2): zoom into the wall in the cut view, ring a short row of real model cells, and
-  show the chosen cell's action potential beside the heart. The engine already holds each cell's membrane potential.
+- **Pick the strip** (the main one): three or four strips of the same named lead, three beats each, drawn by the engine. The right one is the scenario's own output; the others are the same lead from other scenarios (for V1: normal, RBBB, LBBB). Three-beat strips read like a real ECG; single beats were rejected (hard to read, no sense of scale).
+- **Pick the baseline:** for rhythms, 3-second strips of lead II. Example: the atria flutter on the heart; pick the baseline (sawtooth, wavy and irregular, flat with P waves).
+- **Pick the leads:** a tappable 12-lead map. "The LAD is blocked. Which leads will show ST elevation?"
+- **Pick the structure:** the reverse of Predict. The student sees an ECG and taps where it comes from on the heart: the origin of an ectopic beat, the blocked bundle, the occluded artery or its territory, the side of an accessory pathway.
+- **Make it happen:** the student acts on the heart: tap the muscle for an ectopic beat, cut a bundle, block an artery, drag the ischaemia time.
+- **Scrub one beat:** drag through a single beat in slow motion and see the wave and the overlays move with it.
+
+### Overlays on the 3D heart
+
+- **Wavefront colours:** already in the simulator (resting pink, the blue wavefront, green recovery).
+- **Heart vector arrow:** the sum of everything active at that moment, drawn as a 3D arrow from the centre of the heart that grows and turns through the beat. The simulator already computes it. The student turns the heart to see its direction.
+- **The lead:** the chosen lead drawn in 3D as a beam with width and length from the heart toward its positive electrode, so it is clear where it points. It shows whether the wave is moving toward or away from the lead. Toward/away is the point; the size of the arrow's shadow is not shown, because in this model the chest leads also include the tissue right under each electrode and the shadow's size would not always match the trace.
+- **Point targets:** the current pulsing ring, for something to tap (a bundle, the sinus node, an artery).
+- **Area targets:** a tint over a region, dimming the rest (an artery's territory, the RV free wall, a fascicle's territory), close to the ischaemia view.
+
+Not planned: a trace cursor on the strip and a close-up of individual cells. A close-up only shows a blue patch and does not explain electrophysiology; that unit uses the whole heart plus a graph in the sheet.
 
 ## Curriculum
 
-The order follows the heart's own sequence. Each unit opens with its rule, then breaks it. The systematic read (rate,
-rhythm, axis, intervals, QRS, ST-T) is built up along the way, each step taught where its physiology is.
+Fourteen units following clinical categories, matching Training's skills. Each unit lists its lessons, what the student does in them, and notes. Roughly 60 lessons, 4–5 hours.
 
-| Unit | Lessons (each 3–5 min) | Main interactions |
-|---|---|---|
-| **1. One cell** | Charged and at rest · Firing (depolarisation) · The plateau · Recovering (repolarisation) | Cell view; pick what the cell's trace does next |
-| **2. A chain of cells** | A wave moving along a strip · Toward up, away down, across small · Recovery and the T wave (why it is upright) | Chain view with one electrode at each end; pick the deflection |
-| **3. The whole heart** | Leads are viewpoints (limb, then chest) · The sum: why the LV wins · The normal beat wave by wave (P, PR, septal q, R, S, ST, T) · R progression V1–V6 · Axis with I and aVF · Rate by eye | Lead's eye overlay; scrub one beat; pick each lead |
-| **4. Who sets the pace** | Sinus, slow and fast · Ectopic beats (tap the muscle) · Atrial fibrillation · Atrial flutter · Re-entry (AVNRT, AVRT) · VT and VF · Escape rhythms | Pick the rhythm strip / baseline; make it happen |
-| **5. Breaking the wiring** | The AV node delay: first degree · Wenckebach · Mobitz II and 2:1 · Complete block · RBBB · LBBB · LAFB · LPFB · Bifascicular · WPW (a short-cut) | Cut the bundle; pick V1/V6/I/aVF |
-| **6. Bigger muscle** | LVH and strain · RVH · Atrial enlargement (the P wave) | Pick the P wave in II/V1; pick V1/V5 |
-| **7. Injured muscle** | Occlusion: which leads and why (territories) · Reciprocal changes · Time course (hyperacute T → ST → Q → T inversion) · Inferior, lateral, posterior · Wellens · Old infarct Q waves | Pick the leads; drag the time bar |
-| **8. Cell chemistry and more** | Potassium high and low · Calcium · Hypothermia · Long QT and torsades · Pericarditis · Brugada | Back to the cell view: pick the cell's trace, then the ECG |
-| **9. Putting it together** | The systematic read on whole ECGs · Common combinations | Full 12-lead questions, leading into Training |
+Order note (suggestion): the PR/AV unit is placed before the tachycardias, because flutter with 2:1 block and AVRT both need the AV node and the accessory pathway first. The author's original order was supraventricular, ventricular, then AV blocks.
 
-Rough size: about 50 lessons, 3–4 hours in all.
+**Lesson 0, the teaser (2 minutes, before unit 1):** the heart beats; tap the muscle and an extra wide beat appears on the strip; block an artery and the ST segment rises. "By the end of this course you will know exactly why." This is the "wow" moment, and it belongs in the free trial.
 
-Example lessons, as the student meets them:
-- **Atrial flutter (unit 4):** a wave circles the right atrium on the heart, one lap every 200 ms. Predict: "What does
-  the baseline look like in lead II?" Four strips. Watch: each lap draws one sawtooth; every second lap gets through the
-  AV node. Why: the circuit never stops, so there is no flat baseline. Try it: one flutter ECG.
-- **RBBB (unit 5):** the cut view; tap the right bundle to cut it. Predict V1. Watch the left side fire as normal, then
-  the right ventricle fire late and alone, toward V1. Why: the R′ is the right ventricle on its own; toward V1 it draws
-  up, away from I and V6 it draws a broad S. The QRS is wide because muscle is slow.
-- **Anterior STEMI (unit 7):** "The LAD is blocked. Which leads will show ST elevation?" Tap the leads, then
-  double-tap the LAD and watch the territory and the ST rise. Drag the time bar: hyperacute T, ST elevation, Q waves, T
-  inversion.
+### 1. The heart and its wiring
 
-## Model accuracy rules
+Anatomy taught by touching the 3D heart. Tap a structure to learn it; quick "find it" questions reinforce.
 
-The course must never teach a model quirk as fact.
+- **Chambers and valves:** the four chambers, the valves, the order blood flows through them.
+- **The fibrous skeleton:** the ring between atria and ventricles that does not conduct. This is why the AV node is normally the only way through (it sets up the AV delay and, later, the accessory pathway).
+- **The coronary arteries:** LAD, circumflex, RCA and their main branches, and the wall each one feeds. This is what the ischaemia unit builds on.
+- **The conduction system:** sinus node, atria, AV node, His bundle, the bundle branches and fascicles, the Purkinje network. Fast wiring under the inner surface.
+- **The wall:** endocardium (inside) to epicardium (outside); the wave goes inside to outside.
 
-- **Every lesson scenario is checked** with `tools/scorecard.js` and `tools/reader.js` before its text is written. Where
-  the model is weak, the lesson avoids showing that feature, or uses a lesson preset.
-- **Lesson presets**: extra engine settings used only inside one lesson, reset when the lesson ends; never in the free
-  simulator or Training's ratings. They change conduction and source strength only, never the heart's position.
-  Two exist (2026-11-20 search; development notes: `docs/DEVELOPMENT.md`, branch round 1):
+Test: pick the structure (chambers, valves, arteries, wiring).
 
-  | Preset | Settings | Result (current model → preset) |
-  |---|---|---|
-  | `lpfb` | `{"lpfTerrLo":-2.9,"lpfTerrHi":1.2,"purkCrossSlow":10,"lsfTie":"LPF","lsfTieDelay":3,"septalTerrHalf":0.2,"lpfApexZ":0.2,"lvSourceGain":0.6,"lpfPhi":-1.8,"lpfZ":0.4,"fascConnectFrac":0.35,"cvVentLong":0.45,"rvSourceGain":0.7,"purkCrossFastPhi":null}` | Axis 92° → 100° (normal beat in the preset 29°), clear rS in I, R III 31 → 20 mm. Normal beat has low voltage |
-  | `rbbb` | `{"rvSourceGain":0.9,"pmjRetroRV":50,"purkZmaxRV":0.8,"septalTerrHalf":0.85,"lsfPhi":1.1,"lsfZ":0.25,"rvCvMul":1,"cvVentTrans":0.34,"cvVentSheet":0.25,"precordialDipoleW":0.6,"dowerChest":0,"rbbSeptalFrac":0}` | V1 r 2.7 / R′ 4.9 → r 4.1 / R′ 6.2 mm; axis −51° → −19° (normal beat in the preset 63°); upright inferior leads |
+### 2. How a beat starts and spreads (electrophysiology, brief)
 
-- **Known gaps to design around**:
-  - RBBB moves the axis left in this heart (its late RV forces point up). The RBBB lesson teaches V1, I and V6 and does
-    not show the axis; the text says the axis is usually unchanged.
-  - Old apical infarct also shows inferior Q; the acute marginal (RV) branch gives an inferior pattern. Avoid both as
-    lesson examples.
-  - Training's hyperacute mid-LAD T is often not tall enough: check before using it in the time-course lesson.
-  - The LAFB lesson works in the live model (−55°); the bifascicular lesson needs the `rbbb` preset (RBBB −19° → with
-    LAFB −54°), since the live model's RBBB alone already reads about −51°.
+Only what is needed to understand why there is a stimulus and a wave at all, and to come back to in the electrolyte unit. No phase numbers or channel names to memorise. The heart shows where; the sheet shows a simple voltage curve.
 
-## Where it lives and what it costs
+- **Starting:** pacemaker cells drift upward by themselves until they fire. The sinus node is the fastest, so it sets the rate; the AV node and the ventricles are slower back-ups. (Nodal versus muscle cells.)
+- **Firing and recovering:** a muscle cell fires fast (sodium in), stays charged for a while (calcium, the plateau, which is also the contraction), then recovers (potassium out). While charged it cannot fire again (refractory).
+- **Spreading:** each cell fires its neighbour, so the beat travels as a wave. Wiring is fast, muscle is slow; watch the same heart with the wiring and with a wave started in the muscle.
 
-- **Training → Learn** (a module tab beside Train and the skills). Progress: lessons completed per unit. Each skill
-  rating in Training links to the lessons for that skill ("Your bundle branch blocks are weak: RBBB lesson").
-- **Product**: its own one-time purchase ("lessons" in `docs/PREMIUM_PLAN.md`), with a trial. Proposed trial: units 1–3
-  free (the cell, the chain, the normal beat). The author to confirm.
-- Lessons never change Training's ratings. "Try it" ECGs are unrated.
-- Lesson content (text, steps, scenarios, choices) lives in one data file, like `src/learn/topics.json`, so text can be
-  edited without touching code.
+Test: which way the curve goes next; where the beat starts; which is faster.
+
+### 3. The ECG: what a lead sees
+
+The core of the course. Toward and away is taught with many short Predict questions, one lead and one wave at a time, until it is automatic.
+
+- **A lead is a viewpoint:** each lead has a positive electrode and looks at the heart from that side. The limb leads (frontal plane), then the chest leads (the horizontal plane, V1 over the right ventricle to V6 at the left side). The lead beam overlay is introduced here.
+- **Toward and away:** a wave of activation moving toward a lead's positive electrode draws upward; away, downward; across it, a small up-and-down. Many predictions: the same wave seen from different leads; different waves seen from one lead.
+- **Recovery seen by a lead:** a wave of recovery draws the opposite way: moving toward the electrode it draws downward. In the ventricles recovery runs outside to inside, so it moves away from the electrode and draws upward: the normal T is upright. This explains later why the T flips when activation is abnormal (bundle branch blocks, hypertrophy) and in ischaemia.
+- **The sum:** a lead draws the sum of everything active at that moment, often a tug of war between the left and right ventricles (and between parts of the left ventricle). The bigger left ventricle usually wins. The heart vector arrow is introduced here.
+- **Which wall each lead faces:** inferior (II, III, aVF), lateral (I, aVL, V5–V6), anterior (V1–V4); the groups used later for ischaemia.
+- **The paper:** time across, voltage up; small and big squares; read by eye.
+
+Test: pick the deflection for a wave and a lead; pick the lead that would see a wave best; which wall a lead faces.
+
+### 4. The cardiac cycle and the normal ECG
+
+The sequence of one heartbeat, mechanical and electrical side by side: what the heart is doing during each wave.
+
+- **The sequence:** the atria fire (P) and then squeeze; the AV node holds the beat (PR) so the ventricles can fill; the ventricles fire (QRS) and then squeeze through the ST and T; they relax after the T.
+- **The normal beat wave by wave:** P, PR, the septal q, R, S, ST, T, each linked to the wave on the heart, with R growing from V1 to V6.
+- **Rate and intervals by eye:** rate from the big squares; a normal PR, a narrow QRS and a QT that ends before halfway to the next beat, judged by eye. The few numbers worth knowing are listed under Numbers below.
+
+Test: match each wave to its event; normal or not by eye.
+
+### 5. The sinus node and its pauses
+
+- **Sinus rhythm, slow and fast;** sinus arrhythmia with breathing.
+- **Sinus pause and arrest:** the sinus node stops.
+- **SA exit block:** the node fires but the beat does not get out; the pause is an exact multiple of the cycle.
+- **Escape rhythms:** the back-ups from unit 2 take over: junctional (narrow, no P) and ventricular (wide, slow).
+
+Test: the first rhythm ECGs (from here on, Training's generator).
+
+### 6. The PR interval and AV block
+
+- **First-degree block:** the AV node holds every beat too long.
+- **Wenckebach (Mobitz I):** the hold grows until a beat is dropped. Watch the AV node tire beat by beat.
+- **Mobitz II and 2:1:** sudden drops below the AV node; why this one is more dangerous.
+- **Complete heart block:** atria and ventricles each at their own rate; the escape rhythm from unit 5.
+- **A short PR: WPW.** A second path through the fibrous skeleton (unit 1). The wave leaks early into the ventricle: short PR, delta wave, wide QRS. Pick the structure: which side is the pathway on.
+
+Test: AV blocks mixed with the sinus rhythms.
+
+### 7. Supraventricular rhythms
+
+- **Premature atrial beats.**
+- **Atrial fibrillation:** many small wavelets, no organised atrial beat; an irregularly irregular rhythm.
+- **Atrial flutter:** one wave circling the right atrium; the sawtooth; 2:1 conduction (with unit 6).
+- **Multifocal atrial rhythm (WAP and MAT).**
+- **Re-entry: AVNRT and AVRT:** a loop through the AV node, or through the accessory pathway (unit 6). Regular narrow tachycardias, and why they are hard to tell apart (SVT is an acceptable answer).
+
+### 8. Ventricular rhythms
+
+- **Premature ventricular beats:** tap the muscle; wide because they travel through muscle (unit 2). Couplets, bigeminy, trigeminy. Pick the structure: where did it start.
+- **Ventricular tachycardia:** a run of wide beats; why it is wide and regular.
+- **Ventricular fibrillation:** no organised activation at all.
+
+Test: rhythms of units 5–8 mixed.
+
+### 9. Bundle branch and fascicular blocks
+
+- **RBBB:** the left side fires as normal, the right ventricle late and alone: R′ in V1, broad S in I and V6, wide QRS. Uses the rbbb lesson preset; the axis is not shown (see Model accuracy).
+- **LBBB:** the septum fires from the right, the left ventricle late: no septal q, broad R in I and V6, deep QS in V1; the T turns against the QRS.
+- **The axis:** the direction of the heart vector in the frontal plane, read by eye from leads I and aVF. Taught here because the fascicular blocks are what move it.
+- **LAFB:** left axis deviation; **LPFB:** right axis deviation (uses the lpfb preset).
+- **Bifascicular block:** RBBB with LAFB (uses the rbbb preset).
+- **Non-specific widening:** a wide QRS that fits neither bundle.
+
+### 10. Hypertrophy and enlargement
+
+- **Atrial enlargement:** right (tall P in II) and left (broad, notched P; deep negative end in V1).
+- **LVH:** bigger muscle, bigger voltage; the strain pattern when the T turns over.
+- **RVH:** the right ventricle wins the tug of war: tall R in V1, right axis.
+
+### 11. Ischaemia and infarction
+
+- **Occlusion and territory:** block an artery (unit 1) and pick the leads that will show ST elevation; then see the territory light up.
+- **Reciprocal changes:** the leads facing the opposite wall show ST depression.
+- **The time course:** hyperacute T, ST elevation, Q waves, T inversion: drag the time bar.
+- **Inferior, lateral and posterior infarcts;** the right ventricle.
+- **Old infarct:** the Q wave as a window onto the far wall (the dead wall is silent, so the lead sees the opposite wall moving away).
+- **Wellens:** the warning T waves of a critical LAD narrowing.
+- **STEMI in LBBB (advanced):** why LBBB hides ischaemia, and the concordance clue.
+
+Pick the structure is the natural test here: see the ECG, tap the artery.
+
+### 12. Electrolytes
+
+Back to the action potential of unit 2: what changes in the cell, then what the ECG shows.
+
+- **Potassium high:** tall peaked T, then wider QRS and flatter P.
+- **Potassium low:** flat T, U waves, a long QT-U.
+- **Calcium high and low:** a short or long ST segment.
+
+### 13. Other causes of ST-T changes
+
+Working title; other names: "Not a heart attack", "Mimics".
+
+- **Pericarditis:** ST elevation everywhere, without a territory.
+- **Brugada pattern.**
+- **Hypothermia:** the Osborn wave.
+- **Long QT and torsades.**
+- **Non-specific ST-T changes.**
+
+### 14. Combinations and pitfalls
+
+- **The full read:** rhythm, then the QRS, then ischaemia and the ST-T, on whole ECGs.
+- **Common combinations:** an infarct with a bundle branch block, AF with a block, and so on.
+- **Artefacts:** tremor and other noise that imitate rhythms.
+
+Test: the final test, mixed from the whole course, leading into Training.
+
+## Numbers
+
+The course recognises by eye first. The numbers below are the only ones taught, each next to how to see it without measuring. Others (voltage criteria, Q-wave sizes, Sgarbossa) can sit in optional reference text inside a lesson, never in a question.
+
+- **Rate:** count the big squares between beats; 300 ÷ big squares.
+- **Wide QRS:** looks broad and blunt; more than 3 small squares.
+- **Long PR:** the P sits far from the QRS; more than 1 big square.
+- **ST elevation:** the segment sits above the baseline; 1 small square (2 in V2–V3).
+- **Long QT:** the T ends past halfway to the next beat.
+- **Axis:** I and aVF both upright is normal (unit 9).
+
+## Phone layout
+
+From the first mock-ups (2026-11-20) and the author's comments.
+
+- Two panels: the heart on top, one lesson sheet below whose content changes with each step. Most interaction happens in the lower half, within thumb reach.
+- When the student has to touch the heart, it goes full screen, and returns to two panels once the action is done.
+- One lead at a time, as three-beat strips. A whole 12-lead appears only in unit tests and in questions that need one.
+- Short text per step; longer explanations behind a tap.
+- The simulator's tabs, speed and menu are hidden during a lesson: close, the title and progress only.
+
+## Model accuracy
+
+The course must never teach a model quirk as fact. Every lesson scenario is checked with tools/scorecard.js and tools/reader.js before its text is written. Where the model is weak, the lesson avoids that feature or uses a lesson preset.
+
+**Lesson presets** are extra engine settings used only inside one lesson and reset when it ends, never in the free simulator or in Training's ratings. They change conduction and source strength only, never the heart's position. Two exist (search of 2026-11-20; notes in docs/DEVELOPMENT.md):
+
+- **lpfb:** axis 92° → 100° (the preset's normal beat 29°), a clear rS in I, R III 31 → 20 mm; its normal beat has low voltage. Settings: {"lpfTerrLo":-2.9,"lpfTerrHi":1.2,"purkCrossSlow":10,"lsfTie":"LPF","lsfTieDelay":3,"septalTerrHalf":0.2,"lpfApexZ":0.2,"lvSourceGain":0.6,"lpfPhi":-1.8,"lpfZ":0.4,"fascConnectFrac":0.35,"cvVentLong":0.45,"rvSourceGain":0.7,"purkCrossFastPhi":null}
+- **rbbb:** V1 r 2.7 / R′ 4.9 → r 4.1 / R′ 6.2 mm, axis −51° → −19° (the preset's normal beat 63°), upright inferior leads. Settings: {"rvSourceGain":0.9,"pmjRetroRV":50,"purkZmaxRV":0.8,"septalTerrHalf":0.85,"lsfPhi":1.1,"lsfZ":0.25,"rvCvMul":1,"cvVentTrans":0.34,"cvVentSheet":0.25,"precordialDipoleW":0.6,"dowerChest":0,"rbbSeptalFrac":0}
+
+Known gaps to design around:
+
+- RBBB moves the axis left in this heart (its late right-ventricular forces point up). The RBBB lesson teaches V1, I and V6 and does not show the axis.
+- An old apical infarct also shows inferior Q waves, and the acute marginal (RV) branch gives an inferior pattern: avoid both as lesson examples.
+- Training's hyperacute mid-LAD T is often not tall enough: check it before the time-course lesson.
+- LAFB works in the live model (−55°). The bifascicular lesson needs the rbbb preset (RBBB −19°, with LAFB −54°); the live model's RBBB alone already reads about −51°.
+- The heart vector's shadow does not always match the size of a chest-lead deflection (the chest leads include the tissue under the electrode): show toward/away only.
+
+## Where it lives
+
+- **Training → Learn:** progress per unit; each skill rating in Training links to the lessons for that skill ("your bundle branch blocks are weak: RBBB lesson").
+- Lessons and unit tests never change Training's ratings.
+- Lesson content (text, steps, scenarios, choices) lives in one data file, like src/learn/topics.json, so the text can be edited without touching code.
+
+### Pricing (to discuss)
+
+- The author's idea: one purchase for the course that also unlocks Training (about $15), so there is a single unlock page instead of two locks on the same screen.
+- Open: whether Training is still sold alone at $9.99; what people who already bought Training get (Learn free, or an upgrade product shown only to them; Google Play has no built-in upgrade pricing); a new product id for the combined purchase (the id "training" exists and cannot be changed).
+- Trial: should include lesson 0 and reach at least one lesson with an abnormal ECG, so it shows what the course does.
 
 ## Build order
 
-1. **This plan** (done).
-2. **Prototype on a branch**, previewed on a phone at `app/index.html`:
-   - the lesson player (the five beats), built on `src/tutorial.js`'s ring, card and step-listener machinery;
-   - overlays: heart vector arrow, one lead's eye with the shadow, trace cursor, region highlight;
-   - "pick the morphology" choices drawn by the engine;
-   - lesson presets (set on lesson start, reset on exit);
-   - two lessons: **the normal beat** (unit 3) and **RBBB** (unit 5).
-3. **Units 1–2** (the cell and the chain): the cell view needs the most new work, so it comes after the player is proven.
-4. **The other units**, a few lessons at a time, each checked against the model first.
-5. **Premium**: the Learn product and its trial, in the shell's `PRODUCTS`.
-
-## Answered (2026-11-20)
-
-- Trial: not decided yet (unimportant for now).
-- Cell and chain views: zoom into the real heart wall, kept short (3–4 screens), mostly to explain depolarisation and
-  repolarisation.
-- "Try it" (proposed, see the phone mock-ups): the bridge from the slow heart to a real ECG at normal speed. One or two
-  quick questions on a fixed 12-lead per lesson ("tap the lead where the R′ stands out", "name it"), not rated.
-
-## Phone layout (first mock-ups, 2026-11-20)
-
-Real heart frames and engine tracings in phone frames: the RBBB lesson step by step, a flutter baseline question, the
-cell close-up and "Try it". Principles: one big lead at a time (no 12-lead until "Try it"); heart on top, one lesson
-sheet below whose content changes with each step; choices and the main button in thumb reach; two lines of text per
-step; the simulator's tabs, speed and menu hidden during a lesson (close, title and progress only).
+- **1. This plan.**
+- **2. Prototype on a branch,** previewed on a phone at app/index.html: the lesson player (four steps, built on the tutorial's ring, card and step machinery), full-screen heart for touch steps, the 3D heart vector arrow and lead beam, area tint, three-beat strip choices drawn by the engine, lesson presets. Two lessons: "toward and away" (unit 3) and RBBB (unit 9).
+- **3. Lesson 0 and units 1–4,** the foundation.
+- **4. The other units,** a few lessons at a time, each checked against the model first, with their unit tests (Training's generator limited per unit).
+- **5. The purchase and trial.**
