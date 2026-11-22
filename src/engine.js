@@ -262,7 +262,7 @@
     ischHypComp: 1,        // hypertrophy: the injury current divided by (source gain)^ischHypComp (1: as in a normal heart)
     // BANDAGE, not a fix (with cavityWindowT): the late T inversion (APD prolongation in and around the infarct, from ~6 h)
     // per artery family; see cavityWindowT and docs/DEVELOPMENT.md Round 47
-    occlusionLate: { LAD: 1, LCx: 1, RCA: 0.1, LM: 1 },   // (Round 50: RCA 0.1, the inferior wall faces the limb leads squarely: III −17 to −23 mm)   // (× occlusionInj in RV muscle: ~0.6)
+    occlusionLate: { LAD: 1, LCx: 1, RCA: 0.09, LM: 1 },   // (2026-11-22: RCA 0.1 → 0.09, mid-RCA 30 d T III −5.3 → within −5)   // (Round 50: RCA 0.1, the inferior wall faces the limb leads squarely: III −17 to −23 mm)   // (× occlusionInj in RV muscle: ~0.6)
     // non-specific ST-T changes (Sim.setNonspecificSTT): the transmural repolarisation gradient that makes the
     // T wave upright is reduced in patches that follow no artery (a smooth pattern from the Sim's seed), by up
     // to nssttGrad of it, and the plateau sags a little (nssttSag): flat or slightly inverted T waves and

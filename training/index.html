@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-19 (df76f14)">
+<meta name="version" content="2026-11-22 (d1ad3f3)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -939,7 +939,7 @@ body.land #fsClose { display: none; }
     ischHypComp: 1,        // hypertrophy: the injury current divided by (source gain)^ischHypComp (1: as in a normal heart)
     // BANDAGE, not a fix (with cavityWindowT): the late T inversion (APD prolongation in and around the infarct, from ~6 h)
     // per artery family; see cavityWindowT and docs/DEVELOPMENT.md Round 47
-    occlusionLate: { LAD: 1, LCx: 1, RCA: 0.1, LM: 1 },   // (Round 50: RCA 0.1, the inferior wall faces the limb leads squarely: III −17 to −23 mm)   // (× occlusionInj in RV muscle: ~0.6)
+    occlusionLate: { LAD: 1, LCx: 1, RCA: 0.09, LM: 1 },   // (2026-11-22: RCA 0.1 → 0.09, mid-RCA 30 d T III −5.3 → within −5)   // (Round 50: RCA 0.1, the inferior wall faces the limb leads squarely: III −17 to −23 mm)   // (× occlusionInj in RV muscle: ~0.6)
     // non-specific ST-T changes (Sim.setNonspecificSTT): the transmural repolarisation gradient that makes the
     // T wave upright is reduced in patches that follow no artery (a smooth pattern from the Sim's seed), by up
     // to nssttGrad of it, and the plateau sags a little (nssttSag): flat or slightly inverted T waves and
@@ -4340,7 +4340,11 @@ return module.exports; })();
   // for leaving it out; credited when named). Wellens, hypothermia's Osborn waves, a STEMI read through LBBB
   // (Sgarbossa), and hypo- and hypercalcemia (interval-only changes)
   const ADV = 1700;
-  let HYPER_SHAPE = true;   // (the hyperacute T shape gate, Meyers et al. 2025; tools can turn it off to compare)
+  let HYPER_SHAPE = true;
+  // (the hyperacute T's absolute floor, mV: chest, limb, and its magnitude floor, ms. 2026-11-22: chest 10 → 8 mm and
+  // magnitude 60 → 45 ms: the mid-LAD hyperacute T (V3 10–11, V4 8–10 mm, 1.5–1.9× this heart's own) failed only the old
+  // 10 mm floor in V4; Meyers et al. 2025: height alone is a weak test, the relative (≥ 1.4× own) and shape checks stay)
+  let HYPER_FLOOR = [0.8, 0.5], HYPER_MAG = 45;   // (the hyperacute T shape gate, Meyers et al. 2025; tools can turn it off to compare)
   const MI_SITES = {
     pLAD: { f: (b) => b.LAD[0], name: 'proximal LAD', ste: { req: ['anterior'], ok: ['septal', 'lateral'] }, q: { req: ['anterior'], ok: ['septal', 'lateral'] } },
     mLAD: { f: (b) => b.LAD[Math.round(b.LAD.length * 0.22)], name: 'mid LAD', ste: { req: ['anterior'], ok: ['septal', 'lateral'] }, q: { req: ['anterior'], ok: ['septal', 'lateral'] } },
@@ -4532,7 +4536,7 @@ return module.exports; })();
     const abn = list.map((k) => {
       const a = { k };
       // (a mid-LAD narrowing stays under 1 mm: not asked)
-      if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list, k) && !(k === 'hyper' && famOf(x) === 'LCx')); if (!sites.length) return null; a.site = pickW(rand, sites.map((x) => [x, adjust[`site:${x}`] === undefined ? 1 : adjust[`site:${x}`]]));
+      if (ABN[k].isch) { const sites = Object.keys(MI_SITES).filter((x) => siteOk(x, list, k) && !(k === 'hyper' && (famOf(x) === 'LCx' || x === 'pLAD'))); if (!sites.length) return null; a.site = pickW(rand, sites.map((x) => [x, adjust[`site:${x}`] === undefined ? 1 : adjust[`site:${x}`]]));
         if (ABN[k].stops) a.h = ABN[k].stops[Math.floor(rand() * ABN[k].stops.length)];
         if (ABN[k].stenosis && !ABN[k].multi) a.sev = pickW(rand, [[0.8, 0.3], [1, 0.4], [1.35, 0.3]]);
         if (ABN[k].multi) { const fam = ['mLAD', 'pLCx', 'pRCA'].sort(() => rand() - 0.5); a.sites = fam.slice(0, rand() < 0.35 ? 3 : 2); a.site = a.sites[0]; } }   // (no hyperacute T at a circumflex site: its T barely grows; nor at the proximal RCA, whose inferior T stays under 5 mm)
@@ -4890,7 +4894,7 @@ return module.exports; })();
           // textbook: T ≥ 5 mm in a limb lead or ≥ 10 mm in a chest lead, in two contiguous leads of the
           // territory, with no ST elevation criteria met (the rise over the same heart's T, ≥ 1.4×, is checked on the twin)
           const ex = MI_SITES[a.site].ste, terrLeads = ex.req.flatMap((t) => RL[t]);
-          const tall = contiguous(LEADS.filter((n) => terrLeads.includes(n) && L[n].T >= (n.startsWith('V') ? 1.0 : 0.5)));
+          const tall = contiguous(LEADS.filter((n) => terrLeads.includes(n) && L[n].T >= (n.startsWith('V') ? HYPER_FLOOR[0] : HYPER_FLOOR[1])));
           return yes(tall.length >= 2 && !steLeads(L).length, `T ${tall.map((n) => `${n} ${(L[n].T * 10).toFixed(0)} mm`).join(', ') || 'not tall'}${steLeads(L).length ? ', ST elevation already' : ''}`, tall);
         }
         case 'multinarrow': {
@@ -5223,7 +5227,7 @@ return module.exports; })();
             // ≥ 60 ms and ≥ 1.5× this heart's own T in the lead, falling half-width ≥ 0.9× the rising one. This model's normal T
             // is already about symmetric (1.1), so the symmetry floor only rules out a narrow, peaked T)
             if (HYPER_SHAPE) {
-              const sh = (n) => { const u = tShape(med, n), v = tShape(tmed, n); return { n, u, v, ok: u.mag >= 60 && u.mag >= 1.5 * v.mag && u.sym >= 0.9 }; }, all = LEADS.filter((n) => n !== 'aVR').map(sh);
+              const sh = (n) => { const u = tShape(med, n), v = tShape(tmed, n); return { n, u, v, ok: u.mag >= HYPER_MAG && u.mag >= 1.5 * v.mag && u.sym >= 0.9 }; }, all = LEADS.filter((n) => n !== 'aVR').map(sh);
               const good = contiguous(all.filter((x) => x.ok && risen.includes(x.n)).map((x) => x.n));
               checks.push(`hyperacute T shape (magnitude ms, symmetry; heart's own): ${all.filter((x) => risen.includes(x.n)).map((x) => `${x.n} ${x.u.mag}/${x.u.sym} [${x.v.mag}/${x.v.sym}]`).join(', ')}`);
               if (good.length < 2) return fail(`hyper ${a.site}: T not broad and symmetric in two contiguous leads (${all.filter((x) => risen.includes(x.n)).map((x) => `${x.n} ${x.u.mag}/${x.u.sym}`).join(', ')})`, 'criteria');
@@ -5328,7 +5332,7 @@ return module.exports; })();
       }
       return null;
     }
-    return { make, build, sample, simulate, model, itemRating, artifactLeads, ART_MAX, setEctMm: (x) => { ECT_MM = x; }, setHyperShape: (x) => { HYPER_SHAPE = !!x; } };
+    return { make, build, sample, simulate, model, itemRating, artifactLeads, ART_MAX, setEctMm: (x) => { ECT_MM = x; }, setHyperShape: (x) => { HYPER_SHAPE = !!x; }, setHyperFloor: (c, l, m) => { HYPER_FLOOR = [c, l]; if (m) HYPER_MAG = m; } };
   }
   TrainGen.RHYTHMS = RHYTHMS; TrainGen.ABN = ABN; TrainGen.SKILLS = SKILLS; TrainGen.itemRating = itemRating; TrainGen.sample = sample;
   if (typeof module !== 'undefined' && module.exports) module.exports = TrainGen; else root.TrainGen = TrainGen;
