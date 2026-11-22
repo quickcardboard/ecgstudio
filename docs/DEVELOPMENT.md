@@ -3088,3 +3088,35 @@ hyperacute mid-LAD T); LPFB voltage and the RBBB axis stay on the settled list (
 - **Next (the author: a few hours of compute):** the Rodero et al. statistical shape modes (Zenodo 4593739: the average
   heart and modes 1–9 at ±2 and ±3 SD) as a principled remodeling for the RBBB axis (the RV's position) and LPFB
   voltage (the inferior wall); only the average heart and one CT heart (refine-2) have been tried.
+
+## claude/relaxed-mccarthy round 20: statistical shape remodeling for the RBBB axis and LPFB voltage (2026-11-22)
+
+The Rodero et al. 2021 shape modes (Zenodo 4593739) as a principled remodeling. The pipeline (`tools/ssm/`, README there):
+download each variant, convert it, build its anatomy, seal it, re-solve its torso field, then run the copy's own tools.
+- **Sealing.** At 2 mm the variants' RV/RA cavities leaked to the outside in the flood fill, so they lost the right bundle
+  and RV Purkinje network. `tools/ssm/seal.py` plugs the one-voxel gaps (vein-cap label). It was applied to every heart
+  compared, the average included; on the average it changes the quick read by ≤ 5°.
+- **Screen** (relative axis = block axis − normal axis; textbook: RBBB ≈ 0, LAFB −75 to −90, LPFB +60 to +90, LPFB R III ≤ 20 mm):
+
+  | Heart | Normal | LAFB rel | LPFB rel | RBBB rel | LPFB R II/III/aVF mm |
+  |---|---|---|---|---|---|
+  | average (sealed) | 30 | −91 | 61 | −78 | 29/31/30 |
+  | mode 4 +3 SD | −11 | −44 | 94 | −24 | 27/29/28 |
+  | mode 3 −3 SD | 60 | −131 | 34 | −165 | 22/24/23 |
+  | mode 5 +3 SD | 9 | −67 | 69 | −52 | 26/25/25 |
+  | mode 7 +3 SD | −44 | −24 | 132 | −9 | 23/25/23 |
+  | mode 1 +2 SD | −1 | −55 | 94 | −37 | 17/23/20 |
+  | mode 1 +3 SD | 44 | −103 | 57 | −94 | 16/26/21 |
+
+  The other modes were similar or worse. Across the shapes the LAFB and RBBB relative axes correlate (r = 0.81): a shape
+  that brings the RBBB axis toward normal also takes away the LAFB's deviation. Shape does not separate the two.
+- **Best candidate**, mode 1 +2 SD with the posterior fascicle re-placed (`lpfZ` 0.45, `lpfPhi` −1.5): normal 33°, LAFB
+  −47°, LPFB 93° (R 17/23/20 mm), RBBB −12°, LBBB 67°. Its full validation failed: scorecard 56/66, reader 37/57 (RCA
+  infarcts read normal, LCx infarcts read inferior, LAE/BAE read as WPW, Mobitz II and SA exit block read as AF, pericarditis
+  read as STEMI, RVH missed), fullcheck iErr 32. Adopting it would need a full refit (days), not hours.
+- **Fascicle placement on the live heart alone:** `lpfZ` 0.35 no change; 0.45: normal 39°, LAFB −48°, RBBB −40°; 0.45 with
+  `lpfPhi` −1.5: normal 26°, LAFB −53°, RBBB −44°; 0.55 loses the LAFB (−39°). LPFB voltage unchanged (28/31/29) in all.
+  Live: normal 25°, LAFB −60°, LPFB 92° (28/31/29), RBBB −51°.
+- **Not adopted.** LPFB voltage responds only to the heart's shape (mode 1 +2 SD), and that shape breaks the infarct, atrial
+  and rhythm reads. The RBBB axis is tied to the LAFB axis through shape and fascicle placement alike. Both stay on the
+  settled list; the open route is the full refit on mode 1 +2 SD.
