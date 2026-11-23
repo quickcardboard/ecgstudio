@@ -3104,7 +3104,9 @@ random sinus rate (`avSev`: sites and severity range; `rec.avs`; share links `AV
 Each item tried on the live model and the block presets first (scratch builds, seeds 4242 and 5219):
 - **Non-specific ST-T threshold 1 mm** (the author): round 1's half credit for ST depression under 2 mm removed. A narrowing
   whose ST depression stays under 1 mm (≥ 0.5 mm in two contiguous leads, or flat T) is no longer thrown away: it is asked
-  as non-specific ST-T (`nonspecific` on the narrowing's criteria; ST depression named instead earns half, `part`).
+  as non-specific ST-T (`nonspecific` on the narrowing's criteria; ST depression named instead earns half, `part`), only
+  when no lead (aVR, V1 aside) reaches 1 mm: an OM1 narrowing with 1.1–1.3 mm in I, II and V5 (no contiguous pair) read by
+  eye as ST depression and is discarded, as before. 25 new-pass ECGs rendered for the author's check by eye.
 - **Now allowed** (all passed in the trials): flutter with an acute or evolving STEMI (mid and proximal LAD, proximal RCA,
   proximal LCx; the ST elevation is read through the flutter waves); first-degree AV block with a proximal or mid RCA infarct
   (acute and old: the P stays visible); WPW with ectopic beats (pauses and SA block still not); PVCs, couplets and NSVT in AF

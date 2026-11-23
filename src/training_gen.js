@@ -707,7 +707,7 @@
           const std = stdLeads(L);
           // (the author, 2026-11-23: ST depression under 1 mm is a non-specific ST-T abnormality, from 1 mm ST depression: a
           // narrowing whose depression stays under 1 mm (≥ 0.5 mm in two contiguous leads, or flat T) is asked as non-specific)
-          if (std.length < 2 && !steLeads(L).length) {
+          if (std.length < 2 && !steLeads(L).length && LEADS.every((n) => ['aVR', 'V1'].includes(n) || L[n].st80 > -0.1)) {   // (no lead at 1 mm or more: a 1 mm depression is read by eye as ST depression)
             const ns = criteria('nsstt', a, m, L), dip = contiguous(LEADS.filter((n) => !['aVR', 'V1'].includes(n) && L[n].st80 <= -0.05));
             if (dip.length >= 2 || ns.ok) return { ...yes(true, `ST depression under 1 mm in ${dip.map((n) => `${n} ${(L[n].st80 * 10).toFixed(1)}`).join(', ') || 'none'}${ns.ok ? `; ${ns.why}` : ''}: non-specific`, dip.length >= 2 ? dip : ns.leads), nonspecific: true };
           }
