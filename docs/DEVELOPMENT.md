@@ -3139,3 +3139,17 @@ Each item tried on the live model and the block presets first (scratch builds, s
   a backstop. The table gives the page's own keep/drop decision in 1116/1116 checked cases.
 - **Twin strips** follow the rate (about four beats, 3–6 s; 6 s for irregular rhythms and pauses): the same answer keys in
   60/60 scenarios, ~3% faster.
+
+## claude/hopeful-brahmagupta-ahil2p round 5: fewer discarded Training recipes (300-scenario audit)
+
+Audit (6 × 50 random recipes, ratings 1100–2100): 230/300 passed (77%); failures took 23% of the time. Adopted (free
+filters before simulating):
+- Hyperacute T out of the random mix (`ABN_W.hyper` 0): 1/12 passed (mid and proximal LAD 0/8: T not tall enough).
+- Mobitz I 62–90/min (was 98): at 92 and above the P hid in the T or the pattern came out 2:1 or first degree.
+- No recent (2-day) infarct at the PDA, distal or proximal RCA (no T inversion yet); no old infarct at OM2 or distal LCx
+  (Q only in III and aVF).
+- Atrial tachycardia: the reader's RAE/LAE/biatrial enlargement is not an extra finding (the P on the previous T).
+Not adopted after a closer look at the passes as well as the failures: fast AF (130–170) with infarcts or narrowing passed
+4/8, and by eye an inferior STEMI at 149/min is plain where the gate's ST measurement missed it (to the author); narrowing
+above 100/min passed 11/16. The flutter and atrial tachycardia strips the blind rhythm read rejected (16) rendered for the
+author.

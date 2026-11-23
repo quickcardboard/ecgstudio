@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-23 (b216f6f)">
+<meta name="version" content="2026-11-23 (a4a2c19)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -4269,7 +4269,7 @@ return module.exports; })();
     // read so the key is what the strip shows. block stays for the P-visibility checks)
     // (Wenckebach lies on a diagonal: the faster the rate the milder the node that gives it; measured on the gate, it passes at
     // about 0.66 at 65/min, 0.58 at 75, 0.50 at 95: avSevAt sets the severity from the rate, ± 0.03)
-    mobitz1: { w: 2, open: true, gateRead: true, avPattern: 'mobitz1', rating: 150, rate: [62, 98], avSev: [['AVN', 0.45, 0.72]], avSevAt: (rate) => 0.66 - 0.0053 * (rate - 65), block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
+    mobitz1: { w: 2, open: true, gateRead: true, avPattern: 'mobitz1', rating: 150, rate: [62, 90], avSev: [['AVN', 0.45, 0.72]], avSevAt: (rate) => 0.66 - 0.0053 * (rate - 65), block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
     mobitz2: { w: 0.5, open: true, gateRead: true, avPattern: 'mobitz2', rating: 180, rate: [60, 95], avSev: [['HIS', 0.35, 0.72]], block: ['HIS', 'mobitz2', { n: 4 }], read: (r) => /Mobitz II /.test(r) },
     avb2to1: { w: 0.6, open: true, gateRead: true, avPattern: '2:1', rating: 200, rate: [60, 85], avSev: [['AVN', 0.76, 0.88], ['HIS', 0.82, 0.9]], block: ['AVN', 'two-to-one'], read: (r) => /2:1 AV block/.test(r) },
     // (the atrial rate must not be a whole or half multiple of the 48/min junctional escape: at 72 or 96 the P waves
@@ -4442,7 +4442,9 @@ return module.exports; })();
   };
   // (testers' round 1: fewer hypertrophy, Brugada and atrial enlargement; more ST depression, T changes,
   // WPW and ectopy)
-  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 0.6, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 2.5, evolving: 2, multinarrow: 1.2, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, vbig: 0.8, vtrig: 0.6, abig: 0.5, atrig: 0.4, nsvt: 0.7, arun: 0.6, hyperK: 0.35, hyperK2: 0.15, hypoK: 0.3, hypoCa: 0.2, hyperCa: 0.15, hypothermia: 0.4, wellensA: 0.2, wellensB: 0.25 };   // (the electrolytes, Wellens and hypothermia: rare, about as often as atrial enlargement)
+  // (hyper 0, 2026-11-23: the model's hyperacute T passed 1 of 12 in a 300-scenario audit (mid and proximal LAD 0 of 8); out
+  // of the random mix until the T is taller. Reviews of old items still rebuild it)
+  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 0.6, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 2.5, evolving: 2, multinarrow: 1.2, hyper: 0, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, vbig: 0.8, vtrig: 0.6, abig: 0.5, atrig: 0.4, nsvt: 0.7, arun: 0.6, hyperK: 0.35, hyperK2: 0.15, hypoK: 0.3, hypoCa: 0.2, hyperCa: 0.15, hypothermia: 0.4, wellensA: 0.2, wellensB: 0.25 };   // (the electrolytes, Wellens and hypothermia: rare, about as often as atrial enlargement)
   const ITEM_BASE = 1200, PER_ABN = 180;
   // (difficulty above the base is stretched ×1.32: the hardest ECGs, four findings on a hard rhythm, reach ~2700
   // instead of ~2340, leaving headroom above the top title; the generator works on the unstretched scale)
@@ -4509,6 +4511,7 @@ return module.exports; })();
   // in real ECGs; LAFB with an acute STEMI anywhere, and LPFB with any infarct, are allowed and gated on their criteria)
   const siteOk = (site, list, k) => (!MI_SITES[site].kinds || MI_SITES[site].kinds.includes(k))
     && !(list.includes('lafb') && /RCA|LCx/.test(famOf(site)) && ['oldmi', 'recent', 'evolving'].includes(k)) && !(list.includes('lpfb') && famOf(site) === 'RCA' && ['oldmi', 'recent', 'evolving'].includes(k))
+    && !(k === 'recent' && ['PDA', 'dRCA', 'pRCA'].includes(site)) && !(k === 'oldmi' && ['OM2', 'dLCx'].includes(site))   // (audit 2026-11-23: no T inversion yet at 2 days; Q waves short of the criteria)
     && !(list.includes('wpw') && famOf(site) === 'LCx');   // (the left-lateral pathway inserts in circumflex territory: an infarct there removes the pre-excitation)   // (first-degree block with an RCA infarct allowed again, 2026-11-23: the P stays visible at the proximal and mid RCA)
   function itemRating(rec) {
     return Math.round(ITEM_BASE + ITEM_SCALE * (RHYTHMS[rec.rhythm].rating + rec.abn.reduce((s, a) => s + PER_ABN + ABN[a.k].rating + (a.sev && a.sev < 1 ? 60 : 0) + (a.h === 12 ? 30 : 0), 0))) + artBonus(rec.art);
@@ -5153,6 +5156,7 @@ return module.exports; })();
           if (ks.includes('hypothermia') && /^STEMI/.test(dx)) continue;
           // (sinus tachycardia: the P rides on the previous T, which makes it look tall (RAE) and, with the P hidden, the PR long)
           if (rhythm === 'sinusTachy' && (dx === 'RAE' || (dx === '1st-degree AVB' && !ks.includes('avb1')))) continue;
+          if (rec.rhythm === 'atrialTach' && ['RAE', 'LAE', 'biatrial enlargement'].includes(dx)) continue;   // (atrial tachycardia: the ectopic P on the previous T reads as an enlarged P; audit 2026-11-23)
           if (dx.startsWith('old MI') && ks.includes('wpw')) { optional.add('qwaves'); continue; }   // (WPW pseudo-infarct: negative delta waves look like Q waves)
           if (dx.startsWith('STEMI') && ks.includes('lbbb') && !rec.abn.some((x) => ABN[x.k].isch)) continue;   // (LBBB: discordant ST elevation in V1–V3 is expected)
           if (dx === 'LVH' && ks.includes('lafb')) { optional.add('lvh'); continue; }
