@@ -3126,3 +3126,16 @@ Each item tried on the live model and the block presets first (scratch builds, s
 
 - 22 fine as drawn. LAFB + Brugada out again (by eye too much like pericarditis or an acute MI). A narrowing under 1 mm:
   non-specific ST-T is optional (credited if named, not required); naming ST depression there counts as not present.
+
+## claude/hopeful-brahmagupta-ahil2p round 4: Training ECGs made faster (no engine change)
+
+- Profile (Node, 20–24 random scenarios): 97% of the time is `Sim.run`; a build simulates ~24 s of heart time at ~2× real
+  time (a plain sinus heart ~4.5×; inside the step, `_activate` ~90%, of which the lead entry `_ecgEnter` ~40%). The main
+  14 s strip (4 s settle + 10 s) is ~90% of it; 30–45% of recipes fail their checks, each costing a full strip.
+- **Screening before simulating**: the page drops ECGs that repeat a recent combination (up to 3 running) or that a fully
+  right answer would raise the rating by less than 1 (up to 6 running), each after a full build. The page now sends the
+  worker the recent combinations and a per-skill gain table (`screenFor`: Glicko gain against ratings 400–3200, step 25),
+  and `make` passes such recipes over before simulating them (`screened`; up to 400 per request). The page's drops stay as
+  a backstop. The table gives the page's own keep/drop decision in 1116/1116 checked cases.
+- **Twin strips** follow the rate (about four beats, 3–6 s; 6 s for irregular rhythms and pauses): the same answer keys in
+  60/60 scenarios, ~3% faster.

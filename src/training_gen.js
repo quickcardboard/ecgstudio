@@ -570,6 +570,16 @@
       return { S, M, rec12, t0, A: [...atr].filter(inStrip).sort((a, b) => a.on - b.on).map(rel), V: [...ven].filter(inStrip).sort((a, b) => a.on - b.on).map(rel), stims: stims.map((x) => ({ ...x, t: x.t - t0 })), foci: [...fired].filter((x) => x.t - t0 >= 0 && x.t - t0 < strip).map((x) => ({ t: x.t - t0, cell: x.cell })) };
     }
     // a 3.6 s sinus beat of the same heart (measurements for the fast tachycardias, whose T runs into the next QRS)
+    // the twin's strip: long enough for a median of about four beats at the scenario's rate (3–6 s; irregular rhythms 6 s),
+    // not the full 6 s at every rate: the twins were ~40% of the time spent making an ECG
+    let TWIN_FAST = true;
+    function twinStrip(rec) {
+      if (!TWIN_FAST) return TWIN_STRIP;
+      const R = RHYTHMS[rec.rhythm];
+      if (['af', 'flutterVar', 'mat', 'sinusArr'].includes(rec.rhythm) || rec.abn.some((a) => ABN[a.k].pause || ABN[a.k].sinusNode)) return TWIN_STRIP;
+      const rate = rec.esc ? rec.esc.rate : R.rate ? rec.rate : 72;
+      return Math.round(Math.min(TWIN_STRIP, Math.max(3000, 4.5 * 60000 / rate)));
+    }
     function sinusRead(M) {
       const S = new LH.Sim(M, { seed: 1 }); const r = []; S.onSample((t, v) => r.push(Array.from(v))); S.run(3600);
       const v = S.log.vent, vb = v[v.length - 2]; return read(r, Math.round(vb.on), v[v.length - 2].on - v[v.length - 3].on);
@@ -1034,7 +1044,7 @@
         const c = crits.get(a);
         checks.push(`${a.k}: ${c.why}`);
         // twin: the same scenario without this abnormality
-        const twinRec = { ...rec, abn: rec.abn.filter((x) => x !== a) }, tsim = simulate(twinRec, TWIN_STRIP), tmed = tsim && medianBeat(tsim);
+        const twinRec = { ...rec, abn: rec.abn.filter((x) => x !== a) }, tsim = simulate(twinRec, twinStrip(rec)), tmed = tsim && medianBeat(tsim);
         let tw = null;
         if (tmed) { tw = twinDiff(med, tmed, a.k); if (!tw.ok) return fail(`${a.k} barely changes the tracing (${tw.max} mV)`, 'twin'); }
         if (a.k === 'narrow' && c.nonspecific) {
@@ -1166,17 +1176,34 @@
       };
     }
     // make: sample scenarios near the target until one passes the gate (or give up)
-    function make({ target = 1400, focus = null, seed = Date.now(), tries = 10, log = null, adjust = {} } = {}) {
+    // screen (from the page, optional): { avoid: [combination signatures], gain: { grid: [r0, step, n], by: { skill: [gain at each
+    // rating] } } }: a recipe that repeats a recent combination, or that a fully right answer would raise the rating by
+    // less than 1 for, is passed over before it is simulated (the page used to drop such ECGs only after building them)
+    const SIN_FAM = ['sinus', 'sinusBrady', 'sinusTachy'];
+    const sigOf = (rec) => [SIN_FAM.includes(rec.rhythm) ? 'sinus' : rec.rhythm, ...rec.abn.map((a) => a.k).sort()].join('+');
+    function screened(rec, screen) {
+      if (!screen) return false;
+      if (screen.avoid && screen.avoid.includes(sigOf(rec))) return true;
+      if (screen.gain) {
+        const { grid: [r0, step, n], by } = screen.gain, x = Math.max(0, Math.min(n - 1, (itemRating(rec) - r0) / step)), i = Math.min(n - 2, Math.floor(x)), f = x - i;
+        const skills = new Set(['rhythm', ...rec.abn.map((a) => ABN[a.k].skill)]);
+        let g = 0; for (const k of skills) if (by[k]) g += by[k][i] * (1 - f) + by[k][i + 1] * f;
+        if (Math.round(g) < 1) return true;
+      }
+      return false;
+    }
+    function make({ target = 1400, focus = null, seed = Date.now(), tries = 10, log = null, adjust = {}, screen = null } = {}) {
       const rand = LH.rng(seed >>> 0);
-      for (let i = 0; i < tries; i++) {
+      for (let i = 0, skipped = 0; i < tries; i++) {
         const rec = sample(rand, target, focus, 4, adjust);
+        if (skipped < 400 && screened(rec, screen)) { skipped++; i--; continue; }   // (free: no simulation; a bounded number of times)
         const res = build(rec);
         if (log) log(rec, res);
         if (res.ok) return res.item;
       }
       return null;
     }
-    return { make, build, sample, simulate, model, itemRating, artifactLeads, ART_MAX, setEctMm: (x) => { ECT_MM = x; }, setHyperShape: (x) => { HYPER_SHAPE = !!x; } };
+    return { make, build, sample, simulate, model, itemRating, artifactLeads, ART_MAX, setEctMm: (x) => { ECT_MM = x; }, setHyperShape: (x) => { HYPER_SHAPE = !!x; }, setTwinFast: (x) => { TWIN_FAST = !!x; } };
   }
   TrainGen.RHYTHMS = RHYTHMS; TrainGen.ABN = ABN; TrainGen.SKILLS = SKILLS; TrainGen.itemRating = itemRating; TrainGen.sample = sample;
   if (typeof module !== 'undefined' && module.exports) module.exports = TrainGen; else root.TrainGen = TrainGen;

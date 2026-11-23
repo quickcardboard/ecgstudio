@@ -166,6 +166,16 @@
     for (const k of Object.keys(adj)) adj[k] = Math.max(0.08, adj[k]);
     return adj;
   }
+  // what the worker can pass over before simulating (the same tests as onWorker's drops, which stay as a backstop): the
+  // combinations just seen or on their way, and, for each skill, the rating gain a fully right answer brings against an ECG
+  // of each rating (gainIfRight per skill; an ECG's gain is the sum over its skills)
+  function screenFor() {
+    const avoid = [...new Set(recentSigs())];
+    if (gen.easy >= 6) return { avoid };   // (as onWorker: after 6 drops running, an easy ECG is taken)
+    const r0 = 400, step = 25, n = 113, by = {};
+    for (const k of SKILLS) { const p = st.skills[k]; by[k] = Array.from({ length: n }, (_, i) => (glicko(p, { r: r0 + i * step, rd: 60 }, 1).r - p.r) / SKILLS.length); }
+    return { avoid, gain: { grid: [r0, step, n], by } };
+  }
   function fill() {
     if (!gen.ready || gen.failed > 4) { if (gen.failed > 4) setLoading('Could not prepare an ECG. Reload the page to try again.'); return; }
     const tag = practiceTag(); if (tag === null || !ownsTraining()) return;   // (locked: no Train ECGs are made)
@@ -176,7 +186,7 @@
       const focus = tag || (Math.random() < 0.5 ? weakest : null), r = tag ? st.skills[tag].r : overall();
       const target = r - 168 + gen.lift + (Math.random() - 0.5) * 160;
       gen.pending++; const req = ++gen.req; gen.tag[req] = tag;
-      post(w, { type: 'make', req, target, focus, seed: (Math.random() * 2 ** 31) | 0, adjust: adjustments() });
+      post(w, { type: 'make', req, target, focus, seed: (Math.random() * 2 ** 31) | 0, adjust: adjustments(), screen: screenFor() });
     }
   }
   function setLoading(msg) {
