@@ -50,7 +50,7 @@
     // accepted at 95–105). Gated on the engine's own record (≥ 3 different foci fired in the strip, P waves visible), not on
     // the blind rhythm read, which can take MAT for AF.
     mat: { w: 1, open: true, pVisible: true, foci: true, rating: 170, rate: [70, 130], link: 'a=mat', start: (S, rec, M, h) => { S.run(2000); S.startArrhythmia('mat', { cells: h.matFoci(M) }); }, read: (r) => /multifocal|wandering/.test(r) },
-    avnrt: { w: 1.5, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt', 'flutter'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
+    avnrt: { w: 1.5, tachy: true, rating: 180, link: 'a=avnrt', alt: ['svt', 'flutter', 'avrt'], induce: 'avnrt', read: (r) => r.startsWith('AVNRT') },
     avrt: { w: 0.8, tachy: true, rating: 220, link: 'a=avrt', alt: ['svt', 'flutter', 'avnrt'], induce: 'avrt', read: (r) => r.startsWith('AVRT') },
     // (Round 66: the blind read must see the Wenckebach pattern; a proximal RCA infarct slowing the node turned one into a
     // steady first-degree block)
@@ -868,6 +868,9 @@
       if (!sim) return fail('not induced', 'rhythm');
       const { M, rec12, A, V } = sim, R = RHYTHMS[rec.rhythm];
       if (V.length < 4 && !R.vf) return fail('too few beats', 'rhythm');
+      // (a ventricular arrhythmia the scenario did not ask for, e.g. VF from a PVC on the T of an ischemic heart (reading batch
+      // 1, ECG 05): the strip changes rhythm halfway, which no answer key describes)
+      if (sim.S.arrhythmia && ['vf', 'vt', 'tdp'].includes(sim.S.arrhythmia.type) && !['vf', 'vt', 'tdp'].includes(rec.rhythm)) return fail(`${sim.S.arrhythmia.type} started by itself`, 'rhythm');
       const rrs = V.slice(1).map((v, i) => v.on - V[i].on), rate = R.vf ? null : Math.round(60000 * rrs.length / rrs.reduce((x, y) => x + y, 0));
       // rhythm: from the engine; P waves must be visible where the rhythm is read from them
       let rhythm = rec.rhythm;
@@ -914,6 +917,12 @@
         if (sd / mean < 0.15) { if (!asIs) return fail(`flutter response not irregular (RR CV ${(sd / mean).toFixed(2)})`, 'rhythm'); asIsNotes.push('flutter response regular'); rhythm = 'flutter'; }
       }
       if (R.key && !(asIs && rhythm !== rec.rhythm)) rhythm = R.key;
+      // (a P-wave rhythm that drops beats though no AV block was asked for, e.g. atrial tachycardia with a first-degree block
+      // conducting in groups (reading batch 1, ECG 10): there is no answer for it in the vocabulary)
+      if (R.pRhythm && !R.block && !rec.avs && !rec.abn.some((x) => ABN[x.k].ectopy || ABN[x.k].pause || ABN[x.k].sinusNode)) {
+        const p = avPattern(A, V);
+        if (p && !['normal', 'first'].includes(p)) return fail(`P waves not all conducted (${p}) without an AV block asked for`, 'rhythm');
+      }
       if (R.foci) {
         // WAP/MAT from the engine: at least three different atrial foci fired in the strip
         const n = new Set(sim.foci.map((x) => x.cell)).size;
@@ -939,7 +948,8 @@
       let recentSte = false;   // (a recent infarct whose ST elevation still meets the STEMI criteria)
       if (rhythm === 'sinusTachy' && !rec.abn.some((a) => a.k === 'avb1')) neutral.add('avb1');   // (the author: the P on the T looked like a long PR)
       if (rec.abn.some((a) => a.k === 'rbbb') && !rec.abn.some((a) => a.k === 'lafb' || a.k === 'lpfb') && rec.pre !== 'rbbb') { neutral.add('lafb'); neutral.add('bifascicular'); }   // (the live model's RBBB has its own left axis; not with the rbbb preset)
-      if (wideEsc) ['lad', 'rad', 'ead', 'lbbb', 'rbbb', 'ivcd'].forEach((x) => neutral.add(x));   // (a ventricular escape's own QRS shape and axis: describing it is neither right nor wrong)
+      if (wideEsc) ['lad', 'rad', 'ead', 'lbbb', 'rbbb', 'ivcd'].forEach((x) => neutral.add(x));
+      if (rec.abn.some((a) => a.k === 'wpw')) ['rbbb', 'lbbb', 'ivcd'].forEach((x) => neutral.add(x));   // (pre-excitation: a left-lateral pathway's tall R in V1 looks like RBBB; reading batch 1, ECG 13)   // (a ventricular escape's own QRS shape and axis: describing it is neither right nor wrong)
       const mark = (id, leads) => { for (const l of leads) { hl.add(l); (hlBy[id] = hlBy[id] || []).includes(l) || hlBy[id].push(l); } };   // (each finding's own leads: the result chips show them)
       // (the cheap checks first, so a scenario that fails them costs no twin runs: the blind read, then every
       // abnormality's criteria; the twins run only once all of these pass)
@@ -990,7 +1000,10 @@
         }
         if (b.f.axis === 'LAD') optional.add('lad');
         if (b.f.axis === 'RAD') optional.add('rad');
-        if (r.m.axis !== null && (r.m.axis < -90 || r.m.axis > 180)) optional.add('ead');   // (extreme axis, −90° to ±180°: Round 66)
+        if (r.m.axis !== null && (r.m.axis < -90 || r.m.axis > 180)) optional.add('ead');
+        // (the measured axis, whatever the reader's interpretation made of it: right axis credited in WPW at +100°, reading batch 1)
+        if (r.m.axis !== null && r.m.axis > 90 && r.m.axis <= 180) optional.add('rad');
+        if (r.m.axis !== null && r.m.axis < -30 && r.m.axis >= -90) optional.add('lad');   // (extreme axis, −90° to ±180°: Round 66)
         if (ks.includes('lvh')) optional.add('lvhStrain');
         if (ks.includes('lvh') || ks.includes('rvh')) optional.add('twi');   // (the strain pattern: lateral or right-precordial T inversion)
         if (ks.includes('rbbb') && ks.includes('lafb')) optional.add('bifascicular');

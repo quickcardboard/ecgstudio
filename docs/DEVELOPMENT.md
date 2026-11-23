@@ -3174,3 +3174,12 @@ an ECG did not show what was put in. On this branch the key is what the ECG show
   discarded for them now.
 - First 20-ECG reading batch for the author (keys in `tools/data/reading/batch1_keys.json`): 20/20 kept on their first
   build, 1.4–21 s each.
+
+## claude/training-as-is round 2: reading batch 1 (the author's reads, `tools/data/reading/batch1_review.md`)
+
+9/20 agreed fully. Four keys were wrong and are fixed: a PVC that set off VF halfway through the strip (a ventricular
+arrhythmia the scenario did not ask for now discards), atrial tachycardia with a first-degree block conducting in groups
+(a P-wave rhythm dropping beats without an AV block asked for now discards), RBBB read in WPW (RBBB, LBBB and IVCD neutral
+with pre-excitation), right axis in WPW not credited (LAD/RAD now optional from the measured axis). AVRT earns half for
+AVNRT, as AVNRT did for AVRT. The author's misses were mostly first-degree block and LAFB (not measured by eye) and a subtle
+inferior ST depression (−1.2 mm at J+80; to watch). Batch 2 made with the fixes: 20/20 on their first build.
