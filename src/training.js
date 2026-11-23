@@ -65,7 +65,7 @@
   // (two workers where the phone has the cores: the next ECGs are made side by side, and a slow or rejected one
   // does not hold up the other; each builds its own heart)
   const N_WORKERS = (navigator.hardwareConcurrency || 2) >= 4 ? 2 : 1;
-  const gen = { workers: [], ready: false, queue: [], pending: 0, waiting: false, req: 0, failed: 0, dups: 0, cb: {}, tag: {}, by: {}, onReady: [] };
+  const gen = { workers: [], ready: false, queue: [], pending: 0, waiting: false, req: 0, failed: 0, dups: 0, easy: 0, lift: 0, cb: {}, tag: {}, by: {}, onReady: [] };
   // an ECG's combination: rhythm (the sinus family as one) and its abnormalities, from a recipe or a history entry's keys
   const SIN_FAM = ['sinus', 'sinusBrady', 'sinusTachy'];
   const sigOfKeys = (ks) => [SIN_FAM.includes(ks[0]) ? 'sinus' : ks[0], ...ks.slice(1).slice().sort()].join('+');
@@ -117,6 +117,10 @@
     // (two ECGs are made at once from the same history, so both can draw the same combination: one that repeats the
     // ECG on screen, one in the queue or one of the last two answered is dropped and made again, up to 3 times running)
     if (d.item && gen.dups < 3 && recentSigs().includes(sigOf(d.item.recipe))) { gen.dups++; console.debug(`training: dropped a repeat (${d.item.title})`); fill(); return; }
+    // (the author: an ECG a fully right answer would not raise the rating for (+0) is not fair: dropped, and the next ones
+    // asked for harder, up to 6 times running)
+    if (d.item && gen.easy < 6 && Math.round(gainIfRight(d.item)) < 1) { gen.easy++; gen.lift += 80; console.debug(`training: dropped an ECG worth +0 (${d.item.title}, rated ${d.item.rating})`); fill(); return; }
+    if (d.item) { gen.easy = 0; gen.lift = Math.max(0, gen.lift - 40); }
     if (d.item) { gen.failed = 0; gen.dups = 0; gen.queue.push({ ...decode(d.item), tag }); console.debug(`training: ${d.item.title} (${Math.round(d.ms)} ms)`); }
     else gen.failed++;
     if (gen.waiting && gen.queue.length) { gen.waiting = false; nextItem(); }
@@ -170,7 +174,7 @@
     while (gen.queue.length + gen.pending < QUEUE_N && (w = pickWorker(true))) {
       const weakest = SKILLS.slice().sort((a, b) => st.skills[a].r - st.skills[b].r)[0];
       const focus = tag || (Math.random() < 0.5 ? weakest : null), r = tag ? st.skills[tag].r : overall();
-      const target = r - 168 + (Math.random() - 0.5) * 160;
+      const target = r - 168 + gen.lift + (Math.random() - 0.5) * 160;
       gen.pending++; const req = ++gen.req; gen.tag[req] = tag;
       post(w, { type: 'make', req, target, focus, seed: (Math.random() * 2 ** 31) | 0, adjust: adjustments() });
     }
@@ -195,6 +199,12 @@
     return { r: (mu + phiNew * phiNew * g * (s - E)) * q + 1500, rd: Math.max(60, phiNew * q), v: vol };
   }
   const overall = () => SKILLS.reduce((a, k) => a + st.skills[k].r, 0) / SKILLS.length;
+  // the change in the overall rating a fully right answer to this ECG would bring (as shown after answering)
+  function gainIfRight(item) {
+    const opp = { r: item.rating, rd: 60 }; let d = 0;
+    for (const k of item.skills || []) if (st.skills[k]) d += glicko(st.skills[k], opp, 1).r - st.skills[k].r;
+    return d / SKILLS.length;
+  }
 
   // ------------------------------------------------------------------ ECG drawing
   const REGIONS = [
@@ -720,14 +730,16 @@
   // abnormality besides the rhythm, the rhythm is 100% and a finding not present −20%.
   // answers that count as the key's own (full credit): a more specific or more serious reading of the same thing
   const SAME_FINDING = { lvh: ['lvhStrain'], rbbb: ['bifascicular'], lafb: ['bifascicular'] };
-  const SAME_RHYTHM = { avb2to1: ['mobitz2'] };   // (2:1 block: go with the more serious reading, Mobitz II)
+  const SAME_RHYTHM = { avb2to1: ['mobitz2'] };
+  // half credit for a finding: the single ectopic beats named for a pattern of them (the beats seen, the pattern missed)
+  const PART_FINDING = { vbigeminy: ['pvc'], vtrigeminy: ['pvc'], nsvt: ['pvc', 'couplet'], couplet: ['pvc'], abigeminy: ['pac'], atrigeminy: ['pac'], svtrun: ['pac', 'acouplet'], acouplet: ['pac'] };   // (2:1 block: go with the more serious reading, Mobitz II)
   // advanced findings (f.adv, a rating): below that rating in the finding's skill they are shown but not asked: no
   // miss for leaving one out, credited (as a true extra) when named
   function score(key, picked, ratingOf = () => 9999) {
     const out = { rows: [], total: 0, skill: {} }, rp = picked.find((p) => BY_ID[p.id].kind === 'rhythm'), fs = {};
     const credit = (f, v) => { const k = f.skill || 'conditions'; (fs[k] = fs[k] || []).push(v); };
     let s = 0;
-    if (rp && (rp.id === key.rhythm || (SAME_RHYTHM[key.rhythm] || []).includes(rp.id))) { s += 0.4; out.rows.push({ id: rp.id, rhythm: true, cls: 'ok', label: BY_ID[rp.id].name }); out.rhythm = 'ok'; }
+    if (rp && (rp.id === key.rhythm || (SAME_RHYTHM[key.rhythm] || []).includes(rp.id) || (key.same || []).includes(rp.id))) { s += 0.4; out.rows.push({ id: rp.id, rhythm: true, cls: 'ok', label: BY_ID[rp.id].name }); out.rhythm = 'ok'; }
     else if (rp && (key.alt || []).includes(rp.id)) { s += 0.2; out.rows.push({ id: rp.id, rhythm: true, cls: 'part', label: BY_ID[rp.id].name, tag: `more exactly: ${BY_ID[key.rhythm].name}` }); out.rhythm = 'part'; }
     else { out.rows.push({ id: rp.id, rhythm: true, cls: 'bad', label: BY_ID[rp.id].name }); out.rows.push({ id: key.rhythm, rhythm: true, cls: 'miss', label: BY_ID[key.rhythm].name }); out.rhythm = 'bad'; out.wrongRhythm = rp.id; }
     const later = key.findings.filter((f) => f.adv && ratingOf(f.skill) < f.adv), req = key.findings.filter((f) => !later.includes(f));
@@ -735,8 +747,10 @@
     const fp = picked.filter((p) => BY_ID[p.id].kind === 'finding');
     let wrong = 0;
     for (const f of req) {
-      const p = fp.find((x) => x.id === f.id || (SAME_FINDING[f.id] || []).includes(x.id));
+      const p = fp.find((x) => !x.matched && (x.id === f.id || (SAME_FINDING[f.id] || []).includes(x.id))) || fp.find((x) => !x.matched && (f.alts || []).includes(x.id));   // (f.alts: this ECG's own equivalent, e.g. ST elevation for the T inversion of a recent infarct still raised)
       if (p) p.matched = true;
+      const pp = !p && fp.find((x) => !x.matched && (PART_FINDING[f.id] || []).includes(x.id));
+      if (pp) { pp.matched = true; credit(f, 0.5); s += share / 2; out.rows.push({ id: pp.id, cls: 'part', label: chipLabel(pp), tag: `more exactly: ${BY_ID[f.id].name}` }); out.regionMiss = out.regionMiss || f; continue; }
       if (!p) { credit(f, 0); out.rows.push({ id: f.id, cls: 'miss', label: f.regions ? `${BY_ID[f.id].name}, ${regionText(f.regions)}` : BY_ID[f.id].name }); out.missed = out.missed || f; continue; }
       if (!f.regions) { credit(f, 1); s += share; out.rows.push({ id: f.id, cls: 'ok', label: chipLabel(p) }); continue; }
       const allowed = [...f.regions, ...(f.okRegions || [])], regOk = f.regions.every((r) => p.regions.includes(r)) && p.regions.every((r) => allowed.includes(r));
@@ -752,6 +766,7 @@
     for (const p of fp) {
       if (p.matched || req.some((f) => f.id === p.id)) { delete p.matched; continue; }
       if (opt.includes(p.id)) { s += 0.05; out.rows.push({ id: p.id, cls: 'ok', label: chipLabel(p), tag: 'also true' }); continue; }
+      if ((key.neutral || []).includes(p.id)) { out.rows.push({ id: p.id, cls: 'info', label: chipLabel(p), tag: 'cannot be judged here', neutral: true }); continue; }
       wrong++; out.rows.push({ id: p.id, cls: 'bad', label: chipLabel(p) }); out.wrong = out.wrong || p;
     }
     // (an ECG whose only abnormality is its rhythm: the rhythm is the whole answer, so it carries the score;
@@ -798,6 +813,10 @@
     const L = it.lines || {}, name = BY_ID[r.id] ? BY_ID[r.id].name : r.label;
     if (r.rhythm) return r.cls === 'bad' ? `Not ${name.toLowerCase()}. ${L.rhythm}` : L.rhythm;
     if (r.cls === 'bad') return `${r.label}: not present on this ECG.`;
+    if (r.neutral && r.id === 'avb1') return `${r.label}: at this rate the P wave sits on the end of the T wave, so the PR is hard to judge by eye. The measured PR is ${it.m.pr} ms. Neither credited nor counted against you.`;
+    if (r.neutral && (r.id === 'lafb' || r.id === 'bifascicular')) return `${r.label}: in this simulator a right bundle branch block on its own already turns the axis left (about −50°), so an added left anterior fascicular block cannot be told apart. Neither credited nor counted against you.`;
+    if (r.neutral && it.key.rhythm === 'idioventricular') return `${r.label}: the QRS shape of a ventricular escape beat comes from where it starts, so this describes the escape beat rather than a separate finding. Neither credited nor counted against you.`;
+    if (r.neutral) return `${r.label}: cannot be judged on this ECG. Neither credited nor counted against you.`;
     if (L[r.id]) return L[r.id];
     return `${name}: also true on this ECG (a secondary finding), credited but not required.`;
   }
@@ -980,6 +999,7 @@
     for (const id of ['menuBtn', 'homeMenuBtn']) $(id).addEventListener('click', (e) => { e.stopPropagation(); showMenu(menu.hidden); });
     addEventListener('pointerdown', (e) => { if (!menu.hidden && !e.target.closest('#menu, #menuBtn, #homeMenuBtn')) showMenu(false); });
     menu.addEventListener('click', (e) => {
+      if (e.target.closest('a')) { showMenu(false); return; }   // (Contact, the simulator link: they open by themselves)
       const b = e.target.closest('[data-go]'); if (!b) return;
       showMenu(false);
       if (b.dataset.go === 'home') goHome();

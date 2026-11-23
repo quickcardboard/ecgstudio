@@ -128,6 +128,13 @@
     avnFirstDegreeMul: 2.6, // AV-nodal delay factor for 1st-degree block
     // Wenckebach AV node recovery curve: AH = AHmin + α·exp(−(R − Reff)/τ), R = time since last His activation
     wkAHmin: 110, wkAlpha: 260, wkTau: 180, wkReff: 520,
+    // graded AV conduction disease (setBlock(site, 'severity', { s }), 0 normal … 1 complete; 2026-11-19): the degree of block
+    // emerges from the severity and the atrial rate. AV node: the Wenckebach recovery curve with AH_min, its rise and the
+    // effective recovery time growing with s (mild: long PR; then Wenckebach; then 2:1; s ≥ avnSevComplete: complete).
+    // His–Purkinje: all-or-none, an effective recovery time growing with s (constant PR, sudden 2:1) and below it a
+    // per-beat failure chance (intermittent drops: Mobitz II); s ≥ hisSevComplete: complete
+    avnSevAH: [85, 240], avnSevAlpha: 320, avnSevTau: 180, avnSevReff: [200, 1100], avnSevComplete: 0.97,
+    hisSevReff: [300, 1300], hisSevDrop: 0.35, hisSevComplete: 0.97,
     avnToneExp: 0.45,      // AV-nodal delay ∝ (72/rate)^exp (autonomic coupling)
     rbbSeptalFrac: 0.3,   // distal fraction of septal RBB giving off RV septal Purkinje (right septal face ~10 ms after the left, Durrer)
     rbbSeptalDelay: 25,    // ms extra delay into the RV septal Purkinje
@@ -204,7 +211,7 @@
     // refractoriness that varies from cell to cell (×(1 ± fibHet)), so AF wavefronts break into wavelets
     // instead of sweeping the atria as one; in sinus rhythm the P wave is broader.
     fibCv: 1, fibHet: 0.45,
-    afDefaultRate: 110, afIrregularity: 0.45, afAvnToV: 110,   // AF ventricular response: mean rate, ±fraction of RR
+    afDefaultRate: 110, afIrregularity: 0.45, afAvnToV: 110, afAvnRvrExp: 2,   // AF ventricular response: mean rate, ±fraction of RR
     flutterRingSlow: 1.1, flutterIsthmusSlow: 2.8, flutterGateTol: 0.03, flutterRadius: 25, flutterBachmannSlow: 40,
     matClMin: 380, matClMax: 640,
     ectopicDist: 25,        // ectopic atrial focus: distance (mm) from the AV node, low in the right atrium
@@ -274,7 +281,10 @@
     lmRoute: [[6, 11, -10], [17, 11, -8]],   // left main: from the aortic root ~1 cm leftward to the LAD/LCx split (offsets from the aortic-valve centre, mm; null = the old 7 mm trunk)
     d1Path: null, d2Path: null,   // diagonal waypoints [[rotational UVC, apicobasal UVC], ...] (null = built-in)
     septalPerf: [0.14, 0.3, 0.45, 0.6],      // explicit septal perforators: fractions along the LAD (e.g. [0.14, 0.3, 0.45, 0.6]); null = level rule below
-    septalSpread: 0.15,    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
+    septalSpread: 0.15,
+    siteBranches: ['S1', 'D1'],   // occludable side branches that are not drawn or offered in the simulator (Training, share links): the
+                                  // first septal perforator (S1: the septum of the first s1Bands perforator bands) and the first diagonal
+    extraBranches: ['S1', 'D1'],   // side branches drawn and offered in the simulator besides the main vessels (D2, PLV: possible, weaker patterns)    // septal perforators supply up to this far (apicobasal fraction) above their LAD origin
     ischDeadS: 0.38,       // severity above which a cell dies once the necrosis front reaches it
     occlusionDeadS: null, occlusionBorderMm: { LAD: 18 }, occlusionScarWindow: { RCA: 0 },   // occlusionScarWindow: per family, the scar window instead of scarWindow
     occlusionMarginMm: { RCA: 2 },   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
@@ -768,6 +778,7 @@
       for (let s = 1; s <= nmb; s++) mbPts.push(lerp(rbbMidP, mbEndP, s / nmb));
       const mb = this.chain(KIND.BUNDLE, SEG.RBB, mbPts, P.cvBundle, 2.0, rbbSept[rbbSept.length - 1]);
       this.rbb = rbbSept.concat(mb);
+      this.rbbBand = mb;   // (the moderator band's nodes: the page draws them on an anatomical path, see bandDisplay in src/app.js)
 
       // ---- Purkinje networks: sparse nodes over the endocardium (not basal)
       // each LV Purkinje node belongs to the territory of the nearer fascicle
@@ -914,6 +925,26 @@
       addBranch('AM', acuteIdx, [A.nearest(add([nodes[acuteIdx].x, nodes[acuteIdx].y, nodes[acuteIdx].z], [8, -45, 10]), (c) => A.label[c] === LAB.RV && A.epi[c])]);
       const PDA = addBranch('PDA', RCA[RCA.length - 1], [lvEpi(-0.7, 0.7), lvEpi(-0.75, 0.45), lvEpi(-0.7, 0.2), lvEpi(-0.5, 0.08)]);   // down the inferior groove almost to the apex
       addBranch('PLV', RCA[RCA.length - 1], [lvEpi(-1.5, 0.8), lvEpi(-1.9, 0.65)]);
+      // (test option) the first septal perforator as a vessel of its own: one node in the mid septum below its LAD origin,
+      // appended after every other node so share-link node numbers do not move
+      const X = P.extraBranches || [], SB = P.siteBranches || [];
+      if ((X.includes('S1') || SB.includes('S1')) && P.septalPerf && P.septalPerf.length) {
+        const o = branches.LAD[Math.min(branches.LAD.length - 1, Math.round(Math.min(...P.septalPerf) * (branches.LAD.length - 1)))];
+        // (drawn along its course: from the LAD into the septum, then down the mid septum through the bands it feeds, to the
+        // level of the next perforator after them; the first node carries the septal territory)
+        const fr = P.septalPerf.slice().sort((a, b) => a - b), nb = P.s1Bands || 3, ladAt = (f) => nodes[branches.LAD[Math.min(branches.LAD.length - 1, Math.round(f * (branches.LAD.length - 1)))]];
+        const z0 = A.zuvc[nodes[o].vox], zEnd = fr[nb] !== undefined ? ladAt(fr[nb]).zz !== undefined ? ladAt(fr[nb]).zz : A.zuvc[ladAt(fr[nb]).vox] : 0.3;
+        const sept = (zz) => this._nearestWhere((q) => A.label[q] === LAB.LV && !A.epi[q] && !A.endo[q] && A.zuvc[q] >= 0, (q) => Math.abs(A.phi[q] - 0.9) * 20 + Math.abs(A.zuvc[q] - zz) * 80);
+        const way = [sept(z0 - 0.05)].concat([1, 2, 3].map((k) => sept(z0 - 0.05 - (z0 - 0.05 - zEnd) * k / 3))).map((c) => A.p(c));
+        const o0 = [nodes[o].x, nodes[o].y, nodes[o].z], pts = [[0.5, o0, way[0]], [1, o0, way[0]]].map(([f, a, b]) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]).concat(way.slice(1));
+        const ids = []; let par = o;
+        for (const q of pts) {
+          const v = A.nearest(q, (w) => A.label[w] === LAB.LV);
+          nodes.push({ x: q[0], y: q[1], z: q[2], parent: par, branch: 'S1', vox: v }); par = nodes.length - 1; ids.push(par);
+        }
+        branches.S1 = ids;
+      }
+      const s1Bands = P.s1Bands || 3;   // (how many septal perforator bands, from the base, the septal site takes)
       // node UVC (for LV territory assignment)
       for (const n of nodes) { const c = n.vox; n.phi = A.phi[c]; n.zz = A.zuvc[c]; n.lv = A.label[c] === LAB.LV; }
       // ---- territories
@@ -959,12 +990,16 @@
       // (obtuse marginals OM1/OM2 of the LCx, acute marginal AM of the RCA). The other
       // side branches' territories go to the point where each branch leaves its
       // parent, so an occlusion proximal to that point still takes them.
-      const MAIN = ['LM', 'LAD', 'LCx', 'RCA', 'PDA', 'OM1', 'OM2', 'AM'];
-      const mainOf = (id) => { while (id >= 0 && !MAIN.includes(nodes[id].branch)) id = nodes[id].parent; return id; };
+      const MAIN = ['LM', 'LAD', 'LCx', 'RCA', 'PDA', 'OM1', 'OM2', 'AM'].concat(X), OWN = MAIN.concat(SB);   // (site branches keep their own territory)
+      const mainOf = (id) => { while (id >= 0 && !OWN.includes(nodes[id].branch)) id = nodes[id].parent; return id; };
       for (let c = 0; c < A.n; c++) if (voxNode[c] >= 0) voxNode[c] = mainOf(voxNode[c]);
       const allBranches = Object.assign({}, branches);                  // (every branch, offered or not: maps old share-link node numbers)
+      const sites = {}; for (const b of SB) if (branches[b] && !MAIN.includes(b)) sites[b] = branches[b];   // (occludable, not drawn)
       for (const b of Object.keys(branches)) if (!MAIN.includes(b)) delete branches[b];
-      this.coronary = { nodes, branches, allBranches, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
+      // the septal site's territory: the septum (not the free wall) of the first s1Bands perforator bands. Not a subtree:
+      // an LAD occlusion keeps taking these bands exactly as before; occluding S1 takes them alone
+      if (allBranches.S1 && perf) { const take = new Set(perf.slice(0, s1Bands)); nodes[allBranches.S1[0]].covers = (c) => A.label[c] === LAB.LV && A.phi[c] > 0.1 && A.phi[c] < 1.7 && A.zuvc[c] >= 0.2 && take.has(voxNode[c]); }
+      this.coronary = { nodes, branches, allBranches, sites, voxNode, sanNode: RCA[Math.min(2, RCA.length - 1)], avnNode: RCA[RCA.length - 1] };
     }
 
     // Flutter circuit geometry: every right-atrial voxel's angle around the
@@ -1674,6 +1709,10 @@
     // The sinus-rate control stands in for autonomic tone: vagal tone slows the
     // sinus node and AV node together, sympathetic tone speeds both, so PR
     // shortens in sinus tachycardia and lengthens in sinus bradycardia.
+    // respiratory sinus arrhythmia: opts { amp: fraction of the cycle (0.15–0.2), period: one breath (ms) }; null turns it off
+    setSinusArrhythmia(opts) {
+      this.sinusArr = opts && opts.amp > 0 ? { amp: Math.min(0.35, opts.amp), period: opts.period || 5000, t0: this.t } : null;
+    }
     setRate(bpm) {
       this.sinusBpm = bpm;
       this._avnTone = Math.pow(72 / bpm, this.P.avnToneExp);
@@ -1714,9 +1753,19 @@
           // recovery for the next beat, so PR lengthens until a P is blocked.
           this.gates.set(M.avn[0], { mode: 'av-recovery', site: 'AVN', count: 0 });
         } else if (type === 'two-to-one') gate(M.avn[0], 'conduct-1-of', 2);
+        else if (type === 'severity') {
+          const sv = Math.max(0, Math.min(1, opts.s || 0));
+          if (sv >= P.avnSevComplete) for (const c of M.avn) this.blocked[c] = 1;
+          else if (sv > 0) this.gates.set(M.avn[0], { mode: 'av-recovery', site: 'AVN', count: 0, s: sv });
+        }
         else if (type === 'complete') for (const c of M.avn) this.blocked[c] = 1;
       } else if (site === 'HIS') {
         if (type === 'mobitz2') gate(cs.HIS[1], 'drop-1-of', opts.n || 4);
+        else if (type === 'severity') {
+          const sv = Math.max(0, Math.min(1, opts.s || 0));
+          if (sv >= P.hisSevComplete) for (const c of cs.HIS) this.blocked[c] = 1;
+          else if (sv > 0) this.gates.set(cs.HIS[1], { mode: 'his-safety', site: 'HIS', count: 0, s: sv });
+        }
         else if (type === 'complete') for (const c of cs.HIS) this.blocked[c] = 1;
       } else if (type === 'complete') for (const c of cells) this.blocked[c] = 1;
       // conduction delay (incomplete block): the bundle/fascicle conducts, slowed by opts.mul
@@ -1728,13 +1777,19 @@
       this._applyAvn();
     }
     clearBlocks() { for (const s of Object.keys(this.blocks)) this.setBlock(s, null); }
+    // AF with a rapid ventricular response: sympathetic tone shortens AV-nodal refractoriness, so the node can follow
+    // 130–180/min (refractoriness scaled by (100 / rate)^afAvnRvrExp above 100/min; sinus rhythm and slower AF unchanged)
+    _afAvnScale() {
+      const v = this.arrhythmia && this.arrhythmia.type === 'af' ? this.vResponse : null;
+      return v && v > 100 ? Math.pow(100 / v, this.P.afAvnRvrExp) : 1;
+    }
     _applyAvn() {
       const tone = this._avnTone || 1;
       for (const c of this.M.avn) {
         this.cvMul[c] = tone * (this.avnBlockMul || 1) * (this._avnLae || 1) * (1 + this.P.ischAvnSlow * (this._avnIschemia || 0));
         // nodal refractoriness also follows autonomic tone (vagal lengthens, sympathetic shortens)
         // (AV-nodal ischaemia also lengthens nodal refractoriness: 1st-degree block, Wenckebach)
-        if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone * (1 + this.P.ischAvnErp * (this._avnIschemia || 0));
+        if (this.erpExtra) this.erpExtra[c] = this.P.avnErpExtra * tone * (1 + this.P.ischAvnErp * (this._avnIschemia || 0)) * this._afAvnScale();
       }
       // slow pathway: same autonomic coupling, short refractoriness; open only
       // with dual AV-node physiology and no AV-nodal block
@@ -1756,12 +1811,23 @@
       if (g.mode === 'av-recovery') {
         const P = this.P, M = this.M, R = ta - this.tAct[M.his[0]];   // recovery since last nodal output
         g.lastT = ta;
-        if (R < P.wkReff) { g.last = false; return false; }
-        const ah = P.wkAHmin + P.wkAlpha * Math.exp(-(R - P.wkReff) / P.wkTau);
+        // (graded severity g.s: the curve's three numbers from avnSev*; else the fixed Wenckebach node)
+        const sv = g.s, lerp = (r, f) => r[0] + (r[1] - r[0]) * f;
+        const reff = sv !== undefined ? lerp(P.avnSevReff, sv * sv) : P.wkReff, ahMin = sv !== undefined ? lerp(P.avnSevAH, sv) : P.wkAHmin;
+        const alpha = sv !== undefined ? P.avnSevAlpha * sv : P.wkAlpha, tau = sv !== undefined ? P.avnSevTau : P.wkTau;
+        if (R < reff) { g.last = false; return false; }
+        const ah = ahMin + alpha * Math.exp(-(R - reff) / tau);
         // spread the required nodal delay over the AV-node segments for this beat
         const mul = ah / (P.avnSegDelay * (M.avn.length - 1));
         for (const c of M.avn) this.cvMul[c] = mul;
         g.last = true; return true;
+      }
+      if (g.mode === 'his-safety') {   // (infranodal: all-or-none; the PR does not change)
+        const P = this.P, R = ta - this.tAct[this.M.csSegments.HIS[1]], sv = g.s;
+        g.lastT = ta;
+        const reff = P.hisSevReff[0] + (P.hisSevReff[1] - P.hisSevReff[0]) * sv * sv;
+        g.last = R >= reff && this.rand() >= P.hisSevDrop * sv;
+        return g.last;
       }
       g.count++; g.lastT = ta;
       g.last = g.mode === 'conduct-1-of' ? g.count % g.n === 1 % g.n    // conducts 1 of every n
@@ -1832,7 +1898,7 @@
     // h hours after onset (see _ischemicState); the ECG follows on its own.
     addOcclusion(node) {
       const M = this.M, A = M.A, vn = M.coronary.voxNode, aff = new Uint8Array(A.n);
-      for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
+      for (let c = 0; c < A.n; c++) if (M.coronary.nodes[node].covers ? M.coronary.nodes[node].covers(c) : vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
       const fam0 = this._family(M.coronary.nodes[node].branch), ob = this.P.occlusionBorderMm;
       const ins = this._makeInsult('occlusion', aff, ob && ob[fam0] !== undefined ? ob[fam0] : this.P.ischBorderMm);
       ins.node = node; ins.branch = M.coronary.nodes[node].branch;
@@ -1847,12 +1913,13 @@
     // Narrowing (flow-limiting stenosis): partial flow, so the territory downstream of the node is
     // ischaemic in its inner wall only (demand ischaemia, the subendocardial time course: ST depression and
     // T changes that resolve, no necrosis through the wall) instead of transmurally as after an occlusion
-    addStenosis(node) {
+    // opts.sev: a factor on the artery's narrowing severity (stenosisSev): <1 milder, >1 tighter (Training's mild/severe)
+    addStenosis(node, opts = {}) {
       const M = this.M, A = M.A, vn = M.coronary.voxNode, aff = new Uint8Array(A.n);
-      for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
+      for (let c = 0; c < A.n; c++) if (M.coronary.nodes[node].covers ? M.coronary.nodes[node].covers(c) : vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
       const ins = this._makeInsult('subendo', aff, this.P.ischBorderMm);
       const br = M.coronary.nodes[node].branch, fam = this._family(br);
-      const sv = typeof this.P.stenosisSev === 'number' ? this.P.stenosisSev : this.P.stenosisSev[fam];
+      const sv = (typeof this.P.stenosisSev === 'number' ? this.P.stenosisSev : this.P.stenosisSev[fam]) * (opts.sev || 1);
       const dg = this.P.stenosisBaseGain, nodes = M.coronary.nodes;
       for (let q = 0; q < ins.sev.length; q++) { const c = ins.cells[q], b = vn[c] >= 0 ? nodes[vn[c]].branch : ''; ins.sev[q] *= sv * (A.label[c] === LAB.RV ? this.P.subendoRVGain : 1) * (A.zuvc[c] > this.P.stenosisBaseZ ? dg : 1); }   // (thin, low-pressure RV: milder; the basal wall: stenosisBaseGain)
       // (stenosisGlobal: the rest of the LV inner wall shares a little of it (demand): ST depression that does not localise)
@@ -1867,7 +1934,7 @@
       ins.node = node; ins.branch = M.coronary.nodes[node].branch; ins.stenosis = true;
       return this._addInsult(ins);
     }
-    _family(br) { return /^(LAD|D\d)$/.test(br) ? 'LAD' : /^(LCx|OM\d|PLV)$/.test(br) ? 'LCx' : /^(RCA|PDA|AM)$/.test(br) ? 'RCA' : 'LM'; }
+    _family(br) { return /^(LAD|D\d|S\d)$/.test(br) ? 'LAD' : /^(LCx|OM\d|PLV)$/.test(br) ? 'LCx' : /^(RCA|PDA|AM)$/.test(br) ? 'RCA' : 'LM'; }
     // a patch of the clicked wall (same chamber, nearby in the ventricular
     // coordinates, so the opposite wall across the cavity is not included)
     addSubendocardial(cell, radiusMm = 28) {
@@ -1917,7 +1984,7 @@
       this.wellens = type === 'A' || type === 'B' ? type : null;
       if (this.wellens && !this._wellensMap) {
         const M = this.M, A = M.A, vn = M.coronary.voxNode, lad = M.coronary.branches.LAD, node = lad[Math.round(lad.length * this.P.wellensAt)], aff = new Uint8Array(A.n);
-        for (let c = 0; c < A.n; c++) if (vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
+        for (let c = 0; c < A.n; c++) if (M.coronary.nodes[node].covers ? M.coronary.nodes[node].covers(c) : vn[c] >= 0 && M.isDownstream(vn[c], node)) aff[c] = 1;
         const ins = this._makeInsult('wellens', aff, this.P.ischBorderMm);
         this._wellensMap = new Map(); for (let q = 0; q < ins.cells.length; q++) this._wellensMap.set(ins.cells[q], ins.sev[q]);
       }
@@ -2427,8 +2494,12 @@
     vulnerable() { return this.insults.length > 0 && this.ischemiaHours >= 0.1 && this.ischemiaHours <= 48; }
 
     // ventricular response in AF and flutter (bpm; null = natural for flutter, default for AF)
-    setVentricularResponse(bpm) {
+    // opts.variable (flutter): conduction ratios drawn at random beat by beat (e.g. [2, 4]: variable 2:1–4:1 block),
+    // so the response is irregular; bpm then only sets the first ratio
+    setVentricularResponse(bpm, opts = {}) {
       this.vResponse = bpm || null;
+      this.vVariable = Array.isArray(opts.variable) && opts.variable.length ? opts.variable.slice() : null;
+      if (this.erpExtra) this._applyAvn();
       if (this.arrhythmia && this.arrhythmia.type === 'flutter') this._setFlutterRatio();
     }
     // flutter: the AV node conducts one in N flutter waves (N from the set ventricular rate). The gate
@@ -2441,13 +2512,13 @@
       const n = this.vResponse ? Math.max(2, Math.round(60000 / this.vResponse / cl)) : 0;
       // (the slow pathway enters the node lower down: its last cell is gated by the same rule)
       const slow = this.M.avnSlow || [];
-      this._flutterRatio = n ? { cell: this.M.avn[0], cells: new Set([this.M.avn[0]].concat(slow.length ? [slow[slow.length - 1]] : [])), n, rr: n * cl, cl, lastPass: -1e9, lastT: -1e9, last: true } : null;
+      this._flutterRatio = n ? { cell: this.M.avn[0], cells: new Set([this.M.avn[0]].concat(slow.length ? [slow[slow.length - 1]] : [])), n, rr: n * cl, cl, lastPass: -1e9, lastT: -1e9, last: true, variable: this.vVariable } : null;
     }
     _flutterPass(ta) {
       const g = this._flutterRatio;
       if (ta - g.lastT < 60) return g.last;                    // converging wavelets share one decision
       g.lastT = ta; g.last = ta - g.lastPass >= g.rr - 0.5 * g.cl;
-      if (g.last) g.lastPass = ta;
+      if (g.last) { g.lastPass = ta; if (g.variable) g.rr = g.variable[Math.floor(this.rand() * g.variable.length)] * g.cl; }
       return g.last;
     }
 
@@ -2481,6 +2552,17 @@
     // DC shock: every excitable cell is depolarised at once, so no wavefront
     // can find excitable tissue ahead of it; drivers stop; the sinus node
     // (reset by the shock) takes over again.
+    // end every wave in the atria (and nothing else): leaving AF for another rhythm, so no fibrillatory wavelet
+    // survives in the left atrium (the ventricles and the conduction system are untouched)
+    resetAtria() {
+      const M = this.M, t = this.t;
+      for (let c = 0; c < M.nCells; c++) {
+        if (M.kind[c] !== KIND.ATRIAL || M.seg[c] || this.blocked[c]) continue;
+        if (t < this.refEnd[c]) this.refEnd[c] = Math.max(this.refEnd[c], t + this.P.shockRefractory);
+        this.arrive[c] = Infinity;
+      }
+      this.rhythmChangedAt = t;
+    }
     shock() {
       this.stopArrhythmia();
       const M = this.M, t = this.t;
@@ -2726,7 +2808,9 @@
       for (const pm of this.pacemakers) {
         if (pm.cl <= 0 || this.blocked[pm.cell] || (pm.armed && !pm.armed())) continue;
         if (pm.name === 'sinus' && (this.sinusArrest || t < this.sinusPauseUntil || (this.arrhythmia && (this.arrhythmia.type === 'ectopic' || this.arrhythmia.type === 'mat')))) continue;
-        if (t - this.tAct[pm.cell] >= pm.cl && t >= this.refEnd[pm.cell]) {
+        // (respiratory sinus arrhythmia: the sinus cycle follows breathing, shorter in inspiration)
+        const cl = pm.name === 'sinus' && this.sinusArr ? pm.cl * (1 + this.sinusArr.amp * Math.sin(2 * Math.PI * (t - this.sinusArr.t0) / this.sinusArr.period)) : pm.cl;
+        if (t - this.tAct[pm.cell] >= cl && t >= this.refEnd[pm.cell]) {
           // SA exit block: the node keeps its rhythm, but every nth impulse fails to exit
           if (pm.name === 'sinus' && this.saExit && ++this.saExit.count % this.saExit.n === 0) {
             this.tAct[pm.cell] = t; this.fireLog.push({ name: 'sinus-blocked', t });

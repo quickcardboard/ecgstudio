@@ -29,7 +29,7 @@ for k, v in (('{{AUTHOR}}', htmlmod.escape(site['author'])), ('{{CONTACT}}', con
              ('{{VERSION}}', datetime.date.today().isoformat() + (f' ({rev})' if rev else ''))):
     html = html.replace(k, v)   # (the page shell only: done before the scripts and data are inlined)
 cf = site.get('contactForm', '').strip()   # (a contact page exists only with a form: tools/learn_pages.py)
-html = html.replace('{{CONTACT_LINK}}', ' Questions or feedback: the <a href="https://ecgstudio.app/contact/" target="_blank" rel="noopener">contact form</a>.' if cf else '')
+html = html.replace('{{CONTACT_HIDDEN}}', '' if cf else ' hidden')   # (Contact in the menus, below Help)
 # search-engine ownership checks (site.json "verify": {"google-site-verification": "<code>", "msvalidate.01": "<code>"})
 html = html.replace('{{VERIFY}}', ''.join(f'\n<meta name="{htmlmod.escape(k)}" content="{htmlmod.escape(v)}">' for k, v in site.get('verify', {}).items() if v), 1)
 anatomy = (src / 'anatomy.json').read_text()
@@ -45,6 +45,10 @@ for key, f in (('/*__THREE__*/', 'three.min.js'), ('/*__ORBIT__*/', 'OrbitContro
     assert '</script' not in js
     html = html.replace(key, js, 1)
 html = html.replace('/*__ENGINE__*/', (src / 'engine.js').read_text(), 1)
+# the simulation worker (src/simworker.js): kept as text, started from a blob URL with the engine's own source
+simw = (src / 'simworker.js').read_text()
+assert '</script' not in simw
+html = html.replace('/*__SIMWORKER__*/', simw, 1)
 html = html.replace('/*__APP__*/', (src / 'app.js').read_text(), 1)
 tour = (src / 'tutorial.js').read_text()   # (the interactive tutorial: the simulator's steps and Training's)
 assert '</script' not in tour
@@ -92,6 +96,7 @@ self.onmessage = (e) => {
 };
 ''')
 t = with_logo((src / 'training.html').read_text()).replace('{{AUTHOR}}', htmlmod.escape(site['author'])).replace('{{VERSION}}', datetime.date.today().isoformat() + (f' ({rev})' if rev else ''))
+t = t.replace('{{CONTACT_HIDDEN}}', '' if cf else ' hidden')
 t = t.replace('{{PREMIUM}}', '1' if site.get('premium') else '0')   # (premium for everyone: docs/PREMIUM_PLAN.md)
 t = t.replace('{{REPORT_FORM}}', htmlmod.escape(site.get('reportForm', '').strip()))   # (Google Form prefill link: problem reports)
 for key, text in (('/*__INAPP__*/', inapp), ('/*__VOCAB__*/', json.dumps((src / 'training_vocab.txt').read_text())),

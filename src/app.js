@@ -43,6 +43,7 @@
     if (!window.THREE) { setLoading('The 3D library could not load. Check your connection and reload.'); return; }
     await tick();
     LH.setDefaultTorso(null); LH.setDefaultTorso2(JSON.parse($('torso-data').textContent));   // limb leads from the solved torso
+    startSimWorker();
     const scen = readScenario();
     setMode();
     await buildHeart();
@@ -132,6 +133,7 @@
   function newSim(keepEcg = false) {
     if (keepEcg && S) ecg.t0 = (ecg.t0 + S.t) % PAGE; else ecg.t0 = 0;
     S = new LH.Sim(M, { seed: 1 });
+    bridgeSim(S);
     S.setRate(ui.rate);
     S.setDualAVN(!!ui.struct.dual);                                  // (off unless the condition is on: the slow pathway is open by default in the engine)
     for (const c of CONDITIONS) if (c.apply && ui.struct[c.id]) c.apply(ui.struct[c.id]);
@@ -147,10 +149,90 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Simulation worker (src/simworker.js): the engine steps in a background thread
+  // ---------------------------------------------------------------------------
+  // The page keeps a replica Sim that never steps. Commands (set…, add…, start…, shock, stimulate…) run on the replica
+  // at once, so the controls, lists and interpretation see their effect immediately, and are forwarded to the worker,
+  // which steps the time each frame owes and sends a snapshot back: time, per-cell activation (3D colours), the ECG
+  // samples, the beat and event logs and the rhythm state, written into the replica. Without workers (or with
+  // ?noworker), or if the worker fails, the page steps the engine itself as before.
+  const SIMW = { w: null, on: false, pending: 0, carry: 0, owed: 0, bufs: [], simId: 0 };
+  const SIM_CMD = /^(set|add|remove|clear|start|stop|shock|give|stimulate|reset)/;
+  function startSimWorker() {
+    try {
+      if (!window.Worker || !window.Blob || /(^|[?&])noworker\b/.test(location.search.slice(1))) return;
+      const src = $('engine-js').textContent + '\n' + $('simworker-js').textContent;
+      SIMW.w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+      SIMW.w.onmessage = onSimMessage;
+      SIMW.w.onerror = (e) => { e.preventDefault(); simWorkerFailed(e.message); };
+      SIMW.w.postMessage({ type: 'init', anatomy: $('anatomy-data').textContent, torso: JSON.parse($('torso-data').textContent) });
+      SIMW.on = true;
+    } catch (err) { SIMW.w = null; SIMW.on = false; }
+  }
+  function simWorkerFailed(msg) {
+    if (!SIMW.on) return;
+    console.error('Simulation worker stopped; stepping on the page instead:', msg);
+    SIMW.on = false; try { SIMW.w.terminate(); } catch (e) { /* (already gone) */ }
+    newSim(true);   // (a fresh simulation on the page: the replica's own state never stepped)
+  }
+  // the replica: commands run here and go to the worker too (only the outermost call: a command that calls
+  // another one internally is not sent twice)
+  function bridgeSim(sim) {
+    if (!SIMW.on) return;
+    const proto = Object.getPrototypeOf(sim); let depth = 0;
+    for (const m of Object.getOwnPropertyNames(proto)) {
+      if (!SIM_CMD.test(m) || typeof proto[m] !== 'function') continue;
+      const f = proto[m];
+      sim[m] = function (...args) {
+        depth++; let r;
+        try { r = f.apply(sim, args); } finally { depth--; }
+        if (!depth && SIMW.on && sim === S) SIMW.w.postMessage({ type: 'cmd', m, args });
+        return r;
+      };
+    }
+    // run (a share link's healthy stretch): the replica runs it too, so its beat is there to compare with at once
+    // (its samples are the same as the worker's, written to the same places)
+    const run = proto.run;
+    sim.run = (ms) => { depth++; try { run.call(sim, ms); } finally { depth--; } if (SIMW.on) SIMW.w.postMessage({ type: 'cmd', m: 'run', args: [ms] }); };
+    const ends = proto.beatEnds;
+    sim.beatEnds = (vb) => vb.ends || ends.call(sim, vb);
+    const ho = LH.hypertrophyOptions(ui.struct);
+    SIMW.simId++; SIMW.pending = 0; SIMW.carry = 0;
+    SIMW.w.postMessage({ type: 'heart', key: heartKey(), anatomy: ho.anatomy, params: ho.params });
+    SIMW.w.postMessage({ type: 'sim', simId: SIMW.simId, opts: { seed: 1 } });
+  }
+  function onSimMessage(e) {
+    const s = e.data;
+    if (s.type === 'error') { simWorkerFailed(s.message); return; }
+    if (s.type === 'idle') { SIMW.pending = Math.max(0, SIMW.pending - 1); return; }
+    if (s.type !== 'snap') return;
+    SIMW.pending = Math.max(0, SIMW.pending - 1);
+    SIMW.bufs.push(s.tAct, s.apd);
+    if (s.simId !== SIMW.simId || !S) return;                  // (a snapshot of a simulation since replaced)
+    const tm0 = performance.now(); perf.tSim += s.ms; SIMW.owed = s.owed;
+    S.t = s.t; S.tAct.set(s.tAct); S.apd.set(s.apd);
+    if (s.nS) {
+      const L = new Float32Array(12), ls = S.listeners;
+      for (let i = 0; i < s.nS; i++) { L.set(s.samples.subarray(12 * i, 12 * i + 12)); for (const f of ls) f(s.sT0 + i, L); }
+      perf.steps += s.nS;
+    }
+    S.log.vent = s.vent; S.log.atrial = s.atrial;
+    S.fireLog = s.fireLog; S.stimLog = s.stimLog; if (s.apLog) S.apLog = s.apLog; if (s.retroLog) S.retroLog = s.retroLog;
+    S.rhythmChangedAt = s.rhythmChangedAt; S.sinusPauseUntil = s.sinusPauseUntil; S.adenosine = s.adenosine; S.vResponse = s.vResponse;
+    if (s.dipole) S.dipole = Float32Array.from(s.dipole);
+    // the rhythm can change by itself (an R-on-T beat starts VF): the replica follows the worker
+    if (!s.arr) S.arrhythmia = null;
+    else if (!S.arrhythmia || S.arrhythmia.type !== s.arr.type) S.arrhythmia = { ...s.arr };
+    else Object.assign(S.arrhythmia, s.arr);
+    if (s.cls) { if (!S.drivers[0]) S.drivers[0] = {}; S.drivers[0].cls = s.cls; }
+    perf.tMain += performance.now() - tm0;
+  }
+
+  // ---------------------------------------------------------------------------
   // Main loop: advance simulated time by wall time × time scale (1 ms steps)
   // ---------------------------------------------------------------------------
   let interpTimer = 0;
-  const perf = { frames: 0, steps: 0, tSim: 0, t3d: 0, tEcg: 0 };
+  const perf = { frames: 0, steps: 0, tSim: 0, t3d: 0, tEcg: 0, tMain: 0 };   // (tMain: simulation work on the page's own thread)
   // Adaptive quality: the simulation and the ECG keep real time first. If the
   // simulation falls behind (slow machine, large window), the 3D view is drawn
   // less often (down to ~15 fps) and then at a lower resolution; it recovers
@@ -177,7 +259,19 @@
     if (ui.necTween) animateNecrosis(now);
     // frames slower than ~30 fps (GPU-bound 3D included) count as falling behind
     let behind = raw > 34;
-    if (!ui.paused) {
+    if (!ui.paused && SIMW.on) {
+      // (the simulation steps in the worker: ask for the time this frame owes, at most two requests in flight)
+      ui.acc += dt * SCALES[ui.scaleIdx];
+      const n = Math.floor(ui.acc); ui.acc -= n; SIMW.carry = Math.min(SIMW.carry + n, 250);
+      if (SIMW.pending < 2 && SIMW.carry >= 1) {
+        const bufs = SIMW.bufs.splice(0);
+        SIMW.w.postMessage({ type: 'advance', ms: SIMW.carry, budget: 30, bufs }, bufs.map((b) => b.buffer));
+        SIMW.pending++; SIMW.carry = 0;
+      }
+      if (SIMW.owed > 60 || SIMW.carry > 60) behind = true;
+      checkAvnrt();
+      adaptQuality(behind);
+    } else if (!ui.paused) {
       ui.acc += dt * SCALES[ui.scaleIdx];
       let n = Math.floor(ui.acc); ui.acc -= n;
       if (n > MAX_STEPS_PER_FRAME) { n = MAX_STEPS_PER_FRAME; ui.acc = 0; behind = true; }
@@ -189,7 +283,7 @@
         if ((i & 3) === 3 && performance.now() - t0 > 60) { ui.acc = Math.min(ui.acc + n - i - 1, 150); behind = true; break; }
       }
       if (ui.acc > 60) behind = true;
-      perf.tSim += performance.now() - t0; perf.steps += n;
+      perf.tSim += performance.now() - t0; perf.tMain += performance.now() - t0; perf.steps += n;
       checkAvnrt();
       adaptQuality(behind);
     }
@@ -197,7 +291,7 @@
     const t1 = performance.now();
     if (++Q.frame % Q.every === 0 || ui.paused) update3D();
     const t2 = performance.now();
-    drawECG(); drawPhone();
+    const fullNow = ecg.full; drawECG(); popFrame(fullNow); drawPhone();
     perf.t3d += t2 - t1; perf.tEcg += performance.now() - t2; perf.frames++;
     if ((interpTimer += dt) > 300) { interpTimer = 0; syncRate(); interpret(); updateFloat(); syncRhythmUI(); }
     $('clock').textContent = `t ${(S.t / 1000).toFixed(3)} s · ${SCALE_LABEL[ui.scaleIdx]}${ui.paused ? ' · paused' : ''}`;
@@ -255,6 +349,7 @@
     const ctl = g3.controls = new THREE.OrbitControls(cam, canvas);
     ctl.enableDamping = true; ctl.dampingFactor = 0.12; ctl.enablePan = true; ctl.screenSpacePanning = true;   // (two fingers: pinch, pan and, below, twist)
     ctl.minDistance = 140; ctl.maxDistance = 900;
+    ctl.enableRotate = false;   // (turning is the trackball's, initTrackball: about the screen's axes, no lock at the poles)
     setView('external'); setCut(0); cameraPreset('front');
     new ResizeObserver(resize3D).observe($('pane3d'));
     resize3D();
@@ -501,8 +596,29 @@
     const l = Math.hypot(d[0], d[1], d[2]);
     return l ? [d[0] / l, d[1] / l, d[2] / l] : [0, 0, 0];
   }
+  // Moderator band, drawing only: the model's band (its physics) runs from the mid-septum to the paraseptal anterior RV
+  // wall high up (docs/DEVELOPMENT.md, "Moderator band position": the anatomical insertion swings the normal axis), so it
+  // is drawn on the anatomical path instead, forward and down to the base of the anterior papillary muscle on the free
+  // wall (rotational UVC ~45°, zuvc ~0.33). Each drawn point still takes the colour of the matching band node, so the
+  // timing shown is the model's.
+  function bandDisplay() {
+    const ids = M.rbbBand || [], out = new Map();
+    if (ids.length < 2) return out;
+    const tgt = 45 * Math.PI / 180; let best = -1, bs = Infinity;
+    for (let c = 0; c < A.n; c++) {
+      if (A.label[c] !== LH.LAB.RV || !A.endo[c] || !(A.zuvc[c] >= 0)) continue;
+      const dphi = Math.abs(Math.atan2(Math.sin(A.phi[c] - tgt), Math.cos(A.phi[c] - tgt))), sc = Math.abs(A.zuvc[c] - 0.33) * 60 + dphi * 40;
+      if (sc < bs) { bs = sc; best = c; }
+    }
+    if (best < 0) return out;
+    const end = A.p(best), first = ids[0], prev = M.csSegments.RBB[M.csSegments.RBB.indexOf(first) - 1];
+    const start = prev !== undefined ? [M.x[prev], M.y[prev], M.z[prev]] : [M.x[first], M.y[first], M.z[first]];
+    ids.forEach((id, i) => { const f = (i + 1) / ids.length; out.set(id, [0, 1, 2].map((k) => start[k] + (end[k] - start[k]) * f)); });
+    return out;
+  }
+  const csPos = (id) => (g3.bandPos && g3.bandPos.get(id)) || [M.x[id], M.y[id], M.z[id]];
   function nodePos(id, lift = 1.6) {
-    const p = [M.x[id], M.y[id], M.z[id]];
+    const p = csPos(id);
     const c = nearestTissue(p[0], p[1], p[2]);
     if (c < 0) return p;
     const d = towardCavity(c);
@@ -512,6 +628,7 @@
   function buildConduction() {
     const grp = g3.cs = new THREE.Group(); g3.inner.add(grp);
     g3.tubes = []; g3.pickTubes = [];
+    g3.bandPos = bandDisplay();
     const segs = M.csSegments;
     const last = (a) => a[a.length - 1];
     const paths = [
@@ -594,7 +711,8 @@
     const l = Math.hypot(d[0], d[1], d[2]);
     return l ? [d[0] / l, d[1] / l, d[2] / l] : [0, 0, 0];
   }
-  const MAJOR = { LM: 1.9, LAD: 1.45, LCx: 1.45, RCA: 1.5 };
+  const MAJOR = { LM: 1.9, LAD: 1.45, LCx: 1.45, RCA: 1.5, S1: 0.8 };
+  const SEE_THROUGH = ['S1'];   // (vessels inside the muscle)
   function buildCoronaries() {
     const cor = M.coronary, grp = g3.cor = new THREE.Group(); g3.inner.add(grp);
     g3.corTubes = []; g3.corPick = [];
@@ -611,21 +729,40 @@
       for (let v = 0; v < nv; v++) { const ring = Math.floor(v / (rad + 1)); map[v] = ids[Math.max(par >= 0 ? 1 : 0, Math.round(ring / tub * (ids.length - 1)))]; }
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
       const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x553333 }));
-      g3.clipMats.push(mesh.material);
+      if (!SEE_THROUGH.includes(name)) g3.clipMats.push(mesh.material);   // (a vessel inside the muscle is not cut: solid where nothing hides it, as the bundle branches)
       grp.add(mesh); g3.corTubes.push({ geo, col, map });
+      // (the septal perforator runs inside the septum: drawn see-through over the tissue, as the conduction system is, and
+      // tappable through it)
+      const deep = SEE_THROUGH.includes(name);
+      if (deep) { const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, depthTest: false, depthWrite: false })); ghost.renderOrder = 9; grp.add(ghost); }
       const pick = new THREE.Mesh(new THREE.TubeGeometry(curve, tub, name === 'LM' ? 5 : 3.6, rad, false), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-      pick.userData.map = map; grp.add(pick); g3.corPick.push(pick);
+      pick.userData.map = map; pick.userData.seeThrough = deep; grp.add(pick); g3.corPick.push(pick);
+    }
+    // where a see-through vessel leaves its parent: a short stretch of the parent drawn the same way (whole, solid where
+    // nothing hides it, see-through where it is hidden), so the branch point shows behind the pulmonary trunk and in cuts
+    for (const name of SEE_THROUGH) {
+      const ids0 = cor.branches[name]; if (!ids0) continue;
+      const par = cor.nodes[ids0[0]].parent, list = par >= 0 ? cor.branches[cor.nodes[par].branch] : null; if (!list) continue;
+      const k = list.indexOf(par), ids = list.slice(Math.max(0, k - 2), k + 3); if (ids.length < 2) continue;
+      const curve = new THREE.CatmullRomCurve3(ids.map((id) => posOf[id])), tub = (ids.length - 1) * 4, rad = 6, r = MAJOR[cor.nodes[par].branch] || 1.0;
+      const geo = new THREE.TubeGeometry(curve, tub, r, rad, false), nv = geo.attributes.position.count, col = new Float32Array(nv * 3), map = new Int32Array(nv);
+      for (let v = 0; v < nv; v++) map[v] = ids[Math.round(Math.floor(v / (rad + 1)) / tub * (ids.length - 1))];
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      grp.add(new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x553333 })));
+      const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, depthTest: false, depthWrite: false })); ghost.renderOrder = 9; grp.add(ghost);
+      g3.corTubes.push({ geo, col, map });
     }
     g3.corPos = posOf;
     g3.clots = new THREE.Group(); grp.add(g3.clots);
     g3.restCol = new Float32Array(M.nVox * 3);
     recolorIschemia();
+    corVisible();   // (a rebuilt heart in the full cut: still hidden)
   }
 
   // artery segment name for a tree node, e.g. "proximal LAD"
-  const BRANCH_NAME = { LM: 'left main', LAD: 'LAD', D1: 'first diagonal', D2: 'second diagonal', LCx: 'circumflex', OM1: 'first obtuse marginal', OM2: 'second obtuse marginal', RCA: 'RCA', AM: 'acute marginal', PDA: 'posterior descending', PLV: 'posterolateral branch' };
+  const BRANCH_NAME = { S1: 'first septal perforator', LM: 'left main', LAD: 'LAD', D1: 'first diagonal', D2: 'second diagonal', LCx: 'circumflex', OM1: 'first obtuse marginal', OM2: 'second obtuse marginal', RCA: 'RCA', AM: 'acute marginal', PDA: 'posterior descending', PLV: 'posterolateral branch' };
   function segmentName(id) {
-    const cor = M.coronary, b = cor.nodes[id].branch, list = cor.branches[b], k = list.indexOf(id), f = k / Math.max(1, list.length - 1);
+    const cor = M.coronary, b = cor.nodes[id].branch, list = cor.branches[b] || (cor.sites && cor.sites[b]) || [id], k = list.indexOf(id), f = k / Math.max(1, list.length - 1);
     if (b === 'LM') return 'left main';
     if (!['LAD', 'LCx', 'RCA'].includes(b)) return BRANCH_NAME[b];
     // proximal = up to the first side branch (D1, OM1, acute marginal)
@@ -690,13 +827,14 @@
       tb.geo.attributes.color.needsUpdate = true;
     }
     g3.clots.clear();
+    const deepMark = (m, x) => { if (SEE_THROUGH.includes(M.coronary.nodes[x.node].branch)) { m.material.depthTest = false; m.material.transparent = true; m.material.opacity = 0.85; m.renderOrder = 10; m.userData.seeThrough = true; } };
     for (const x of occl) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(2.8, 14, 10), new THREE.MeshPhongMaterial({ color: 0xffd84a, emissive: 0x6a5200 }));
-      m.position.copy(g3.corPos[x.node]); m.userData.insult = x.id; g3.clots.add(m);
+      m.position.copy(g3.corPos[x.node]); m.userData.insult = x.id; deepMark(m, x); g3.clots.add(m);
     }
     for (const x of narrow) {                                     // a narrowing: a smaller orange plaque marker
       const m = new THREE.Mesh(new THREE.SphereGeometry(2.1, 14, 10), new THREE.MeshPhongMaterial({ color: 0xff8a2a, emissive: 0x5a2a00 }));
-      m.position.copy(g3.corPos[x.node]); m.userData.insult = x.id; g3.clots.add(m);
+      m.position.copy(g3.corPos[x.node]); m.userData.insult = x.id; deepMark(m, x); g3.clots.add(m);
     }
     const any = S.insults.length > 0;
     $('legendIsch').hidden = !any;
@@ -727,7 +865,7 @@
     g3.lvCenter = new THREE.Vector3(lvc[0] / nl, lvc[1] / nl, lvc[2] / nl);
     g3.lax = lax.clone().normalize();
     g3.cutPresets = {
-      anterior: { n: nrm, p: p0, up: [0, 1, 0], dist: 395 },
+      anterior: { n: nrm, p: p0, up: [0, 1, 0], leadIUp: true, dist: 395 },   // (rolled so lead I is horizontal, for teaching)
       chest: { world: [0, 0, 1], p: g3.lvCenter, up: [0, 1, 0], dist: 395 },          // true anterior: from the front of the chest, head up (frontal plane faces the viewer)
       lateral: { world: [1, 0.05, 0.1], p: g3.lvCenter, up: [0, 1, 0], dist: 375 },   // from the patient's left
       short: { n: saN, p: saP, up: [0, 0, 1], dist: 330 },
@@ -851,6 +989,7 @@
   }
 
   const LEADS_DIST = 480;   // camera distance with the lead vectors shown (they reach past the heart)
+  function rollView() { if (g3.viewRoll) { g3.camera.rotateZ(g3.viewRoll); g3.camera.updateMatrixWorld(); } }
   function cutPreset(name) {
     const pr = g3.cutPresets[name], cam = g3.camera, ctl = g3.controls;
     g3.world.position.set(0, 0, 0); g3.world.quaternion.identity();   // (a preset undoes any twist and pan)
@@ -859,7 +998,21 @@
     const dir = pr.world ? new THREE.Vector3(...pr.world).normalize() : pr.n.clone().transformDirection(mw);
     ctl.target.set(0, 0, 0);
     cam.position.copy(dir).multiplyScalar(ui.leads ? LEADS_DIST : pr.dist);
-    cam.up.set(...pr.up); cam.lookAt(0, 0, 0); ctl.update();
+    // the screen's "up" for this preset: lead I level (the four-chamber view, for teaching) or the preset's own direction
+    const f = dir.clone().negate();
+    let up;
+    if (pr.leadIUp) {
+      // roll about the view axis so lead I (the patient's right→left line, world +x) runs level across the screen
+      const l = new THREE.Vector3(1, 0, 0).addScaledVector(f, -f.x).normalize();
+      up = new THREE.Vector3().crossVectors(l, f).normalize(); if (up.y < 0) up.negate();
+    } else up = new THREE.Vector3(...pr.up);
+    // the camera stays upright; the preset's roll is given to the heart (the world group turns about the view axis), and
+    // drags then turn the heart about the screen's own axes (initTrackball)
+    up.addScaledVector(f, -up.dot(f)).normalize();
+    const y = new THREE.Vector3(0, 1, 0).addScaledVector(f, -f.y).normalize();
+    if (up.lengthSq() > 0.5 && y.lengthSq() > 0.5) g3.world.quaternion.setFromAxisAngle(f, Math.atan2(f.dot(new THREE.Vector3().crossVectors(up, y)), up.dot(y)));
+    g3.viewRoll = 0;
+    cam.up.set(0, 1, 0); cam.lookAt(0, 0, 0); ctl.update();
     g3.planeDirty = true;
   }
 
@@ -877,7 +1030,7 @@
     };
     const lab = (L) => (c) => A.label[c] === L;
     const epiOf = (L) => (c) => A.label[c] === L && A.epi[c];
-    const mid = (ids, f = 0.5) => { const id = ids[Math.floor((ids.length - 1) * f)]; return [M.x[id], M.y[id], M.z[id]]; };
+    const mid = (ids, f = 0.5) => csPos(ids[Math.floor((ids.length - 1) * f)]);
     g3.labels = [];
     const add = (text, p, view, kind = 'anat', nrm = null, cosMin = 0) => {
       const el = document.createElement('div'); el.className = `tag ${kind}`; el.textContent = text; layer.appendChild(el);
@@ -1007,7 +1160,6 @@
       if (L === 3) put('LA', x, y, z); else if (L === 4) put('RA', x, y, z);
       else if (L === 1) {
         const ph = A.phi[c];
-        if (Math.abs(ph) < 0.4 && A.zuvc[c] > 0.2 && A.zuvc[c] < 0.8) put('Septum', x, y, z);
         if (shortish) {
           if (ph > 0.7 && ph < 2.2) put('Anterior wall', x, y, z);
           else if (Math.abs(ph) >= 2.4) put('Lateral wall', x, y, z);
@@ -1016,6 +1168,27 @@
       }
     }
     for (const L of [1, 2]) { const a = g3.cavCells[L]; for (let q = 0; q < a.length; q += 3) if (Math.abs(d(a[q], a[q + 1], a[q + 2])) < 3) put(L === 1 ? 'LV' : 'RV', a[q], a[q + 1], a[q + 2]); }
+    { // septum: walk from the RV cavity's centre to the LV cavity's (both in the cut) and label the middle of the wall crossed
+      const rv = acc.RV, lv = acc.LV, [gx, gy, gz] = A.dims, o = A.origin, h = A.h;
+      const wall = (x, y, z) => { const i = Math.floor((x - o[0]) / h), j = Math.floor((y - o[1]) / h), k = Math.floor((z - o[2]) / h);
+        if (i < 0 || j < 0 || k < 0 || i >= gx || j >= gy || k >= gz) return false; const c = A.grid[(i * gy + j) * gz + k]; return c >= 0 && A.label[c] === 1; };
+      const cav = (x, y, z, L) => { const i = Math.floor((x - o[0]) / h), j = Math.floor((y - o[1]) / h), k = Math.floor((z - o[2]) / h);
+        if (i < 0 || j < 0 || k < 0 || i >= gx || j >= gy || k >= gz) return false; const id = A.cavityComp[(i * gy + j) * gz + k]; return id > 0 && A.cavityLabel[id] === L; };
+      if (rv && lv && rv[3] >= 25 && lv[3] >= 25) {
+        // parallel crossings at steps along the long axis (kept to the cut plane); the middle of those that run RV cavity →
+        // one wall → LV cavity is mid-septum
+        const ax = g3.lax.clone().addScaledVector(nL, -g3.lax.dot(nL)).normalize(), hits = [];
+        for (let off = -40; off <= 50; off += 3) {
+          const a = [0, 1, 2].map((q) => rv[q] / rv[3] + ax.getComponent(q) * off), b = [0, 1, 2].map((q) => lv[q] / lv[3] + ax.getComponent(q) * off);
+          let t0 = -1, t1 = -1, inR = false, ok = false;
+          for (let s = 0; s <= 200; s++) { const t = s / 200, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, z = a[2] + (b[2] - a[2]) * t;
+            if (t0 < 0) { if (cav(x, y, z, 2)) inR = true; else if (inR && wall(x, y, z)) t0 = t1 = t; }
+            else if (wall(x, y, z)) t1 = t; else { ok = cav(x, y, z, 1); break; } }
+          if (ok) { const t = (t0 + t1) / 2; hits.push([0, 1, 2].map((q) => a[q] + (b[q] - a[q]) * t)); }
+        }
+        if (hits.length) acc.Septum = hits[hits.length >> 1].map((v) => v * 25).concat(25);   // (as a sum of 25, like the others)
+      }
+    }
     const valve = { 'Mitral valve': A.landmarks.MV.c, 'Tricuspid valve': A.landmarks.TV.c };
     for (const l of g3.labels) {
       if (l.view !== 'cut-dyn') continue;
@@ -1112,20 +1285,23 @@
     g3.slab.im.visible = cut;
     // clip tissue and arteries; the conduction system stays whole so it can be seen (and clicked)
     for (const m of g3.clipMats) { m.clippingPlanes = cut ? [g3.plane] : null; m.needsUpdate = true; }
-    g3.cs.visible = cut; g3.stencil.visible = cut; g3.cor.visible = true;
+    g3.cs.visible = cut; g3.stencil.visible = cut; corVisible();
     $('legendCs').hidden = !cut;
     $('legendBlock').hidden = !cut || !Object.keys(S.blocks).length;
     updateActionNote(); hideBlockMenu();
     $('hint').textContent = cut ? 'Drag to rotate · the cut always faces you' : 'Drag to rotate · scroll to zoom';
-    g3.controls.enableRotate = true;
     if (cut) g3.planeDirty = true; else $('viewName').textContent = 'external view';
   }
+  // the coronary arteries hide in the full cut (the author: as the conduction system hides in the outside view); hidden,
+  // they take no taps
+  function corVisible() { if (g3.cor) g3.cor.visible = !(ui.view === 'cutaway' && ui.cutFrac >= 100); }
   const CUT_R = 85;   // mm from the centre at which the cut plane clears the heart
   function setCut(f) {
     ui.cutFrac = f; ui.cutDepth = (1 - f / 100) * CUT_R;
     $('cutDepth').value = f; $('cutExt').setAttribute('aria-pressed', String(f === 0)); $('cutFull').setAttribute('aria-pressed', String(f === 100));
     const v = f > 0 ? 'cutaway' : 'external';
     if (v !== ui.view) setView(v);
+    corVisible();
     g3.planeDirty = true;
   }
   // camera presets: Anterior (from the chest), 4-chamber, Lateral, Apex (short axis)
@@ -1179,7 +1355,7 @@
         tb.geo.attributes.color.needsUpdate = true;
       }
     }
-    g3.controls.update();
+    g3.controls.update(); rollView();
     g3.renderer.render(g3.scene, g3.camera);
     updateOverlays();
   }
@@ -1196,22 +1372,61 @@
     LAF: [['complete', 'Left anterior fascicular block']], LPF: [['complete', 'Left posterior fascicular block']],
   };
   const SEG_SITE = { [LH.SEG.AVN]: 'AVN', [LH.SEG.HIS]: 'HIS', [LH.SEG.LBB]: 'LBB', [LH.SEG.RBB]: 'RBB', [LH.SEG.LAF]: 'LAF', [LH.SEG.LPF]: 'LPF' };   // septal fibres: drawn and blocked with the LPF
-  const isComplete = (b) => b && (b.type === 'complete' || b.type === 'arrest');
+  const isComplete = (b) => b && (b.type === 'complete' || b.type === 'arrest' || (b.type === 'severity' && b.s >= 0.97));
   function blockColour(site) { const b = S.blocks[site]; return isComplete(b) ? C.blocked : C.partial; }
   function restColourOf(id) { const site = SEG_SITE[M.seg[id]]; return site && S.blocks[site] ? blockColour(site) : C.cs; }
+  // graded AV conduction (the AV node and His–Purkinje sliders, 2026-11-19): a severity 0–1; the degree of block emerges
+  // from it and the rate (engine: setBlock(site, 'severity', { s }))
+  // (the author: named levels, not percentages) each level's severity, chosen so that at 72/min the AV node gives 1st degree,
+  // Wenckebach, 2:1 and complete block, and the His–Purkinje occasional drops, frequent drops, high grade and complete
+  const AV_LEVELS = ['Normal', 'Mild', 'Moderate', 'Severe', 'Complete'];
+  const LEVEL_SEV = { AVN: [0, 0.3, 0.6, 0.8, 1], HIS: [0, 0.45, 0.7, 0.85, 1] };
+  const levelOf = (site, v) => { const L = LEVEL_SEV[site]; let k = 0; for (let i = 0; i < L.length; i++) if (Math.abs(L[i] - v) < Math.abs(L[k] - v)) k = i; return k; };
+  const OLD_SEV = { AVN: { first: 0.3, wenckebach: 0.6, 'two-to-one': 0.8, complete: 1 }, HIS: { mobitz2: 0.5, complete: 1 } };   // (named blocks from Training and old links: where the slider shows them)
+  const sevOf = (site) => { const b = S.blocks[site]; return !b ? 0 : b.type === 'severity' ? b.s : (OLD_SEV[site] || {})[b.type] || 0; };
+  function syncAvSliders() {
+    for (const [site, id, val] of [['AVN', 'avnSev', 'avnVal'], ['HIS', 'hisSev', 'hisVal']]) {
+      const k = levelOf(site, sevOf(site)); $(id).value = k; $(val).textContent = AV_LEVELS[k];
+    }
+  }
+  function setSeverity(site, v) {
+    if (v > 0) S.setBlock(site, 'severity', { s: v }); else S.setBlock(site, null);
+    syncAvSliders();
+  }
+  // a tap on the AV node or His bundle: the sliders (Blocks panel; phones: the sheet), instead of a list or cycling
+  function showAvSliders(x, y) {
+    if (isM()) openSheet('blocks'); else if (INAPP) setTab('blocks', false, true); else autoTab('blocks');
+    const el = $('avCtl'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
+    if (x !== undefined) flash(x, y, 'AV node and His–Purkinje: use the sliders');
+  }
   function blockLabel(site) {
     const b = S.blocks[site]; if (!b) return '';
+    if (b.type === 'severity') return `${AV_LEVELS[levelOf(site, b.s)].toLowerCase()}`;
     const item = BLOCK_MENU[site].find((x) => x[0] === b.type);
     return item ? item[1] : `${SITE_NAME[site]} block`;
   }
 
   function renderBlockList() {
-    markChange(); updateBadges(); emit('blocks');
-    const sites = Object.keys(S.blocks);
+    markChange(); updateBadges(); emit('blocks'); syncAvSliders(); drawBlockChips();
+  }
+  // the Active blocks list (also redrawn when a graded AV block's reading changes, without restarting the reading)
+  // (the AV node and His–Purkinje make one entry, "AV block: <the degree it is producing>", and its × clears both)
+  function drawBlockChips() {
+    const sites = Object.keys(S.blocks), av = sites.filter((k) => k === 'AVN' || k === 'HIS'), rest = sites.filter((k) => !av.includes(k));
     $('noBlocks').hidden = !!sites.length;
     $('legendBlock').hidden = !sites.length || ui.view === 'external';
-    $('blockList').innerHTML = sites.map((s) => `<div class="bchip${isComplete(S.blocks[s]) ? '' : ' partial'}"><span>${SITE_NAME[s]}: ${blockLabel(s)}</span><button type="button" data-site="${s}" aria-label="Remove ${SITE_NAME[s]} block">×</button></div>`).join('');
-    for (const b of $('blockList').querySelectorAll('button')) b.addEventListener('click', () => { S.setBlock(b.dataset.site, null); renderBlockList(); interpret(true); });
+    const chip = (key, cls, text, aria) => `<div class="bchip${cls}"><span>${text}</span><button type="button" data-site="${key}" aria-label="Remove ${aria}">×</button></div>`;
+    const avChip = av.length ? chip('AV', av.some((k) => isComplete(S.blocks[k])) ? '' : ' partial', `AV block: ${avDegreeText(av)}`, 'the AV block') : '';
+    $('blockList').innerHTML = avChip + rest.map((k) => chip(k, isComplete(S.blocks[k]) ? '' : ' partial', `${SITE_NAME[k]}: ${blockLabel(k)}`, `${SITE_NAME[k]} block`)).join('');
+    for (const b of $('blockList').querySelectorAll('button')) b.addEventListener('click', () => { for (const k of b.dataset.site === 'AV' ? ['AVN', 'HIS'] : [b.dataset.site]) S.setBlock(k, null); renderBlockList(); interpret(true); });
+  }
+  // the degree and type the AV conduction is producing: from the reading for the sliders (before a reading, or with 1:1
+  // conduction and a normal PR, the levels set); a named block (Training, old links) by its own name
+  function avDegreeText(av) {
+    const named = av.filter((k) => S.blocks[k].type !== 'severity');
+    if (named.length) return named.map((k) => blockLabel(k)).join(', ');
+    if (ui.avDegree) return ui.avDegree;
+    return av.map((k) => `${k === 'AVN' ? 'AV node' : 'His–Purkinje'} ${AV_LEVELS[levelOf(k, S.blocks[k].s)].toLowerCase()}`).join(', ') + ' (conducting at this rate)';
   }
 
   function showBlockMenu(site, defType, x, y) {
@@ -1222,7 +1437,7 @@
       const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem');
       b.textContent = (cur && cur.type === type ? '✓ ' : '') + label;
       if (type === defType) b.classList.add('default');
-      b.addEventListener('click', () => { S.setBlock(site, type, opts || {}); hideBlockMenu(); renderBlockList(); interpret(true); });
+      b.addEventListener('click', () => { S.setBlock(site, type, opts || {}); hideBlockMenu(); renderBlockList(); interpret(true); autoTab('blocks'); });
       return b;
     });
     if (cur) {
@@ -1253,7 +1468,7 @@
   }
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
-    blocks: 'Tap the conduction system to cycle through blocks.',
+    blocks: 'Tap the conduction system to cycle through blocks; the AV node and His bundle open the sliders below.',
     ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marker again to remove it.',
   };
 
@@ -1299,13 +1514,12 @@
     if (BLOCK_MENU[site].length === 1) {
       if (S.blocks[site]) { S.setBlock(site, null); renderBlockList(); interpret(true); flash(x, y, 'Block removed'); return; }
       const [type, label, opts] = BLOCK_MENU[site][0];
-      S.setBlock(site, type, opts || {}); renderBlockList(); interpret(true);
+      S.setBlock(site, type, opts || {}); renderBlockList(); interpret(true); autoTab('blocks');
       flash(x, y, label);
       return;
     }
-    let def = BLOCK_MENU[site][0][0];
-    if (site === 'AVN') def = M.avn.indexOf(id) <= 1 ? 'first' : 'wenckebach';   // proximal node: 1st degree; distal: Wenckebach
-    showBlockMenu(site, def, x, y);
+    if (site === 'AVN' || site === 'HIS') { showAvSliders(x, y); return; }   // (the AV conduction sliders)
+    showBlockMenu(site, BLOCK_MENU[site][0][0], x, y);
   }
 
   function tissueAt(ray) {
@@ -1321,7 +1535,8 @@
   }
   function stimulateAt(c, x, y) {
     const rec = S.stimulate(c);
-    const refractory = S.t < S.refEnd[c];
+    // (with the worker the page's replica keeps no refractory state: estimated from the snapshot's activation)
+    const refractory = SIMW.on ? S.t < S.tAct[c] + S.apd[c] * S.P.erpFrac + (S.erpExtra[c] || 0) : S.t < S.refEnd[c];
     flash(x, y, refractory ? 'No capture (refractory)' : rec.ronT ? 'R-on-T!' : rec.kind === 'atrial' ? 'PAC' : 'PVC');
     if (!refractory) emit('ectopic', { kind: rec.kind });
   }
@@ -1374,7 +1589,8 @@
   // nearest vessel on screen within a fingertip (phones) or a few pixels (mouse) that is in sight (only the vessels
   // offered: side-branch nodes are not). Vessels behind the heart or behind the cut face do not count.
   function arteryAt(ray, x, y) {
-    const corHit = ray.intersectObjects(g3.corPick, false).find((h) => inSight(h.point));
+    if (!g3.cor.visible) return -1;
+    const corHit = ray.intersectObjects(g3.corPick, false).find((h) => h.object.userData.seeThrough || inSight(h.point));
     if (corHit) return corHit.object.userData.map[corHit.face.a];
     const cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld, R = (isM() ? 30 : 20) ** 2, near = [];
     g3.corPos.forEach((q, i) => {
@@ -1384,10 +1600,10 @@
       if (d < R) near.push([d, i]);
     });
     near.sort((a, b) => a[0] - b[0]);
-    for (const [, i] of near.slice(0, 12)) if (inSight(g3.corPos[i].clone().applyMatrix4(mw))) return i;
+    for (const [, i] of near.slice(0, 12)) if (SEE_THROUGH.includes(cor.nodes[i].branch) || inSight(g3.corPos[i].clone().applyMatrix4(mw))) return i;
     return -1;
   }
-  const clotAt = (ray) => ray.intersectObjects(g3.clots.children, false).find((h) => inSight(h.point));
+  const clotAt = (ray) => g3.cor.visible && ray.intersectObjects(g3.clots.children, false).find((h) => h.object.userData.seeThrough || inSight(h.point));
   const onArtery = (ray, x, y) => !!clotAt(ray) || arteryAt(ray, x, y) >= 0;   // (a marker counts too)
   function pickIschemia(ray, x, y, mode = 'occlude') {
     const cut = ui.view !== 'external';
@@ -1438,6 +1654,7 @@
     if (ui.ischH === 0) setIschTime(1);                         // start an hour in, so the change is visible
     else S.setIschemiaTime(ui.ischH);
     recolorIschemia(); renderIschList(); interpret(true);
+    if (added) autoTab('ischemia');
     return added;
   }
   // click/tap = narrow (after DOUBLE_MS, so a second one can occlude instead); a second within DOUBLE_MS (by the
@@ -1455,7 +1672,7 @@
       if (d.prev === 'occlude') { flash(d.x, d.y, 'Occlusion removed'); return; }
       captureRef(); S.addOcclusion(d.node); flash(d.x, d.y, `Occluded: ${segmentName(d.node)}`);
       if (ui.ischH === 0) setIschTime(1); else S.setIschemiaTime(ui.ischH);
-      recolorIschemia(); renderIschList(); interpret(true);
+      recolorIschemia(); renderIschList(); interpret(true); autoTab('ischemia');
       return;
     }
     const e = st.last = { t: now, x, y, done: null };
@@ -1523,7 +1740,10 @@
   }
   // tabs (top row of the heart view): the open tab also sets what a click on
   // the heart does; clicking the open tab again hides the panel
-  function setTab(t, fromClick = false) {
+  // the website (not phones or the app): a block or an occlusion/narrowing just added opens its tab, so its settings (the
+  // time since onset) are at hand; the view stays as it is (the author, 2026-11-19)
+  function autoTab(t) { if (INAPP || isM() || ui.tab === t) return; setTab(t, false, true); }
+  function setTab(t, fromClick = false, keepView = false) {
     const collapsed = $('controls').classList.contains('collapsed');
     if (fromClick && t === ui.tab && !collapsed) { toggleControls(false); return; }
     const changed = t !== ui.tab;
@@ -1533,7 +1753,7 @@
     toggleControls(true);
     // opening a tab shows the view it works in: blocks cut open (the conduction system), ischemia from the outside (the
     // arteries). Only the cut changes: the heart keeps the way the user turned it (Round 66, the author)
-    if (changed || fromClick) {
+    if ((changed || fromClick) && !keepView) {
       if (t === 'blocks' && ui.cutFrac < 100) setCut(100);
       if (t === 'ischemia' && ui.cutFrac > 0) setCut(0);
     }
@@ -1551,7 +1771,7 @@
     ui.preAtrRate = mode === 'atrial' ? ui.preAtrRate : null;
     ui.rateMode = mode;
     if (vent) {
-      if (ui.vRate) S.setVentricularResponse(ui.vRate);
+      if (ui.vRate) S.setVentricularResponse(ui.vRate, { variable: ui.fVar });
       const v = S.vResponse || (arr === 'af' ? LH.DEFAULTS.afDefaultRate : 145);
       $('rateLab').textContent = 'Ventricular rate'; r.min = 30; r.max = 180; r.value = v; $('rateVal').textContent = `${Math.round(v)} bpm`;
     } else {
@@ -1646,6 +1866,9 @@
     syncRhythmUI();
   }
   function chooseRhythm(type) {
+    if (type === 'sinus' && S.arrhythmia && S.arrhythmia.type === 'af') leaveAF();   // (other rhythms: in startRhythm)
+    ui.fVar = null;   // (variable flutter block comes only from a share link)
+    S.setSinusArrhythmia(null);   // (as is sinus arrhythmia)
     if (type === 'sinus') {
       const cur = currentRhythm();
       ui.avnrt = null; ui.pendingRhythm = null; ui.rhythmFrom = S.t; S.stopArrhythmia(); markChange();
@@ -1653,8 +1876,15 @@
     } else startRhythm(type);
     syncRate(); interpret(); updateFloat(); syncRhythmUI();
   }
+  // leaving AF for another rhythm: its substrate (atrial fibrosis, added with it) goes too, and every atrial wavelet is
+  // ended, so the left atrium does not keep fibrillating under the new rhythm (the author, 2026-11-18)
+  function leaveAF() {
+    if (ui.struct.fib) setCondition('fib', false);
+    S.resetAtria();
+  }
   // start a rhythm (Rhythm menu and the heart gestures)
   function startRhythm(type) {
+    if (type !== 'af' && S.arrhythmia && S.arrhythmia.type === 'af') leaveAF();
     ui.avnrt = null; ui.pendingRhythm = null; markChange();
     if (type === 'avnrt') {
       if (S.ap) setCondition('ap', false);
@@ -1670,7 +1900,7 @@
       S.stimulateAt(A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === 3), S.nextSinus() + 270);
       return;
     }
-    if (type === 'af' && !ui.struct.fib) { setCondition('fib', true); toast('AF needs a substrate: atrial fibrosis added. It stays after a shock; remove it under Conditions.', 4200); }
+    if (type === 'af' && !ui.struct.fib) { setCondition('fib', true); toast('AF needs a substrate: atrial fibrosis added. It stays after a shock and goes when you choose another rhythm.', 4200); }
     if (type === 'vt') { let best = -1; for (let c = 0; c < A.n; c++) if (A.label[c] === 1 && A.epi[c] && A.zuvc[c] > 0.35 && A.zuvc[c] < 0.45 && A.phi[c] < -2.2) { best = c; break; } S.startArrhythmia('vt', { cell: best }); return; }
     if (type === 'mat') { ui.preAtrRate = ui.preAtrRate || ui.rate; ui.rateMode = ''; }   // WAP/MAT starts at the current rate (below 100: wandering atrial pacemaker); the slider sets it
     S.startArrhythmia(type);
@@ -1816,8 +2046,8 @@
   function interpret() {
     const arr = S.arrhythmia ? S.arrhythmia.type : null;
     if (arr === 'vf') {
-      $('rhythm').textContent = `Ventricular fibrillation${S.arrhythmia.trigger ? ' (R-on-T PVC in ischemic myocardium)' : ''}: shock now`;
-      $('chips').innerHTML = '<span class="chip flag"><em>Rhythm</em>chaotic, no QRS complexes</span>'; $('findings').innerHTML = '';
+      $('rhythm').textContent = 'Ventricular fibrillation';
+      $('chips').innerHTML = '<span class="chip flag"><em>QRS</em>none</span>'; $('findings').innerHTML = '';
       ui.snap = { rhythm: $('rhythm').textContent, arr: 'vf', B: S.blocks, findings: [] }; if (ui.tab === 'learn') renderLearn(); return;
     }
     if (S.t < ui.acqUntil) { if ($('rhythm').textContent !== 'Acquiring…') showAcquiring(); return; }
@@ -1834,7 +2064,7 @@
     const since = (S.rhythmChangedAt || -1e9) + 400;
     const recent = V.filter((b) => b.on > Math.max(since, S.t - (tachy ? (arr === 'af' || arr === 'mat' ? 6000 : 3000) : 10000)));
     if (recent.length < 2) {
-      if (S.adenosine && S.t < S.adenosine.end) { $('rhythm').textContent = 'Adenosine: transient AV-nodal block, no QRS conducted'; $('chips').innerHTML = ''; $('findings').innerHTML = ''; }
+      if (S.adenosine && S.t < S.adenosine.end) { $('rhythm').textContent = 'Transient AV block (adenosine)'; $('chips').innerHTML = ''; $('findings').innerHTML = ''; }
       return;                                                   // otherwise keep the last reading
     }
     const rrs = recent.slice(1).map((b, i) => b.on - recent[i].on);
@@ -1883,39 +2113,63 @@
     // complete AV block at any level: AV node, His, or every ventricular route
     // (RBB + LBB, or RBB + both left fascicles = bilateral/trifascicular block)
     const distal = B.RBB && (B.LBB || (B.LAF && B.LPF));
-    const avComplete = (B.AVN && B.AVN.type === 'complete') || (B.HIS && B.HIS.type === 'complete') || distal;
+    const sevFull = (b, k) => b && b.type === 'severity' && b.s >= S.P[k];
+    const avComplete = (B.AVN && B.AVN.type === 'complete') || (B.HIS && B.HIS.type === 'complete') || distal || sevFull(B.AVN, 'avnSevComplete') || sevFull(B.HIS, 'hisSevComplete');
+    // graded AV conduction (the sliders): the degree is read from the beats, as on paper. Every P in the last 10 s
+    // (before the last 0.7 s): conducted if a QRS follows within 650 ms and before the next P; then 2:1 (alternate P's
+    // blocked), high-grade (two in a row blocked), Mobitz I (the PR before a blocked P longer than after it by > 25 ms) or
+    // Mobitz II (a constant PR around the blocked P's)
+    let sevPattern = null;
+    if (((B.AVN && B.AVN.type === 'severity') || (B.HIS && B.HIS.type === 'severity')) && !avComplete && !arr) {
+      const As = Aa.filter((a) => a.on > Math.max(since, S.t - 10000) && a.on < S.t - 700);
+      const pr = As.map((a, i) => { const nx = As[i + 1] ? As[i + 1].on : a.on + 2000, v = S.log.vent.find((q) => q.on > a.on + 60 && q.on < Math.min(a.on + 650, nx + 60)); return v ? v.on - a.on : null; });
+      const drops = pr.map((x, i) => (x === null ? i : -1)).filter((i) => i >= 0);
+      if (drops.length && As.length >= 4) {
+        const alt = drops.length >= 2 && drops.every((i, k) => k === 0 || i - drops[k - 1] === 2) && pr.every((x, i) => (x === null) === ((i - drops[0]) % 2 === 0));
+        const run = drops.some((i, k) => k > 0 && i - drops[k - 1] === 1);
+        const steps = drops.filter((i) => pr[i - 1] != null && pr[i + 1] != null).map((i) => pr[i - 1] - pr[i + 1]);
+        sevPattern = alt ? 'Sinus rhythm with 2:1 AV block' : run ? 'Sinus rhythm with high-grade AV block'
+          : steps.length && steps.reduce((x, y) => x + y, 0) / steps.length > 25 ? 'Sinus rhythm with 2nd-degree AV block, Mobitz I (Wenckebach)' : 'Sinus rhythm with 2nd-degree AV block, Mobitz II';
+      }
+    }
     let rhythm;
     const vr = Math.round(rate), rrSd = rrs.length > 2 ? Math.sqrt(rrs.reduce((a, c) => a + (c - RR) ** 2, 0) / rrs.length) : 0;
     const flutterCl = arr === 'flutter' && S.drivers[0] && S.drivers[0].cls.length ? S.drivers[0].cls.reduce((a, c) => a + c, 0) / S.drivers[0].cls.length : 0;
     if (arr === 'af') {
       const pre = S.ap && QRS >= 110;
-      rhythm = `Atrial fibrillation with ${vr < 60 ? 'slow' : vr > 100 ? 'rapid' : 'controlled'} ventricular response (${vr} bpm, irregularly irregular)${pre ? ', pre-excited: conducting over the accessory pathway' : ''}`;
+      rhythm = pre ? 'Pre-excited atrial fibrillation' : `Atrial fibrillation with ${vr < 60 ? 'slow' : vr > 100 ? 'rapid' : 'controlled'} ventricular response`;
     } else if (arr === 'flutter') {
       const ar = flutterCl ? 60000 / flutterCl : 0, ratio = ar ? ar / rate : 0, fixed = rrSd < 25 && Math.abs(ratio - Math.round(ratio)) < 0.2;
-      rhythm = `Atrial flutter (${S.arrhythmia.clockwise ? 'atypical, clockwise' : 'typical, counterclockwise'}), atrial ${Math.round(ar)}/min with ${fixed ? Math.round(ratio) + ':1' : 'variable'} AV conduction`;
-    } else if (arr === 'ectopic') rhythm = `Ectopic atrial ${vr > 100 ? 'tachycardia' : 'rhythm'}: low right-atrial focus, ${vr} bpm, inverted P in II, III and aVF`;
-    else if (arr === 'mat') rhythm = vr > 100 ? `Multifocal atrial tachycardia: ${vr} bpm, irregular, three or more P-wave shapes` : `Wandering atrial pacemaker: ${vr} bpm, irregular, three or more P-wave shapes`;
-    else if (arr === 'vt') rhythm = `Monomorphic ventricular tachycardia, ${vr} bpm, with AV dissociation`;
-    else if (arr === 'tdp') rhythm = `Torsades de pointes: polymorphic ventricular tachycardia, ${vr} bpm, the QRS axis twisting around the baseline (amplitude waxing and waning)`;
-    else if (avnrt) rhythm = `AVNRT (typical slow–fast): ${vr} bpm, narrow QRS, retrograde P hidden at the end of the QRS`;
-    else if (avrt) {
-      const SITE = { 'left-lateral': 'left lateral', 'left-posterior': 'left posterior', posteroseptal: 'posteroseptal', 'right-free-wall': 'right free wall', 'right-anteroseptal': 'right anteroseptal' };
-      rhythm = `Orthodromic AVRT: down the AV node, back up the ${SITE[S.apLocation] || ''} accessory pathway (narrow QRS, no pre-excitation)`;
-    } else if (B.SAN && B.SAN.type === 'arrest') rhythm = `Sinus arrest with ${fired('ventricular') || fired('idioventricular') ? 'ventricular' : 'junctional'} escape rhythm`;
+      rhythm = `Atrial flutter with ${fixed ? Math.round(ratio) + ':1' : 'variable'} AV conduction`;
+    } else if (arr === 'ectopic') rhythm = `Ectopic atrial ${vr > 100 ? 'tachycardia' : 'rhythm'}`;
+    else if (arr === 'mat') rhythm = vr > 100 ? 'Multifocal atrial tachycardia' : 'Wandering atrial pacemaker';
+    else if (arr === 'vt') rhythm = 'Monomorphic ventricular tachycardia';
+    else if (arr === 'tdp') rhythm = 'Torsades de pointes';
+    else if (avnrt) rhythm = 'AVNRT';
+    else if (avrt) rhythm = 'Orthodromic AVRT'; else if (B.SAN && B.SAN.type === 'arrest') rhythm = `Sinus arrest with ${fired('ventricular') || fired('idioventricular') ? 'ventricular' : 'junctional'} escape rhythm`;
     else if (avComplete) {
       const esc = fired('idioventricular') ? 'idioventricular' : fired('ventricular') ? 'ventricular' : 'junctional';
       const level = distal && !(B.HIS && B.HIS.type === 'complete') && !(B.AVN && B.AVN.type === 'complete')
         ? (B.LBB ? ' (bilateral bundle branch block)' : ' (trifascicular block)') : '';
-      rhythm = `3rd-degree (complete) AV block${level} with ${esc} escape rhythm`;
+      rhythm = `Complete AV block${level} with ${esc} escape rhythm`;
     } else if (B.SAN && B.SAN.type === 'pause' && S.t < S.sinusPauseUntil + 6000) rhythm = `Sinus rhythm with sinus pause${fired('junctional') ? ' and junctional escape beats' : ''}`;
     else if (B.SAN && B.SAN.type === 'sa-exit') rhythm = 'Sinus rhythm with 2nd-degree SA exit block';
     else if (B.AVN && B.AVN.type === 'wenckebach') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz I (Wenckebach)';
     else if (B.AVN && B.AVN.type === 'two-to-one') rhythm = 'Sinus rhythm with 2:1 AV block';
     else if (B.HIS && B.HIS.type === 'mobitz2') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz II';
+    else if (sevPattern) rhythm = sevPattern;
     else if (fired('junctional')) rhythm = 'Junctional escape rhythm';
     else if (fired('ventricular') || fired('idioventricular')) rhythm = 'Ventricular escape rhythm';
     else rhythm = sinusLabel(aRate || rate);
-    if ((B.AVN && B.AVN.type === 'first') || (!B.AVN && !avComplete && !tachy && PR !== null && PR > 200 && !prVar)) rhythm += ' with 1st-degree AV block';
+    { // (graded AV conduction: what each slider is producing, for the Active blocks list)
+      const graded = ['AVN', 'HIS'].filter((k) => B[k] && B[k].type === 'severity');
+      if (graded.length) {
+        const deg = sevPattern ? (/Mobitz I \(/.test(sevPattern) ? '2nd-degree, Mobitz I (Wenckebach)' : /Mobitz II/.test(sevPattern) ? '2nd-degree, Mobitz II' : /2:1/.test(sevPattern) ? '2nd-degree, 2:1' : 'high-grade')
+          : avComplete ? '3rd-degree (complete)' : PR !== null && PR > 200 && !prVar && !tachy ? '1st-degree' : null;
+        if (deg !== ui.avDegree) { ui.avDegree = deg; drawBlockChips(); }
+      } else if (ui.avDegree) ui.avDegree = null;
+    }
+    if ((B.AVN && B.AVN.type === 'first') || ((!B.AVN || B.AVN.type === 'severity') && !sevPattern && !avComplete && !tachy && PR !== null && PR > 200 && !prVar)) rhythm += ' with 1st-degree AV block';
     // ventricular conduction
     const iv = [];
     if (!avComplete) {
@@ -1935,7 +2189,7 @@
     if (nPAC) ect.push(`${nPAC} PAC${nPAC > 1 ? 's' : ''}`);
     if (nBlockedPAC) ect.push(`${nBlockedPAC} non-conducted PAC${nBlockedPAC > 1 ? 's' : ''}`);
     if (nPVC) ect.push(`${nPVC} PVC${nPVC > 1 ? 's' : ''}`);
-    if (S.adenosine && S.t >= S.adenosine.start) rhythm += ' · adenosine: transient AV-nodal block';
+    if (S.adenosine && S.t >= S.adenosine.start) rhythm += '; transient AV block (adenosine)';
     if (ect.length && !tachy) rhythm += ` with ${ect.join(' and ')}`;
 
     const axisTxt = axis < -30 ? 'left axis deviation' : axis > 90 ? 'right axis deviation' : 'normal axis';
@@ -2006,8 +2260,10 @@
     adenosine: { t: 'Adenosine', f: ['Transient AV-nodal block for seconds: P or flutter waves continue without QRS complexes.'], p: [] },
   };
   const ISCH_TEACH = {
-    stemi: { t: 'ST-elevation myocardial infarction', f: ['ST elevation ≥ 1 mm in two contiguous leads (≥ 1.5–2.5 mm in V2–V3, depending on age and sex), measured at the J point.', 'Reciprocal ST depression in the opposite leads supports a true infarction.', 'Territory: V1–V4 anterior (LAD; add I, aVL for proximal); II, III, aVF inferior (RCA or LCx; ST elevation III > II suggests RCA); I, aVL, V5–V6 lateral (LCx, diagonals); ST depression V1–V3 posterior.'], p: ['Pericarditis gives diffuse concave ST elevation without reciprocal depression (except aVR) and with PR depression.', 'With inferior STEMI look at V1 (and right-sided leads) for right ventricular involvement.'] },
-    hyper: { t: 'Hyperacute phase', f: ['The first minutes: tall, broad, symmetric T waves over the territory before ST elevation develops.'], p: ['Compare with the patient’s baseline: hyperacute T waves are easy to miss on a single ECG.'] },
+    stemi: { t: 'ST-elevation myocardial infarction', f: ['ST elevation ≥ 1 mm in two contiguous leads (≥ 1.5–2.5 mm in V2–V3, depending on age and sex), measured at the J point.', 'Reciprocal ST depression in the opposite leads supports a true infarction.', 'Territory: V1–V2 (with V3 and aVR) septal (septal perforator); V1–V4 anterior (LAD; add I, aVL for proximal); I and aVL high lateral (first diagonal); II, III, aVF inferior (RCA or LCx; ST elevation III > II suggests RCA); I, aVL, V5–V6 lateral (LCx, diagonals); ST depression V1–V3 posterior.'], p: ['Pericarditis gives diffuse concave ST elevation without reciprocal depression (except aVR) and with PR depression.'] },
+    rvInv: { t: 'Right ventricular involvement', f: ['Any inferior STEMI can involve the right ventricle when the RCA is blocked proximally. ST elevation in V1, or more ST elevation in III than in II, makes it more likely.', 'The standard 12 leads can only suggest it. Record a 15-lead ECG: ST elevation ≥ 1 mm in the right-sided lead V4R confirms it.'], p: ['A right ventricular infarct depends on its filling pressure: nitrates and diuretics can drop the blood pressure sharply; treat hypotension with fluids.'] },
+    postInv: { t: 'Posterior involvement', f: ['Horizontal ST depression in V1–V3, often with upright T waves and a tall R wave in V2, is the mirror image of ST elevation on the posterior wall.', 'The standard 12 leads can only suggest it. Record a 15-lead ECG: ST elevation ≥ 0.5 mm in the posterior leads V7–V9 confirms a posterior STEMI.'], p: ['Read as anterior ischemia (an NSTEMI pattern), a posterior STEMI loses the urgent reperfusion it needs.'] },
+    hyper: { t: 'Hyperacute phase', f: ['The first minutes: tall, broad, symmetric T waves over the territory before ST elevation develops.', 'Judge the T against the QRS in front of it: a T whose area is large for a small QRS, in two contiguous leads, is more telling than height alone.', 'Symmetric: the T falls about as slowly as it rises, on a broad base (a normal T rises slowly and falls faster).'], p: ['Compare with the patient’s baseline: hyperacute T waves are easy to miss on a single ECG.', 'Peaked but narrow-based T waves suggest hyperkalemia rather than ischemia.'] },
     evolving: { t: 'Evolving infarct', f: ['Q waves (≥ 40 ms or ≥ 1 mm deep in two contiguous leads) or QS complexes appear within hours.', 'ST elevation resolves over days while T waves invert.', 'Lost R waves (poor R-wave progression) are the precordial equivalent of Q waves.'], p: ['Persistent ST elevation weeks after an infarct suggests a ventricular aneurysm.'] },
     old: { t: 'Old (healed) infarct', f: ['Q waves remain; ST is at baseline; T inversion often persists for months but may normalise.'], p: ['Q waves alone cannot date an infarct.'] },
     subendo: { t: 'Subendocardial ischemia (NSTEMI pattern)', f: ['Horizontal or down-sloping ST depression, often widest in V4–V6 and II, with ST elevation in aVR.', 'T waves may flatten or invert; no Q waves; the ECG may normalise after the episode.'], p: ['Caused by a narrowed artery or by demand outstripping supply: flow is reduced, not stopped, so the inner wall (farthest from the epicardial arteries, under the highest wall stress) suffers first. A complete occlusion makes the whole wall ischemic instead: ST elevation.', 'ST depression does not localise the ischemic region well; ST elevation in aVR with widespread depression suggests left main or three-vessel disease.'] },
@@ -2018,7 +2274,9 @@
     if (arr && TEACH[arr]) keys.push(arr);
     else if (s.avnrt) keys.push('avnrt'); else if (s.avrt) keys.push('avrt');
     else if (s.avComplete) keys.push('complete', 'escape');
-    else if (B.AVN && B.AVN.type === 'wenckebach') keys.push('sinus', 'wenckebach');
+    else if ((B.AVN && B.AVN.type === 'wenckebach') || /Mobitz I \(/.test(s.rhythm || '')) keys.push('sinus', 'wenckebach');
+    else if (/2:1 AV block/.test(s.rhythm || '')) keys.push('sinus', 'twoone');
+    else if (/Mobitz II|high-grade/.test(s.rhythm || '')) keys.push('sinus', 'mobitz2');
     else if (B.AVN && B.AVN.type === 'two-to-one') keys.push('sinus', 'twoone');
     else if (B.HIS && B.HIS.type === 'mobitz2') keys.push('sinus', 'mobitz2');
     else if (B.SAN && B.SAN.type === 'sa-exit') keys.push('sinus', 'saexit');
@@ -2035,6 +2293,10 @@
       const sub = S.insults.every((x) => x.kind === 'subendo'), h = ui.ischH;
       if (sub) ischK.push('subendo');
       else { if (h < 0.5) ischK.push('hyper'); if (h >= 0.5 && h < 100) ischK.push('stemi'); if (h >= 3 && h < 300) ischK.push('evolving'); if (h >= 300) ischK.push('old'); }
+      // (involvement the 12 leads only suggest, read from the analysis: right ventricle from V1, posterior wall from V1–V3)
+      const fl = (s.findings || []).join(' | ');
+      if (/right ventricular involvement|inferior STEMI|inferolateral STEMI/.test(fl)) ischK.push('rvInv');   // (right-sided leads for every inferior STEMI)
+      if (/posterior/i.test(fl)) ischK.push('postInv');
     }
     const sec = (title, list) => list.length ? `<h4>${title}</h4><ul>${list.map((x) => `<li>${x}</li>`).join('')}</ul>` : '';
     const items = keys.map((k) => TEACH[k]).filter(Boolean).concat(ischK.map((k) => ISCH_TEACH[k]));
@@ -2097,51 +2359,51 @@
         if (lo - dip > 0.015) notch = Math.max(notch, pk[b] - pk[a]);
       }
       const pDur = ab.last - ab.on + 12;                          // atrial activation plus the last front's own width
-      const tall = pII >= 0.25, broad = pDur >= 120;
-      const notchTxt = notch ? `, notched in II (humps ${Math.round(notch)} ms apart)` : '';
-      if (tall && broad) out.push(`Biatrial enlargement: P ${pII.toFixed(2)} mV in II and ${Math.round(pDur)} ms wide${notchTxt}`);
-      else if (tall) out.push(`Right atrial enlargement (P pulmonale): P ${pII.toFixed(2)} mV in II`);
-      else if (broad) out.push(`Left atrial enlargement (P mitrale): P ${Math.round(pDur)} ms wide${notchTxt}`);
+      // hypothermia slows atrial conduction too (P 118 -> 145 ms): a P broadened that way is not left atrial enlargement,
+      // so the width is read against the cold heart's own conduction (an enlarged LA still reads: 188 / 1.25 = 150 ms)
+      const pSlow = ui.struct.hypothermia ? S.P.elecHypothermiaCv : 1;
+      const tall = pII >= 0.25, broad = pDur / pSlow >= 120;
+      if (tall && broad) out.push('Biatrial enlargement');
+      else if (tall) out.push('Right atrial enlargement');
+      else if (broad) out.push('Left atrial enlargement');
     }
     const PR = ab ? vb.on - ab.on : null, QRS = S.beatEnds(vb).last - vb.on + 4;
-    if (S.ap && PR !== null && PR < 120) out.push(`Ventricular pre-excitation (WPW pattern): short PR (${Math.round(PR)} ms), delta wave, QRS ${Math.round(QRS)} ms. Repolarization changes are secondary.`);
+    if (S.ap && PR !== null && PR < 120) out.push('WPW pattern');
     if (!S.ap && !Object.keys(S.blocks).length) {
       const sok = m.V1.s + Math.max(m.V5.rMax, m.V6.rMax);
       const strainLat = ['I', 'aVL', 'V5', 'V6'].filter((n) => m[n].t < -0.08).length >= 2;
       const domR = m.V1.rMax > m.V1.s && m.V1.rMax >= 0.5;
-      if (sok >= 3.5) out.push(`Left ventricular hypertrophy by voltage (Sokolow–Lyon ${sok.toFixed(1)} mV)${strainLat ? ' with repolarization abnormality (strain)' : ''}`);   // (Sokolow–Lyon only)
-      if (domR) out.push(`Right ventricular hypertrophy: dominant R in V1 (R ${m.V1.rMax.toFixed(2)} mV)${['V1', 'V2'].every((n) => m[n].t < -0.1) ? ' with T inversion in V1–V2 (RV strain)' : ''}`);
+      if (sok >= 3.5) out.push(`Left ventricular hypertrophy${strainLat ? ' with strain' : ''}`);   // (Sokolow–Lyon only)
+      if (domR) out.push(`Right ventricular hypertrophy${['V1', 'V2'].every((n) => m[n].t < -0.1) ? ' with strain' : ''}`);
     }
     // pericarditis: diffuse ST elevation, ST depression in aVR, PR depression (PR segment against TP)
     const steLeads = ['I', 'II', 'III', 'aVL', 'aVF', 'V2', 'V3', 'V4', 'V5', 'V6'].filter((n) => m[n].st >= 0.08);
-    if (steLeads.length >= 5 && m.aVR.st <= -0.05 && !S.insults.length) {
-      const prDep = ab ? at(1, Math.floor(vb.on) - 10) - at(1, Math.floor(ab.on) - 15) : 0;
-      out.push(`Diffuse ST elevation (${steLeads.join(', ')}) with ST depression in aVR${prDep <= -0.05 ? ` and PR depression in II (${prDep.toFixed(2)} mV)` : ''}: acute pericarditis pattern`);
+    if (steLeads.length >= 5 && m.aVR.st <= -0.05 && !S.insults.length && !ui.struct.hypothermia) {   // (hypothermia's J waves raise the J point everywhere: read as Osborn waves, not pericarditis)
+      out.push('Acute pericarditis');
     }
     // Brugada type 1: coved J-point elevation ≥ 2 mm in V1–V2 ending in a negative T wave
     const cov = ['V1', 'V2'].filter((n) => { const k = L_IDX[n], b0 = at(k, qrsBaseT(vb)), J = S.beatEnds(vb).last + 6; return at(k, J + 10) - b0 >= 0.2 && at(k, vb.on + 300) - b0 < -0.05; });
-    if (cov.length) out.push(`Coved ST elevation ≥ 2 mm with T inversion in ${cov.join(', ')}: Brugada type 1 pattern`);
+    if (cov.length) out.push('Brugada type 1 pattern');
     // non-specific ST-T changes: flat T waves (within ±0.5 mm) in two contiguous leads where T is normally
     // upright, without ischemia or a cause read elsewhere (the normal heart's flattest such T, V6, is 1.2 mm)
     const st = ui.struct;
     // electrolytes and temperature: the patterns they set (Round 51)
-    if (st.hyperK) { const n = ['V2', 'V3', 'V4', 'II'].reduce((a, b) => (m[b].t > m[a].t ? b : a)); out.push(`Tall, narrow, peaked T waves (${n} ${(m[n].t * 10).toFixed(0)} mm)${st.hyperK === 'severe' ? ', flattened P waves, long PR and a wide QRS' : ''}: hyperkalemia pattern`); }
-    if (st.hypoK) out.push('Flat T waves followed by U waves (best seen in V2–V3), slight ST sagging: hypokalemia pattern');
-    if (st.hypoCa) out.push(`Long QTc${QTc ? ` (${Math.round(QTc)} ms)` : ''} from a long, flat ST segment with a normal T wave: hypocalcemia pattern`);
-    if (st.hyperCa) out.push(`Short QTc${QTc ? ` (${Math.round(QTc)} ms)` : ''}: the T wave starts almost at the end of the QRS (short ST segment): hypercalcemia pattern`);
-    if (st.hypothermia) out.push('J (Osborn) waves at the end of the QRS, long QT and bradycardia: hypothermia pattern');
+    if (st.hyperK) out.push(st.hyperK === 'severe' ? 'Severe hyperkalemia pattern' : 'Hyperkalemia pattern');
+    if (st.hypoK) out.push('Hypokalemia pattern');
+    if (st.hypoCa) out.push('Hypocalcemia pattern');
+    if (st.hyperCa) out.push('Hypercalcemia pattern');
+    if (st.hypothermia) out.push('Hypothermia pattern (Osborn waves)');
     // STEMI in LBBB: Smith-modified Sgarbossa criteria (Round 52)
     if (S.blocks.LBB && S.insults.some((x) => x.kind === 'occlusion')) {
       const L = Object.keys(m), net = (n) => m[n].rMax - m[n].s;
       const conc = L.filter((n) => net(n) > 0 && m[n].stJ >= 0.1), dep = ['V1', 'V2', 'V3'].filter((n) => net(n) < 0 && m[n].stJ <= -0.1), exc = L.filter((n) => n !== 'aVR' && net(n) < 0 && m[n].stJ >= 0.1 && m[n].stJ >= 0.25 * m[n].s);
-      const parts = [conc.length ? `concordant ST elevation in ${conc.join(', ')}` : '', dep.length ? `concordant ST depression in ${dep.join(', ')}` : '', exc.length ? `discordant ST elevation ≥ 25% of the S wave in ${exc.join(', ')}` : ''].filter(Boolean);
-      out.push(parts.length ? `LBBB with ${parts.join('; ')}: Sgarbossa criteria (modified) positive, acute STEMI` : 'LBBB: ST changes within the expected discordance (Sgarbossa criteria negative)');
+      out.push(conc.length || dep.length || exc.length ? 'Acute STEMI in LBBB (Sgarbossa positive)' : 'Sgarbossa negative');
     }
-    if (st.wellens) out.push(st.wellens === 'A' ? 'Biphasic T waves (up, then down) in V2–V3, no Q waves, ST near baseline, R waves preserved: Wellens pattern type A' : 'Deep, symmetric T-wave inversion in V2–V4, no Q waves, ST near baseline, R waves preserved: Wellens pattern type B');
+    if (st.wellens) out.push(`Wellens pattern type ${st.wellens}`);
     if (!S.insults.length && !S.ap && !st.lvh && !st.rvh && !st.peri && !st.brugada && !st.hypoK && !st.hyperK && !st.hypothermia && !st.wellens && !Object.keys(S.blocks).some((b) => ['LBB', 'RBB'].includes(b))) {
       const flat = ['I', 'II', 'aVF', 'V3', 'V4', 'V5', 'V6'].filter((n) => Math.abs(m[n].t) <= 0.05);   // (flat: within ±0.5 mm)
       const nb = { I: [], II: ['aVF'], aVF: ['II'], V3: ['V4'], V4: ['V3', 'V5'], V5: ['V4', 'V6'], V6: ['V5'] }, fc = flat.filter((n) => nb[n].some((x) => flat.includes(x)));
-      if (fc.length >= 2) out.push(`Flat T waves in ${fc.join(', ')}: non-specific ST-T changes`);
+      if (fc.length >= 2) out.push('Non-specific ST-T changes');
     }
     return out;
   }
@@ -2228,54 +2490,47 @@
       const hd = (n) => !['aVR', 'V1'].includes(n) && m[n].st80 <= -0.1 && m[n].st80 - m[n].stJ < 0.05;
       const Ds = order(contiguous(hd)), Es = order(new Set(LH.LEADS.filter((n) => m[n].st >= 0.08)));
       if (Ds.length >= 2) {
-        out.push({ head: true, text: `ST depression in ${span(Ds)}: subendocardial ischemia (NSTEMI pattern)` });
-        if (Es.length) out.push(`ST elevation in ${span(Es)} mirrors the depression (no transmural injury)`);
-      } else if (ui.ischH > 0.04) out.push({ head: true, text: 'Subendocardial ischemia here produces no diagnostic ST change' });
+        out.push({ head: true, text: `ST depression in ${span(Ds)}` });
+        if (Es.length) out.push(`ST elevation in ${span(Es)}`);
+      } else if (ui.ischH > 0.04) out.push({ head: true, text: 'No diagnostic ST change' });
       if (twi.length) out.push(`T-wave inversion in ${span(twi)}`);
       return out;
     }
     if (inf || ant || lat) {
-      const where = [ant && (lat ? 'anterolateral' : 'anterior'), inf && (lat && !ant ? 'inferolateral' : 'inferior'), lat && !ant && !inf && 'lateral'].filter(Boolean).join(' and ');
+      const sept = ant && !lat && !['V4', 'V5', 'V6'].some((n) => E.has(n));   // (V1–V3 only: the septal perforator)
+      const where = [ant && (lat ? 'anterolateral' : sept ? 'anteroseptal' : 'anterior'), inf && (lat && !ant ? 'inferolateral' : 'inferior'), lat && !ant && !inf && 'lateral'].filter(Boolean).join(' and ');
       const stage = Q.length ? (twi.length ? 'evolving' : 'acute') : 'acute';
       out.push({ head: true, text: `${stage[0].toUpperCase() + stage.slice(1)} ${where} STEMI: ST elevation in ${span(order(E))}` });
       const recip = order(new Set([...D].filter((n) => n !== 'aVR' || !inf)));
       if (recip.length) out.push(`Reciprocal ST depression in ${span(recip)}`);
-      if (inf && E.has('V1')) out.push('ST elevation in V1 with an inferior STEMI suggests right ventricular involvement (record right-sided leads)');
-      if (post && !ant) out.push('ST depression in V1–V3 suggests posterior extension');
+      if (inf && E.has('V1')) out.push('Possible right ventricular involvement');
+      if (post && !ant) out.push('Possible posterior extension');
     } else if (post) {
-      out.push({ head: true, text: `ST depression in ${span(['V1', 'V2', 'V3'].filter((n) => D.has(n)))}: consider posterior STEMI (record V7–V9)` });
+      out.push({ head: true, text: `Possible posterior STEMI: ST depression in ${span(['V1', 'V2', 'V3'].filter((n) => D.has(n)))}` });
     } else if (Q.length || rLossC.length || twi.length >= 2) {
       // ST resolved: an infarct read from its Q waves, lost R waves and T waves
       const leads = new Set(Q.concat(twi, rLossC)), has = (g) => g.filter((n) => leads.has(n)).length >= 2;
       const where = [has(['V1', 'V2', 'V3', 'V4']) && 'anterior', has(['II', 'III', 'aVF']) && 'inferior', has(['I', 'aVL', 'V5', 'V6']) && 'lateral'].filter(Boolean).join(' and ');
       // (T inversion with Q waves is seen days to months after an infarct: the age cannot be read)
       const age = twi.length >= 2 ? 'Q-wave' : 'Old';
-      out.push({ head: true, text: `${age}${where ? ' ' + where : ''} infarct${twi.length >= 2 ? ' (age undetermined: recent or old)' : ''}: ${[Q.length && `Q/QS waves in ${span(Q)}`, rLossC.length && `R waves lost in ${span(rLossC)}`, twi.length && `T inversion in ${span(twi)}`].filter(Boolean).join(', ')}, ST at baseline` });
-      return out.concat(nodalNote());
+      out.push({ head: true, text: `${age === 'Old' ? 'Old' : 'Infarct'}${where ? ' ' + where : ''}${age === 'Old' ? ' infarct' : ', age undetermined'}: ${[Q.length && `Q waves in ${span(Q)}`, rLossC.length && `R waves lost in ${span(rLossC)}`, twi.length && `T inversion in ${span(twi)}`].filter(Boolean).join(', ')}` });
+      return out;
     } else if (hyper.length >= 2) {
-      out.push({ head: true, text: `Hyperacute T waves in ${span(hyper)}: earliest sign of coronary occlusion` });
+      out.push({ head: true, text: `Hyperacute T waves in ${span(hyper)}` });
       if (D.size) out.push(`ST depression in ${span(order(D))}`);
     } else if (D.size >= 2) {
-      out.push({ head: true, text: `ST depression in ${span(order(D))}${m.aVR.st >= 0.08 ? ', ST elevation in aVR' : ''}: ischemia` });
+      out.push({ head: true, text: `ST depression in ${span(order(D))}${m.aVR.st >= 0.08 ? ', ST elevation in aVR' : ''}` });
     } else if (ui.ischH > 0.04) {
-      out.push({ head: true, text: 'No diagnostic ST change in the 12 leads' });
+      out.push({ head: true, text: 'No diagnostic ST change' });
     }
     const hyperE = hyper.filter((n) => E.has(n));
     if (hyperE.length >= 2 && out.length && !out[0].text.startsWith('Hyperacute')) out.push(`Hyperacute T waves in ${span(hyperE)}`);
     if (!S.blocks.LBB) {   // (in LBBB, Q/QS waves, R progression and T inversion cannot be read for infarction)
-      if (Q.length) out.push(`Pathological Q/QS waves in ${span(Q)}`);
+      if (Q.length) out.push(`Q waves in ${span(Q)}`);
       if (rLossC.length) out.push(`R waves lost in ${span(rLossC)}`);
       if (twi.length) out.push(`T-wave inversion in ${span(twi)}`);
     }
-    return out.concat(nodalNote());
-  }
-  function nodalNote() {
-    const san = S.insults.some((x) => x.nodal && x.nodal.san), avn = S.insults.some((x) => x.nodal && x.nodal.avn);
-    if (!(ui.ischH > 0.1 && ui.ischH < 100 && (san || avn))) return [];
-    return [san && avn
-      ? 'The occlusion is proximal to the sinus-node and AV-node arteries: sinus slowing and a longer PR'
-      : san ? 'The occlusion is proximal to the sinus-node artery: sinus slowing'
-        : 'The occlusion is proximal to the AV-node artery at the crux: slower AV conduction, longer PR'];
+    return out;
   }
 
   // ---------------------------------------------------------------------------
@@ -2354,17 +2609,18 @@
   }
   function choose(id, v) { if (v) noteRecent(id, v); setCondition(id, v); }
 
-  // what is switched on, shown outside its tab: a count on the phone's Blocks, Ischemia and Conditions tabs; on desktop
+  // what is switched on, shown outside its tab: a count on the Blocks, Ischemia and Conditions tabs (phone and desktop); on desktop also
   // the active conditions under the view name (most of them do not change the model)
   function updateBadges() {
     const n = { blocks: S ? Object.keys(S.blocks).length : 0, ischemia: S ? S.insults.length : 0, conditions: CONDITIONS.filter((c) => ui.struct[c.id]).length };
     for (const [tab, k] of Object.entries(n)) {
-      const b = document.querySelector(`#mTabs [data-tab="${tab}"]`); if (!b) continue;
-      let el = b.querySelector('.badge');
-      if (!k) { if (el) el.remove(); continue; }
-      if (!el) { el = document.createElement('span'); el.className = 'badge'; el.setAttribute('aria-hidden', 'true'); b.appendChild(el); }
-      el.textContent = k;
-      b.setAttribute('aria-label', `${b.textContent.replace(/\d+$/, '').trim()}, ${k} active`);
+      for (const b of document.querySelectorAll(`#mTabs [data-tab="${tab}"], #tabs [data-tab="${tab}"]`)) {   // (phone tabs and, the author: desktop tabs too)
+        let el = b.querySelector('.badge');
+        if (!k) { if (el) el.remove(); b.removeAttribute('aria-label'); continue; }
+        if (!el) { el = document.createElement('span'); el.className = 'badge'; el.setAttribute('aria-hidden', 'true'); b.appendChild(el); }
+        el.textContent = k;
+        b.setAttribute('aria-label', `${b.textContent.replace(/\d+$/, '').trim()}, ${k} active`);
+      }
     }
     const on = CONDITIONS.filter((c) => ui.struct[c.id]), sum = $('condSum');
     sum.hidden = !on.length;
@@ -2450,7 +2706,9 @@
     if (arr && ARR_TYPES.includes(arr)) q.set('a', arr);
     else if (ui.avnrt || (S.retroLog || []).filter((x) => x.t > S.t - 3000).length >= 4) q.set('a', 'avnrt');
     if (arr && (arr === 'af' || arr === 'flutter') && S.vResponse) q.set('v', Math.round(S.vResponse));
-    const blocks = Object.entries(S.blocks).map(([site, b]) => `${site}.${b.type}`);
+    if (arr === 'flutter' && S.vVariable) q.set('fv', S.vVariable.join('-'));
+    if (S.sinusArr) q.set('sar', `${S.sinusArr.amp}-${S.sinusArr.period}`);   // (variable flutter block, e.g. fv=2-4)
+    const blocks = Object.entries(S.blocks).map(([site, b]) => (b.type === 'severity' ? `${site}.s${Math.round(b.s * 100)}` : `${site}.${b.type}`));
     if (blocks.length) q.set('b', blocks.join(','));
     const occ = S.insults.filter((x) => x.kind === 'occlusion').map((x) => x.node), sub = S.insults.filter((x) => x.kind === 'subendo' && !x.stenosis).map((x) => x.cell), nar = S.insults.filter((x) => x.stenosis).map((x) => x.node);
     if (occ.length) q.set('o', occ.join(','));
@@ -2475,27 +2733,32 @@
     if (q.get('ap')) ui.struct.ap = true;                                // links made when WPW had a site option (ap=left-lateral)
     const a = q.get('a'), v = +q.get('v'), h = +q.get('h');
     return {
-      arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null,
-      blocks: (q.get('b') || '').split(',').map((x) => x.split('.')).filter(([site, type]) => BLOCK_MENU[site] && BLOCK_MENU[site].some((m) => m[0] === type)),
-      occ: ints('o'), nar: ints('n'), legacyCor: q.get('c') !== CORONARY_VERSION, sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
+      arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null, fVar: (q.get('fv') || '').split('-').map(Number).filter((x) => x >= 2 && x <= 6), sar: (q.get('sar') || '').split('-').map(Number),
+      blocks: (q.get('b') || '').split(',').map((x) => x.split('.')).filter(([site, type]) => BLOCK_MENU[site] && (BLOCK_MENU[site].some((m) => m[0] === type) || ((site === 'AVN' || site === 'HIS') && /^s\d{1,3}$/.test(type)))),
+      occ: ints('o'), nar: ints('n'), nsev: +q.get('ns') || 1, legacyCor: q.get('c') !== CORONARY_VERSION, sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
     };
   }
   function applyScenario(sc) {
     const nodes = M.coronary.nodes.length, sub = !SUBENDO_ON ? [] : sc.sub.filter((c) => c < A.n && (A.label[c] === LH.LAB.LV || A.label[c] === LH.LAB.RV));
-    const cor = M.coronary, offered = (list) => (sc.legacyCor ? list.map(legacyNode) : list).filter((n) => n >= 0).filter((n) => n < nodes && cor.branches[cor.nodes[n].branch]);   // offered vessels only (links made before an anatomy change may name side branches)
+    const cor = M.coronary, offered = (list) => (sc.legacyCor ? list.map(legacyNode) : list).filter((n) => n >= 0).filter((n) => n < nodes && (cor.branches[cor.nodes[n].branch] || (cor.sites && cor.sites[cor.nodes[n].branch])));   // (site branches too: S1, D1 from Training)   // offered vessels only (links made before an anatomy change may name side branches)
     const occ = offered(sc.occ), nar = offered(sc.nar);
     // a healthy stretch first, so the interpretation has this heart's normal beat to compare with
     if (sc.blocks.length || occ.length || nar.length || sub.length) { S.run(2600); captureRef(); ecg.full = true; }
-    for (const [site, type] of sc.blocks) { const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type, m[2] || {}); }
+    for (const [site, type] of sc.blocks) {
+      if (/^s\d/.test(type)) { const v = Math.min(100, +type.slice(1)) / 100; if (v > 0) S.setBlock(site, 'severity', { s: v }); continue; }   // (AV conduction sliders: AVN.s45)
+      const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type, m[2] || {});
+    }
     renderBlockList();
     if (occ.length || nar.length || sub.length) {
       for (const n of occ) S.addOcclusion(n);
-      for (const n of nar) S.addStenosis(n);
+      for (const n of nar) S.addStenosis(n, { sev: sc.nsev >= 0.3 && sc.nsev <= 2 ? sc.nsev : 1 });   // (ns: narrowing severity, from Training)
       if (SUBENDO_ON) for (const c of sub) S.addSubendocardial(c, 55);
       setIschTime(sc.h); recolorIschemia(); renderIschList();
     }
+    if (sc.sar[0] > 0) S.setSinusArrhythmia({ amp: sc.sar[0], period: sc.sar[1] || 5000 });   // (sinus arrhythmia: share links from Training)
     if (sc.arr) {
       if (sc.vRate) ui.vRate = sc.vRate;
+      ui.fVar = sc.arr === 'flutter' && sc.fVar.length ? sc.fVar : null;
       const r = ui.rate;
       startRhythm(sc.arr);
       if (sc.arr === 'mat' || sc.arr === 'ectopic') { ui.rate = r; S.setRate(r); }
@@ -2514,6 +2777,84 @@
     catch (e) {                                                   // no clipboard access (http, some browsers): show the link to copy by hand
       toast('Copy this link to share the scenario:<input readonly>', 12000);
       const inp = $('toast').querySelector('input'); inp.value = url; inp.focus(); inp.select();
+    }
+  }
+  // ---------------------------------------------------------------------------
+  // Pop-out ECG (website, desktop; the author: the ECG on the main screen for students while the heart is driven on a
+  // side screen). A second window of this page's origin: the same paper drawn into its canvas each frame (the drawing
+  // state swapped in, as for the PNG sheet), the analysis copied in, and a button that hides it (measurements only).
+  // ---------------------------------------------------------------------------
+  const POP_KEYS = ['canvas', 'ctx', 'grid', 'mm', 'W', 'H', 'ox', 'oy', 'lastCursor', 'full'];
+  const pop = { win: null, st: null, paper: null, size: '', strips: '', text: '' };
+  const POP_ONLY_KEY = 'ecgstudio.popMeasOnly';
+  function popOpen() {
+    if (pop.win && !pop.win.closed) { pop.win.focus(); return; }
+    const w = window.open('', 'ecgstudio-ecg', 'popup,width=1280,height=800');
+    if (!w) { toast('The browser blocked the new window: allow pop-ups for this site, then try again.'); return; }
+    let only = false; try { only = localStorage.getItem(POP_ONLY_KEY) === '1'; } catch (e) { /* storage unavailable */ }
+    const d = w.document;
+    d.open();
+    d.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>ECG Studio · ECG</title><style>
+html, body { margin: 0; height: 100%; background: #ffffff; color: #121b26; font: 15px/1.4 "IBM Plex Sans", system-ui, sans-serif; }
+body { display: flex; flex-direction: column; }
+header { display: flex; gap: 14px; align-items: flex-start; padding: 12px 16px 10px; border-bottom: 1px solid #e3e8ec; }
+#info { flex: 1; min-width: 0; }
+#rhythm { font-weight: 600; font-size: 18px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip { font: 500 14px/1 "IBM Plex Mono", ui-monospace, monospace; padding: 6px 9px; border-radius: 5px; background: #f2f5f7; border: 1px solid #dde3e8; }
+.chip em { font: normal 13px/1 "IBM Plex Sans", system-ui, sans-serif; color: #5d6c79; margin-right: 6px; }
+.chip.flag { border-color: #e6a0b0; background: #fdf0f3; }
+ul { margin: 6px 0 0; padding-left: 20px; }
+li.head { font-weight: 600; }
+button { font: inherit; font-size: 14px; padding: 7px 13px; border-radius: 6px; border: 1px solid #c9d2d9; background: #ffffff; color: inherit; cursor: pointer; white-space: nowrap; }
+button:hover { background: #f2f5f7; }
+#wrap { flex: 1; min-height: 0; position: relative; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+body.only #rhythm, body.only ul, body.only .ax { display: none; }
+body.only .chip.flag { border-color: #dde3e8; background: #f2f5f7; }
+body.only .chips { margin-top: 0; }
+</style></head><body${only ? ' class="only"' : ''}><header><div id="info"><div id="rhythm"></div><div class="chips" id="chips"></div><ul id="findings"></ul></div>
+<button type="button" id="toggle">${only ? 'Show analysis' : 'Measurements only'}</button></header><div id="wrap"><canvas id="c"></canvas></div></body></html>`);
+    d.close();
+    d.getElementById('toggle').addEventListener('click', () => {
+      const on = d.body.classList.toggle('only');
+      d.getElementById('toggle').textContent = on ? 'Show analysis' : 'Measurements only';
+      try { localStorage.setItem(POP_ONLY_KEY, on ? '1' : '0'); } catch (e) { /* storage unavailable */ }
+    });
+    const cv = d.getElementById('c');
+    pop.win = w; pop.st = { canvas: cv, ctx: cv.getContext('2d'), grid: document.createElement('canvas'), full: true }; pop.paper = Object.assign({}, PAPER);
+    pop.size = ''; pop.text = '';
+    $('btnPopout').textContent = 'ECG window open';
+  }
+  // draw into the pop-out with its own size and paper (the main page's state put back afterwards)
+  function withPop(fn) {
+    const keep = {}, keepP = Object.assign({}, PAPER);
+    for (const k of POP_KEYS) keep[k] = ecg[k];
+    for (const k of POP_KEYS) ecg[k] = pop.st[k];
+    Object.assign(PAPER, pop.paper);
+    try { fn(); } finally {
+      for (const k of POP_KEYS) pop.st[k] = ecg[k];
+      pop.paper = Object.assign({}, PAPER);
+      for (const k of POP_KEYS) ecg[k] = keep[k];
+      Object.assign(PAPER, keepP);
+    }
+  }
+  function popFrame(full) {
+    if (!pop.win) return;
+    if (pop.win.closed) { pop.win = null; pop.st = null; $('btnPopout').textContent = 'Pop out'; return; }
+    const d = pop.win.document, wrap = d.getElementById('wrap'); if (!wrap) return;
+    const w = wrap.clientWidth, h = wrap.clientHeight, dpr = Math.min(2, pop.win.devicePixelRatio || 1), size = `${w}x${h}x${dpr}`, strips = ui.strips.join();
+    if (!w || !h) return;
+    if (size !== pop.size || strips !== pop.strips) { pop.size = size; pop.strips = strips; withPop(() => resizeECG({ w, h, dpr })); }
+    else if (full) pop.st.full = true;   // (the main paper redrawn in full: a new run, a share link)
+    withPop(drawECG);
+    // the analysis, as on the main page (copied when it changes)
+    const text = $('rhythm').textContent + '|' + $('chips').innerHTML + '|' + $('findings').innerHTML;
+    if (text !== pop.text) {
+      pop.text = text;
+      d.getElementById('rhythm').textContent = $('rhythm').textContent;
+      d.getElementById('chips').innerHTML = $('chips').innerHTML.replace(/ · ([a-z ]+)</g, '<span class="ax"> · $1</span><');   // (measurements only: no "normal axis", no highlighted values)
+      d.getElementById('findings').innerHTML = $('findings').innerHTML;
     }
   }
   // The ECG as shown, with the interpretation above it and a "simulated" stamp
@@ -2579,11 +2920,6 @@
   const BURST_MS = 500, BURST_PX = 40, DOUBLE_MS = 350;
   const ph = { group: 0, peek: null, win: 5000, live: 'II', fsEcg: false, fsHeart: false, flip: false };
   const buzz = (ms = 10) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
-  // true the first time a tip key is seen in this browser
-  function firstTime(key) {
-    try { if (localStorage.getItem(key)) return false; localStorage.setItem(key, '1'); } catch (e) { /* no storage */ }
-    return true;
-  }
 
   function setMode() {
     const b = document.body, was = isM(), tab = MQ_TAB.matches, m = MQ_PORT.matches || MQ_LAND.matches || tab;
@@ -2667,12 +3003,12 @@
         if (isM() && sheetOpen()) toggleControls(false);   // (the desktop panel stays as the user left it)
         hideBlockMenu();
       },
-      saveView() { saved = { pos: g3.camera.position.clone(), up: g3.camera.up.clone(), tgt: g3.controls.target.clone(), wp: g3.world.position.clone(), wq: g3.world.quaternion.clone(), cut: ui.cutFrac }; },
+      saveView() { saved = { pos: g3.camera.position.clone(), up: g3.camera.up.clone(), tgt: g3.controls.target.clone(), wp: g3.world.position.clone(), wq: g3.world.quaternion.clone(), cut: ui.cutFrac, roll: g3.viewRoll || 0 }; },
       restoreView() {
         if (!saved) return;
         setCut(saved.cut);
         g3.world.position.copy(saved.wp); g3.world.quaternion.copy(saved.wq);
-        g3.controls.target.copy(saved.tgt); g3.camera.position.copy(saved.pos); g3.camera.up.copy(saved.up); g3.camera.lookAt(saved.tgt); g3.controls.update();
+        g3.viewRoll = saved.roll; g3.controls.target.copy(saved.tgt); g3.camera.position.copy(saved.pos); g3.camera.up.copy(saved.up); g3.camera.lookAt(saved.tgt); g3.controls.update(); rollView();
         g3.planeDirty = true;
       },
       outside() { setCut(0); cameraPreset('chest'); },
@@ -2848,7 +3184,6 @@
     if (on && !ph.fsEcg) {
       ph.fsEcg = true; ui.strips = ['II']; fsClass();
       openLayer('fs-ecg', () => { ph.fsEcg = false; fsClass(); });
-      $('ghint').hidden = true; firstTime('ecgstudio.tipFsEcg');
     } else if (!on && ph.fsEcg) closeLayer('fs-ecg');
   }
   // the desktop layout (tablets held sideways): the ECG alone, the heart hidden (double tap on the ECG, or back)
@@ -2900,6 +3235,7 @@
   function setBlockFrom(site, type) {
     const m = BLOCK_MENU[site].find((x) => x[0] === type);
     S.setBlock(site, type, (m && m[2]) || {});
+    autoTab('blocks');   // (tablets held sideways; nothing on phones)
   }
   function avStep() {
     const a = S.blocks.AVN, h = S.blocks.HIS;
@@ -2920,8 +3256,7 @@
         clearTimeout(avTaps.timer);
         const n = avTaps.n; avTaps.n = 0;
         if (n >= 3) { setAV(0); startRhythm('avnrt'); syncRate(); interpret(); buzz(40); flash(x, y, 'Inducing AVNRT'); return; }
-        const i = (avStep() + n) % AV_CYCLE.length, e = AV_CYCLE[i];
-        setAV(i); flash(x, y, e ? blockText(e[0], e[1]) : 'AV conduction normal');
+        showAvSliders(x, y);   // (one or two taps: the AV node and His–Purkinje sliders)
       };
       avTaps.timer = setTimeout(avTaps.commit, DOUBLE_MS);
       return;
@@ -2996,6 +3331,31 @@
   function mobileIsch(x, y, mode) {
     // (the sheet stays as it is: the time scrubber appears on the heart, and opening the Ischemia tab would move the view)
     return pickIschemia(rayAt(x, y), x, y, mode);
+  }
+  // trackball (the author, 2026-11-19): a one-finger or left-mouse drag turns the heart about the screen's axes, a
+  // sideways drag about the screen's vertical and an up-down drag about its horizontal, with no lock at the top or bottom
+  // (OrbitControls orbits about one fixed axis and stops at the poles). The heart (the world group) turns about the view's
+  // centre; zoom and pan stay the orbit controls', the two-finger twist is initTwist's. Taps keep their own movement checks.
+  function initTrackball() {
+    const canvas = $('c3d'), live = new Set(); let drag = null;
+    canvas.addEventListener('pointerdown', (e) => {
+      live.add(e.pointerId);
+      if (live.size > 1 || (e.pointerType === 'mouse' && e.button !== 0) || e.ctrlKey || e.metaKey || e.shiftKey) { drag = null; return; }   // (two fingers, right button, modifier keys: pan and zoom)
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!drag || e.pointerId !== drag.id || live.size > 1) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+      if (!dx && !dy) return;
+      const k = 2 * Math.PI / Math.max(200, canvas.clientHeight), cam = g3.camera;
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion), right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+      const q = new THREE.Quaternion().setFromAxisAngle(up, dx * k).multiply(new THREE.Quaternion().setFromAxisAngle(right, dy * k));
+      const tgt = g3.controls.target, w = g3.world;
+      w.position.sub(tgt).applyQuaternion(q).add(tgt); w.quaternion.premultiply(q);
+      if (ui.view === 'cutaway') g3.planeDirty = true;
+    });
+    const end = (e) => { live.delete(e.pointerId); if (drag && drag.id === e.pointerId) drag = null; };
+    canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
   }
   // two-finger twist (touch screens): turns the view about the line of sight, as in a map; the pinch and pan of the
   // same gesture are the orbit controls'
@@ -3155,7 +3515,7 @@
     });
     const release = (e) => {
       clearTimeout(hold); play.classList.remove('holding');
-      if (e.type === 'pointerup' && !held) { setPaused(!ui.paused); if (ui.paused && firstTime('ecgstudio.tipReset')) toast('Tip: press and hold ⏯ to reset'); }
+      if (e.type === 'pointerup' && !held) { setPaused(!ui.paused); }
     };
     play.addEventListener('pointerup', release); play.addEventListener('pointercancel', release); play.addEventListener('pointerleave', release);
     play.addEventListener('click', (e) => { if (e.detail === 0) setPaused(!ui.paused); });          // keyboard
@@ -3170,6 +3530,7 @@
       shareScenario();
     });
     $('mPng').addEventListener('click', () => { closeLayer('menu'); saveEcgPng(); });
+    $('mContact').addEventListener('click', () => { if (hasLayer('menu')) closeLayer('menu'); });   // (the link opens the contact page)
     $('mHelp').addEventListener('click', () => { showGuide(); swapLayer('menu', 'help', () => { $('guide').hidden = true; }); });
     // heart: view options, floating actions, live lead
     $('mLearn').addEventListener('click', () => { if (sheetOpen() && ui.tab === 'learn') closeLayer('sheet'); else openSheet('learn'); });
@@ -3211,14 +3572,12 @@
     $('fsExit').addEventListener('click', () => setFsEcg(false));
     $('fsFlip').addEventListener('click', () => { ph.flip = !ph.flip; fsClass(); });
     $('fsInterp').addEventListener('click', () => { const off = document.body.classList.toggle('fs-nointerp'); $('fsInterp').setAttribute('aria-pressed', String(!off)); });
-    try { if (localStorage.getItem('ecgstudio.tipFsEcg')) $('ghint').hidden = true; } catch (e) { /* no storage */ }
-    if (isM() && MQ_PORT.matches && !isT() && !(window.ECGTour && window.ECGTour.pending()) && firstTime('ecgstudio.tipPhone')) setTimeout(() => toast('Double tap the ECG to expand it, or double tap the empty space beside the model to expand the 3D view.', 7000), 800);
   }
 
   function initUI() {
     const rate = $('rate');
     rate.addEventListener('input', () => {
-      if (ui.rateMode === 'ventricular') { ui.vRate = +rate.value; S.setVentricularResponse(ui.vRate); $('rateVal').textContent = `${ui.vRate} bpm`; return; }
+      if (ui.rateMode === 'ventricular') { ui.vRate = +rate.value; S.setVentricularResponse(ui.vRate, { variable: ui.fVar }); $('rateVal').textContent = `${ui.vRate} bpm`; return; }
       ui.rate = +rate.value; $('rateVal').textContent = `${ui.rate} bpm`; S.setRate(ui.rate);
     });
     const ts = $('timescale');
@@ -3239,7 +3598,8 @@
     $('btnPause').addEventListener('click', () => setPaused(!ui.paused));
     // Reset: normal sinus rhythm at 72 bpm with no abnormalities
     $('btnReset').addEventListener('click', async () => {
-      ui.avnrt = null; ui.pendingRhythm = null; ui.preAtrRate = null; ui.vRate = null;
+      ui.avnrt = null; ui.pendingRhythm = null; ui.preAtrRate = null; ui.vRate = null; ui.fVar = null;
+      S.setSinusArrhythmia(null);
       ui.rate = 72; $('rate').value = 72;
       const prev = heartKey(), rebuild = CONDITIONS.some((c) => c.rebuild && ui.struct[c.id]);
       for (const c of CONDITIONS) ui.struct[c.id] = c.options ? '' : false;
@@ -3252,12 +3612,17 @@
       ui.ischPending = ui.ischH;                                  // applied once per frame
       syncScrub();
     });
+    // AV conduction sliders: the block follows the slider as it moves; the list, badge and reading when it is let go
+    for (const [site, id] of [['AVN', 'avnSev'], ['HIS', 'hisSev']]) {
+      $(id).addEventListener('input', (e) => setSeverity(site, LEVEL_SEV[site][+e.target.value]));
+      $(id).addEventListener('change', () => { renderBlockList(); interpret(true); });
+    }
     initRhythmMenu();
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); ui.adenoFrom = S.t; });
     $('btnShock').addEventListener('click', () => { ui.avnrt = null; ui.pendingRhythm = null; ui.rhythmFrom = S.t; S.shock(); ui.shockAt = performance.now(); markChange(); syncRate(); interpret(); syncRhythmUI(); });
     initConditions();
     for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab, true));
-    initPicking(); initTwist(); updateActionNote();
+    initPicking(); initTrackball(); initTwist(); updateActionNote();
     for (const b of $('presets').querySelectorAll('button')) b.addEventListener('click', () => cameraPreset(b.dataset.cam));
     $('cutDepth').addEventListener('input', (e) => setCut(+e.target.value));
     { // the view bar scrolls sideways when the pane is narrow: a fade at the right edge says there is more
@@ -3284,6 +3649,11 @@
       });
     }
     $('btnSavePng').addEventListener('click', saveEcgPng);
+    if (INAPP) $('btnPopout').hidden = true;   // (the website only: not the app or its /app copy)
+    else {
+      $('btnPopout').addEventListener('click', popOpen);
+      window.addEventListener('pagehide', () => { if (pop.win && !pop.win.closed) pop.win.close(); });
+    }
     $('guideClose').addEventListener('click', hideGuide);
     $('guideTour').addEventListener('click', () => { hideGuide(); setTimeout(() => window.ECGTour && window.ECGTour.start(), 350); });
     for (const b of document.querySelectorAll('#guide .toc button')) b.addEventListener('click', () => guidePage(b.dataset.page));

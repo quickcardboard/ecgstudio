@@ -2647,3 +2647,423 @@ No engine change. New crawlable content and metadata (plan and outreach drafts: 
 - Contact page `/contact/`: the Google Form in `site.json` `"contactForm"` embedded (`?embedded=true`), linked from the
   library header, Help → About and `llms.txt`; nothing is built while `contactForm` is empty. Privacy policy: a
   "Contact form" section.
+
+## claude/festive-goodall-6yao5r round 1: hypothermia no longer read as pericarditis and LAE
+
+The blind reader in `src/app.js` (`structFindings`) added two false findings to every hypothermia ECG:
+- **Pericarditis**: the Osborn waves raise the J point in most leads, which met the diffuse-ST-elevation rule. That rule now
+  does not fire when hypothermia is set (the J waves are reported in the hypothermia finding instead).
+- **Left atrial enlargement**: hypothermia slows atrial conduction as well (`elecHypothermiaCv` 1.25), so the P widens from
+  118 to 145 ms. The P width is now divided by that factor before the 120 ms test. LAE with hypothermia still reads
+  (188 ms, 150 after scaling), and LAE alone (153 ms) and pericarditis alone are read as before.
+
+The `readKeep` filter on the hypothermia library page (`src/learn/topics.json`, `tools/seo_shots.js`) is removed;
+`ecg/hypothermia/` was rebuilt and reads only the hypothermia pattern.
+
+## claude/festive-goodall-6yao5r round 2: Contact in the menus
+
+- **Contact** (the `/contact/` page, opened in a new tab) is now in the menus, below Help: in the simulator's header (desktop) and
+  its ⋯ menu (phone), and in Training's ⋯ menu (kept in the app, where Training hides its other web links).
+  The build hides it (`{{CONTACT_HIDDEN}}`) while `site.json` `contactForm` is empty.
+- The "Questions or feedback: the contact form" line is gone from Help → About in the simulator.
+
+## claude/trainer-variety round 1: rhythm mix, rate variety, repeating ectopy, sinus arrhythmia, ischaemia stages, multivessel
+
+**Rhythm mix (the author):** AF weight 3 → 5, Mobitz II 1.2 → 0.4.
+- **AF rate bands** (targets): slow 42–58 (15%), controlled 60–105 (50%), rapid 130–170 (35%). The engine's AF response was
+  capped near 113/min (AV-node refractoriness tuned for sinus rhythm; shortest RR ~520 ms): new `afAvnRvrExp` 2 scales the
+  node's extra refractoriness by (100 / rate)² above 100/min in AF only (sinus and slower AF unchanged). Response now
+  ~110–183/min (targets 140–180); above ~175 the blind read sees V1–V3 ST depression (posterior STEMI), so the band stops at 170.
+  The rhythm line names the response (slow / controlled / rapid, AF with RVR).
+- **Fixed-ratio flutter**: the line now names the ratio (2:1 … 5:1, from the rate). **Irregular flutter** (`flutterVar`, w 0.8,
+  rating 190): engine `setVentricularResponse(bpm, { variable: [2, 4] })` draws the conduction ratio beat by beat (RR ~410 /
+  620 / 810 ms); patterns 2–4, 2–3–4, 2–3 (3–4 alone is too regular: RR CV ~0.15); gated on RR CV ≥ 0.15. Answered as
+  flutter, AF partly correct (`alt`). Share links `fv=2-4` (app: parsed, kept with the rate slider, cleared by Reset and the
+  rhythm menu).
+- **Repeating ectopy and runs** (sinus rhythm, group ectopy): ventricular bigeminy/trigeminy (`vbigeminy`, `vtrigeminy`),
+  atrial bigeminy/trigeminy (`abigeminy`, `atrigeminy`), non-sustained VT (3–6 PVCs, 360–400 ms apart; `nsvt`) and a short SVT
+  run (4–7 PACs, 380–420 ms apart; `svtrun`). Bigeminy/trigeminy are scheduled beat by beat from the engine's own sinus
+  beats (a PVC at a fixed coupling just after the T wave, Bazett QT + 40–80 ms, constant through the strip; a PAC 0.6 RR
+  after the P; the generator checks for new beats every 20 ms and skips a beat it sees too late rather than firing late:
+  the author saw the first PVCs of a strip coupled too late) and gated on every planned beat
+  showing (wide or narrow), ≥ 3 of them, making up ½ or ⅓ of the beats (±0.12). New vocabulary terms with synonyms.
+- **Sinus arrhythmia** (`sinusArr`, w 1.2): engine `setSinusArrhythmia({ amp, period })` modulates the sinus cycle with
+  breathing (amp 0.15–0.22, one breath 4–6 s); gated on an RR span ≥ 120 ms; sinus rhythm partly correct. Share link
+  `sar=amp-period`.
+- **Ischaemia stages**: the evolving STEMI at the simulator's existing 4 h and 12 h stops (`evolving`, ST elevation required,
+  Q waves and T inversion optional; line names the hours). No new time stops in the simulator (the author). **Narrowing
+  severity**: engine `addStenosis(node, { sev })`; Training draws mild ×0.8 (30%, +60 rating), usual (40%), severe ×1.35
+  (30%); ×0.7 was too faint to pass. Share link `ns=`.
+- **Multivessel narrowing** (live model, blind reader; ST at J+80): aVR rises with the number of narrowed vessels (one
+  1.3–2.0 mm, two 2.0–2.7, three 3.0 mm) while ST depression spreads (8 leads with three). New `multinarrow` (two or three of
+  mid LAD, proximal LCx, proximal RCA; w 1.2, rating 160): gated on ST depression in ≥ 4 leads over ≥ 2 territories and aVR
+  ST ≥ 1 mm; answer: ST depression and the new finding `avrste` (ST elevation in aVR). Two simultaneous occlusions read as a
+  combined septal+anterior+inferior STEMI (rare clinically; not used). An old MI with a new STEMI needs a per-insult age in
+  the engine (the ischaemia clock is global): not done.
+- **Scoring (the author):** single ectopic beats named for a pattern of them earn half the finding's share (PVCs for
+  ventricular bigeminy/trigeminy, NSVT or a couplet; PACs for atrial bigeminy/trigeminy, an SVT run or an atrial couplet:
+  `PART_FINDING` in `src/training.js`; 70% with the rhythm right). The patterns are findings, not rhythms (the rhythm stays
+  sinus). Multivessel narrowing asks only for ST depression; ST elevation in aVR is "also true" (+5%), named in the line.
+  Flutter is not paired with multivessel narrowing (flutter waves on the ST segment, as for single narrowing).
+- Audit (`node tools/trainlive.js 120 7`): 89/120 passed (rejections: criteria 22, rhythm 5, extra 4). New items: evolving
+  STEMI 6/6, multivessel 5/8 (fails: flutter or junctional rhythm, aVR under 1 mm), irregular flutter 2/3, sinus arrhythmia
+  3/6 (all three fails from another finding's criteria), ventricular trigeminy 2/2, atrial bigeminy 1/1, SVT run 1/1, NSVT
+  0/1 (P waves hidden with a proximal LAD STEMI at 50/min). Engine checks unchanged: evalecg identical, reader 55/57.
+## claude/sim-worker round 1: the simulation in a background thread
+
+Phones ran the simulator at ~6 fps (less in VF): the engine stepped on the page's main thread, so keeping real time left
+little time to draw. Engine cost per simulated ms (desktop, Node): sinus 0.13 ms, AF 0.51, VF 0.90 (`_activate` 34%,
+`_setPiece` 15%, `_ecgEnter` 12% in VF); a mid-range phone is several times slower.
+- **`src/simworker.js`**: the engine runs in a Web Worker started from a blob URL with the engine's own source (the page's
+  `engine-js` script, so variants carry their parameters) and the worker text (`simworker-js`, `tools/build.py`). It keeps
+  a model per structural configuration (hypertrophy), steps the time each frame owes (30 ms budget, at most 250 ms owed)
+  and posts a snapshot: time, `tAct` and `apd` as Float32 (buffers handed back and reused), the ECG samples, the beat logs
+  with `beatEnds` precomputed (no `ts`/`rs` arrays), fire/stim/AP/retro logs, adenosine, the dipole, the flutter cycle and
+  the rhythm.
+- **`src/app.js`**: a replica Sim that never steps. Every `set…/add…/remove…/clear…/start…/stop…/shock/give…/stimulate…`
+  call runs on the replica (so lists, menus and the interpretation see it at once) and is forwarded (outermost call only).
+  Snapshots are written into the replica; the replica follows the worker's rhythm (an R-on-T beat starting VF). `run` (a
+  share link's healthy stretch) runs on both, so the reference beat is there at once. The refractory check of a tap uses
+  the snapshot's activation. The frame loop asks the worker for the time owed (two requests in flight at most).
+  `?noworker`, no Worker support, or a worker error: the page steps the engine as before.
+- **Checks**: 14 share-link scenarios read identically with and without the worker (blocks, fascicular blocks, Mobitz I,
+  complete block, anterior STEMI 1 h, old inferior MI, AVNRT, VT, WPW, LVH); AF and flutter differ by 1–2 bpm (random
+  timing). Live: rhythm menu (VF, AF, sinus), shock, adenosine, pause, ischaemia (occlusion, 30 days, clear), rate slider,
+  Reset and an LVH rebuild work, no page errors; the app shell and Training load. Main-thread simulation time (Pixel 7
+  profile, CPU ×4): sinus 399 → 4 ms per second, VF 804 → 4 ms; the simulation keeps more of real time (sinus 0.60 →
+  0.81, VF 0.24 → 0.49 in the headless browser, where software WebGL shares the cores). Frame rate cannot be judged
+  headless (software WebGL); to be checked on a phone.
+
+## Moderator band position (the author asked; not changed)
+
+The model's moderator band runs from the mid-septum (torso frame 18, 12, 41 mm) to the RV wall beside the anterior
+interventricular groove at mid height (58, 19, 77; rotational UVC 75°, zuvc 0.42): 40 mm left, 7 mm up, 36 mm forward,
+instead of forward and down to the anterior papillary muscle on the free wall. The default rule picks the mid-height RV
+free-wall point farthest from the band's septal start. Anatomical insertions with `mbPhi`/`mbZ` (30–60°, zuvc 0.3–0.4:
+the band then runs forward and 11–37 mm down) on the live model:
+
+| insertion | scorecard | fullcheck iErr | normal axis | RBBB axis |
+|---|---|---|---|---|
+| default (75°, 0.42) | 61/66 | 1 | +18° | −51° |
+| 60°, 0.35 | 53/66 | 4 | −23° | −51° |
+| 50°, 0.4 | 52/66 | 6 | −27° | −51° |
+| 40°, 0.3–0.4 | 48–50/66 | 7–9 | −33° to −43° | −51° |
+| 30°, 0.3–0.4 | 49–50/66 | 8–9 | −37° to −45° | −51° |
+
+As in rebuild-1 round 10, the anatomical band swings the normal axis into left axis deviation and costs R progression
+and infarct localisation: the high paraseptal insertion is one of the compensations holding the normal axis (with the v2
+torso's inferior gain and the thickened normal LV). It cannot be the RBBB axis's cause: in RBBB the band, the end of the
+right bundle, carries nothing (−51° throughout). Kept in the physics. **Drawing only** (the author): the 3D view draws
+the band on the anatomical path, from the right bundle's septal end forward and down to the RV free wall at the anterior
+papillary muscle (rotational UVC ~45°, zuvc ~0.33; `bandDisplay` in `src/app.js`, `Model.rbbBand` in the engine). Each
+drawn point keeps the colour of the matching band node, so the timing shown is the model's; the label and the tap points
+follow the drawing.
+
+## Four-chamber view: Septum label and lead I level (display only)
+
+- The cut-view Septum label was placed at the centroid of LV-labelled cells with |phi| < 0.4, which in the four-chamber
+  cut sat in the LV cavity. It is now found geometrically: parallel lines from the RV cavity centre to the LV cavity
+  centre (in the cut plane, stepped along the long axis), keeping those that run RV cavity → one wall → LV cavity, and
+  the label goes at the wall midpoint of the middle such line. The same rule places it in the short-axis (Apex) view.
+- The 4-chamber camera preset is rolled about its view axis so lead I (the patient's right → left line, world +x) runs
+  level across the screen, with the head side kept up (`leadIUp` on the preset), for teaching the hexaxial reference
+  against the anatomy. Other presets are unchanged. No engine or ECG change.
+
+## claude/relaxed-mccarthy round 1: Training feedback (2026-11-18 problem reports)
+
+Generator (`src/training_gen.js`):
+- **Flutter**: no electrolyte change with flutter or variable flutter (U waves and flat or peaked T waves blurred the
+  sawtooth; a flutter + hypokalemia strip read blind as sinus rhythm). Both now need the blind rhythm read to say atrial
+  flutter (`gateRead`); variable flutter no longer passes on an AF read (the RBBB case read "fine AF"). A probe of 8 flutter
+  strips: the 5 clean ones read flutter; the hypokalemia, LVH and LAFB ones read sinus, sinus tachycardia or AF.
+- **PVCs and couplets**: a PVC was fired up to 100 ms after the next sinus P (or after a P already on its way), so the first
+  beat of a couplet fused with the conducted beat (QRS 111 ms). It now fires only before the next P and never after a P
+  that has not yet conducted, else it waits a cycle; a couplet needs both beats premature.
+- **Sinus arrhythmia**: the sinus rhythm of its rate (sinus bradycardia at 59/min) is full credit (`key.same`); the other
+  sinus names partly. **WAP/MAT**: each other's half credit at any rate; full credit at 95–105/min (it was half there).
+- **Recent infarct** (2 days) whose ST still meets the STEMI criteria (the mid-RCA case read "STEMI inferior"): ST elevation
+  counts for its T-inversion slot (`finding.alts`), and its line says so.
+- **ST depression** regions: any lead group with ≥ 0.5 mm depression in a lead is accepted (V4 −0.5 mm in the proximal-LCx
+  case cost "anterior").
+- **Neutral answers** (`key.neutral`: shown, no credit, no penalty, tag "cannot be judged here"): first-degree AV block in
+  sinus tachycardia (the P sits on the T; the measured PR was 139 ms), and LAFB or bifascicular block with RBBB alone.
+- **RBBB + LAFB** is out of Training for now: on Training's own ECGs RBBB alone reads −51° and RBBB + LAFB −63° (normal
+  +25°, LAFB −60°), so they cannot be told apart. RBBB + LPFB stays allowed but fails its gate (read as RVH).
+
+Training page: an ECG a fully right answer would raise the overall rating by less than 1 point is dropped and the next
+ones asked for 80 points harder, up to 6 times running (`gainIfRight`, `gen.lift`). Measurement chips left-justified on
+tablets. Simulator: the white first-use tips are gone (the phone "Double tap…" toast, "Tip: press and hold ⏯ to reset",
+and the "Double-tap for 12 leads" label on the phone ECG); the Help text is unchanged.
+
+Review text: `node tools/training_text.js` writes `docs/TRAINING_TEXT.md` (answer names, explanation lines, Learn text).
+
+## claude/relaxed-mccarthy round 2: lenient lead groups; RBBB axis and the RV outflow tract (tested, not changed)
+
+**No +0 ECGs (from round 1, restated):** Training no longer offers an ECG whose fully right answer would add less than one
+point to the overall rating (`gainIfRight` in `src/training.js`): it is dropped and the next ones are asked 80 points
+harder, up to six times running.
+
+**Lead groups (the author: err on the side of caution):** a region-specific finding now also accepts any lead group where
+one lead shows it, so a group is not marked wrong because its second lead falls short: ST depression ≥ 0.5 mm (round 1),
+ST elevation ≥ 0.5 mm at J (acute and evolving STEMI, Sgarbossa), T inversion ≥ 0.5 mm (not V1; the recent infarct, and
+its ST-elevation stand-in), hyperacute T (a lead whose T grew ≥ 0.5 mm over the heart's own), and Q waves (any group with
+a lead in a contiguous pair that meets the Q-wave criteria, `qGroups`). The required group is unchanged.
+
+**RBBB axis (the author asked: measure the RV, test faster outflow-tract conduction):**
+- Area by RV region (`REG=rv AREA=1 BLOCK=RBB TMAX=140 tools/regiondecomp.js`): RBBB moves the QRS area axis from −5° to
+  −87°; every RV region adds negative aVF (mid anterior −8.7, apex −6.6, mid posterior −5.9, base −3.7/−3.1 mV·ms), the LV
+  −8.4; lead I changes little (−6.8 in all).
+- Activation (RBBB): the RV apex fills first through the LV apex (mean 59 ms after QRS onset), then a slow wave climbs the
+  free wall to the mid RV (81 ms) and the base/outflow (84 ms). The last 15% sit right, level and anterior (−36, −5, 36 mm),
+  as in the textbook; the superior axis comes from the climb, not from the last region. In the normal heart the RV is done
+  by 81 ms. The RBBB aVF is nearly flat (R 0, S 0 mm), so the axis rests on small numbers.
+- Test option (upper-RV speed ×1.5/2/3 above zuvc 0.6, also from 0.45 and 0.3; removed again): RBBB −47°/−37°/−21°, but
+  its QRS shortens to 114/112/104 ms (read as IVCD, then normal), the normal axis swings to +34°/+41°/+47° and LAFB weakens
+  to −52°/−47°/−38° (no longer LAFB at ×3). Not adopted: the outflow tract's speed mostly shortens the RBBB, it does not
+  turn its late forces right.
+
+## claude/relaxed-mccarthy round 3: lead groups by the two-contiguous-lead rule; RBBB axis is the RV's position (tested)
+
+**Lead groups (the author: the textbook rule):** the extra groups accepted for a region-specific finding are now those with a
+lead in a pair of contiguous leads that meets the finding's own criteria (`groupsOf` in `src/training_gen.js`): ST
+depression ≥ 0.5 mm, ST elevation by `steLeads` (1 mm; 2 mm in V2–V3), T inversion by `twiLeads` (≥ 1 mm with a prominent
+R), hyperacute T (contiguous leads whose T grew ≥ 0.5 mm), Q waves by `qLeads`. This replaces round 2's one-lead rule. A
+pair may span two groups (V4–V5 accepts anterior and lateral): the proximal-LCx report's V4 still accepts "anterior".
+
+**RBBB axis, the RV route (test options, removed again):**
+- Slowing the LV↔RV free-wall links below zuvc 0.35 (×0.3, ×0.1; the junction is the septal insertion lines, few contacts
+  below zuvc 0.7): RBBB −48° (from −51°), the normal axis +35°; ×0.02 stalls the simulation.
+- The RV Purkinje network is activated backwards in RBBB (first at 60 ms, median 76 ms after QRS onset) and fills the RV.
+  Cutting it (RBBB + all RV Purkinje blocked): QRS 182 ms, axis still −48°.
+- With round 2 (faster outflow tract: narrower RBBB, same direction), every route into the RV gives about the same late
+  force: from the LV toward the RV, which in this anatomy lies up and right of the LV (centroid frontal −147°, rebuild-1
+  round 17). The RBBB axis follows the RV's position, not its activation route; conduction changes cannot fix it. Training
+  keeps the round 1 workaround (RBBB + LAFB paused; LAFB/bifascicular neutral with RBBB alone).
+
+## claude/relaxed-mccarthy round 4: hyperacute T shape; AVRT text; AF→other rhythms; desktop badges
+
+**Hyperacute T waves (Meyers et al., JACC Adv 2025;4:102120):** `tShape` in `src/training_gen.js` measures per lead the
+T's magnitude (upright T area from J+20 ms / QRS peak-to-peak, in ms) and symmetry (falling / rising half-width at half
+the T's height). The hyperacute gate now also needs two contiguous leads with magnitude ≥ 60 ms and ≥ 1.5× the heart's
+own, and symmetry ≥ 0.9. This model's normal T is already about symmetric (1.08–1.15; a real normal T is about 0.6–0.8),
+so symmetry only rules out narrow, peaked T waves. Hyperacute leads measured 72–297 ms against the heart's own 20–52.
+Pass rate over 24 random hyperacute Training scenarios: 6/24 without the gate, 5/24 with it (one mid-LAD case with
+symmetry 0.57/0.61 dropped); 11 LAD scenarios fail the older textbook height rule ("T not tall") first, 4 RCA ones with a
+fascicular block "ST elevation already". Learn text and the chip line name both features.
+
+**Simulator:** the AVRT rhythm line is "Orthodromic AVRT" alone (the direction is in the Learn tab). The diagnosis text for
+review: `docs/SIMULATOR_TEXT.md`.
+
+**AF → another rhythm (bug):** the fibrillatory wavelets lived on in the left atrium under flutter (LA appendage cycles
+71–134 ms while the high RA flutters at ~200 ms). Choosing any other rhythm from AF now removes the atrial fibrosis that AF
+added and ends every atrial wave (`Sim.resetAtria`, forwarded to the simulation worker: `reset` joins `SIM_CMD`). After
+the fix both atria flutter at 199–215 ms; AF → sinus is a clean 72/min. A shock still keeps the fibrosis (the toast says so).
+
+**Desktop:** the Blocks, Ischemia and Conditions tabs show the same count badges as the phone tabs (inverted on the open
+tab). A phone tab's label no longer keeps "N active" after its count returns to zero.
+
+## claude/relaxed-mccarthy round 5: simulator analysis trimmed to findings; pop-out ECG (website)
+
+**Analysis text (the author: the findings only; mechanism and criteria belong in the Learn tab):** the rhythm line names
+the rhythm (no rate, mechanism or advice: "Atrial fibrillation with rapid ventricular response", "Torsades de pointes",
+"AVNRT", "Complete AV block with junctional escape rhythm", "Ventricular fibrillation"); structural findings name the
+condition ("Left atrial enlargement", "WPW pattern", "Hyperkalemia pattern", "Acute pericarditis"); ischaemia keeps its
+leads ("Acute inferior STEMI: ST elevation in II, III, aVF", "Possible posterior extension"); the sinus/AV-node artery
+notes are gone. Values stay in the chips. Shared by the website and the app. The ECG library pages keep their stored
+reads until `node tools/seo_shots.js` is rerun. Full list: `docs/SIMULATOR_TEXT.md`.
+
+**Pop-out ECG (website simulator, desktop only):** "Pop out" in the ECG header opens a second window with the live 12-lead
+paper at that window's size and the analysis above it; "Measurements only" hides the rhythm and findings and neutralises
+the chips (no highlighted values, no axis wording), for showing students an ECG while the heart is driven on another
+screen. It draws with the page's own ECG code (the drawing state swapped in each frame, as for the PNG sheet). The button
+is hidden in the app and its /app copy (`INAPP`); phones never show the ECG header; Training is unchanged. The window
+closes with the page; the choice of mode is remembered in this browser.
+
+## claude/relaxed-mccarthy round 6: Training escape rhythms and a left-atrial focus
+
+Training only (the simulator is unchanged; "Show me why" opens the simulator's own focus and escape):
+- **Ectopic atrial rhythm**: a left-atrial focus in a third of them (the LA appendage, `leftAtrialCell`). In this heart a
+  left-atrial focus anywhere gives the high left-atrial pattern: P inverted in I (−0.7 mm) and aVL (−1.3), upright in V1
+  (+0.7) and in II/III/aVF (+1.4); PR ~190 ms. The blind reader calls it sinus (it looks only at P in II), so the gate for
+  it is its own: P ≤ −0.5 mm in I and aVL and upright in V1 on the median beat. Atrial tachycardia keeps the low-RA focus
+  only (at 120/min the left-atrial P sits on the T: it failed its check).
+- **Escape rates**: junctional 41–59/min, ventricular 22–38/min (`escRate`; the engine's 48 and 32 were fixed), set on the
+  escape pacemaker itself (`rec.esc`).
+- **Ventricular escape sites** (`escapeCell`, mid-wall for the muscle sites), measured at 30/min:
+
+  | site | QRS | axis | shape |
+  |---|---|---|---|
+  | left posterior fascicle (the engine's) | 135 ms | −82° | left, superior axis |
+  | left anterior fascicle | 131 ms | +118° | right axis |
+  | RV free wall | 135 ms | +112° | LBBB-like, QS in V1 |
+  | LV lateral wall | 190 ms | −158° | dominant R in V1, extreme axis |
+  | LV apex | 149 ms | −86° | QS inferiorly, superior axis |
+
+  The rhythm line names the site and its shape. Naming the escape beat's own shape (axis deviation, LBBB, RBBB, IVCD) is
+  neutral: neither credited nor counted against.
+- Sampled check: 11/12 random ectopic-atrial, junctional and ventricular-escape scenarios passed (the other on an
+  unrelated infarct criterion).
+
+## claude/relaxed-mccarthy round 7: finer coronary sites (prototype, option off)
+
+The author asked for a septal perforator site and, in general, finer regions to show and quiz regional ischaemia. The tree
+already builds D1, D2 and PLV but folds their territories into the parent vessel (`MAIN` in `_buildCoronaries`), and the
+septum is split into four perforator bands (`septalPerf` 0.14/0.3/0.45/0.6 along the LAD). Test option `extraBranches`
+(default null: the live model is unchanged) offers ['S1', 'D1', 'D2', 'PLV']:
+- **S1** is a new node (appended after every other node, so share-link numbers do not move) in the mid septum below the
+  first perforator's LAD origin. Its territory is not a subtree but a list (`covers`): the septum (rotational UVC
+  0.1–1.7, zuvc ≥ 0.2) of the first `s1Bands` (3) perforator bands. LAD occlusions keep taking those bands exactly as
+  before (proximal and mid LAD audits identical with the option on). With one band (the basal septum only) S1 gave no ST
+  elevation in V1–V2 (ST depression II, V3–V5); with three bands it gives the septal pattern.
+- `_family` counts S\d as LAD.
+
+`MP='{"extraBranches":["S1","D1","D2","PLV"]}' node tools/ischaudit.js S1,D1,D2,PLV <h>` (sites added to the tool):
+
+| site | 1 h | 4 h | 2 days | 30 days |
+|---|---|---|---|---|
+| S1 | ST↑ aVR V1–V3; ST↓ I II III aVF V4–V6 | ST↑ aVR V1 V3; Q aVL V1–V3 | Q aVL V1–V3, R loss V1–V3, TWI aVL V2 | Q aVL V1–V3, R loss V1–V3, TWI V2 |
+| D1 | ST↑ aVL; ST↓ III aVF | ST↑ I aVL | Q V5 V6, TWI I aVL V5 | Q V5 V6, TWI I aVL V5 |
+| D2 | ST↑ V5 only; ST↓ III | same | Q V5 V6, TWI I aVL V5 V6 | same |
+| PLV | ST↑ II III aVF; ST↓ I aVL V1–V5 | same, Q II | Q II V6 | Q II V6 |
+
+S1 and D1 add distinct teachable patterns (septal; high lateral, ~1 mm in aVL); D2 has one acute lead; PLV repeats the
+RCA sites. Not yet wired into the simulator (drawing, taps, share links) or Training (MI_SITES), and not yet run through
+the reader, scorecard and fullcheck with the option on.
+
+## claude/relaxed-mccarthy round 8: S1 and D1 as occlusion sites (Training, share links)
+
+- Engine: `siteBranches` (default ['S1', 'D1']): occludable side branches that are **not drawn or offered** in the
+  simulator. S1 is always built (one node appended after all others; its territory is the `covers` list: the septum of the
+  first three perforator bands) and D1 keeps its own territory instead of being folded into the LAD
+  (D1 is downstream of the LAD at its origin, so every LAD site takes it as before). `coronary.sites` lists them;
+  `coronary.branches` (what the simulator draws and offers) is unchanged.
+- Simulator: share links accept site-branch nodes (Training's "Show me why"); the ischemia list names them ("first septal
+  perforator", "first diagonal"); a STEMI whose ST elevation stops at V3 is named anteroseptal.
+- Training (`MI_SITES`): S1 as an acute STEMI (septal required, anterior accepted) and an old infarct (Q V2–V3); D1 as an
+  evolving STEMI (lateral: ST↑ I and aVL at 4 h and 12 h). The other stages failed their criteria and are not used.
+- Checks with the new defaults: scorecard 61/66, fullcheck iErr 1, reader 55/57 (the live code's reader also 55/57);
+  proximal and mid LAD and left main audits identical at every stop. Links checked in the browser (S1 → "Acute
+  anteroseptal STEMI: ST elevation in V1–V3"; D1 → "Acute lateral STEMI: ST elevation in I, aVL").
+
+## claude/relaxed-mccarthy round 9: S1 and D1 drawn and tappable; Learn text for RV and posterior involvement
+
+- `extraBranches` default ['S1', 'D1']: both are drawn and offered in the simulator (and so in the app). S1 is now three
+  nodes from its LAD origin (LAD node 4, behind the pulmonary trunk from the front) into the mid septum; the first carries
+  the septal territory, and a tap anywhere on it acts on that node (regionNode). S1 lies inside the muscle, so it is drawn
+  see-through over the tissue like the conduction system (`SEE_THROUGH`, a depth-test-off ghost of its tube) and tapped
+  through it; its occlusion/narrowing marker is drawn and tapped through the tissue too.
+- Taps (double click occludes): S1 from the anterior and apex views at all three points; D1 from the anterior, lateral and
+  apex views. From the lateral view S1 lies behind D1 (D1 wins); in the four-chamber cut the deeper S1 points go to the
+  bundle branches first (the tap order). The marker taps off.
+- Learn (ISCH_TEACH): the STEMI territory line names septal (V1–V2 with V3, aVR: septal perforator) and high lateral (I,
+  aVL: first diagonal); new entries "Right ventricular involvement" (every inferior or inferolateral STEMI, or "possible
+  right ventricular involvement") and "Posterior involvement" (any posterior reading), each closing on the 15-lead ECG (V4R;
+  V7–V9) that confirms it.
+- Audits of S1, D1 and the LAD sites unchanged from round 8; pages load without errors.
+
+## claude/relaxed-mccarthy round 10: S1 drawn along its course, with its LAD junction
+
+The author: S1 floated in the cut view (no visible origin or direction). Now:
+- S1 runs from its LAD origin into the mid septum and down through the three bands it feeds (zuvc 0.76 → 0.39), five
+  nodes; the first (and so share links and Training) is unchanged, and so is its territory (audit identical).
+- S1 is no longer clipped by the cut plane: solid where nothing hides it, see-through behind tissue, as the bundle
+  branches are.
+- A short stretch of the LAD around S1's origin (two nodes either side) is drawn the same way, so the branch point shows
+  behind the pulmonary trunk and when the cut removes that part of the LAD; it greys with the LAD's own occlusions.
+- Taps: every S1 point from the anterior, four-chamber (but its second point, where the bundle branches come first) and
+  apex views; from the lateral view the two points nearest the origin lie behind D1.
+
+## claude/relaxed-mccarthy round 11: coronary arteries hidden in the full cut
+
+The author: all coronary arteries (with their markers, S1's see-through drawing and its LAD junction) hide when the cut
+slider is at full (`corVisible`, from setView, setCut and after a heart rebuild), as the conduction system hides in the
+outside view. Hidden, they take no taps (the 3D picking still hits invisible meshes, so `arteryAt` and `clotAt` check);
+taps there go to the conduction system and the muscle. Any partial cut still shows them.
+
+## claude/relaxed-mccarthy round 12: view rotation (the heart tipped about the apex)
+
+OrbitControls takes the camera's up when it is created (world +y) and orbits about it. The four-chamber preset rolled the
+camera's up so lead I lies level (2026-11-17), and the Apex (short-axis) preset has always set up to world +z, so after
+those presets a sideways drag orbited about one axis while the camera was rolled about another: the heart tipped about the
+apex instead of turning. `cutPreset` now keeps the camera upright and gives the roll to the heart: the world group (the
+two-finger twist's) turns about the view axis by the angle between the wanted up and world +y. The presets look the same
+(screenshots compared, old and new); a sideways drag now turns the heart about the screen's vertical. The next preset
+resets the twist as before.
+
+## claude/relaxed-mccarthy round 13: four-chamber drag turns about the body's vertical
+
+Round 12 turned the heart about the screen's vertical after the four-chamber preset; the author found the anterior and
+lateral views right and the four-chamber still wrong (the heart's long axis is diagonal there, so a turn about the
+screen's vertical tilts it). Now every view orbits about the body's vertical (world +y), as anterior and lateral always
+did, and a preset's roll (lead I level in the four-chamber view; the Apex view's) is a fixed turn of the camera about its
+own view axis (`g3.viewRoll`, `rollView()` after each controls update and saved with a view), so it no longer drifts as
+the heart turns (the original rolled camera.up did). The heart is no longer rolled. Presets look as before; taps
+unchanged.
+
+## claude/relaxed-mccarthy round 14: trackball rotation about the screen's axes, no polar lock
+
+The author: a sideways drag must turn the heart about the screen's vertical in every view, and up-down drags must turn it
+freely about the screen's horizontal (OrbitControls stops at the poles and orbits about one fixed axis, which tilted the
+heart in the rolled four-chamber and Apex views). OrbitControls' rotation is off (`enableRotate = false`; zoom and pan
+stay); `initTrackball` turns the world group about the camera's up (sideways drag) and right (up-down drag) axes through
+the view centre, 2π per canvas height, for a one-finger touch or the left mouse button (right button and modifier keys:
+pan; two fingers: pinch, pan and twist as before). Presets give their roll to the heart again (round 12's way) with the
+camera upright; `g3.viewRoll` stays 0. Checks: a 60 px sideways drag moves the apex and base 19–118 px sideways and ≤ 5 px
+vertically (perspective) in the anterior, four-chamber, lateral and Apex views; four long up-down drags turn the heart
+over continuously; a phone one-finger drag turns it without tapping; artery taps unchanged. Applies to the app too.
+
+## claude/relaxed-mccarthy round 15: blocks and ischemia open their tab (website)
+
+On the website (not phones or the app: `autoTab`), adding a block (the block menu, a single-choice bundle or fascicle,
+or a finger on a tablet held sideways) opens the Blocks panel, and adding an occlusion or narrowing (click, double click)
+opens the Ischemia panel, so the time since onset can be set at once. The view and cut stay as they are (`setTab`'s new
+keepView; a tab click still opens its tab's view). Removing one does not switch. Checked: occluding the LAD from the
+Rhythm tab opened Ischemia with the outside view kept; clicking the right bundle in a 70% cut opened Blocks at 70%.
+
+## claude/relaxed-mccarthy round 16: AV conduction sliders (graded AV node and His–Purkinje disease)
+
+The author: replace picking AV blocks from a list (desktop) or cycling them by taps (phones) with two sliders in one
+place, for desktop and phones; the degree of block should follow from the physiology (and give Training more variety).
+- Engine: `setBlock('AVN' | 'HIS', 'severity', { s })`, s 0–1. AV node: the existing Wenckebach recovery curve with AH_min
+  (`avnSevAH` 85→240 ms), its rise (`avnSevAlpha` × s) and the effective recovery time (`avnSevReff` 200→1100 ms over s²)
+  growing with s; s ≥ 0.97 complete. His–Purkinje (`his-safety` gate on the His bundle): all-or-none, an effective
+  recovery time (`hisSevReff` 300→1300 ms over s²) and below it a per-beat failure chance (`hisSevDrop` 0.35 × s, seeded);
+  s ≥ 0.97 complete. The named blocks are unchanged (`tools/blocks.js` output identical to the live code's).
+- Emergent at 72/min: AV node 15% normal (PR 182), 30% 1st degree (PR 215), 45% PR 266, 60% Wenckebach (PR 259→353→422,
+  drop), 70–90% 2:1, 97% complete with junctional escape; faster rates worsen it (45%: Wenckebach at 100, 2:1 at 130),
+  slower ease it. His 40–70%: intermittent drops with a constant PR (Mobitz II), 85% at 72 high grade, 97% complete with
+  a ventricular escape.
+- Simulator: the Blocks panel has the AV node and His–Purkinje sliders (with a severity word and %). A click or tap on
+  the AV node or His bundle opens them (Blocks panel; phones: the sheet) and highlights them, instead of the block menu
+  or the tap cycle; three taps still start AVNRT. The analysis reads the degree from the beats when a slider is set
+  (2:1 alternate P's blocked; high grade two in a row; Mobitz I the PR before a blocked P > 25 ms longer than after it;
+  else Mobitz II; PR > 200 with all conducted: 1st degree); Learn follows the reading. The Active blocks list names the
+  block each slider is producing ("AV node: Mobitz I (Wenckebach) · 60%"), updated as the reading changes, and × removes
+  it (the slider returns to Normal). Share links: `b=AVN.s60,HIS.s50`; old named blocks (Training links) show on the
+  sliders at a matching place. Tab instructions (phones) and the Help's Blocks line: one clause added each for the sliders.
+- Not yet: Training still uses the named blocks.
+
+## claude/relaxed-mccarthy round 17: AV conduction as named levels and one block entry
+
+The author: the sliders step through named levels (Normal, Mild, Moderate, Severe, Complete; `LEVEL_SEV` AV node 0 /
+0.3 / 0.6 / 0.8 / 1, His–Purkinje 0 / 0.45 / 0.7 / 0.85 / 1), and the AV node and His–Purkinje make one entry in Active
+blocks, "AV block: <degree>" from the reading (1st-degree; 2nd-degree, Mobitz I (Wenckebach); 2nd-degree, Mobitz II;
+2nd-degree, 2:1; high-grade; 3rd-degree (complete)), without percentages; its × clears both. Checked at 72/min: AV node
+mild/moderate/severe/complete → 1st degree / Wenckebach / 2:1 / complete with junctional escape; His mild and moderate →
+Mobitz II (more drops at moderate), severe → high grade, complete → complete with ventricular escape.
+
+## claude/relaxed-mccarthy round 18: Training's AV blocks from the AV conduction severities
+
+Training's AV blocks now come from the same graded AV node / His–Purkinje disease as the simulator's sliders, with a
+random sinus rate (`avSev`: sites and severity range; `rec.avs`; share links `AVN.s58`, `HIS.s100`):
+- Mobitz I: AV node, rate 62–98, severity on the measured Wenckebach diagonal (`avSevAt`: 0.66 − 0.0053 × (rate − 65),
+  ± 0.03; it passed at ~0.66 at 65/min, 0.58 at 75, 0.50 at 95).
+- Mobitz II: His–Purkinje 0.35–0.72, rate 60–95 (random drops, constant PR).
+- 2:1 (answered as Mobitz II, as before): AV node 0.76–0.88 or His–Purkinje 0.82–0.9, rate 60–85 (faster gave high grade).
+- Complete block: AV node (narrow junctional escape, 48/min) or His (wide ventricular escape, 32/min; its QRS shape is
+  not a finding, like the idioventricular rhythm's); the rate exclusions use the escape's own rate.
+- First-degree block (a finding): AV node 0.22–0.42, so the PR varies.
+- Gate: these rhythms are gated on the engine's own beats (`avPattern`, the simulator analysis's rules) with P waves
+  visible in ≥ 80% of beats, not on the blind rhythm read, which took grouped Wenckebach beating for AF when P's sat on the
+  T. Sampled: 12/18 AV items passed (the rest on unrelated criteria or hidden P's); `tools/trainlive.js 40 7` 29/40 as
+  before.

@@ -79,11 +79,12 @@ header.top { display: flex; align-items: center; gap: 14px; min-height: 36px; }
 .simctl .tsrow { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
 .simctl input[type=range] { width: 160px; accent-color: var(--accent); }
 .simctl .val { font: 500 12.5px/1 var(--font-data); min-width: 3.2em; color: var(--fg); }
-button, .seg label {
+button, .seg label, a.hbtn {
   font: 500 13px/1 var(--font-ui); color: inherit; background: var(--surface); border: 1px solid var(--line);
   border-radius: 6px; padding: 7px 11px; cursor: pointer;
 }
-button:hover { border-color: var(--muted); }
+button:hover, a.hbtn:hover { border-color: var(--muted); }
+a.hbtn { text-decoration: none; }
 button:focus-visible, input:focus-visible + label, input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 
@@ -125,6 +126,8 @@ button.primary { background: var(--accent); color: var(--accent-fg); border-colo
 #pane3d .pane-head .tabs button { padding: 6px 11px; font-size: 13px; border-radius: 5px; background: transparent; border-color: transparent; color: var(--panel-muted); }
 #pane3d .pane-head .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 #pane3d .pane-head .tabs button:hover { color: var(--viewport-fg); }
+#pane3d .pane-head .tabs .badge { display: inline-block; margin-left: 6px; min-width: 17px; height: 17px; padding: 0 5px; box-sizing: border-box; border-radius: 9px; background: var(--viewport-fg); color: var(--panel); font: 600 11px/17px var(--font-ui); text-align: center; vertical-align: 1px; pointer-events: none; }
+#pane3d .pane-head .tabs button[aria-selected="true"] .badge { background: var(--accent-fg); color: var(--accent); }
 .tabpanel { display: flex; flex-direction: column; gap: 14px; }
 .clicknote { border-left: 2px solid var(--accent); padding-left: 8px; }
 .foot { border-top: 1px solid var(--panel-line); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -210,6 +213,8 @@ body.m #controls .rlist button { padding: 12px 10px; font-size: 14.5px; }
 .flash::before { content: ""; position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ffffff; animation: ring 0.9s ease-out forwards; }
 .flash span { position: absolute; left: 14px; top: -24px; white-space: nowrap; font: 600 12px/1 var(--font-ui); color: #fff; background: rgba(10,18,26,0.8); padding: 4px 7px; border-radius: 4px; }
 @keyframes ring { from { transform: scale(0.3); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+#avCtl.pulse { animation: avpulse 1.2s ease-out; border-radius: 8px; }   /* (the AV sliders, opened by a tap on the AV node or His bundle) */
+@keyframes avpulse { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 2px transparent; } }
 @media (prefers-reduced-motion: reduce) { .flash::before { animation: none; } }
 
 #controls select { font: 500 12.5px/1.2 var(--font-ui); color: var(--viewport-fg); background: rgba(255,255,255,0.06); border: 1px solid var(--panel-line); border-radius: 6px; padding: 6px 8px; }
@@ -342,7 +347,7 @@ body.m #app { padding: env(safe-area-inset-top, 0px) 0 0; gap: 0; }
 body.m header.top { min-height: 50px; gap: 8px; padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); }
 body.m .brand h1 { font-size: 19px; }
 body.m .brand .logo { width: 26px; height: 26px; }
-body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp, body.m #btnAlpha { display: none; }
+body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp, body.m #btnContact, body.m #btnAlpha { display: none; }
 body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mctl button { height: 38px; min-width: 42px; padding: 0 11px; border-radius: 19px; display: grid; place-items: center; }
 .mctl svg { width: 20px; height: 20px; fill: currentColor; }
@@ -353,7 +358,8 @@ body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mplay::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--accent); }
 .mplay.holding::after { width: 100%; transition: width 0.7s linear; }
 body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index: 21; right: max(10px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 50px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
-.mmenu button { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
+.mmenu button, .mmenu a { color: inherit; text-decoration: none; font-family: var(--font-ui); }
+.mmenu button, .mmenu a { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
 .mmenu .malpha { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; color: var(--accent); font-weight: 600; }
 .balpha { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); border-color: var(--accent); }
 .balpha svg, .malpha svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -394,7 +400,6 @@ body.m .gbar { display: flex; align-items: center; gap: 6px; position: absolute;
 .dots button { width: 18px; height: 20px; padding: 0; border: 0; background: none; display: grid; place-items: center; }
 .dots button::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #e2b0bd; }
 .dots button[aria-selected="true"]::before { background: #c2304f; }
-.ghint { position: absolute; right: 6px; bottom: 4px; font-size: 10.5px; color: #8a5a66; background: rgba(255,255,255,0.85); padding: 3px 6px; border-radius: 4px; }
 body.m #interp { order: 2; flex: none; flex-wrap: wrap; gap: 6px; padding: 8px 32px 8px 10px; border-bottom: 0; border-top: 1px solid var(--line); cursor: pointer; position: relative; }
 body.m #interp::after { content: "▴"; position: absolute; right: 12px; top: 8px; color: var(--muted); font-size: 13px; }
 body.m #rhythm { flex: 1 1 100%; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -487,7 +492,6 @@ body.m.t #pane3d { flex: 0 0 50%; }
 body.m.t #controls, body.m.t.sheet-full #controls { left: 0; right: 0; width: auto; max-width: 680px; margin: 0 auto; }   /* (the control sheet: centred, not edge to edge) */
 body.m.t #cecg { display: block; width: 100%; height: 100%; }
 body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { display: none; }
-body.m.t #ghint { display: none; }
 /* tablets held upright: heart above, ECG below */
 @media (min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (min-height: 501px) {
   #split { flex-direction: column; }
@@ -522,6 +526,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     <button id="btnShare" type="button" title="Copy a link that reopens this exact scenario">Share</button>
     <button id="btnAlpha" type="button" class="balpha" title="Sign up to test the ECG Studio Android app (Google Group)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Join the alpha</button>
     <button id="btnHelp" type="button">Help</button>
+    <a id="btnContact" class="hbtn" href="https://ecgstudio.app/contact/" target="_blank" rel="noopener"{{CONTACT_HIDDEN}}>Contact</a>
     <div class="mctl" role="group" aria-label="Simulation">
       <button type="button" id="mSpeed" class="mspeed" aria-label="Simulation speed: 1×. Tap to change">1×</button>
       <button type="button" id="mPlay" class="mplay" aria-label="Pause. Hold to reset"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="ip" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="ir" d="M8 5l11 7-11 7z"/></svg></button>
@@ -532,6 +537,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     <button type="button" role="menuitem" id="mShare">Share this scenario</button>
     <button type="button" role="menuitem" id="mPng">Save ECG image</button>
     <button type="button" role="menuitem" id="mHelp">Help</button>
+    <a role="menuitem" id="mContact" href="https://ecgstudio.app/contact/" target="_blank" rel="noopener"{{CONTACT_HIDDEN}}>Contact</a>
     <button type="button" role="menuitem" id="mAlpha" class="malpha"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Join the alpha</button>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
@@ -578,6 +584,12 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
           </section>
 
           <section class="tabpanel" data-panel="blocks" hidden>
+            <div class="ctl" id="avCtl">
+              <div class="row"><span class="lab">AV node</span><span class="val" id="avnVal">Normal</span></div>
+              <input id="avnSev" type="range" min="0" max="4" step="1" value="0" aria-label="AV node disease, from normal to complete block">
+              <div class="row"><span class="lab">His–Purkinje</span><span class="val" id="hisVal">Normal</span></div>
+              <input id="hisSev" type="range" min="0" max="4" step="1" value="0" aria-label="His–Purkinje disease, from normal to complete block">
+            </div>
             <div class="ctl" id="blockListWrap">
               <span class="lab">Active blocks</span>
               <div class="blocklist" id="blockList"></div>
@@ -679,6 +691,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <span class="title">12-lead ECG · 25 mm/s · 10 mm/mV</span>
         <span class="spacer"></span>
         <button id="btnSavePng" type="button" title="Download this ECG as a PNG image">Save PNG</button>
+        <button id="btnPopout" type="button" title="Show the ECG in a second window (for a second screen), with or without the analysis">Pop out</button>
         <button id="focusEcg" type="button" title="Give the ECG more room">Expand</button>
       </div>
       <div id="interp">
@@ -688,7 +701,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <div class="strips" id="strips" role="group" aria-label="Rhythm strip leads (up to three)"><span>Rhythm strips:</span></div>
       </div>
       <div id="ecgWrap"><canvas id="cecg"></canvas><canvas id="cgroup" aria-label="ECG lead group"></canvas><canvas id="cgroup2" aria-hidden="true" hidden></canvas><span class="calnote" id="calnote">II rhythm strip · 10 s</span>
-        <div class="gbar" id="gbar"><button type="button" id="mSecs" class="msecs" aria-label="Seconds shown: 5. Tap to change">5 s</button><div class="dots" id="mDots" role="tablist" aria-label="Lead group"></div><span class="ghint" id="ghint">Double-tap for 12 leads</span></div>
+        <div class="gbar" id="gbar"><button type="button" id="mSecs" class="msecs" aria-label="Seconds shown: 5. Tap to change">5 s</button><div class="dots" id="mDots" role="tablist" aria-label="Lead group"></div></div>
         <div class="fsbar" id="fsbar"><button type="button" id="fsInterp" aria-pressed="true">Interpretation</button><button type="button" id="fsFlip" aria-label="Rotate the other way">⟲</button><button type="button" id="fsExit" aria-label="Close the full ECG">✕</button></div>
       </div>
     </section>
@@ -752,7 +765,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <li><b>Not a medical device:</b> ECG Studio is for education only and must not be used for diagnosis or treatment.</li>
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
-      <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.{{CONTACT_LINK}}</p>
+      <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
       <p class="credit">Created by {{AUTHOR}}{{CONTACT}}. © {{YEAR}} {{AUTHOR}}. All rights reserved. Version {{VERSION}}.</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
@@ -784,7 +797,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
             <li>On the heart: tap an atrium or ventricle for an ectopic beat; three quick taps start flutter (atria) or VT (ventricles), four start AF or VF.</li>
           </ul>
         </li>
-        <li><b>Blocks:</b> opens the cut view. Tap the conduction system to cycle through its blocks.</li>
+        <li><b>Blocks:</b> opens the cut view. Tap the conduction system to cycle through its blocks; the AV node and His bundle open the AV node and His–Purkinje sliders.</li>
         <li><b>View:</b> External ↔ Cut slider, the Anterior / 4-chamber / Lateral / Apex views, and the Labels, Leads and Legend switches.</li>
         <li><b>Ischemia:</b> opens the outside view. From any tab, tap a coronary artery to narrow it (partial flow: ST depression and T changes) or double-tap to occlude it; taps elsewhere on the heart still give ectopic beats. Each region (for example proximal, mid or distal LAD) holds one marker, and one tap on it removes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
         <li><b>Conditions:</b> add or remove chronic and acute heart conditions.</li>
@@ -796,7 +809,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li><b>Limitations:</b> normal axis about 0–15°; LBBB/RBBB axes not textbook (read them on QRS shape); LAFB looks like an old anterior MI; distal LCx STEMI at 1 h not visible; an acute marginal (RV branch) occlusion shows inferior changes rather than the right-ventricular pattern; an old apical infarct also shows inferior Q waves; after an infarct the T inversion in V3–V5 can be deeper and last longer than usual; hyperkalemia T waves are peaked but broader-based than the classic tent; VT, VF and torsades slow older phones.</li>
         <li>This is meant as an educational aid. Not a medical device or diagnostic tool.</li>
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
-        <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.{{CONTACT_LINK}}</li>
+        <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
       <p class="credit">Created by {{AUTHOR}}{{CONTACT}}. © {{YEAR}} {{AUTHOR}}. All rights reserved. Version {{VERSION}}.</p>
     </section>
@@ -884,9 +897,10 @@ THE SOFTWARE.
 <script>/*__ORBIT__*/</script>
 <script type="application/json" id="anatomy-data">/*__ANATOMY__*/</script>
 <script type="application/json" id="torso-data">/*__TORSO__*/</script>
-<script>
+<script id="engine-js">
 /*__ENGINE__*/
 </script>
+<script type="text/plain" id="simworker-js">/*__SIMWORKER__*/</script>
 <script>
 /*__APP__*/
 </script>

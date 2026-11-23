@@ -124,7 +124,7 @@ header h1 span { color: var(--accent); }
 html.inapp header, html.inapp .app-bar { min-height: 50px; box-sizing: border-box; padding-top: 0; padding-bottom: 0; padding-left: var(--tabs-w, 12px); }
 html.inapp #home .phead { justify-content: flex-end; }
 html.inapp #app { max-width: none; }   /* (tablets: the full width, under the tabs; the wider layout comes in app phase 4) */
-html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href], html.inapp .menu hr { display: none; }
+html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href]:not(.contact), html.inapp .menu hr { display: none; }
 /* website: the logo at the left of the headers, where the app shell puts it (the ⋯ menu links back to the simulator) */
 .tlogo { display: inline-flex; flex: none; } .tlogo .logo { width: 26px; height: 26px; }
 #home .phead h2 { display: flex; align-items: center; gap: 9px; }
@@ -271,6 +271,7 @@ body.tabp #kbd { border-radius: 12px 12px 0 0; border: 1px solid var(--line); bo
 body.tabl #app { display: grid; grid-template-columns: minmax(0, 1fr) clamp(360px, 34vw, 420px); grid-template-rows: auto auto minmax(0, 1fr); }
 body.tabl #app > header { grid-column: 1 / -1; }
 body.tabl #meas { grid-column: 1; grid-row: 2; }
+body.tabl #meas, body.tabp #meas { justify-content: flex-start; }   /* (tablets: the measurements left-justified, the author) */
 body.tabl #ecgView { grid-column: 1; grid-row: 3; margin: 0 4px 12px 12px; min-height: 0; }
 body.tabl #bottom { grid-column: 2; grid-row: 2 / 4; height: auto !important; min-height: 0; border-left: 1px solid var(--line); background: #0d161e; }
 body.tabl #answer { padding: 10px 12px 6px; }
@@ -359,6 +360,7 @@ body.land #fsClose { display: none; }
     <button type="button" data-go="report">Report a problem with this ECG</button>
     <button type="button" data-go="stats">Statistics</button>
     <button type="button" data-go="help">Help</button>
+    <a class="contact" href="https://ecgstudio.app/contact/" target="_blank" rel="noopener"{{CONTACT_HIDDEN}}>Contact</a>
     <button type="button" data-go="hand" id="menuHand" hidden>Keyboard on the left</button>
     <button type="button" data-go="restart">Reset progress</button>
     <hr>
