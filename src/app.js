@@ -93,7 +93,7 @@
     setLoading(ui.struct.lvh || ui.struct.rvh ? 'Growing the hypertrophied wall…' : 'Reading anatomy…'); await tick();
     A = new LH.Anatomy(JSON.parse($('anatomy-data').textContent), ho.anatomy);
     setLoading('Building tissue graph and conduction system…'); await tick();
-    M = new LH.Model(A, ho.params);
+    M = new LH.Model(A, heartParams(ho));
     setLoading('Tuning repolarization to the sinus beat…'); await tick();
     newSim(keepEcg);
   }
@@ -101,7 +101,10 @@
   // once built, so switching back to it is immediate.
   const heartCache = new Map();
   const G3_FIXED = new Set(['renderer', 'scene', 'camera', 'world', 'outer', 'inner', 'controls', 'planeDirty']);
-  const heartKey = () => CONDITIONS.filter((c) => c.rebuild).map((c) => +!!ui.struct[c.id]).join('');
+  const heartKey = () => CONDITIONS.filter((c) => c.rebuild).map((c) => +!!ui.struct[c.id]).join('') + (ui.preset ? `/${ui.preset}` : '');
+  // a block preset of the engine (LH.BLOCK_PRESETS), from a Training link (lp=rbbb, lp=lpfb): the heart Training drew that
+  // block with; Reset returns to the live model
+  const heartParams = (ho) => ({ ...ho.params, ...((ui.preset && LH.BLOCK_PRESETS[ui.preset]) || {}) });
   function storeHeart(key) {
     if (heartCache.has(key)) return;
     const fields = {}; for (const k of Object.keys(g3)) if (!G3_FIXED.has(k)) fields[k] = g3[k];
@@ -198,7 +201,7 @@
     sim.beatEnds = (vb) => vb.ends || ends.call(sim, vb);
     const ho = LH.hypertrophyOptions(ui.struct);
     SIMW.simId++; SIMW.pending = 0; SIMW.carry = 0;
-    SIMW.w.postMessage({ type: 'heart', key: heartKey(), anatomy: ho.anatomy, params: ho.params });
+    SIMW.w.postMessage({ type: 'heart', key: heartKey(), anatomy: ho.anatomy, params: heartParams(ho) });
     SIMW.w.postMessage({ type: 'sim', simId: SIMW.simId, opts: { seed: 1 } });
   }
   function onSimMessage(e) {
@@ -1013,7 +1016,29 @@
     if (up.lengthSq() > 0.5 && y.lengthSq() > 0.5) g3.world.quaternion.setFromAxisAngle(f, Math.atan2(f.dot(new THREE.Vector3().crossVectors(up, y)), up.dot(y)));
     g3.viewRoll = 0;
     cam.up.set(0, 1, 0); cam.lookAt(0, 0, 0); ctl.update();
+    centreHeart();
     g3.planeDirty = true;
+  }
+  // centre the heart's outline as seen from the camera (the anatomy's centre, which the camera aims at, includes the
+  // great vessels and the parts hidden behind; seen from the four-chamber direction it left the heart ~10% of the view's
+  // width left of centre on a phone): the world group is panned so the outline's angular box is on the view axis
+  function centreHeart() {
+    const cam = g3.camera; if (!g3.tissueMeshes || !g3.tissueMeshes.length) return;
+    g3.scene.updateMatrixWorld(true); cam.updateMatrixWorld();
+    const m = new THREE.Matrix4().multiplyMatrices(cam.matrixWorldInverse, g3.inner.matrixWorld), v = new THREE.Vector3();
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const t of g3.tissueMeshes) {
+      const p = t.geo.attributes.position;
+      for (let i = 0; i < p.count; i += 7) {
+        v.fromBufferAttribute(p, i).applyMatrix4(m); if (v.z > -1) continue;
+        const x = v.x / -v.z, y = v.y / -v.z;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+    }
+    if (!isFinite(x0)) return;
+    const d = cam.position.length(), right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), up = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
+    g3.world.position.addScaledVector(right, -d * (x0 + x1) / 2).addScaledVector(up, -d * (y0 + y1) / 2);
+    g3.world.updateMatrixWorld(true);
   }
 
   // ---------------------------------------------------------------------------
@@ -2719,6 +2744,7 @@
     const st = STRUCT_KEYS.filter((k) => ui.struct[k]);
     if (st.length) q.set('s', st.join(','));
     for (const c of CONDITIONS) if (c.options && ui.struct[c.id]) q.set(c.id, ui.struct[c.id]);
+    if (ui.preset) q.set('lp', ui.preset);
     return `${INAPP ? window.ECGInApp.site : location.origin + location.pathname}#${q.toString()}`;
   }
   // Parse (and validate: links come from anywhere) the scenario in the address,
@@ -2730,7 +2756,8 @@
     if (r >= 30 && r <= 180) { ui.rate = Math.round(r); $('rate').value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`; }
     for (const k of (q.get('s') || '').split(',')) if (STRUCT_KEYS.includes(k)) ui.struct[k] = true;
     for (const c of CONDITIONS) { const v = q.get(c.id); if (c.options && c.options.some((o) => o[0] === v)) ui.struct[c.id] = v; }
-    if (q.get('ap')) ui.struct.ap = true;                                // links made when WPW had a site option (ap=left-lateral)
+    if (q.get('ap')) ui.struct.ap = true;
+    if (LH.BLOCK_PRESETS && Object.prototype.hasOwnProperty.call(LH.BLOCK_PRESETS, q.get('lp'))) ui.preset = q.get('lp');                                // links made when WPW had a site option (ap=left-lateral)
     const a = q.get('a'), v = +q.get('v'), h = +q.get('h');
     return {
       arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null, fVar: (q.get('fv') || '').split('-').map(Number).filter((x) => x >= 2 && x <= 6), sar: (q.get('sar') || '').split('-').map(Number),
@@ -3601,8 +3628,9 @@ body.only .chips { margin-top: 0; }
       ui.avnrt = null; ui.pendingRhythm = null; ui.preAtrRate = null; ui.vRate = null; ui.fVar = null;
       S.setSinusArrhythmia(null);
       ui.rate = 72; $('rate').value = 72;
-      const prev = heartKey(), rebuild = CONDITIONS.some((c) => c.rebuild && ui.struct[c.id]);
+      const prev = heartKey(), rebuild = !!ui.preset || CONDITIONS.some((c) => c.rebuild && ui.struct[c.id]);
       for (const c of CONDITIONS) ui.struct[c.id] = c.options ? '' : false;
+      ui.preset = null;
       placeAPMarker(); showCatalog(false); renderConditions();
       if (rebuild) await rebuildHeart(prev); else newSim();
       renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); ui.rateMode = ''; syncRate();

@@ -3065,3 +3065,36 @@ random sinus rate (`avSev`: sites and severity range; `rec.avs`; share links `AV
   visible in ≥ 80% of beats, not on the blind rhythm read, which took grouped Wenckebach beating for AF when P's sat on the
   T. Sampled: 12/18 AV items passed (the rest on unrelated criteria or hidden P's); `tools/trainlive.js 40 7` 29/40 as
   before.
+
+## claude/hopeful-brahmagupta-ahil2p round 1: Training on the course's block presets; RVH inferior Q; problem reports; heart centred
+
+- **Block presets in Training** (`LH.BLOCK_PRESETS` in `src/engine.js`: the course's lesson presets, `docs/COURSE_PLAN.md` on
+  `claude/relaxed-goodall-p59d4n`). `sample()` sets `rec.pre` (`preOf`): RBBB alone or with LAFB → `rbbb`; LPFB alone or with
+  RBBB → `lpfb`; everything else the live model. Old recipes (no `pre`) build as before. Measured (sinus, single beat):
+  | | live | preset |
+  |---|---|---|
+  | RBBB | −51°, QS in aVF, V1 r 2.7 / R′ 4.9 | −19°, V1 r 4.1 / R′ 6.2, QRS 138 |
+  | RBBB + LAFB | −64° (RBBB alone −51°: not told apart) | −60° (RBBB alone −19°) |
+  | LPFB | 92°, R III 31 mm | 100°, R III 20 mm, rS in I |
+  RBBB + LAFB is back in Training (`BIFASC`), and the "cannot be judged" LAFB/bifascicular answer with RBBB applies to old
+  recipes only. RBBB with infarcts on the preset: mid LAD and proximal RCA STEMI, old mid LAD and mid RCA MI and mid LAD
+  narrowing all pass with the right lead groups. Still discarded: RBBB + LPFB (live and preset: the reader calls an old
+  inferior MI and RVH), LPFB + mid LAD STEMI on the preset (reader: RVH; passes on the live model, which is no longer used for
+  it), RBBB + proximal LCx STEMI (both). Share links carry `lp=rbbb|lpfb`; the simulator builds that heart (`ui.preset`,
+  `heartParams`), and Reset returns to the live model.
+- **RVH**: the thickening's centre on the RV free wall 0.4 → 0.0 rad (`hypertrophyOptions`: simulator and Training). The 0.4
+  heart had an inferior Q of 41 ms / 10.7 mm in III and 41 ms / 5.1 mm in aVF (an old inferior MI look); now III q 36 ms / 3.2
+  mm, aVF 24 ms / 2.6 mm, axis 146° → 128°, R V1 16.1 → 10.3 mm (R/S > 1), T inverted V1–V2. Scorecard RVH 4/4 (normal
+  17/17, LVH 4/4), reader 55/57, RVH read as RVH. ECG library image rebuilt (`seo_shots.js right-ventricular-hypertrophy`).
+- **Problem reports**:
+  - Mobitz I at 93/min (AVN 0.54) conducted 3:2, 2:1, 3:2 …: read by eye as 2:1. `avPattern` returns "mixed 2:1" when a
+    blocked P is followed by one conducted beat and another blocked P among longer cycles; Mobitz I/II gates reject it
+    (mobitz1 14/14 still passed in a sample).
+  - NSVT whose first PVC fired as the sinus beat conducted (fusion, on time): read as a couplet. The run's first PVC now
+    waits, like a single PVC, for a cycle where it comes before the next sinus P, and the gate needs the first beat premature.
+  - ST depression under 2 mm at its deepest (narrowing, multivessel narrowing): "Non-specific ST-T abnormality" earns half
+    credit (`f.part` on the key's finding, read by `score()` beside `PART_FINDING`).
+- **Heart centred** in every view preset (`centreHeart` in `src/app.js`): the camera aimed at the anatomy's centre, which
+  includes the great vessels and hidden posterior parts; on a phone the four-chamber view showed the heart ~45 px left of
+  centre. The world group is panned so the heart's outline is centred (the view's downward shift and desktop panel shift kept).
+- `node tools/trainlive.js 40 7`: 28/40 (29/40 before; the misses are rhythm reads and hidden P's, not the presets).

@@ -749,7 +749,7 @@
     for (const f of req) {
       const p = fp.find((x) => !x.matched && (x.id === f.id || (SAME_FINDING[f.id] || []).includes(x.id))) || fp.find((x) => !x.matched && (f.alts || []).includes(x.id));   // (f.alts: this ECG's own equivalent, e.g. ST elevation for the T inversion of a recent infarct still raised)
       if (p) p.matched = true;
-      const pp = !p && fp.find((x) => !x.matched && (PART_FINDING[f.id] || []).includes(x.id));
+      const pp = !p && fp.find((x) => !x.matched && [...(PART_FINDING[f.id] || []), ...(f.part || [])].includes(x.id));   // (f.part: this ECG's own, e.g. non-specific ST-T for a mild ST depression)
       if (pp) { pp.matched = true; credit(f, 0.5); s += share / 2; out.rows.push({ id: pp.id, cls: 'part', label: chipLabel(pp), tag: `more exactly: ${BY_ID[f.id].name}` }); out.regionMiss = out.regionMiss || f; continue; }
       if (!p) { credit(f, 0); out.rows.push({ id: f.id, cls: 'miss', label: f.regions ? `${BY_ID[f.id].name}, ${regionText(f.regions)}` : BY_ID[f.id].name }); out.missed = out.missed || f; continue; }
       if (!f.regions) { credit(f, 1); s += share; out.rows.push({ id: f.id, cls: 'ok', label: chipLabel(p) }); continue; }

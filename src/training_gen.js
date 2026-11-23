@@ -261,9 +261,12 @@
   // - fascicular block and infarct: LAFB not with an inferior infarct, LPFB not with an LAD or circumflex one
   //   (the infarct moves the axis: see siteOk)
   const QRS = ['lbbb', 'rbbb', 'lafb', 'lpfb', 'lvh', 'rvh', 'brugada', 'wpw'];
-  // (2026-11-18: RBBB + LAFB is out of Training for now: the model's RBBB alone already reads about −51° (its late RV forces
-  // point up), so it cannot be told from RBBB + LAFB (about −63°); see neutral in build. RBBB + LPFB stays: it reads right axis)
-  const BIFASC = [['rbbb', 'lpfb']];
+  // (2026-11-18: RBBB + LAFB was out: the live model's RBBB alone reads about −51° (its late RV forces point up), so it could
+  // not be told from RBBB + LAFB (about −63°). Back with the rbbb block preset (RBBB alone −19°, with LAFB −60°): see preOf)
+  const BIFASC = [['rbbb', 'lpfb'], ['rbbb', 'lafb']];
+  // the engine's block preset for a scenario (LH.BLOCK_PRESETS: the course's lesson presets): LPFB (alone or with RBBB)
+  // takes lpfb, RBBB (alone or with LAFB) rbbb; everything else the live model
+  const preOf = (ks) => (ks.includes('lpfb') ? 'lpfb' : ks.includes('rbbb') ? 'rbbb' : null);
   function compatible(rh, list, k) {
     const a = ABN[k], R = RHYTHMS[rh], all = [...list, k], has = (x) => all.includes(x);
     if (!R.open) return false;
@@ -357,6 +360,7 @@
     if (rhythm === 'sinusArr') rec.sa = [+(0.15 + 0.07 * rand()).toFixed(2), Math.round(4000 + 2000 * rand())];
     if (abn.some((a) => a.k === 'sinusPause')) rec.pauseEscape = rand() < 0.5;
     if (art) rec.art = art;
+    const pre = preOf(abn.map((a) => a.k)); if (pre) rec.pre = pre;
     return rec;
   }
 
@@ -364,15 +368,17 @@
   function TrainGen(LH, readers, JA) {
     const { read, readRhythm } = readers;
     const models = {};
-    const model = (hyp) => {
-      const key = hyp || 'none';
+    // (pre: a block preset of the engine, LH.BLOCK_PRESETS; rec.pre)
+    const model = (hyp, pre = null) => {
+      const key = `${hyp || 'none'}/${pre || ''}`;
       if (!models[key]) {
         const H = LH.hypertrophyOptions(hyp ? { [hyp]: true } : {});
         const A = new LH.Anatomy(JSON.parse(JSON.stringify(JA)), H.anatomy);
-        models[key] = new LH.Model(A, { ...H.params });
+        models[key] = new LH.Model(A, { ...H.params, ...((pre && LH.BLOCK_PRESETS && LH.BLOCK_PRESETS[pre]) || {}) });
       }
       return models[key];
     };
+    const recModel = (rec) => { const hypA = rec.abn.find((a) => ABN[a.k].hyp); return model(hypA ? ABN[hypA.k].hyp : null, rec.pre); };
     const LAB = LH.LAB;
     // ---------------------------------------------------------------- artifacts (a reading layer, generator only)
     // Added to the finished strip after every check (the checks read the clean ECG); the simulator never sees them.
@@ -483,7 +489,7 @@
     // the scenario run: 10 s of 12 leads, and the engine's own timing of every atrial and ventricular
     // activation in the strip (start and end; for the ventricles also the end of repolarisation)
     function simulate(rec, strip = STRIP) {
-      const hypA = rec.abn.find((a) => ABN[a.k].hyp), M = model(hypA ? ABN[hypA.k].hyp : null), R = RHYTHMS[rec.rhythm];
+      const M = recModel(rec), R = RHYTHMS[rec.rhythm];
       let S;
       if (R.induce) S = induce(M, rec);
       else { S = base(M, rec); if (R.start) R.start(S, rec, M, { matFoci }); if (R.vt) { S.run(2000); S.startArrhythmia('vt', { cell: vtCell(M.A) }); } }
@@ -538,6 +544,10 @@
           events.push({ t: 3600, fn: () => {
             const lv = S.log.vent[S.log.vent.length - 1], next = S.nextSinus();
             const t1 = kind === 'nsvt' ? Math.max(S.t + 5, lv.on + Math.max(420, 0.6 * rr)) : Math.max(S.t + 5, next - 0.35 * rr);
+            // (the run's first PVC well before the next sinus P, as for a single PVC: one fired as the sinus beat conducted
+            // fused with it, on time, and the run read as a couplet (problem report 2026-11-23); seen too late: the next cycle)
+            const la = S.log.atrial[S.log.atrial.length - 1];
+            if (kind === 'nsvt' && (t1 > next - 40 || (la && la.on > lv.on))) return false;
             for (let i = 0; i < n; i++) { S.stimulateAt(cell, t1 + i * cyc); stims.push({ t: t1 + i * cyc, kind: kind === 'nsvt' ? 'pvc' : 'pac' }); }
           } });
         } else for (const t of kind === 'couplet' || kind === 'acouplet' ? [3800] : [2600, 6600]) events.push({ t, fn: fire });
@@ -766,7 +776,8 @@
     const b64 = (i16) => { let s = ''; const u = new Uint8Array(i16.buffer); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return typeof btoa === 'function' ? btoa(s) : Buffer.from(s, 'binary').toString('base64'); };
     // the AV conduction pattern of a strip from the engine's beats (as the simulator's analysis reads a graded AV block):
     // each P conducted if a QRS follows within 650 ms and before the next P; none conducted: complete; alternate P's
-    // blocked: 2:1; two in a row: high grade; the PR before a blocked P > 25 ms longer than after it: Mobitz I; else Mobitz II;
+    // blocked: 2:1; two in a row: high grade; a single conducted beat between two blocked P's (a 2:1 stretch) among longer
+    // cycles: mixed (not asked); the PR before a blocked P > 25 ms longer than after it: Mobitz I; else Mobitz II;
     // all conducted: first degree when the PR is over 200 ms
     function avPattern(A, V) {
       const As = A.filter((a) => a.on > 300 && a.on < STRIP - 700);
@@ -777,6 +788,9 @@
       if (!drops.length) return Math.min(...pr) > 200 ? 'first' : 'normal';
       if (drops.length >= 2 && pr.every((x, i) => (x === null) === ((i - drops[0]) % 2 === 0))) return '2:1';
       if (drops.some((i, k) => k > 0 && i - drops[k - 1] === 1)) return 'high';
+      // (2:1 stretches between Wenckebach cycles (3:2, 2:1, 3:2 …): read by eye as 2:1 block (problem report 2026-11-22), so
+      // neither Mobitz I nor II is asked: not used)
+      if (drops.some((i, k) => k > 0 && i - drops[k - 1] === 2)) return 'mixed 2:1';
       const steps = drops.filter((i) => pr[i - 1] != null && pr[i + 1] != null).map((i) => pr[i - 1] - pr[i + 1]);
       return steps.length && steps.reduce((x, y) => x + y, 0) / steps.length > 25 ? 'mobitz1' : 'mobitz2';
     }
@@ -797,7 +811,8 @@
       for (const a of rec.abn) { const d = ABN[a.k]; if (a.avs) blocks.push(sevLink(a.avs)); else if (d.block) blocks.push(`${d.block[0]}.${d.block[1]}`); if (d.struct) struct.push(d.struct); if (d.link) q.push(d.link); if (d.isch) isch = a; }
       if (blocks.length) q.push(`b=${blocks.join(',')}`);
       if (struct.length) q.push(`s=${struct.join(',')}`);
-      if (isch) { const M = model(rec.abn.some((a) => ABN[a.k].hyp) ? ABN[rec.abn.find((a) => ABN[a.k].hyp).k].hyp : null); q.push(`${ABN[isch.k].stenosis ? 'n' : 'o'}=${(isch.sites || [isch.site]).map((x) => MI_SITES[x].f(brOf(M))).join(',')}&c=2&h=${isch.h || ABN[isch.k].isch}${isch.sev && isch.sev !== 1 ? `&ns=${isch.sev}` : ''}`); }
+      if (isch) { const M = recModel(rec); q.push(`${ABN[isch.k].stenosis ? 'n' : 'o'}=${(isch.sites || [isch.site]).map((x) => MI_SITES[x].f(brOf(M))).join(',')}&c=2&h=${isch.h || ABN[isch.k].isch}${isch.sev && isch.sev !== 1 ? `&ns=${isch.sev}` : ''}`); }
+      if (rec.pre) q.push(`lp=${rec.pre}`);   // (the block preset: the simulator builds the same heart)
       return q.join('&');
     }
     function build(rec, opts = {}) {
@@ -870,7 +885,7 @@
       const wideEsc = R.wide || (rec.avs && rec.avs.site === 'HIS' && rec.avs.s >= 0.97);   // (a ventricular escape: its QRS shape is not a finding)
       let recentSte = false;   // (a recent infarct whose ST elevation still meets the STEMI criteria)
       if (rhythm === 'sinusTachy' && !rec.abn.some((a) => a.k === 'avb1')) neutral.add('avb1');   // (the author: the P on the T looked like a long PR)
-      if (rec.abn.some((a) => a.k === 'rbbb') && !rec.abn.some((a) => a.k === 'lafb' || a.k === 'lpfb')) { neutral.add('lafb'); neutral.add('bifascicular'); }   // (RBBB's own left axis in this model)
+      if (rec.abn.some((a) => a.k === 'rbbb') && !rec.abn.some((a) => a.k === 'lafb' || a.k === 'lpfb') && rec.pre !== 'rbbb') { neutral.add('lafb'); neutral.add('bifascicular'); }   // (the live model's RBBB has its own left axis; not with the rbbb preset)
       if (wideEsc) ['lad', 'rad', 'ead', 'lbbb', 'rbbb', 'ivcd'].forEach((x) => neutral.add(x));   // (a ventricular escape's own QRS shape and axis: describing it is neither right nor wrong)
       const mark = (id, leads) => { for (const l of leads) { hl.add(l); (hlBy[id] = hlBy[id] || []).includes(l) || hlBy[id].push(l); } };   // (each finding's own leads: the result chips show them)
       // (the cheap checks first, so a scenario that fails them costs no twin runs: the blind read, then every
@@ -982,7 +997,7 @@
           } else if (d.ectopy === 'nsvt' || d.ectopy === 'arun') {
             const planned = atrial ? pacs.length : pvcs.length, ev = [...ect].sort((x, y) => x.on - y.on), fast = ev.slice(1).every((v, i) => v.on - ev[i].on < 600);
             want = planned;
-            ok = planned >= 3 && ect.size === planned && fast && (atrial ? wide.length === 0 : wide.length === planned);
+            ok = planned >= 3 && ect.size === planned && fast && (atrial ? wide.length === 0 : wide.length === planned) && (atrial || early.length >= 1 && early.includes(ev[0]));   // (a run that starts on time reads as a couplet after a normal beat)
           }
           checks.push(`${a.k}: ${ect.size} ectopic beats (${wide.length} wide, ${early.length} premature)`);
           if (!ok) return fail(`${a.k}: ectopic beats did not show as planned (${ect.size} of ${want})`, 'criteria');
@@ -998,18 +1013,21 @@
         const twinRec = { ...rec, abn: rec.abn.filter((x) => x !== a) }, tsim = simulate(twinRec, TWIN_STRIP), tmed = tsim && medianBeat(tsim);
         let tw = null;
         if (tmed) { tw = twinDiff(med, tmed, a.k); if (!tw.ok) return fail(`${a.k} barely changes the tracing (${tw.max} mV)`, 'twin'); }
+        // (the author, problem report 2026-11-23: ST depression under 2 mm at its deepest is mild enough that "non-specific ST-T
+        // abnormality" earns half credit (the change seen, its meaning missed); from 2 mm it is plainly ischaemic)
+        const mildStd = (leads) => (Math.min(...leads.map((n) => r.L[n].st80)) > -0.2 ? { part: ['nsstt'] } : {});
         if (a.k === 'narrow') {
           // (ST depression does not localise the artery: the region asked is where the depression is deepest; any
           // other lead group that shows it is accepted too)
           const site = MI_SITES[a.site], terr = terrOf(c.leads), depth = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].st80));
           const main = terr.slice().sort((x, y) => depth(x) - depth(y))[0];
-          findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok, ...dipped(r.L)])].filter((t) => t !== main) });
+          findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok, ...dipped(r.L)])].filter((t) => t !== main), ...mildStd(c.leads) });
           mark('std', c.leads); if (r.L.aVR.stJ >= 0.05) mark('std', ['aVR']);
           lines.std = `ST depression in ${c.leads.join(', ')}${r.L.aVR.stJ >= 0.05 ? ', ST up in aVR' : ''}: subendocardial ischemia (NSTEMI pattern). It does not localise the artery.`;
           ['reciprocal'].forEach((x) => optional.add(x)); if (twiLeads(r.L).length) optional.add('twi');
         } else if (a.k === 'multinarrow') {
           const terr = terrOf(c.leads), names = a.sites.map((x) => MI_SITES[x].name);
-          findings.push({ id: 'std', skill: d.skill, regions: terr.slice(0, 1), okRegions: [...new Set([...terr.slice(1), ...dipped(r.L)])].filter((t) => t !== terr[0]) });
+          findings.push({ id: 'std', skill: d.skill, regions: terr.slice(0, 1), okRegions: [...new Set([...terr.slice(1), ...dipped(r.L)])].filter((t) => t !== terr[0]), ...mildStd(c.leads) });
           optional.add('avrste');   // (the author: ST elevation in aVR is true here but not asked)
           mark('std', [...c.leads, 'aVR']);
           lines.std = `Widespread ST depression in ${c.leads.join(', ')}: diffuse subendocardial ischemia, not one territory.`;
