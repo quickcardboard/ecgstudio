@@ -3092,9 +3092,30 @@ random sinus rate (`avSev`: sites and severity range; `rec.avs`; share links `AV
     (mobitz1 14/14 still passed in a sample).
   - NSVT whose first PVC fired as the sinus beat conducted (fusion, on time): read as a couplet. The run's first PVC now
     waits, like a single PVC, for a cycle where it comes before the next sinus P, and the gate needs the first beat premature.
-  - ST depression under 2 mm at its deepest (narrowing, multivessel narrowing): "Non-specific ST-T abnormality" earns half
-    credit (`f.part` on the key's finding, read by `score()` beside `PART_FINDING`).
+  - Non-specific ST-T vs ST depression (the author): under 1 mm is non-specific, from 1 mm ST depression (round 2). The ST
+    depression finding is only asked at ≥ 1 mm in two contiguous leads, so naming it non-specific earns nothing there.
 - **Heart centred** in every view preset (`centreHeart` in `src/app.js`): the camera aimed at the anatomy's centre, which
   includes the great vessels and hidden posterior parts; on a phone the four-chamber view showed the heart ~45 px left of
   centre. The world group is panned so the heart's outline is centred (the view's downward shift and desktop panel shift kept).
 - `node tools/trainlive.js 40 7`: 28/40 (29/40 before; the misses are rhythm reads and hidden P's, not the presets).
+
+## claude/hopeful-brahmagupta-ahil2p round 2: the author's review of the rejected combinations
+
+Each item tried on the live model and the block presets first (scratch builds, seeds 4242 and 5219):
+- **Non-specific ST-T threshold 1 mm** (the author): round 1's half credit for ST depression under 2 mm removed. A narrowing
+  whose ST depression stays under 1 mm (≥ 0.5 mm in two contiguous leads, or flat T) is no longer thrown away: it is asked
+  as non-specific ST-T (`nonspecific` on the narrowing's criteria; ST depression named instead earns half, `part`).
+- **Now allowed** (all passed in the trials): flutter with an acute or evolving STEMI (mid and proximal LAD, proximal RCA,
+  proximal LCx; the ST elevation is read through the flutter waves); first-degree AV block with a proximal or mid RCA infarct
+  (acute and old: the P stays visible); WPW with ectopic beats (pauses and SA block still not); PVCs, couplets and NSVT in AF
+  and flutter (fired at a fixed coupling after the last QRS when the cycle is caught early; rate capped at 105/min so the
+  pause is seen; the premature-beat test is not applied to an irregular rhythm); Wellens with LAFB or LPFB; LAFB + Brugada.
+- **RBBB + LPFB** now passes (live and lpfb preset): with a QRS ≥ 120 ms and RBBB the reader's RVH is not counted, and in
+  LPFB a q under 40 ms before a tall R in II, III, aVF is the fascicular qR, not an old inferior MI (lpfb preset: q III
+  33 ms / 4 mm).
+- **Preset fallback**: a scenario that fails on its block preset is built again on the live model (LPFB + mid LAD STEMI reads
+  RVH on the lpfb preset and passes live).
+- **Still out or discarded**: LPFB + Brugada (reads RVH); junctional + non-specific ST-T (the retrograde P inverts the T in
+  II and aVF; no flat T); LPFB + proximal LCx STEMI (axis 89–93°, all models); RBBB + proximal LCx STEMI (fails the RBBB
+  check on all models). Old MI and recent infarcts pass at the proximal and mid RCA and mid LAD on every model; the recent
+  mid RCA infarct fails on its missing T inversion, not the Q waves, on every model.
