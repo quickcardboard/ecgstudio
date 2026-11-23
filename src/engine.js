@@ -3029,12 +3029,24 @@
     return {
       // RVH: free-wall hypertrophy (thickening centred on the free wall, sparing the septal insertions),
       // slower conduction in the hypertrophied RV muscle, stronger sources and a strain gradient
-      anatomy: { lvWallLayers: lvh ? 6 : 2, rvWallLayers: rvh ? 6 : 0, ...(rvh ? { rvThickPhiC: 0.4, rvThickPhiW: 0.8 } : {}) },
+      anatomy: { lvWallLayers: lvh ? 6 : 2, rvWallLayers: rvh ? 6 : 0, ...(rvh ? { rvThickPhiC: 0.0, rvThickPhiW: 0.8 } : {}) },   // (centre 0.4 → 0.0 rad: the 0.4 heart had an inferior Q of 41 ms, 10.7 mm in III)
       params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1, rvCvMul: (rvh ? 0.8 : 1) * DEFAULTS.rvCvMul },   // (relative to the default RV muscle speed)
     };
   }
 
-  const api = { hypertrophyOptions, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, setDefaultTorso2, lvThickenWeight, rvThickenWeight };
+  // Block presets: extra engine settings that make one conduction block read as in the textbook where the live model
+  // falls short (the course's lesson presets; docs/COURSE_PLAN.md, Model accuracy). They change conduction and source
+  // strength only, never the heart's position, and are used only for the block they are named after: Training's RBBB
+  // (alone or with LAFB) and LPFB (alone or with RBBB) scenarios and the simulator links made from them (lp=).
+  //   rbbb: RBBB axis −51° → −19° (no QS in aVF), V1 r 4.1 / R′ 6.2 mm; with LAFB −60° (the live model's RBBB alone
+  //         already reads −51°, so RBBB + LAFB could not be told apart). Its normal beat: axis 63°.
+  //   lpfb: LPFB axis 92° → 100°, R III 31 → 20 mm, a clear rS in I. Its normal beat: axis 29°, low voltage.
+  const BLOCK_PRESETS = {
+    rbbb: { rvSourceGain: 0.9, pmjRetroRV: 50, purkZmaxRV: 0.8, septalTerrHalf: 0.85, lsfPhi: 1.1, lsfZ: 0.25, rvCvMul: 1, cvVentTrans: 0.34, cvVentSheet: 0.25, precordialDipoleW: 0.6, dowerChest: 0, rbbSeptalFrac: 0 },
+    lpfb: { lpfTerrLo: -2.9, lpfTerrHi: 1.2, purkCrossSlow: 10, lsfTie: 'LPF', lsfTieDelay: 3, septalTerrHalf: 0.2, lpfApexZ: 0.2, lvSourceGain: 0.6, lpfPhi: -1.8, lpfZ: 0.4, fascConnectFrac: 0.35, cvVentLong: 0.45, rvSourceGain: 0.7, purkCrossFastPhi: null },
+  };
+
+  const api = { hypertrophyOptions, BLOCK_PRESETS, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, setDefaultTorso2, lvThickenWeight, rvThickenWeight };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ECGStudio = api;
 })(typeof window !== 'undefined' ? window : globalThis);

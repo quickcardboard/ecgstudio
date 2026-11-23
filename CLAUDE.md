@@ -44,7 +44,7 @@ Run before and after any engine change and compare:
 - `node tools/scorecard.js ['{params}'] [scenarios]`: textbook scorecard (66 checks over normal, the blocks, LVH/RVH and
   infarcts: intervals, axes, amplitudes, morphology), independent of the reader's verdicts; `TV2=` for a variant's torso.
   Round 69 live model 61/66 (the old model 53/66)
-- `node tools/hyper.js '[{"lv":6,"P":{"lvStrain":1,"lvSourceGain":1.5}},{"lv":2,"rv":6,"an":{"rvThickPhiC":0.4,"rvThickPhiW":0.8},"P":{"rvStrain":0.7,"rvSourceGain":1.8,"rvCvMul":0.8}}]'` (the LVH and RVH presets of `hypertrophyOptions`)
+- `node tools/hyper.js '[{"lv":6,"P":{"lvStrain":1,"lvSourceGain":1.5}},{"lv":2,"rv":6,"an":{"rvThickPhiC":0,"rvThickPhiW":0.8},"P":{"rvStrain":0.7,"rvSourceGain":1.8,"rvCvMul":0.8}}]'` (the LVH and RVH presets of `hypertrophyOptions`)
 - `node tools/ischaudit.js [sites] [hours]`: ST/Q/T per lead for every occlusion site and time
   stop (`MP='{...}'` overrides parameters; the marginal branches `OM1,OM2,AM` only when named)
 - `node tools/stcheck.js`, `node tools/arrhythmia.js`, `node tools/avnrt.js`, `node tools/avrt.js`
@@ -75,6 +75,8 @@ Known limitations (rebuild-1 rounds 10–17 in docs/DEVELOPMENT.md):
   solved torso in V5–V6, 75% in V4, 50% in V3 (`chestTorsoTLead`, Round 67; V3–V6 fields in `src/torso_limb.json`). V1–V2
   ST-T stay on the blend (the torso field breaks Brugada's coved ST). The `cavityWindowT` bandage is gone (1). A torso QRS
   loses R progression and the infarct Q waves (Round 49).
+- Training's RBBB (alone or with LAFB) and LPFB (alone or with RBBB) use the course's block presets (`LH.BLOCK_PRESETS`,
+  `rec.pre`, links `lp=`); the free simulator keeps the live model
 - fascicular block voltages stay high (LPFB R III ~31 mm); the old mid-RCA infarct's T in III is −5.3 mm; proximal LCx
   at 30 days adds inferior Q; OM1 at 1 h spills ST into V3–V4; Training's hyperacute mid-LAD T is often not tall enough
 - the Purkinje network (Round 68): septal fascicle with its own territory, fast cross-territory bands at the territory

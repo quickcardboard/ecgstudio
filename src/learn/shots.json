@@ -338,12 +338,12 @@
   "chips": [
    "Rate 72 bpm",
    "PR 136 ms",
-   "QRS 99 ms",
-   "QT/QTcF 386/410 ms",
-   "Axis +142° · right axis deviation"
+   "QRS 106 ms",
+   "QT/QTcF 385/409 ms",
+   "Axis +128° · right axis deviation"
   ],
   "findings": [
-   "Right ventricular hypertrophy: dominant R in V1 (R 1.61 mV) with T inversion in V1–V2 (RV strain)"
+   "Right ventricular hypertrophy with strain"
   ]
  },
  "wolff-parkinson-white": {
