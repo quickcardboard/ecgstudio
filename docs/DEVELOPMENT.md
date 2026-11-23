@@ -3121,3 +3121,8 @@ Each item tried on the live model and the block presets first (scratch builds, s
   II and aVF; no flat T); LPFB + proximal LCx STEMI (axis 89–93°, all models); RBBB + proximal LCx STEMI (fails the RBBB
   check on all models). Old MI and recent infarcts pass at the proximal and mid RCA and mid LAD on every model; the recent
   mid RCA infarct fails on its missing T inversion, not the Q waves, on every model.
+
+## claude/hopeful-brahmagupta-ahil2p round 3: the author's eye check of the 25 new passes
+
+- 22 fine as drawn. LAFB + Brugada out again (by eye too much like pericarditis or an acute MI). A narrowing under 1 mm:
+  non-specific ST-T is optional (credited if named, not required); naming ST depression there counts as not present.

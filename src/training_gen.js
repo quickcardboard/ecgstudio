@@ -263,7 +263,7 @@
   const QRS = ['lbbb', 'rbbb', 'lafb', 'lpfb', 'lvh', 'rvh', 'brugada', 'wpw'];
   // (2026-11-18: RBBB + LAFB was out: the live model's RBBB alone reads about −51° (its late RV forces point up), so it could
   // not be told from RBBB + LAFB (about −63°). Back with the rbbb block preset (RBBB alone −19°, with LAFB −60°): see preOf)
-  const BIFASC = [['rbbb', 'lpfb'], ['rbbb', 'lafb'], ['lafb', 'brugada']];   // (LAFB + Brugada, 2026-11-23: passes; LPFB + Brugada reads RVH)
+  const BIFASC = [['rbbb', 'lpfb'], ['rbbb', 'lafb']];   // (LAFB + Brugada passed the checks but looks too much like pericarditis or an acute MI by eye: out, the author 2026-11-23)
   // the engine's block preset for a scenario (LH.BLOCK_PRESETS: the course's lesson presets): LPFB (alone or with RBBB)
   // takes lpfb, RBBB (alone or with LAFB) rbbb; everything else the live model
   const preOf = (ks) => (ks.includes('lpfb') ? 'lpfb' : ks.includes('rbbb') ? 'rbbb' : null);
@@ -1038,10 +1038,10 @@
         let tw = null;
         if (tmed) { tw = twinDiff(med, tmed, a.k); if (!tw.ok) return fail(`${a.k} barely changes the tracing (${tw.max} mV)`, 'twin'); }
         if (a.k === 'narrow' && c.nonspecific) {
-          findings.push({ id: 'nsstt', skill: d.skill, part: ['std'] });
+          // (the author's eye check: non-specific ST-T is true here but not required)
+          optional.add('nsstt');
           mark('nsstt', c.leads);
           lines.nsstt = `ST depression under 1 mm (or flat T) in ${c.leads.join(', ')}: a non-specific ST-T abnormality. ST depression of 1 mm or more in two contiguous leads would be called ischemic; here it comes from a narrowed ${MI_SITES[a.site].name}.`;
-          optional.add('std');
         } else if (a.k === 'narrow') {
           // (ST depression does not localise the artery: the region asked is where the depression is deepest; any
           // other lead group that shows it is accepted too)
