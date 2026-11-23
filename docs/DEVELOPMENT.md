@@ -3153,3 +3153,24 @@ Not adopted after a closer look at the passes as well as the failures: fast AF (
 4/8, and by eye an inferior STEMI at 149/min is plain where the gate's ST measurement missed it (to the author); narrowing
 above 100/min passed 11/16. The flutter and atrial tachycardia strips the blind rhythm read rejected (16) rendered for the
 author.
+
+## claude/training-as-is round 1: answer keys read from the ECG as it came out (no discards)
+
+The author's direction (2026-11-23): Training discarded about a quarter of its builds (and the variety with them) because
+an ECG did not show what was put in. On this branch the key is what the ECG shows (`AS_IS` in `src/training_gen.js`;
+`opts.strict` or `setAsIs(false)` restores the gate):
+- Rhythm from the engine's beats, not the blind rhythm read (its disagreement is noted in the checks). A graded AV block
+  is keyed from the conduction that happened (`AV_KEY`): 2:1, high grade and Wenckebach with 2:1 stretches → Mobitz II
+  (the author: 2:1 is always Mobitz II; Mobitz I half for the mixed pattern), complete → complete AV block, first degree →
+  sinus with first-degree AV block asked. Hidden P waves, a slight sinus arrhythmia (→ the sinus rhythm of its rate) and a
+  regular variable flutter (→ flutter) no longer discard.
+- An abnormality whose criteria are not met, that barely changes the tracing (twin), whose ectopic beats did not show
+  as planned, or whose pauses did not show is not asked but credited if named (`dropOr`; optional), and leaves the rating
+  and the skills. A recent infarct with Q waves but no T inversion yet is asked as Q waves (`asQ`).
+- A finding the blind read sees that was not put in is credited if named (optional, `DX_ID`), not a discard.
+- Kept discards: not induced, too few beats, the sinus-arrest P check and escape rate, too few atrial foci (WAP/MAT), a
+  left-atrial focus whose P is not inverted.
+- Round 5's audit exclusions undone (hyperacute T weight 2, Mobitz I to 98/min, recent/old infarct sites): nothing is
+  discarded for them now.
+- First 20-ECG reading batch for the author (keys in `tools/data/reading/batch1_keys.json`): 20/20 kept on their first
+  build, 1.4–21 s each.

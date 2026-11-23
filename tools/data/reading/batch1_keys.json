@@ -1,0 +1,906 @@
+[
+ {
+  "n": "ECG 01",
+  "recipe": {
+   "rhythm": "mobitz1",
+   "abn": [
+    {
+     "k": "hyper",
+     "site": "mLAD"
+    },
+    {
+     "k": "lafb"
+    }
+   ],
+   "seed": 598252,
+   "rate": 87,
+   "avs": {
+    "site": "AVN",
+    "s": 0.56
+   }
+  },
+  "key": {
+   "rhythm": "mobitz1",
+   "alt": [],
+   "findings": [
+    {
+     "id": "hyperacute",
+     "skill": "ischemia",
+     "regions": [
+      "anterior"
+     ],
+     "okRegions": [
+      "septal",
+      "lateral"
+     ]
+    },
+    {
+     "id": "lafb",
+     "skill": "conduction"
+    }
+   ],
+   "optional": [
+    "poorR",
+    "avb1",
+    "lad",
+    "twi",
+    "reciprocal"
+   ]
+  },
+  "checks": [
+   "AV conduction (engine): mobitz1",
+   "hyper: T V3 13 mm, V4 11 mm",
+   "lafb: axis -55°"
+  ],
+  "lines": {
+   "rhythm": "PR lengthens beat by beat until a P is not conducted: Mobitz I.",
+   "hyperacute": "Broad-based, symmetric T waves in V3, V4, large for the QRS in front of them, no ST elevation yet: hyperacute anterior ischemia (an occlusion until shown otherwise). Repeat the ECG.",
+   "lafb": "Axis beyond −45° with qR in aVL and rS in II, III, aVF: left anterior fascicular block."
+  },
+  "rating": 1959,
+  "link": "r=87&b=AVN.s56,LAF.complete&o=11&c=2&h=0.25"
+ },
+ {
+  "n": "ECG 02",
+  "recipe": {
+   "rhythm": "idioventricular",
+   "abn": [],
+   "seed": 541574,
+   "rate": 72,
+   "esc": {
+    "rate": 32,
+    "focus": "lpf"
+   }
+  },
+  "key": {
+   "rhythm": "idioventricular",
+   "alt": [],
+   "findings": [],
+   "optional": [
+    "sinusPause"
+   ],
+   "neutral": [
+    "lad",
+    "rad",
+    "ead",
+    "lbbb",
+    "rbbb",
+    "ivcd"
+   ]
+  },
+  "checks": [],
+  "lines": {
+   "rhythm": "No P waves (sinus arrest); regular wide QRS at 32/min (20–40): ventricular escape (idioventricular) rhythm. The QRS shape shows where it starts: here the left posterior fascicle, with a left, superior axis."
+  },
+  "rating": 1376,
+  "link": "r=72&b=SAN.arrest,HIS.complete"
+ },
+ {
+  "n": "ECG 03",
+  "recipe": {
+   "rhythm": "flutter",
+   "abn": [
+    {
+     "k": "couplet"
+    }
+   ],
+   "seed": 579663,
+   "rate": 89
+  },
+  "key": {
+   "rhythm": "flutter",
+   "alt": [],
+   "findings": [
+    {
+     "id": "couplet",
+     "skill": "rhythm"
+    }
+   ],
+   "optional": [
+    "pvc"
+   ]
+  },
+  "checks": [
+   "couplet: 2 ectopic beats (2 wide, 2 premature)"
+  ],
+  "lines": {
+   "rhythm": "Sawtooth flutter waves at about 300/min, every third one conducted: atrial flutter with 3:1 block.",
+   "couplet": "Two premature wide complexes in a row: a ventricular couplet (three or more would be non-sustained VT)."
+  },
+  "rating": 1629,
+  "link": "r=89&a=flutter&v=89"
+ },
+ {
+  "n": "ECG 04",
+  "recipe": {
+   "rhythm": "flutter",
+   "abn": [
+    {
+     "k": "pvc"
+    }
+   ],
+   "seed": 559251,
+   "rate": 84
+  },
+  "key": {
+   "rhythm": "flutter",
+   "alt": [],
+   "findings": [
+    {
+     "id": "pvc",
+     "skill": "rhythm"
+    }
+   ],
+   "optional": []
+  },
+  "checks": [
+   "pvc: 2 ectopic beats (2 wide, 2 premature)"
+  ],
+  "lines": {
+   "rhythm": "Sawtooth flutter waves at about 300/min, every third one conducted: atrial flutter with 3:1 block.",
+   "pvc": "An early, wide, bizarre QRS with no P wave before it and a full compensatory pause: premature ventricular complexes."
+  },
+  "rating": 1585,
+  "link": "r=84&a=flutter&v=84"
+ },
+ {
+  "n": "ECG 05",
+  "recipe": {
+   "rhythm": "af",
+   "abn": [
+    {
+     "k": "evolving",
+     "site": "mLAD",
+     "h": 12
+    },
+    {
+     "k": "pvc"
+    }
+   ],
+   "seed": 78844,
+   "rate": 92,
+   "art": {
+    "kinds": [
+     "tremor"
+    ],
+    "el": {
+     "tremor": "LA"
+    },
+    "level": 0.63
+   }
+  },
+  "key": {
+   "rhythm": "af",
+   "alt": [],
+   "findings": [
+    {
+     "id": "ste",
+     "skill": "ischemia",
+     "regions": [
+      "anterior"
+     ],
+     "okRegions": [
+      "septal",
+      "lateral"
+     ]
+    },
+    {
+     "id": "pvc",
+     "skill": "rhythm"
+    }
+   ],
+   "optional": [
+    "std",
+    "reciprocal",
+    "hyperacute",
+    "posteriorMI",
+    "twi",
+    "qwaves"
+   ]
+  },
+  "checks": [
+   "evolving: ST elevation in V1 V2 V3 V4 V5",
+   "pvc: 2 ectopic beats (2 wide, 2 premature)"
+  ],
+  "lines": {
+   "rhythm": "Irregularly irregular, no P waves, ventricular rate over 100: atrial fibrillation with a rapid ventricular response (AF with RVR).",
+   "ste": "ST elevation in V1, V2, V3, V4, V5, past its peak, with Q waves forming and T waves starting to invert: an evolving anterior STEMI, about 12 hours old.",
+   "pvc": "An early, wide, bizarre QRS with no P wave before it and a full compensatory pause: premature ventricular complexes.",
+   "qwaves": "Q waves in V2, V3, V4, V5: also true on this ECG."
+  },
+  "rating": 1909,
+  "link": "r=92&a=af&v=92&s=fib&o=11&c=2&h=12"
+ },
+ {
+  "n": "ECG 06",
+  "recipe": {
+   "rhythm": "avnrt",
+   "abn": [],
+   "seed": 59676,
+   "rate": 72
+  },
+  "key": {
+   "rhythm": "avnrt",
+   "alt": [
+    "svt",
+    "flutter"
+   ],
+   "findings": [],
+   "optional": []
+  },
+  "checks": [],
+  "lines": {
+   "rhythm": "Regular narrow tachycardia under 200 with no visible P: AVNRT."
+  },
+  "rating": 1398,
+  "link": "r=72&a=avnrt"
+ },
+ {
+  "n": "ECG 07",
+  "recipe": {
+   "rhythm": "mat",
+   "abn": [
+    {
+     "k": "wellensA"
+    }
+   ],
+   "seed": 154894,
+   "rate": 121
+  },
+  "key": {
+   "rhythm": "mat",
+   "alt": [
+    "wap"
+   ],
+   "findings": [],
+   "optional": [
+    "twi",
+    "wellens"
+   ]
+  },
+  "checks": [
+   "not asked (wellensA): wellensA criteria not met (terminal T V2 0.1, V3 0.0 mm)",
+   "as is: P hidden in 4/19 beats"
+  ],
+  "lines": {
+   "rhythm": "Irregular, rate over 100, at least three different P-wave shapes with varying PR: multifocal atrial tachycardia."
+  },
+  "rating": 1447,
+  "link": "r=121&a=mat&wellens=A"
+ },
+ {
+  "n": "ECG 08",
+  "recipe": {
+   "rhythm": "sinusArr",
+   "abn": [
+    {
+     "k": "recent",
+     "site": "dRCA"
+    },
+    {
+     "k": "rbbb"
+    }
+   ],
+   "seed": 85284,
+   "rate": 75,
+   "sa": [
+    0.19,
+    5041
+   ],
+   "pre": "rbbb"
+  },
+  "key": {
+   "rhythm": "sinusArr",
+   "alt": [
+    "sinusBrady",
+    "sinusTachy"
+   ],
+   "findings": [
+    {
+     "id": "qwaves",
+     "skill": "ischemia",
+     "regions": [
+      "inferior"
+     ],
+     "okRegions": [
+      "lateral"
+     ]
+    },
+    {
+     "id": "rbbb",
+     "skill": "conduction"
+    }
+   ],
+   "optional": [
+    "avb1",
+    "ste",
+    "lad"
+   ],
+   "same": [
+    "sinus"
+   ]
+  },
+  "checks": [
+   "recent: Q waves in II III aVF",
+   "rbbb: QRS 156 ms",
+   "as is: recent dRCA: no T inversion yet (Q waves in II III aVF, T inversion in none); Q waves asked"
+  ],
+  "lines": {
+   "rhythm": "A normal P before every QRS with a constant PR, but the RR lengthens and shortens gradually with breathing (more than 120 ms apart): sinus arrhythmia, a normal finding.",
+   "qwaves": "Q waves in II, III, aVF: old inferior infarct.",
+   "rbbb": "QRS ≥ 120 ms, rsR′ in V1 and a broad S in I and V6: RBBB."
+  },
+  "rating": 1794,
+  "link": "r=75&sar=0.19-5041&b=RBB.complete&o=137&c=2&h=48&lp=rbbb"
+ },
+ {
+  "n": "ECG 09",
+  "recipe": {
+   "rhythm": "sinus",
+   "abn": [
+    {
+     "k": "narrow",
+     "site": "PDA",
+     "sev": 1
+    },
+    {
+     "k": "avb1",
+     "avs": {
+      "site": "AVN",
+      "s": 0.38
+     }
+    }
+   ],
+   "seed": 692498,
+   "rate": 69
+  },
+  "key": {
+   "rhythm": "sinus",
+   "alt": [],
+   "findings": [
+    {
+     "id": "avb1",
+     "skill": "conduction"
+    }
+   ],
+   "optional": [
+    "nsstt"
+   ]
+  },
+  "checks": [
+   "narrow: ST depression under 1 mm in II -0.8, III -0.7, aVF -0.7: non-specific",
+   "avb1: PR 233"
+  ],
+  "lines": {
+   "rhythm": "Regular, a P before every QRS at a normal rate: sinus rhythm.",
+   "nsstt": "ST depression under 1 mm (or flat T) in II, III, aVF: a non-specific ST-T abnormality. ST depression of 1 mm or more in two contiguous leads would be called ischemic; here it comes from a narrowed posterior descending artery.",
+   "avb1": "PR over 200 ms with every P conducted: first-degree AV block."
+  },
+  "rating": 1706,
+  "link": "r=69&b=AVN.s38&n=151&c=2&h=1"
+ },
+ {
+  "n": "ECG 10",
+  "recipe": {
+   "rhythm": "atrialTach",
+   "abn": [
+    {
+     "k": "hyperK"
+    },
+    {
+     "k": "lafb"
+    },
+    {
+     "k": "avb1",
+     "avs": {
+      "site": "AVN",
+      "s": 0.35
+     }
+    }
+   ],
+   "seed": 958088,
+   "rate": 117
+  },
+  "key": {
+   "rhythm": "atrialTach",
+   "alt": [
+    "svt"
+   ],
+   "findings": [
+    {
+     "id": "hyperK",
+     "skill": "conditions"
+    },
+    {
+     "id": "lafb",
+     "skill": "conduction"
+    },
+    {
+     "id": "avb1",
+     "skill": "conduction"
+    }
+   ],
+   "optional": [
+    "poorR",
+    "lad"
+   ]
+  },
+  "checks": [
+   "hyperK: T V2 9 mm, V3 13 mm, V4 13 mm, II 13 mm",
+   "lafb: axis -58°",
+   "avb1: PR 400",
+   "as is: blind rhythm read: \"atrial fibrillation\""
+  ],
+  "lines": {
+   "rhythm": "Regular, rate over 100, an abnormal P (inverted in II, III and aVF) before every QRS: atrial tachycardia.",
+   "hyperK": "Tall, narrow-based, peaked T waves: hyperkalemia (K about 6–7).",
+   "lafb": "Axis beyond −45° with qR in aVL and rS in II, III, aVF: left anterior fascicular block.",
+   "avb1": "PR over 200 ms with every P conducted: first-degree AV block."
+  },
+  "rating": 2113,
+  "link": "r=117&a=ectopic&hyperK=mild&b=LAF.complete,AVN.s35"
+ },
+ {
+  "n": "ECG 11",
+  "recipe": {
+   "rhythm": "sinus",
+   "abn": [
+    {
+     "k": "narrow",
+     "site": "dRCA",
+     "sev": 1
+    },
+    {
+     "k": "avb1",
+     "avs": {
+      "site": "AVN",
+      "s": 0.37
+     }
+    },
+    {
+     "k": "lae"
+    }
+   ],
+   "seed": 706292,
+   "rate": 70
+  },
+  "key": {
+   "rhythm": "sinus",
+   "alt": [],
+   "findings": [
+    {
+     "id": "std",
+     "skill": "ischemia",
+     "regions": [
+      "inferior"
+     ],
+     "okRegions": [
+      "lateral"
+     ]
+    },
+    {
+     "id": "avb1",
+     "skill": "conduction"
+    },
+    {
+     "id": "lae",
+     "skill": "conditions"
+    }
+   ],
+   "optional": [
+    "twi",
+    "reciprocal"
+   ]
+  },
+  "checks": [
+   "narrow: ST depression (J+80) in II -1.3, III -1.2, aVF -1.2",
+   "avb1: PR 222",
+   "lae: P 217 ms, notch 56 ms"
+  ],
+  "lines": {
+   "rhythm": "Regular, a P before every QRS at a normal rate: sinus rhythm.",
+   "std": "ST depression in II, III, aVF, ST up in aVR: subendocardial ischemia (NSTEMI pattern). It does not localise the artery.",
+   "avb1": "PR over 200 ms with every P conducted: first-degree AV block.",
+   "lae": "Broad notched P (≥ 120 ms) in II: left atrial enlargement.",
+   "twi": "T wave inversion in II, III, aVF: also true on this ECG."
+  },
+  "rating": 1948,
+  "link": "r=70&b=AVN.s37&s=lae&n=137&c=2&h=1"
+ },
+ {
+  "n": "ECG 12",
+  "recipe": {
+   "rhythm": "vt",
+   "abn": [],
+   "seed": 908712,
+   "rate": 72
+  },
+  "key": {
+   "rhythm": "vt",
+   "alt": [],
+   "findings": [],
+   "optional": []
+  },
+  "checks": [],
+  "lines": {
+   "rhythm": "Regular broad-complex tachycardia without related P waves: ventricular tachycardia."
+  },
+  "rating": 1392,
+  "link": "r=72&a=vt"
+ },
+ {
+  "n": "ECG 13",
+  "recipe": {
+   "rhythm": "sinus",
+   "abn": [
+    {
+     "k": "recent",
+     "site": "mRCA"
+    },
+    {
+     "k": "wpw"
+    }
+   ],
+   "seed": 706709,
+   "rate": 81
+  },
+  "key": {
+   "rhythm": "sinus",
+   "alt": [],
+   "findings": [
+    {
+     "id": "wpw",
+     "skill": "conduction"
+    }
+   ],
+   "optional": [
+    "qwaves",
+    "std",
+    "twi"
+   ]
+  },
+  "checks": [
+   "wpw: PR 55, QRS 178, upstroke 64",
+   "not asked (recent): recent mRCA criteria not met (Q waves in none, T inversion in II III aVF)"
+  ],
+  "lines": {
+   "rhythm": "Regular, a P before every QRS at a normal rate: sinus rhythm.",
+   "wpw": "Short PR, slurred delta wave and broad QRS: WPW pattern.",
+   "std": "ST depression in II, III, aVF, V2, V3, V4: also true on this ECG.",
+   "twi": "T wave inversion in II, III, aVF: also true on this ECG."
+  },
+  "rating": 1442,
+  "link": "r=81&s=ap&o=127&c=2&h=48"
+ },
+ {
+  "n": "ECG 14",
+  "recipe": {
+   "rhythm": "sinus",
+   "abn": [
+    {
+     "k": "stemi",
+     "site": "dRCA"
+    }
+   ],
+   "seed": 276409,
+   "rate": 77
+  },
+  "key": {
+   "rhythm": "sinus",
+   "alt": [],
+   "findings": [
+    {
+     "id": "ste",
+     "skill": "ischemia",
+     "regions": [
+      "inferior"
+     ],
+     "okRegions": [
+      "lateral"
+     ]
+    }
+   ],
+   "optional": [
+    "avb1",
+    "twi",
+    "std",
+    "reciprocal",
+    "hyperacute",
+    "posteriorMI",
+    "qwaves"
+   ]
+  },
+  "checks": [
+   "stemi: ST elevation in II III aVF"
+  ],
+  "lines": {
+   "rhythm": "Regular, a P before every QRS at a normal rate: sinus rhythm.",
+   "ste": "ST elevation in II, III, aVF: acute inferior STEMI.",
+   "std": "ST depression in I, aVL, V3, V4, V5, V6: also true on this ECG.",
+   "twi": "T wave inversion in V5, V6: also true on this ECG."
+  },
+  "rating": 1398,
+  "link": "r=77&o=137&c=2&h=1"
+ },
+ {
+  "n": "ECG 15",
+  "recipe": {
+   "rhythm": "flutter",
+   "abn": [
+    {
+     "k": "lbbb"
+    }
+   ],
+   "seed": 312859,
+   "rate": 106,
+   "art": {
+    "kinds": [
+     "wander"
+    ],
+    "el": {
+     "wander": "V1"
+    },
+    "level": 0.61
+   }
+  },
+  "key": {
+   "rhythm": "flutter",
+   "alt": [],
+   "findings": [
+    {
+     "id": "lbbb",
+     "skill": "conduction"
+    }
+   ],
+   "optional": []
+  },
+  "checks": [
+   "lbbb: QRS 125 ms",
+   "as is: blind rhythm read: \"sinus rhythm\""
+  ],
+  "lines": {
+   "rhythm": "Sawtooth flutter waves at about 300/min, every third one conducted: atrial flutter with 3:1 block.",
+   "lbbb": "QRS ≥ 120 ms, broad notched R in I and V6, deep QS in V1: LBBB."
+  },
+  "rating": 1685,
+  "link": "r=106&a=flutter&v=106&b=LBB.complete"
+ },
+ {
+  "n": "ECG 16",
+  "recipe": {
+   "rhythm": "sinus",
+   "abn": [
+    {
+     "k": "wpw"
+    }
+   ],
+   "seed": 707648,
+   "rate": 67,
+   "art": {
+    "kinds": [
+     "wander"
+    ],
+    "el": {
+     "wander": "LA"
+    },
+    "level": 0.24
+   }
+  },
+  "key": {
+   "rhythm": "sinus",
+   "alt": [],
+   "findings": [
+    {
+     "id": "wpw",
+     "skill": "conduction"
+    }
+   ],
+   "optional": [
+    "std",
+    "qwaves",
+    "twi"
+   ]
+  },
+  "checks": [
+   "wpw: PR 58, QRS 149, upstroke 85"
+  ],
+  "lines": {
+   "rhythm": "Regular, a P before every QRS at a normal rate: sinus rhythm.",
+   "wpw": "Short PR, slurred delta wave and broad QRS: WPW pattern.",
+   "std": "ST depression in II, III, aVF: also true on this ECG.",
+   "qwaves": "Q waves in I, aVL: also true on this ECG.",
+   "twi": "T wave inversion in II, III, aVF: also true on this ECG."
+  },
+  "rating": 1490,
+  "link": "r=67&s=ap"
+ },
+ {
+  "n": "ECG 17",
+  "recipe": {
+   "rhythm": "vt",
+   "abn": [],
+   "seed": 109984,
+   "rate": 72,
+   "art": {
+    "kinds": [
+     "mains",
+     "tremor"
+    ],
+    "el": {
+     "tremor": "LL"
+    },
+    "level": 0.78
+   }
+  },
+  "key": {
+   "rhythm": "vt",
+   "alt": [],
+   "findings": [],
+   "optional": []
+  },
+  "checks": [],
+  "lines": {
+   "rhythm": "Regular broad-complex tachycardia without related P waves: ventricular tachycardia."
+  },
+  "rating": 1587,
+  "link": "r=72&a=vt"
+ },
+ {
+  "n": "ECG 18",
+  "recipe": {
+   "rhythm": "sinus",
+   "abn": [
+    {
+     "k": "lvh"
+    }
+   ],
+   "seed": 239401,
+   "rate": 70,
+   "art": {
+    "kinds": [
+     "wander"
+    ],
+    "el": {
+     "wander": "LL"
+    },
+    "level": 0.39
+   }
+  },
+  "key": {
+   "rhythm": "sinus",
+   "alt": [],
+   "findings": [
+    {
+     "id": "lvh",
+     "skill": "conditions"
+    }
+   ],
+   "optional": [
+    "twi",
+    "lvhStrain"
+   ]
+  },
+  "checks": [
+   "lvh: Sokolow 5.17"
+  ],
+  "lines": {
+   "rhythm": "Regular, a P before every QRS at a normal rate: sinus rhythm.",
+   "lvh": "S in V1 plus R in V5/V6 ≥ 35 mm: left ventricular hypertrophy.",
+   "twi": "T wave inversion in I, aVL, V5, V6: also true on this ECG."
+  },
+  "rating": 1476,
+  "link": "r=70&s=lvh"
+ },
+ {
+  "n": "ECG 19",
+  "recipe": {
+   "rhythm": "af",
+   "abn": [
+    {
+     "k": "recent",
+     "site": "pRCA"
+    }
+   ],
+   "seed": 717008,
+   "rate": 76
+  },
+  "key": {
+   "rhythm": "af",
+   "alt": [],
+   "findings": [
+    {
+     "id": "qwaves",
+     "skill": "ischemia",
+     "regions": [
+      "inferior"
+     ],
+     "okRegions": [
+      "septal"
+     ]
+    }
+   ],
+   "optional": [
+    "ste",
+    "std"
+   ]
+  },
+  "checks": [
+   "recent: Q waves in II III aVF",
+   "as is: recent pRCA: no T inversion yet (Q waves in II III aVF, T inversion in none); Q waves asked"
+  ],
+  "lines": {
+   "rhythm": "Irregularly irregular, no P waves, ventricular rate 60–100: atrial fibrillation with a controlled ventricular response.",
+   "qwaves": "Q waves in II, III, aVF: old inferior infarct.",
+   "std": "ST depression in I, aVL: also true on this ECG."
+  },
+  "rating": 1596,
+  "link": "r=76&a=af&v=76&s=fib&o=114&c=2&h=48"
+ },
+ {
+  "n": "ECG 20",
+  "recipe": {
+   "rhythm": "sinus",
+   "abn": [
+    {
+     "k": "evolving",
+     "site": "PDA",
+     "h": 12
+    }
+   ],
+   "seed": 992193,
+   "rate": 71
+  },
+  "key": {
+   "rhythm": "sinus",
+   "alt": [],
+   "findings": [
+    {
+     "id": "ste",
+     "skill": "ischemia",
+     "regions": [
+      "inferior"
+     ],
+     "okRegions": []
+    }
+   ],
+   "optional": [
+    "std",
+    "reciprocal",
+    "hyperacute",
+    "posteriorMI",
+    "twi",
+    "qwaves"
+   ]
+  },
+  "checks": [
+   "evolving: ST elevation in II III aVF"
+  ],
+  "lines": {
+   "rhythm": "Regular, a P before every QRS at a normal rate: sinus rhythm.",
+   "ste": "ST elevation in II, III, aVF, past its peak, with Q waves forming and T waves starting to invert: an evolving inferior STEMI, about 12 hours old.",
+   "qwaves": "Q waves in III, aVF: also true on this ECG."
+  },
+  "rating": 1497,
+  "link": "r=71&o=151&c=2&h=12"
+ }
+]

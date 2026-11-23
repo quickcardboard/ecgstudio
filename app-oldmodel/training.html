@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-23 (a4a2c19)">
+<meta name="version" content="2026-11-23 (13c1bb2)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -4269,7 +4269,7 @@ return module.exports; })();
     // read so the key is what the strip shows. block stays for the P-visibility checks)
     // (Wenckebach lies on a diagonal: the faster the rate the milder the node that gives it; measured on the gate, it passes at
     // about 0.66 at 65/min, 0.58 at 75, 0.50 at 95: avSevAt sets the severity from the rate, ± 0.03)
-    mobitz1: { w: 2, open: true, gateRead: true, avPattern: 'mobitz1', rating: 150, rate: [62, 90], avSev: [['AVN', 0.45, 0.72]], avSevAt: (rate) => 0.66 - 0.0053 * (rate - 65), block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
+    mobitz1: { w: 2, open: true, gateRead: true, avPattern: 'mobitz1', rating: 150, rate: [62, 98], avSev: [['AVN', 0.45, 0.72]], avSevAt: (rate) => 0.66 - 0.0053 * (rate - 65), block: ['AVN', 'wenckebach'], read: (r) => /Mobitz I \(/.test(r) },
     mobitz2: { w: 0.5, open: true, gateRead: true, avPattern: 'mobitz2', rating: 180, rate: [60, 95], avSev: [['HIS', 0.35, 0.72]], block: ['HIS', 'mobitz2', { n: 4 }], read: (r) => /Mobitz II /.test(r) },
     avb2to1: { w: 0.6, open: true, gateRead: true, avPattern: '2:1', rating: 200, rate: [60, 85], avSev: [['AVN', 0.76, 0.88], ['HIS', 0.82, 0.9]], block: ['AVN', 'two-to-one'], read: (r) => /2:1 AV block/.test(r) },
     // (the atrial rate must not be a whole or half multiple of the 48/min junctional escape: at 72 or 96 the P waves
@@ -4442,9 +4442,7 @@ return module.exports; })();
   };
   // (testers' round 1: fewer hypertrophy, Brugada and atrial enlargement; more ST depression, T changes,
   // WPW and ectopy)
-  // (hyper 0, 2026-11-23: the model's hyperacute T passed 1 of 12 in a 300-scenario audit (mid and proximal LAD 0 of 8); out
-  // of the random mix until the T is taller. Reviews of old items still rebuild it)
-  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 0.6, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 2.5, evolving: 2, multinarrow: 1.2, hyper: 0, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, vbig: 0.8, vtrig: 0.6, abig: 0.5, atrig: 0.4, nsvt: 0.7, arun: 0.6, hyperK: 0.35, hyperK2: 0.15, hypoK: 0.3, hypoCa: 0.2, hyperCa: 0.15, hypothermia: 0.4, wellensA: 0.2, wellensB: 0.25 };   // (the electrolytes, Wellens and hypothermia: rare, about as often as atrial enlargement)
+  const ABN_W = { avb1: 1.2, rae: 0.3, lae: 0.3, bae: 0.15, lafb: 0.9, lpfb: 0.5, lbbb: 1.5, rbbb: 1.5, wpw: 0.6, lvh: 0.7, rvh: 0.3, stemi: 2.5, oldmi: 2, recent: 2.5, evolving: 2, multinarrow: 1.2, hyper: 2, narrow: 3.5, nsstt: 2.5, peri: 0.8, brugada: 0.1, pvc: 2, pac: 1.5, couplet: 0.8, sinusPause: 1.2, acouplet: 0.6, saBlock: 0.8, vbig: 0.8, vtrig: 0.6, abig: 0.5, atrig: 0.4, nsvt: 0.7, arun: 0.6, hyperK: 0.35, hyperK2: 0.15, hypoK: 0.3, hypoCa: 0.2, hyperCa: 0.15, hypothermia: 0.4, wellensA: 0.2, wellensB: 0.25 };   // (the electrolytes, Wellens and hypothermia: rare, about as often as atrial enlargement)
   const ITEM_BASE = 1200, PER_ABN = 180;
   // (difficulty above the base is stretched ×1.32: the hardest ECGs, four findings on a hard rhythm, reach ~2700
   // instead of ~2340, leaving headroom above the top title; the generator works on the unstretched scale)
@@ -4511,7 +4509,6 @@ return module.exports; })();
   // in real ECGs; LAFB with an acute STEMI anywhere, and LPFB with any infarct, are allowed and gated on their criteria)
   const siteOk = (site, list, k) => (!MI_SITES[site].kinds || MI_SITES[site].kinds.includes(k))
     && !(list.includes('lafb') && /RCA|LCx/.test(famOf(site)) && ['oldmi', 'recent', 'evolving'].includes(k)) && !(list.includes('lpfb') && famOf(site) === 'RCA' && ['oldmi', 'recent', 'evolving'].includes(k))
-    && !(k === 'recent' && ['PDA', 'dRCA', 'pRCA'].includes(site)) && !(k === 'oldmi' && ['OM2', 'dLCx'].includes(site))   // (audit 2026-11-23: no T inversion yet at 2 days; Q waves short of the criteria)
     && !(list.includes('wpw') && famOf(site) === 'LCx');   // (the left-lateral pathway inserts in circumflex territory: an infarct there removes the pre-excitation)   // (first-degree block with an RCA infarct allowed again, 2026-11-23: the P stays visible at the proximal and mid RCA)
   function itemRating(rec) {
     return Math.round(ITEM_BASE + ITEM_SCALE * (RHYTHMS[rec.rhythm].rating + rec.abn.reduce((s, a) => s + PER_ABN + ABN[a.k].rating + (a.sev && a.sev < 1 ? 60 : 0) + (a.h === 12 ? 30 : 0), 0))) + artBonus(rec.art);
@@ -5060,8 +5057,23 @@ return module.exports; })();
       const res2 = buildOnce(live, opts);
       return res2.ok ? res2 : res;
     }
+    // ---------------------------------------------------------------- read as is (claude/training-as-is)
+    // The answer key is what the ECG shows, not what was put in: an abnormality whose criteria are not met, that barely
+    // changes the tracing, or whose ectopic beats did not come out as planned is not asked (credited if named); a finding
+    // the blind read sees that was not put in is credited if named (optional); the rhythm comes from the engine's beats (an
+    // AV block from the conduction pattern that happened), not from the blind rhythm read. Only a broken simulation is
+    // discarded (not induced, too few beats, an escape rate out of range).
+    let AS_IS = true;
+    const DX_ID = { LAE: 'lae', RAE: 'rae', 'biatrial enlargement': 'bae', LVH: 'lvh', RVH: 'rvh', LBBB: 'lbbb', RBBB: 'rbbb', IVCD: 'ivcd', LAFB: 'lafb', LPFB: 'lpfb',
+      '1st-degree AVB': 'avb1', 'long QT': 'longqt', 'T inversion': 'twi', 'Brugada type 1': 'brugada', pericarditis: 'pericarditis', 'WPW pattern': 'wpw', 'poor R progression': 'poorR' };
+    const dxId = (dx) => DX_ID[dx] || (/^STEMI posterior/.test(dx) ? 'posteriorMI' : /^STEMI/.test(dx) ? 'ste' : /^old MI/.test(dx) ? 'qwaves' : /^ST depression/.test(dx) ? 'std' : null);
+    // the rhythm key for an AV conduction pattern the engine produced (graded AV block)
+    const AV_KEY = { complete: 'chb', '2:1': 'mobitz2', mobitz1: 'mobitz1', mobitz2: 'mobitz2', 'mixed 2:1': 'mobitz2', high: 'mobitz2' };
     function buildOnce(rec, opts = {}) {
       const fail = (why, stage) => ({ ok: false, why, stage });
+      const asIs = AS_IS && !opts.strict, dropped = new Map(), asIsNotes = [], asQ = new Set();
+      // (as is: an abnormality that did not come out is not asked; null tells the caller to carry on)
+      const dropOr = (a, why, stage) => { if (!asIs) return fail(why, stage); dropped.set(a, why); optional.add(ABN[a.k].id || a.k); return null; };
       const sim = simulate(rec);
       if (!sim) return fail('not induced', 'rhythm');
       const { M, rec12, A, V } = sim, R = RHYTHMS[rec.rhythm];
@@ -5074,7 +5086,7 @@ return module.exports; })();
       if (SINUS.includes(rhythm)) rhythm = sinusRate < 60 ? 'sinusBrady' : sinusRate > 100 ? 'sinusTachy' : 'sinus';
       const pv = pVisibility(sim);
       const tachyHideP = rhythm === 'sinusTachy' && rec.abn.some((a) => ['avb1', 'wpw', 'lbbb', 'rbbb'].includes(a.k));
-      if ((R.pRhythm || R.pVisible) && pv.share > (tachyHideP ? 0.5 : 0.2)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
+      if ((R.pRhythm || R.pVisible) && pv.share > (tachyHideP ? 0.5 : 0.2)) { if (!asIs) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm'); asIsNotes.push(`P hidden in ${pv.hidden}/${pv.n} beats`); }
       if (R.noP) {
         // (sinus arrest: no atrial activation may precede a QRS by the time of a PR; retrograde P after it is expected)
         const pre = A.filter((a) => V.some((v) => v.on - a.on > 60 && v.on - a.on < 300)).length;
@@ -5082,30 +5094,36 @@ return module.exports; })();
         const lim = rec.rhythm === 'junctional' ? [40, 60] : [20, 40];
         if (rate < lim[0] || rate > lim[1]) return fail(`escape rate ${rate}`, 'rhythm');
       }
-      if (R.block && !R.noP && pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.5)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
+      if (R.block && !R.noP && pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.5)) { if (!asIs) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm'); asIsNotes.push(`P hidden in ${pv.hidden}/${pv.n} beats`); }
       const rr = readRhythm(rec12);   // (blind rhythm read: kept for the record and the audit, not the gate, except where the rhythm asks)
       // (graded AV blocks: gated on the engine's own beats, read as the simulator's analysis reads them, and on visible P
       // waves; the blind reader takes grouped Wenckebach beating for AF when P's sit on the T)
-      let avPat = null;
+      let avPat = null, avFirst = false, rhythmSame = null, rhythmAlt = null;
       if (rec.avs && R.avPattern) {
         const pat = avPat = avPattern(A, V);
-        if (pat !== R.avPattern) return fail(`AV pattern ${pat || 'none'}, not ${R.avPattern}`, 'rhythm');
-        if (pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.2)) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm');
-      } else if (R.gateRead && rec.focus !== 'la' && !R.read(rr.rhythm)) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm');   // (a left-atrial focus: its own P check on the median beat, below)
-      let rhythmAlt = tachyHideP ? ['sinus', 'svt'] : null, rhythmSame = null;
+        if (pat !== R.avPattern) {
+          if (!asIs || !pat) return fail(`AV pattern ${pat || 'none'}, not ${R.avPattern}`, 'rhythm');
+          // (as is: the conduction that happened names the rhythm; first degree or normal: a sinus rhythm, with a long PR)
+          asIsNotes.push(`AV pattern ${pat}, not ${R.avPattern}`);
+          if (pat === 'mixed 2:1') rhythmAlt = ['mobitz1'];   // (the author: 2:1 conduction is always Mobitz II; Wenckebach cycles between the 2:1 stretches: Mobitz I half)
+          if (AV_KEY[pat]) rhythm = AV_KEY[pat]; else { rhythm = rate < 60 ? 'sinusBrady' : rate > 100 ? 'sinusTachy' : 'sinus'; avFirst = pat === 'first'; }
+        }
+        if (pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.2)) { if (!asIs) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm'); asIsNotes.push(`P hidden in ${pv.hidden}/${pv.n} beats`); }
+      } else if (R.gateRead && rec.focus !== 'la' && !R.read(rr.rhythm)) { if (!asIs) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm'); asIsNotes.push(`blind rhythm read: "${rr.rhythm}"`); }   // (a left-atrial focus: its own P check on the median beat, below)
+      if (tachyHideP) rhythmAlt = ['sinus', 'svt'];
       if (rec.rhythm === 'sinusArr') {
         const span = Math.max(...rrs) - Math.min(...rrs);
-        if (span < 120) return fail(`sinus arrhythmia too slight (RR span ${Math.round(span)} ms)`, 'rhythm');
+        const own = rate < 60 ? 'sinusBrady' : rate > 100 ? 'sinusTachy' : 'sinus';
+        if (span < 120) { if (!asIs) return fail(`sinus arrhythmia too slight (RR span ${Math.round(span)} ms)`, 'rhythm'); asIsNotes.push(`sinus arrhythmia too slight (RR span ${Math.round(span)} ms): ${own}`); rhythm = own; }
         // (the author: sinus arrhythmia is a normal variant, not required; the sinus rhythm of its rate is fully right, the
         // other sinus names partly)
-        const own = rate < 60 ? 'sinusBrady' : rate > 100 ? 'sinusTachy' : 'sinus';
-        rhythmSame = [own]; rhythmAlt = SINUS.filter((x) => x !== own);
+        else { rhythmSame = [own]; rhythmAlt = SINUS.filter((x) => x !== own); }
       }
       if (rec.rhythm === 'flutterVar') {
         const mean = rrs.reduce((x, y) => x + y, 0) / rrs.length, sd = Math.sqrt(rrs.reduce((x, y) => x + (y - mean) ** 2, 0) / rrs.length);
-        if (sd / mean < 0.15) return fail(`flutter response not irregular (RR CV ${(sd / mean).toFixed(2)})`, 'rhythm');
+        if (sd / mean < 0.15) { if (!asIs) return fail(`flutter response not irregular (RR CV ${(sd / mean).toFixed(2)})`, 'rhythm'); asIsNotes.push('flutter response regular'); rhythm = 'flutter'; }
       }
-      if (R.key) rhythm = R.key;
+      if (R.key && !(asIs && rhythm !== rec.rhythm)) rhythm = R.key;
       if (R.foci) {
         // WAP/MAT from the engine: at least three different atrial foci fired in the strip
         const n = new Set(sim.foci.map((x) => x.cell)).size;
@@ -5177,7 +5195,8 @@ return module.exports; })();
           if (dx === 'IVCD' && ks.some((k) => ['lvh', 'rvh', 'lpfb', 'lafb'].includes(k))) { optional.add('ivcd'); continue; }
           // (the blind read's chained rules: a block it called instead of an intended one is not "extra")
           if (['LBBB', 'RBBB', 'IVCD', 'LAFB', 'LPFB'].includes(dx) && ks.some((k) => ['lbbb', 'rbbb', 'lafb', 'lpfb', 'wpw'].includes(k))) continue;
-          return fail(`unexpected "${dx}" in the blind read`, 'extra');
+          if (!asIs) return fail(`unexpected "${dx}" in the blind read`, 'extra');
+          { const id = dxId(dx); if (id) optional.add(id); asIsNotes.push(`blind read also: ${dx}${id ? '' : ' (not in the vocabulary)'}`); }
         }
         if (b.f.axis === 'LAD') optional.add('lad');
         if (b.f.axis === 'RAD') optional.add('rad');
@@ -5200,16 +5219,21 @@ return module.exports; })();
         let mm = r.m;
         if (enginePR !== null && (a.k === 'avb1' || a.k === 'wpw')) mm = { ...r.m, pr: enginePR };
         const c = a.k === 'stemi' && rec.abn.some((x) => x.k === 'lbbb') ? sgarbossa(r.L) : criteria(a.k, R.pRhythm ? a : { ...a, noP: true }, mm, r.L);
-        if (!c.ok) return fail(`${a.k}${a.site ? ' ' + a.site : ''} criteria not met (${c.why})`, 'criteria');
+        if (!c.ok && asIs && a.k === 'recent') {   // (as is: Q waves without the T inversion yet read as an infarct of unknown age: the Q waves are asked)
+          const cq = criteria('oldmi', a, mm, r.L);
+          if (cq.ok) { crits.set(a, cq); asQ.add(a); asIsNotes.push(`recent ${a.site}: no T inversion yet (${c.why}); Q waves asked`); continue; }
+        }
+        if (!c.ok) { const f = dropOr(a, `${a.k}${a.site ? ' ' + a.site : ''} criteria not met (${c.why})`, 'criteria'); if (f) return f; continue; }
         crits.set(a, c);
       }
       for (const a of rec.abn) {
         const d = ABN[a.k];
+        if (dropped.has(a)) { const d0 = ABN[a.k]; optional.add(d0.id || a.k); continue; }   // (as is: not asked, credited if named)
         if (d.sinusNode) {
           // SA exit block (3:2): pauses of twice the sinus cycle, at least two of them
           const cyc = rrs.slice().sort((x, y) => x - y)[Math.floor(rrs.length * 0.25)], longs = rrs.filter((x) => x > 1.7 * cyc && x < 2.3 * cyc);
           checks.push(`SA exit block: ${longs.length} pauses of 2× the sinus cycle (${Math.round(cyc)} ms)`);
-          if (longs.length < 2) return fail('SA exit block pauses not seen', 'criteria');
+          if (longs.length < 2) { const f = dropOr(a, 'SA exit block pauses not seen', 'criteria'); if (f) return f; continue; }
           findings.push({ id: d.id, skill: d.skill }); mark(d.id, ['II']); lines[d.id] = d.line;
           continue;
         }
@@ -5220,8 +5244,8 @@ return module.exports; })();
           const sp = A.filter(conducts), pp = sp.slice(1).map((x, i) => x.on - sp[i].on), medPP = pp.slice().sort((x, y) => x - y)[pp.length >> 1], longest = Math.max(...pp);
           const esc = V.filter((v) => v.on > 350 && !A.some((x) => v.on - x.on > 60 && v.on - x.on < 300));   // (a QRS at the strip's start may have its P before it)
           checks.push(`pause: longest P–P ${Math.round(longest)} ms (${(longest / medPP).toFixed(1)}× the usual), ${esc.length} escape beat(s)`);
-          if (!(longest >= 1.6 * medPP)) return fail(`sinus pause not seen (longest P–P ${Math.round(longest)} ms)`, 'criteria');
-          if (!!rec.pauseEscape !== esc.length > 0) return fail(`${esc.length} escape beats in a pause ${rec.pauseEscape ? 'with' : 'without'} escape`, 'criteria');
+          if (!(longest >= 1.6 * medPP)) { const f = dropOr(a, `sinus pause not seen (longest P–P ${Math.round(longest)} ms)`, 'criteria'); if (f) return f; continue; }
+          if (!!rec.pauseEscape !== esc.length > 0) { const f = dropOr(a, `${esc.length} escape beats in a pause ${rec.pauseEscape ? 'with' : 'without'} escape`, 'criteria'); if (f) return f; continue; }
           findings.push({ id: d.id, skill: d.skill }); mark(d.id, ['II']);
           lines[d.id] = esc.length ? 'A sudden pause with no P wave, not a multiple of the P–P interval, ended by a narrow junctional escape beat (no P before it), then sinus beats resume: sinus pause with junctional escape.' : d.line;
           if (esc.length) optional.add('escape');
@@ -5248,7 +5272,7 @@ return module.exports; })();
             ok = planned >= 3 && ect.size === planned && fast && (atrial ? wide.length === 0 : wide.length === planned) && (atrial || AF_FL.includes(rec.rhythm) || early.length >= 1 && early.includes(ev[0]));   // (a run that starts on time reads as a couplet after a normal beat)
           }
           checks.push(`${a.k}: ${ect.size} ectopic beats (${wide.length} wide, ${early.length} premature)`);
-          if (!ok) return fail(`${a.k}: ectopic beats did not show as planned (${ect.size} of ${want})`, 'criteria');
+          if (!ok) { const f = dropOr(a, `${a.k}: ectopic beats did not show as planned (${ect.size} of ${want})`, 'criteria'); if (f) return f; continue; }
           findings.push({ id: d.id, skill: d.skill }); mark(d.id, ['II', 'V1']); lines[d.id] = d.line;
           if (d.ectopy === 'couplet') optional.add('pvc');
           if (d.ectopy === 'acouplet') optional.add('pac');
@@ -5260,7 +5284,7 @@ return module.exports; })();
         // twin: the same scenario without this abnormality
         const twinRec = { ...rec, abn: rec.abn.filter((x) => x !== a) }, tsim = simulate(twinRec, twinStrip(rec)), tmed = tsim && medianBeat(tsim);
         let tw = null;
-        if (tmed) { tw = twinDiff(med, tmed, a.k); if (!tw.ok) return fail(`${a.k} barely changes the tracing (${tw.max} mV)`, 'twin'); }
+        if (tmed) { tw = twinDiff(med, tmed, a.k); if (!tw.ok) { const f = dropOr(a, `${a.k} barely changes the tracing (${tw.max} mV)`, 'twin'); if (f) return f; continue; } }
         if (a.k === 'narrow' && c.nonspecific) {
           // (the author's eye check: non-specific ST-T is true here but not required)
           optional.add('nsstt');
@@ -5290,7 +5314,7 @@ return module.exports; })();
         } else if (a.k === 'hyper') {
           // (the T waves must be taller than this heart's own: at least 1.5× the twin's in those leads)
           let taller = [];   // (lead groups with a lead in a contiguous pair whose T grew ≥ 0.5 mm over this heart's own)
-          if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr, { minOff: tmed.qrsEnd }).L, risen = c.leads.filter((n) => r.L[n].T >= 1.4 * Math.max(0.05, tr[n].T)); if (risen.length < 2) return fail(`hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); c.leads = risen;
+          if (tmed) { const tr = read(tmed.rec, tmed.hint, tmed.rr, { minOff: tmed.qrsEnd }).L, risen = c.leads.filter((n) => r.L[n].T >= 1.4 * Math.max(0.05, tr[n].T)); if (risen.length < 2) { const f = dropOr(a, `hyper ${a.site}: T not taller than this heart's own (${c.leads.map((n) => `${n} ${r.L[n].T}/${tr[n].T}`).join(', ')})`, 'criteria'); if (f) return f; continue; } c.leads = risen;
             // (Meyers et al. 2025: the T's area against the QRS (magnitude) and its symmetry, in two contiguous leads: magnitude
             // ≥ 60 ms and ≥ 1.5× this heart's own T in the lead, falling half-width ≥ 0.9× the rising one. This model's normal T
             // is already about symmetric (1.1), so the symmetry floor only rules out a narrow, peaked T)
@@ -5298,7 +5322,7 @@ return module.exports; })();
               const sh = (n) => { const u = tShape(med, n), v = tShape(tmed, n); return { n, u, v, ok: u.mag >= 60 && u.mag >= 1.5 * v.mag && u.sym >= 0.9 }; }, all = LEADS.filter((n) => n !== 'aVR').map(sh);
               const good = contiguous(all.filter((x) => x.ok && risen.includes(x.n)).map((x) => x.n));
               checks.push(`hyperacute T shape (magnitude ms, symmetry; heart's own): ${all.filter((x) => risen.includes(x.n)).map((x) => `${x.n} ${x.u.mag}/${x.u.sym} [${x.v.mag}/${x.v.sym}]`).join(', ')}`);
-              if (good.length < 2) return fail(`hyper ${a.site}: T not broad and symmetric in two contiguous leads (${all.filter((x) => risen.includes(x.n)).map((x) => `${x.n} ${x.u.mag}/${x.u.sym}`).join(', ')})`, 'criteria');
+              if (good.length < 2) { const f = dropOr(a, `hyper ${a.site}: T not broad and symmetric in two contiguous leads (${all.filter((x) => risen.includes(x.n)).map((x) => `${x.n} ${x.u.mag}/${x.u.sym}`).join(', ')})`, 'criteria'); if (f) return f; continue; }
               c.leads = good;
             }
             taller = groupsOf(contiguous(LEADS.filter((n) => n !== 'aVR' && r.L[n].T - tr[n].T >= 0.05))); }
@@ -5307,7 +5331,7 @@ return module.exports; })();
           mark('hyperacute', c.leads);
           lines.hyperacute = `Broad-based, symmetric T waves in ${c.leads.join(', ')}, large for the QRS in front of them, no ST elevation yet: hyperacute ${req.join('/')} ischemia (an occlusion until shown otherwise). Repeat the ECG.`;
           ['twi', 'reciprocal'].forEach((x) => optional.add(x));
-        } else if (a.k === 'recent') {
+        } else if (a.k === 'recent' && !asQ.has(a)) {
           const site = MI_SITES[a.site], ex = site.q, terr = terrOf(c.leads), tt = terrOf(c.leads2), ts = terrStrong(c.leads2);
           findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...qGroups(r.L)])].filter((t) => !ex.req.includes(t)) });
           // (T inversion asked where it is: a territory of the site's that shows it in two of its leads, else the territory with the most)
@@ -5379,14 +5403,20 @@ return module.exports; })();
       const key = { rhythm, alt: rhythmAlt || R.alt || (SINUS.includes(rhythm) && rhythm !== 'sinus' ? ['sinus'] : []), findings, optional: [...optional] };
       if (rhythmSame) key.same = rhythmSame;   // (named instead of the key's rhythm: full credit)
       if (neutral.size) key.neutral = [...neutral];   // (named: no credit, no penalty: it cannot be judged on this ECG)
-      const skills = { rhythm: true }; for (const a of rec.abn) skills[ABN[a.k].skill] = true;
-      const title = [rhythm, ...rec.abn.map((a) => (ABN[a.k].isch ? `${a.k} (${(a.sites || [a.site]).join(', ')})` : a.k))].join(' + ');
+      // (as is: a first-degree block the graded AV node produced instead of the block asked for is a finding)
+      if (avFirst && !findings.some((f) => f.id === 'avb1')) { findings.push({ id: 'avb1', skill: 'conduction' }); lines.avb1 = ABN.avb1.line || 'PR over 200 ms with every P conducted: first-degree AV block.'; optional.delete('avb1'); }
+      // (the rating and skills from what is asked: an abnormality that did not come out does not count)
+      const kept = { ...rec, abn: rec.abn.filter((a) => !dropped.has(a)) };
+      for (const [a, why] of dropped) checks.push(`not asked (${a.k}): ${why}`);
+      for (const n of asIsNotes) checks.push(`as is: ${n}`);
+      const skills = { rhythm: true }; for (const a of kept.abn) skills[ABN[a.k].skill] = true; if (avFirst) skills.conduction = true;
+      const title = [rhythm, ...kept.abn.map((a) => (ABN[a.k].isch ? `${a.k} (${(a.sites || [a.site]).join(', ')})` : a.k))].join(' + ');
       // difficulty: rhythm and abnormalities, harder when some P waves are hidden
-      const rating = itemRating(rec) + (pv.share > 0.2 ? 60 : 0);
+      const rating = itemRating(kept) + (pv.share > 0.2 ? 60 : 0);
       return {
         ok: true,
         item: { id: `${rec.rhythm}-${rec.seed}`, title, recipe: rec, hz: HZ, ms: STRIP, leads, m, read: { rhythm: rr.rhythm, dx: b.dx, checks, hiddenP: pv }, key, highlight: hl.size ? LEADS.filter((l) => hl.has(l)) : ['II'], hlBy, caliper,
-          lines: { rhythm: rhythmLine(rec, rhythm, rate, flutter21), ...lines }, link: linkOf(rec), rating, skills: Object.keys(skills), n: rec.abn.length },
+          lines: { rhythm: avPat === '2:1' || avPat === 'mixed 2:1' ? RHYTHM_LINE.avb2to1 : rhythmLine(rhythm !== rec.rhythm && !SINUS.includes(rhythm) ? { ...rec, rhythm } : rec, rhythm, rate, flutter21), ...lines }, link: linkOf(rec), rating, skills: Object.keys(skills), n: kept.abn.length },
       };
     }
     // make: sample scenarios near the target until one passes the gate (or give up)
@@ -5417,7 +5447,7 @@ return module.exports; })();
       }
       return null;
     }
-    return { make, build, sample, simulate, model, itemRating, artifactLeads, ART_MAX, setEctMm: (x) => { ECT_MM = x; }, setHyperShape: (x) => { HYPER_SHAPE = !!x; }, setTwinFast: (x) => { TWIN_FAST = !!x; } };
+    return { make, build, sample, simulate, model, itemRating, artifactLeads, ART_MAX, setEctMm: (x) => { ECT_MM = x; }, setHyperShape: (x) => { HYPER_SHAPE = !!x; }, setTwinFast: (x) => { TWIN_FAST = !!x; }, setAsIs: (x) => { AS_IS = !!x; } };
   }
   TrainGen.RHYTHMS = RHYTHMS; TrainGen.ABN = ABN; TrainGen.SKILLS = SKILLS; TrainGen.itemRating = itemRating; TrainGen.sample = sample;
   if (typeof module !== 'undefined' && module.exports) module.exports = TrainGen; else root.TrainGen = TrainGen;
