@@ -3236,3 +3236,11 @@ be. Most single narrowings stay under 2 mm, where non-specific ST-T is an equal 
 A single narrowing's ST depression now accepts any lead group showing it (`anyRegion`, as for diffuse depression): it does
 not localise the artery, and V4 and V5 equally deep were asked as anterior. The other differences were reading calls
 (LAFB, RVH read as LPFB, small normal inferior q read as Q, trigeminy named as single ectopics).
+
+## claude/training-as-is round 8: Q waves deeper than 25% of the QRS
+
+The author: a Q wave also counts when deeper than 25% of the QRS height (R plus the deepest negative deflection), with the
+existing 30 ms floor (`qBig` in `qLeads`). Without the floor every normal ECG would show inferior Q waves: this model's
+normal inferior q is III 31 ms / 3.7 mm (~60% of its QRS), aVF 26 ms / 3.2 mm (~37%), II 23 ms / 2.9 mm (~24%). Normal
+ECGs stay clean, and the rule changed none of the 80 reading-batch keys (each batch re-keyed with and without it): every
+Q of 30 ms or more there was already at least 2 mm deep, or had no contiguous partner.
