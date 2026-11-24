@@ -3244,3 +3244,10 @@ existing 30 ms floor (`qBig` in `qLeads`). Without the floor every normal ECG wo
 normal inferior q is III 31 ms / 3.7 mm (~60% of its QRS), aVF 26 ms / 3.2 mm (~37%), II 23 ms / 2.9 mm (~24%). Normal
 ECGs stay clean, and the rule changed none of the 80 reading-batch keys (each batch re-keyed with and without it): every
 Q of 30 ms or more there was already at least 2 mm deep, or had no contiguous partner.
+
+## claude/training-as-is round 9: reading batch 5 (`tools/data/reading/batch5_review.md`, 11/20, no wrong keys)
+
+Electrolytes and hypothermia keyed correctly (hypercalcemia ×4, hypocalcemia ×2, hyperkalemia, hypokalemia, hypothermia).
+Second batch in a row with no wrong key. Model traits the author's reads exposed (not key errors): small flutter waves in
+II (read as sinus with first-degree block), J (Osborn) waves that look like diffuse ST elevation, and tall broad inferior T
+waves after an old anterior infarct (read as hyperkalemia).

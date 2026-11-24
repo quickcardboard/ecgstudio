@@ -16,7 +16,8 @@ The history of every change is in `docs/DEVELOPMENT.md` ("Round N"; the latest a
 - Validation by reading batches: 20 unanswered ECGs at a time, the author reads them in free text on the claude.ai artifact
   "ECG Reading Batches" (https://claude.ai/artifact/YEUQJ6NTdNy4Ut2Hr8mfgV; reads in its store, collection `reads`,
   `<batch>-<nn>`), and they are scored against the keys. Keys and reviews: `tools/data/reading/batch*_keys.json`,
-  `batch*_review.md`. Agreement: batch 1 9/20, batch 2 11/20, batch 3 14/20.
+  `batch*_review.md`. Agreement: batch 1 9/20, batch 2 11/20, batch 3 14/20, batch 4 11/20, batch 5 11/20; batches 4 and 5
+  had no wrong keys (the condition set for replacing the live generator).
 - Done after batch 3: diffuse ST depression accepts any lead group; non-specific ST-T is an equal answer for ST depression
   under 2 mm. Next: check the J+80 measurement's baseline against the TP segment (the eye saw less depression); then batch 4.
 
