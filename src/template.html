@@ -499,7 +499,7 @@ body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { 
   #divider::after { width: 44px; height: 4px; }
 }
 /* In the app (html.inapp, src/inapp.js): the app shell draws the module tabs over the left of the header, which
-   turns dark (the app's chrome); the brand and Join the alpha (testers already have the app) are hidden. */
+   turns dark (the app's chrome); the brand and Get the app (already in the app) are hidden. */
 html.inapp header.top { --bg: #0b131a; --surface: #1b2834; --fg: #e3eaf0; --muted: #93a3b1; --line: #33434f; --accent: #ef5b7a; --accent-fg: #160a0d;
   background: var(--bg); color: var(--fg); color-scheme: dark; min-height: 50px; box-sizing: border-box; padding-left: var(--tabs-w, 12px); }
 html.inapp body:not(.m) header.top { margin: -10px calc(-1 * max(16px, env(safe-area-inset-right, 0px))) 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-right: 16px; }
@@ -524,7 +524,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <button id="btnReset" type="button">Reset</button>
     </div>
     <button id="btnShare" type="button" title="Copy a link that reopens this exact scenario">Share</button>
-    <button id="btnAlpha" type="button" class="balpha" title="Sign up to test the ECG Studio Android app (Google Group)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Join the alpha</button>
+    <button id="btnAlpha" type="button" class="balpha" title="ECG Studio for Android, with Training (Google Play)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Get the app</button>
     <button id="btnHelp" type="button">Help</button>
     <a id="btnContact" class="hbtn" href="https://ecgstudio.app/contact/" target="_blank" rel="noopener"{{CONTACT_HIDDEN}}>Contact</a>
     <div class="mctl" role="group" aria-label="Simulation">
@@ -538,7 +538,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     <button type="button" role="menuitem" id="mPng">Save ECG image</button>
     <button type="button" role="menuitem" id="mHelp">Help</button>
     <a role="menuitem" id="mContact" href="https://ecgstudio.app/contact/" target="_blank" rel="noopener"{{CONTACT_HIDDEN}}>Contact</a>
-    <button type="button" role="menuitem" id="mAlpha" class="malpha"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Join the alpha</button>
+    <button type="button" role="menuitem" id="mAlpha" class="malpha"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Get the app</button>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 

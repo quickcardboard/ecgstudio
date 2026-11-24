@@ -3518,11 +3518,12 @@ body.only .chips { margin-top: 0; }
   }
 
   // Offline use of the website (service worker, only when served, not from file://). The site is no longer offered as an
-  // installable web app (the Android app is on Google Play); instead "Join the alpha" opens the testers' Google Group.
-  const ALPHA_URL = 'https://groups.google.com/g/ecgstudio';
+  // installable web app (the Android app is on Google Play); instead "Get the app" opens the app's page (/training: what the
+  // app adds, and the Google Play link).
+  const ALPHA_URL = 'training/';
   function initAlpha() {
     if (/^https?:$/.test(location.protocol) && !INAPP && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
-    const join = () => { if (hasLayer('menu')) closeLayer('menu'); window.open(ALPHA_URL, '_blank', 'noopener'); };
+    const join = () => { if (hasLayer('menu')) closeLayer('menu'); location.href = ALPHA_URL; };
     $('mAlpha').addEventListener('click', join); $('btnAlpha').addEventListener('click', join);
   }
 

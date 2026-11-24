@@ -674,7 +674,7 @@ body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { 
   #divider::after { width: 44px; height: 4px; }
 }
 /* In the app (html.inapp, src/inapp.js): the app shell draws the module tabs over the left of the header, which
-   turns dark (the app's chrome); the brand and Join the alpha (testers already have the app) are hidden. */
+   turns dark (the app's chrome); the brand and Get the app (already in the app) are hidden. */
 html.inapp header.top { --bg: #0b131a; --surface: #1b2834; --fg: #e3eaf0; --muted: #93a3b1; --line: #33434f; --accent: #ef5b7a; --accent-fg: #160a0d;
   background: var(--bg); color: var(--fg); color-scheme: dark; min-height: 50px; box-sizing: border-box; padding-left: var(--tabs-w, 12px); }
 html.inapp body:not(.m) header.top { margin: -10px calc(-1 * max(16px, env(safe-area-inset-right, 0px))) 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-right: 16px; }
@@ -701,7 +701,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <button id="btnReset" type="button">Reset</button>
     </div>
     <button id="btnShare" type="button" title="Copy a link that reopens this exact scenario">Share</button>
-    <button id="btnAlpha" type="button" class="balpha" title="Sign up to test the ECG Studio Android app (Google Group)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Join the alpha</button>
+    <button id="btnAlpha" type="button" class="balpha" title="ECG Studio for Android, with Training (Google Play)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Get the app</button>
     <button id="btnHelp" type="button">Help</button>
     <a id="btnContact" class="hbtn" href="https://ecgstudio.app/contact/" target="_blank" rel="noopener">Contact</a>
     <div class="mctl" role="group" aria-label="Simulation">
@@ -715,7 +715,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     <button type="button" role="menuitem" id="mPng">Save ECG image</button>
     <button type="button" role="menuitem" id="mHelp">Help</button>
     <a role="menuitem" id="mContact" href="https://ecgstudio.app/contact/" target="_blank" rel="noopener">Contact</a>
-    <button type="button" role="menuitem" id="mAlpha" class="malpha"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Join the alpha</button>
+    <button type="button" role="menuitem" id="mAlpha" class="malpha"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Get the app</button>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
@@ -943,7 +943,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-24 (a7a137b).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-24 (0cfe7c5).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -988,7 +988,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-24 (a7a137b).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-24 (0cfe7c5).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -8812,11 +8812,12 @@ body.only .chips { margin-top: 0; }
   }
 
   // Offline use of the website (service worker, only when served, not from file://). The site is no longer offered as an
-  // installable web app (the Android app is on Google Play); instead "Join the alpha" opens the testers' Google Group.
-  const ALPHA_URL = 'https://groups.google.com/g/ecgstudio';
+  // installable web app (the Android app is on Google Play); instead "Get the app" opens the app's page (/training: what the
+  // app adds, and the Google Play link).
+  const ALPHA_URL = 'training/';
   function initAlpha() {
     if (/^https?:$/.test(location.protocol) && !INAPP && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
-    const join = () => { if (hasLayer('menu')) closeLayer('menu'); window.open(ALPHA_URL, '_blank', 'noopener'); };
+    const join = () => { if (hasLayer('menu')) closeLayer('menu'); location.href = ALPHA_URL; };
     $('mAlpha').addEventListener('click', join); $('btnAlpha').addEventListener('click', join);
   }
 

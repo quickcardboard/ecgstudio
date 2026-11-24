@@ -48,6 +48,14 @@ li { margin: 2px 0; }
 .grid span { font-size: 14px; color: var(--muted); }
 iframe { display: block; width: 100%; height: 1100px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .small { font-size: 14px; color: var(--muted); }
+a.cta.play { margin-bottom: 4px; }
+.shots { display: flex; gap: min(24px, 4vw); justify-content: center; margin: 28px 0 8px; }
+figure.phone { width: min(300px, 44vw); background: #05090d; border: 0; border-radius: 36px; padding: 10px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
+figure.phone img { border-radius: 28px; }
+figure.phone figcaption { color: #c9d3dc; text-align: center; padding: 10px 6px 4px; font-size: 15px; }
+header.top nav a { white-space: nowrap; }
+@media (max-width: 600px) { figure.phone { border-radius: 24px; padding: 6px; } figure.phone img { border-radius: 18px; } figure.phone figcaption { font-size: 13px; } }
+ul.feat { padding-left: 20px; } ul.feat li { margin: 8px 0; }
 @media (max-width: 600px) { h1 { font-size: 26px; } header.top nav a.hide { display: none; } }
 """
 
@@ -78,7 +86,7 @@ def shell(title, desc, canonical, body, logo, image=None, ld=None, author='Thoma
 {lds}</head>
 <body>
 <header class="top"><div><a class="brand" href="/">{logo}ECG <span>Studio</span></a>
-<nav><a href="/ecg/">ECG library</a><a class="hide" href="/">3D simulator</a>{'<a href="/contact/">Contact</a>' if contact else ''}</nav></div></header>
+<nav><a href="/ecg/">ECG library</a><a class="hide" href="/">3D simulator</a>{'<a class="hide" href="/contact/">Contact</a>' if contact else ''}<a href="/training/">Get the app</a></nav></div></header>
 <main>
 {body}
 <p class="note">ECG Studio is an educational simulator, not a medical device. Its ECGs are computed by a model of the heart,
@@ -199,7 +207,8 @@ confused with, and a 12-lead ECG computed by the ECG Studio heart model. Open an
     elif cdir.exists():
         (cdir / 'index.html').unlink(missing_ok=True)
         if not any(cdir.iterdir()): cdir.rmdir()
-    allurls = [SITE + '/', SITE + '/ecg/'] + urls + [SITE + '/privacy/'] + ([SITE + '/contact/'] if form_link else [])
+    app_page(root, logo, author, bool(form_link))
+    allurls = [SITE + '/', SITE + '/training/', SITE + '/ecg/'] + urls + [SITE + '/privacy/'] + ([SITE + '/contact/'] if form_link else [])
     (root / 'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
                                       + ''.join(f'  <url><loc>{u}</loc><lastmod>{today}</lastmod></url>\n' for u in allurls) + '</urlset>\n')
     llms = ['# ECG Studio', '',
@@ -217,6 +226,7 @@ confused with, and a 12-lead ECG computed by the ECG Studio heart model. Open an
             f'- Educational only, not a medical device. Created by {author}.', '',
             '## Pages', '',
             '- [3D heart and 12-lead ECG simulator](https://ecgstudio.app/): the interactive simulator',
+            '- [ECG Studio for Android](https://ecgstudio.app/training/): the free Android app on Google Play: the simulator on a phone, plus Training (unlimited ECGs from the heart model, scored and matched to the learner\'s level; an optional in-app upgrade)',
             '- [ECG library](https://ecgstudio.app/ecg/): criteria, mechanism and differential diagnosis for each pattern, with a simulated 12-lead ECG', '',
             '## ECG library', '']
     for g, gname in data['groups']:
@@ -229,6 +239,51 @@ confused with, and a 12-lead ECG computed by the ECG Studio heart model. Open an
     llms += ['- [Privacy policy](https://ecgstudio.app/privacy/): no personal data is collected by the simulator', '']
     (root / 'llms.txt').write_text('\n'.join(llms))
     print(f'ecg/ ({len(topics)} pages), sitemap.xml, llms.txt')
+
+
+PLAY_URL = 'https://play.google.com/store/apps/details?id=com.ecgstudio.app'
+
+
+def app_page(root, logo, author, contact):
+    """ecgstudio.app/training: what the Android app adds to the free web simulator, and the Google Play link
+    (screenshots: training/img/, from tools/app_shots.js)."""
+    out = root / 'training'
+    out.mkdir(exist_ok=True)
+    play = f'<a class="cta play" href="{PLAY_URL}">Get it on Google Play</a>'
+    shot = lambda f, alt, cap: (f'<figure class="phone"><img src="img/{f}" width="600" height="{img_h(out / "img" / f) * 600 // 1400}" alt="{esc(alt)}" loading="lazy">'
+                                f'<figcaption>{esc(cap)}</figcaption></figure>') if (out / 'img' / f).exists() else ''
+    body = f"""<h1>ECG Studio for Android</h1>
+<p class="lede">Free on Google Play. The same 3D heart and 12-lead ECG as this website, on your phone, plus <b>Training</b>:
+unlimited ECGs from the heart model, matched to your level.</p>
+{play}<p class="small">Free download · Android phones and tablets</p>
+<div class="shots">{shot('question.jpg', 'ECG Studio Training: a 12-lead ECG with the answer being typed', 'Read a new ECG every time…')}
+{shot('result.jpg', 'ECG Studio Training: the result, with the missed finding highlighted on the leads', '…and see what you missed, lead by lead.')}</div>
+<h2>What the app adds</h2>
+<ul class="feat">
+<li><b>Training.</b> A new ECG every time, generated by the same heart model: rhythms, AV and bundle branch blocks, infarcts at
+every stage, hypertrophy, electrolytes and more, chosen for your level.</li>
+<li><b>Scored like a real read.</b> Name the rhythm, then every finding and the leads it shows in. The result marks what you got
+and what you missed on the ECG itself, with a short explanation.</li>
+<li><b>Practice by skill.</b> Rhythm, conduction, ischemia and conditions, each with its own rating, and reviews that bring
+back the ECGs you missed.</li>
+<li><b>A daily ECG,</b> the same for everyone each day.</li>
+<li><b>The full 3D simulator</b> in your pocket, working offline.</li>
+</ul>
+<p>The app is free to download, with the simulator, the tutorial and the daily ECG included. Training is an optional upgrade
+inside the app.</p>
+{play}
+<p class="small">On an iPhone or a computer? The <a href="/">3D simulator</a> is free here on the web, and the
+<a href="/ecg/">ECG library</a> explains each pattern.</p>
+"""
+    ld = [{'@context': 'https://schema.org', '@type': 'MobileApplication', 'name': 'ECG Studio', 'operatingSystem': 'Android',
+           'applicationCategory': 'EducationalApplication', 'url': SITE + '/training/', 'installUrl': PLAY_URL,
+           'description': 'A 3D heart that computes its own 12-lead ECG, with Training: unlimited ECGs matched to your level.',
+           'offers': {'@type': 'Offer', 'price': '0', 'priceCurrency': 'USD'}, 'author': {'@type': 'Person', 'name': author}}]
+    img = SITE + '/training/img/question.jpg' if (out / 'img' / 'question.jpg').exists() else None
+    (out / 'index.html').write_text(shell('ECG Studio for Android: ECG Training App | ECG Studio',
+                                          'Free on Google Play: the 3D heart and 12-lead ECG simulator on your phone, plus Training, unlimited ECGs '
+                                          'generated by the heart model and matched to your level.',
+                                          SITE + '/training/', body, logo, img, ld, author, contact))
 
 
 def first_sentence(s):
