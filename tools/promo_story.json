@@ -1,0 +1,104 @@
+{
+ "_note": "Storyboards for the promo clips. cam: [t s, zoom, cx, cy] keyframes in the phone page's CSS px (432x768); the camera eases between consecutive keyframes (repeat a keyframe to hold). captions: [t0, t1, text, style] (style: hook | cap | big). flash: times of a white flash. end: end card from t. vo: the voice-over script, [t, line]. Used by tools/promo_clips.js (camera, at capture) and tools/promo_edit.js (captions, flash, end card).",
+ "stemi": {
+  "title": "What a heart attack looks like, inside the heart and on the ECG",
+  "post": "We block the LAD, the artery on the front of the heart, and watch 1 month of a heart attack in 25 seconds: tall T waves, ST elevation, Q waves, flipped T waves. Simulated with ECG Studio, a free 3D heart and 12-lead ECG simulator: ecgstudio.app",
+  "tags": "#ECG #EKG #heartattack #STEMI #cardiology #medstudent #nursing #paramedic #meded #FOAMed",
+  "cam": [
+   [0, 1, 216, 384], [2.2, 1, 216, 384],
+   [3.0, 1.6, 228, 240], [4.6, 1.6, 228, 240],
+   [5.4, 1.45, 216, 545], [7.6, 1.45, 216, 545],
+   [8.4, 1.5, 222, 255], [10.0, 1.5, 222, 255],
+   [10.8, 1.45, 216, 545], [13.4, 1.45, 216, 545],
+   [14.2, 1.5, 222, 255], [15.6, 1.5, 222, 255],
+   [16.4, 1.45, 216, 545], [22.0, 1.45, 216, 545],
+   [22.8, 1, 216, 384]
+  ],
+  "captions": [
+   [0.0, 2.5, "This is what a heart attack looks like", "hook"],
+   [2.5, 4.6, "We block the LAD, the artery on the front of the heart", "cap"],
+   [4.6, 7.0, "15 minutes: the T waves grow tall", "cap"],
+   [7.0, 10.0, "1 hour: purple is muscle starving for oxygen", "cap"],
+   [10.0, 13.0, "The ST segment rises. This is a STEMI", "cap"],
+   [13.0, 15.6, "12 hours: grey is muscle dying", "cap"],
+   [15.6, 17.5, "Deep Q waves appear", "cap"],
+   [17.5, 22.0, "2 days: the T waves flip upside down", "cap"],
+   [22.0, 25.0, "1 month: a scar. The Q waves usually stay for life", "cap"]
+  ],
+  "flash": [],
+  "end": 25.0,
+  "vo": [
+   [0.0, "This is what a heart attack looks like, from the inside."],
+   [2.5, "We block the LAD, the main artery on the front of the heart."],
+   [4.6, "Within minutes, the T waves on the ECG grow tall."],
+   [7.0, "After an hour, the purple area is muscle starving for oxygen..."],
+   [10.0, "...and the ST segment rises. That's a STEMI, and the clock is ticking."],
+   [13.0, "By twelve hours, the grey muscle is dying,"],
+   [15.6, "and deep Q waves appear."],
+   [17.5, "Two days in, the T waves flip upside down."],
+   [22.0, "A month later it's a scar, and those Q waves usually stay for life."],
+   [25.0, "Try it yourself, free, at ecgstudio.app."]
+  ]
+ },
+ "af": {
+  "title": "Atrial fibrillation, then a shock back to normal rhythm",
+  "post": "Atrial fibrillation: the top chambers quiver instead of beating, so the pulse turns irregular. One shock resets every cell and the heart beats as one again. Simulated with ECG Studio, a free 3D heart and 12-lead ECG simulator: ecgstudio.app",
+  "tags": "#ECG #EKG #atrialfibrillation #AFib #cardiology #medstudent #nursing #paramedic #meded #FOAMed",
+  "cam": [
+   [0, 1, 216, 384], [1.8, 1, 216, 384],
+   [2.6, 1.65, 205, 175], [5.2, 1.65, 205, 175],
+   [6.0, 1.45, 216, 545], [7.6, 1.45, 216, 545],
+   [8.0, 1, 216, 384], [9.5, 1, 216, 384],
+   [10.3, 1.5, 214, 240], [12.5, 1.5, 214, 240],
+   [13.3, 1.45, 216, 545], [17.2, 1.45, 216, 545],
+   [18.0, 1, 216, 384]
+  ],
+  "captions": [
+   [0.0, 2.6, "This heart is in atrial fibrillation", "hook"],
+   [2.6, 5.2, "The top chambers just quiver: hundreds of chaotic signals a minute", "cap"],
+   [5.2, 7.8, "So the heartbeat is irregular, and there are no P waves", "cap"],
+   [7.9, 9.6, "SHOCK!", "big"],
+   [9.6, 12.6, "Every cell resets, and the heart beats as one again", "cap"],
+   [12.6, 17.2, "Steady rhythm. The P waves are back", "cap"],
+   [17.2, 18.4, "Normal sinus rhythm", "cap"]
+  ],
+  "flash": [8.0],
+  "end": 18.4,
+  "vo": [
+   [0.0, "This heart is in atrial fibrillation."],
+   [2.6, "The top chambers aren't beating. They quiver, with hundreds of chaotic signals every minute."],
+   [5.2, "So the heartbeat is irregular, and the P waves are gone."],
+   [7.9, "Shock!"],
+   [9.6, "Every cell resets at once, and the heart beats as one again."],
+   [12.6, "A steady rhythm, and the P waves are back."],
+   [17.2, "Normal sinus rhythm."],
+   [18.4, "Try it yourself, free, at ecgstudio.app."]
+  ]
+ },
+ "chb": {
+  "title": "Complete heart block: when the top and bottom of the heart stop talking",
+  "post": "In complete heart block no signal gets from the atria to the ventricles. The P waves keep their own rate, and a slow backup pacemaker drives the ventricles. Simulated with ECG Studio, a free 3D heart and 12-lead ECG simulator: ecgstudio.app",
+  "tags": "#ECG #EKG #heartblock #cardiology #medstudent #nursing #paramedic #meded #FOAMed",
+  "cam": [
+   [0, 1, 216, 384], [2.0, 1, 216, 384],
+   [2.8, 1.5, 216, 545], [8.0, 1.5, 216, 545],
+   [8.8, 1.3, 216, 610], [11.2, 1.3, 216, 610],
+   [12.0, 1, 216, 384]
+  ],
+  "captions": [
+   [0.0, 2.8, "Complete heart block: the top and bottom of the heart stop talking", "hook"],
+   [2.8, 5.5, "The small bumps, the P waves, keep a steady 72 a minute", "cap"],
+   [5.5, 8.2, "The big spikes come at their own pace, unrelated", "cap"],
+   [8.2, 11.6, "A slow backup pacemaker drives the ventricles at 48. This often needs a pacemaker", "cap"]
+  ],
+  "flash": [],
+  "end": 11.6,
+  "vo": [
+   [0.0, "Complete heart block: the top and bottom of the heart have stopped talking."],
+   [2.8, "The small bumps, the P waves, keep a steady seventy-two a minute..."],
+   [5.5, "...but the big spikes come at their own pace, with no connection."],
+   [8.2, "A slow backup pacemaker drives the ventricles at forty-eight. This often needs a pacemaker."],
+   [11.6, "Try it yourself, free, at ecgstudio.app."]
+  ]
+ }
+}

@@ -2642,6 +2642,8 @@ No engine change. New crawlable content and metadata (plan and outreach drafts: 
   `"verify"` for the Google/Bing ownership meta tags.
 - `tools/promo_clips.js`: portrait 1080×1920, 60 fps clips of the phone layout for Shorts/TikTok/Reels, with the page's
   animation frames stepped by hand and captured over CDP (not in the build).
+  Edited versions: `PROMO_CAM=1` zooms and pans at capture (the page drawn at 4x, each frame capturing the camera's
+  rectangle), then `tools/promo_edit.js` adds captions, the shock flash and an end card from `tools/promo_story.json`.
 - Contact page `/contact/`: the Google Form in `site.json` `"contactForm"` embedded (`?embedded=true`), linked from the
   library header, Help → About and `llms.txt`; nothing is built while `contactForm` is empty. Privacy policy: a
   "Contact form" section.
@@ -3309,3 +3311,17 @@ waves after an old anterior infarct (read as hyperkalemia).
   pericarditis now passes the concavity check in every raised lead (the old setting failed it). Reader 55/57 (pericarditis
   read right), scorecard 61/66; Training: pericarditis at 62, 80, 100/min, with a first-degree block, LAE, RAE and in AF all
   asked; hypothermia and Brugada unchanged. ECG library image rebuilt. The curved-plateau dip (`pericardNotch`) stays off.
+
+## claude/loving-noether-jdkvjd round 2: Google Play launch (1.0.0)
+
+- Paywall on (`site.json` `premium: true`); release 1.0.0 (version code 25) built from milestone-1 at PR #26 plus:
+  purchases completed outside the purchase sheet (Play Store promo codes, payments confirmed late) are acknowledged on
+  every entitlement check (`src/shell.html` `refreshEnts`; the plugin only acknowledges after its own sheet and in
+  `restorePurchases`, and Google refunds unacknowledged purchases after 3 days), and Training leaves the unlock page when
+  the entitlement arrives there (`src/training.js`).
+- `ecgstudio.app/training` is now the app's page (`tools/learn_pages.py` `app_page`: one screen on phones; two Training
+  screenshots beside the text on wide screens, from `tools/app_shots.js`); the Training page builds to `app/training.html`
+  (the /app preview frames it; `--app` copies it into the Android app). The simulator's "Join the alpha" is "Get the app"
+  (to /training); library pages link it too.
+- Promo tools: `tools/promo_store.js` (the 30 s Play Store video, `--music`), `tools/music_loop.py`.
+

@@ -48,11 +48,24 @@ li { margin: 2px 0; }
 .grid span { font-size: 14px; color: var(--muted); }
 iframe { display: block; width: 100%; height: 1100px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .small { font-size: 14px; color: var(--muted); }
+a.cta.play { margin-bottom: 4px; }
+.apphero { display: flex; gap: 40px; align-items: center; }
+.apptext { flex: 1 1 380px; }
+.apptext .lede { margin-bottom: 12px; }
+ul.feat { margin: 0 0 18px; }
+.shots { display: flex; gap: 20px; justify-content: center; }
+figure.phone { width: 230px; background: #05090d; border: 0; border-radius: 36px; padding: 10px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
+figure.phone img { border-radius: 28px; }
+figure.phone figcaption { color: #c9d3dc; text-align: center; padding: 10px 6px 4px; font-size: 15px; }
+header.top nav a { white-space: nowrap; }
+@media (max-width: 860px) { .shots { display: none; } .apphero { display: block; } }
+@media (max-width: 400px) { .apptext h1 { font-size: 24px; margin-bottom: 8px; } .apptext .lede { font-size: 16px; } ul.feat li { margin: 3px 0; } .apptext .cta { margin: 10px 0 6px; } }
+ul.feat { padding-left: 20px; } ul.feat li { margin: 6px 0; }
 @media (max-width: 600px) { h1 { font-size: 26px; } header.top nav a.hide { display: none; } }
 """
 
 
-def shell(title, desc, canonical, body, logo, image=None, ld=None, author='Thomas Liou', contact=False):
+def shell(title, desc, canonical, body, logo, image=None, ld=None, author='Thomas Liou', contact=False, note=None):
     img = image or f'{SITE}/icons/og-image.png'
     lds = ''.join(f'<script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>\n' for x in (ld or []))
     return f"""<!doctype html>
@@ -78,12 +91,12 @@ def shell(title, desc, canonical, body, logo, image=None, ld=None, author='Thoma
 {lds}</head>
 <body>
 <header class="top"><div><a class="brand" href="/">{logo}ECG <span>Studio</span></a>
-<nav><a href="/ecg/">ECG library</a><a class="hide" href="/">3D simulator</a>{'<a href="/contact/">Contact</a>' if contact else ''}</nav></div></header>
+<nav><a href="/ecg/">ECG library</a><a class="hide" href="/">3D simulator</a>{'<a class="hide" href="/contact/">Contact</a>' if contact else ''}<a href="/training/">Get the app</a></nav></div></header>
 <main>
 {body}
-<p class="note">ECG Studio is an educational simulator, not a medical device. Its ECGs are computed by a model of the heart,
+<p class="note">{note or f'''ECG Studio is an educational simulator, not a medical device. Its ECGs are computed by a model of the heart,
 not recorded from patients; some features are simplified for teaching. Do not use them for diagnosis or treatment.
-Created by {esc(author)}. © {datetime.date.today().year}.</p>
+Created by {esc(author)}. © {datetime.date.today().year}.'''}</p>
 </main>
 </body>
 </html>
@@ -199,7 +212,8 @@ confused with, and a 12-lead ECG computed by the ECG Studio heart model. Open an
     elif cdir.exists():
         (cdir / 'index.html').unlink(missing_ok=True)
         if not any(cdir.iterdir()): cdir.rmdir()
-    allurls = [SITE + '/', SITE + '/ecg/'] + urls + [SITE + '/privacy/'] + ([SITE + '/contact/'] if form_link else [])
+    app_page(root, logo, author, bool(form_link))
+    allurls = [SITE + '/', SITE + '/training/', SITE + '/ecg/'] + urls + [SITE + '/privacy/'] + ([SITE + '/contact/'] if form_link else [])
     (root / 'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
                                       + ''.join(f'  <url><loc>{u}</loc><lastmod>{today}</lastmod></url>\n' for u in allurls) + '</urlset>\n')
     llms = ['# ECG Studio', '',
@@ -217,6 +231,7 @@ confused with, and a 12-lead ECG computed by the ECG Studio heart model. Open an
             f'- Educational only, not a medical device. Created by {author}.', '',
             '## Pages', '',
             '- [3D heart and 12-lead ECG simulator](https://ecgstudio.app/): the interactive simulator',
+            '- [ECG Studio for Android](https://ecgstudio.app/training/): the free Android app on Google Play: the simulator on a phone, plus Training (unlimited ECGs from the heart model, scored and matched to the learner\'s level; an optional in-app upgrade)',
             '- [ECG library](https://ecgstudio.app/ecg/): criteria, mechanism and differential diagnosis for each pattern, with a simulated 12-lead ECG', '',
             '## ECG library', '']
     for g, gname in data['groups']:
@@ -229,6 +244,42 @@ confused with, and a 12-lead ECG computed by the ECG Studio heart model. Open an
     llms += ['- [Privacy policy](https://ecgstudio.app/privacy/): no personal data is collected by the simulator', '']
     (root / 'llms.txt').write_text('\n'.join(llms))
     print(f'ecg/ ({len(topics)} pages), sitemap.xml, llms.txt')
+
+
+PLAY_URL = 'https://play.google.com/store/apps/details?id=com.ecgstudio.app'
+
+
+def app_page(root, logo, author, contact):
+    """ecgstudio.app/training: what the Android app adds to the free web simulator, and the Google Play link
+    (screenshots: training/img/, from tools/app_shots.js)."""
+    out = root / 'training'
+    out.mkdir(exist_ok=True)
+    play = f'<a class="cta play" href="{PLAY_URL}">Get it on Google Play</a>'
+    shot = lambda f, alt, cap: (f'<figure class="phone"><img src="img/{f}" width="600" height="{img_h(out / "img" / f) * 600 // 1400}" alt="{esc(alt)}" loading="lazy">'
+                                f'<figcaption>{esc(cap)}</figcaption></figure>') if (out / 'img' / f).exists() else ''
+    body = f"""<div class="apphero"><div class="apptext">
+<h1>ECG Studio for Android</h1>
+<p class="lede">Free on Google Play: the 3D heart and 12-lead ECG on your phone, plus <b>Training</b>.</p>
+<ul class="feat">
+<li>A new ECG every time, matched to your level</li>
+<li>Scored like a real read: see what you missed, lead by lead</li>
+<li>Practice by skill, a daily ECG, works offline</li>
+</ul>
+{play}
+<p class="small">A one-time payment unlocks full Training.<br>iOS app in development.</p>
+</div><div class="shots">{shot('question.jpg', 'ECG Studio Training: a 12-lead ECG with the answer being typed', 'A new ECG every time')}
+{shot('result.jpg', 'ECG Studio Training: the result, with the missed finding highlighted on the leads', 'What you missed, lead by lead')}</div></div>
+"""
+    ld = [{'@context': 'https://schema.org', '@type': 'MobileApplication', 'name': 'ECG Studio', 'operatingSystem': 'Android',
+           'applicationCategory': 'EducationalApplication', 'url': SITE + '/training/', 'installUrl': PLAY_URL,
+           'description': 'A 3D heart that computes its own 12-lead ECG, with Training: unlimited ECGs matched to your level.',
+           'offers': {'@type': 'Offer', 'price': '0', 'priceCurrency': 'USD'}, 'author': {'@type': 'Person', 'name': author}}]
+    img = SITE + '/training/img/question.jpg' if (out / 'img' / 'question.jpg').exists() else None
+    (out / 'index.html').write_text(shell('ECG Studio for Android: ECG Training App | ECG Studio',
+                                          'Free on Google Play: the 3D heart and 12-lead ECG simulator on your phone, plus Training, unlimited ECGs '
+                                          'generated by the heart model and matched to your level.',
+                                          SITE + '/training/', body, logo, img, ld, author, contact,
+                                          f'Educational simulator, not a medical device. © {datetime.date.today().year} {esc(author)}.'))
 
 
 def first_sentence(s):
