@@ -3325,3 +3325,20 @@ waves after an old anterior infarct (read as hyperkalemia).
   (to /training); library pages link it too.
 - Promo tools: `tools/promo_store.js` (the 30 s Play Store video, `--music`), `tools/music_loop.py`.
 
+
+## claude/website-fixes round 1: PNG export, arrhythmia gestures, AVNRT/AVRT at fast sinus rates
+
+- **Save PNG** draws the last 10 s as one continuous sheet (the ring buffer rotated to start just after the sweep
+  cursor), offscreen at the on-screen size, with no cursor or erase bar.
+- **Gestures**: one tap counter for the heart (`countTap`): 3 quick taps on the ventricles start VT (atria: flutter),
+  4 start VF (atria: AF), also when the taps land near an artery (the artery's single/double tap is cancelled). An
+  artery double tap now waits `DOUBLE_MS` before occluding, so a third tap can still turn it into a burst. Artery touch
+  zones are smaller (`arteryAt` reach 12 px; pick tubes 1.8, LM 2.6): on a phone the arteries took 69% of the heart's
+  taps, now 35%.
+- **AVNRT/AVRT**: induction success is read from the engine's logs (slow-pathway echoes; retrograde-only pathway
+  conduction), not RR < 450 ms (sinus tachycardia above 133/min passed that, so induction stopped as if it had
+  worked). Both retry 20 ms earlier down to 140 ms. Above 80/min AVRT can't be induced (no window where the pathway is
+  refractory and the node conducts), so the sinus drive slows to 60 for 2.5 s first and stays there while AVRT runs
+  (the sinus rate sets the AV node's tone; a faster node ends the circuit). The rate slider during AVNRT/AVRT is held
+  and applied when the rhythm is sinus again. Browser check at sinus 60/100/130/150: AVNRT 165–216/min and AVRT
+  201/min sustained for 20 s at every rate (before: AVRT ended within 3 s above 80/min).
