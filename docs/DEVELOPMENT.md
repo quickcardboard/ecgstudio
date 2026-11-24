@@ -3304,3 +3304,8 @@ waves after an old anterior infarct (read as hyperkalemia).
   ST ramps into the T with no J knob. The T grows (earlier outer-layer repolarisation widens the gradient that makes it):
   II / V3 / V5 T 4.5 / 5.5 / 2.3 mm now, ×1.4 6.1 / 7.9 / 2.9, ×1.6 6.7 / 8.9 / 3.2, ×1.8 7.2 / 9.8 / 3.4; the J point and
   ST elevation unchanged; reader clean to ×1.8, at ×2.5 an inferior Q is read. Awaiting the author.
+- Adopted (the author): `pericardRepW` 1.4 with `pericardKeepEnd` (×1.2 and ×1.0 compared; ×1.0 is the old setting): the ST
+  ramps into the T with no J knob; T II / V3 / V5 6.1 / 7.9 / 2.9 mm (was 4.5 / 5.5 / 2.3); ST elevation unchanged. AF
+  pericarditis now passes the concavity check in every raised lead (the old setting failed it). Reader 55/57 (pericarditis
+  read right), scorecard 61/66; Training: pericarditis at 62, 80, 100/min, with a first-degree block, LAE, RAE and in AF all
+  asked; hypothermia and Brugada unchanged. ECG library image rebuilt. The curved-plateau dip (`pericardNotch`) stays off.
