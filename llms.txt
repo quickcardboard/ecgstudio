@@ -11,6 +11,7 @@ Key facts:
 ## Pages
 
 - [3D heart and 12-lead ECG simulator](https://ecgstudio.app/): the interactive simulator
+- [ECG Studio for Android](https://ecgstudio.app/training/): the free Android app on Google Play: the simulator on a phone, plus Training (unlimited ECGs from the heart model, scored and matched to the learner's level; an optional in-app upgrade)
 - [ECG library](https://ecgstudio.app/ecg/): criteria, mechanism and differential diagnosis for each pattern, with a simulated 12-lead ECG
 
 ## ECG library

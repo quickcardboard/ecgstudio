@@ -1,5 +1,5 @@
 """Assemble the single-file app: src/template.html + Three.js + engine + app + anatomy -> index.html,
-Training -> training/index.html, and the app shell (src/shell.html) -> app/index.html (a preview that frames the two
+Training -> app/training.html (ecgstudio.app/training is the app's page: tools/learn_pages.py), and the app shell (src/shell.html) -> app/index.html (a preview that frames the two
 pages above). `--app` also writes app/www/ for the native app (the shell and both pages side by side, with local fonts;
 not in git; needs `npm install` in app/ first). Then `cd app && npx cap sync android`."""
 import datetime, html as htmlmod, json, pathlib, shutil, subprocess, sys
@@ -60,9 +60,10 @@ sys.path.insert(0, str(root / "tools")); sys.dont_write_bytecode = True
 import learn_pages
 learn_pages.build(root, LOGO_INLINE, site['author'], site.get('contactForm', ''))
 
-# Training (prototype, phones): src/training.html + training.js + the vocabulary, and a background worker
-# that generates the ECGs live (engine + blind readers + src/training_gen.js) -> training/index.html
-# (ecgstudio.app/training)
+# Training: src/training.html + training.js + the vocabulary, and a background worker that generates the ECGs live
+# (engine + blind readers + src/training_gen.js) -> app/training.html, framed by the /app preview and copied into the
+# Android app. Since the app's launch on Google Play, ecgstudio.app/training is the app's page (tools/learn_pages.py:
+# what the app adds and the Google Play link); /app is kept out of search (robots.txt, noindex).
 def cjs(path, name):
     # a CommonJS tool module as a plain script: its exports under `name` (no require at load time)
     return (f'const {name} = (function () {{ const module = {{ exports: {{}} }}, exports = module.exports, require = () => ({{}});\n'
@@ -104,18 +105,18 @@ for key, text in (('/*__INAPP__*/', inapp), ('/*__VOCAB__*/', json.dumps((src / 
                   ('/*__TRAIN__*/', (src / 'training.js').read_text()), ('/*__TOUR__*/', tour)):
     assert '</script' not in text
     t = t.replace(key, text, 1)
-(root / 'training').mkdir(exist_ok=True)
-(root / 'training' / 'index.html').write_text(t)
-print('training/index.html', round(len(t.encode()) / 1e6, 2), 'MB')
+(root / 'app').mkdir(exist_ok=True)
+(root / 'app' / 'training.html').write_text(t)
+print('app/training.html', round(len(t.encode()) / 1e6, 2), 'MB')
 
 # The app shell (src/shell.html): one frame per module and the module tabs. app/index.html frames the website's
-# pages (../index.html, ../training/index.html) as a preview; --app writes app/www/ for Capacitor.
+# pages (../index.html, app/training.html) as a preview; --app writes app/www/ for Capacitor.
 version = datetime.date.today().isoformat() + (f' ({rev})' if rev else '')
 def shell(urls):
     h = with_logo((src / 'shell.html').read_text()).replace('{{AUTHOR}}', htmlmod.escape(site['author'])).replace('{{VERSION}}', version)
     return h.replace('/*__URLS__*/', json.dumps(urls), 1)
 (root / 'app').mkdir(exist_ok=True)
-(root / 'app' / 'index.html').write_text(shell({'simulator': '../index.html?app', 'training': '../training/index.html?app'}))
+(root / 'app' / 'index.html').write_text(shell({'simulator': '../index.html?app', 'training': 'training.html?app'}))
 print('app/index.html (preview)')
 if '--app' in sys.argv:
     www = root / 'app' / 'www'
@@ -142,7 +143,7 @@ if '--app' in sys.argv:
         return h
     (www / 'index.html').write_text(offline((www / 'index.html').read_text()))
     (www / 'simulator.html').write_text(offline((root / 'index.html').read_text()))
-    (www / 'training.html').write_text(offline((root / 'training' / 'index.html').read_text()))
+    (www / 'training.html').write_text(offline((root / 'app' / 'training.html').read_text()))   # (the Training page itself, not the website's /training app page)
     print('app/www/', sorted(p.name for p in www.iterdir()))
 
 # Variants (src/variants/*.json): a preview of other engine defaults at ecgstudio.app/<dir>/ — the app shell with its own

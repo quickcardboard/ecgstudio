@@ -189,6 +189,14 @@ html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; o
     try {
       const { purchases } = await Billing.getPurchases({ productType: 'inapp' });
       const owned = new Set((purchases || []).filter((x) => String(x.purchaseState) === '1').map((x) => x.productIdentifier));   // (1: purchased; 2: pending payment)
+      // Purchases completed outside the purchase sheet (a promo code redeemed in the Play Store, a payment confirmed after the
+      // sheet closed) arrive unacknowledged, and Google refunds them after 3 days: acknowledge them here (the plugin only
+      // does so after its own purchase sheet and in restorePurchases)
+      for (const x of purchases || []) {
+        if (String(x.purchaseState) === '1' && x.isAcknowledged === false && x.purchaseToken) {
+          try { await Billing.acknowledgePurchase({ purchaseToken: x.purchaseToken }); } catch (e) { /* retried on the next check */ }
+        }
+      }
       for (const [k, pid] of Object.entries(PRODUCTS)) shop.ents[k] = owned.has(pid);
       try { localStorage.setItem(ENT_KEY, JSON.stringify(shop.ents)); } catch (e) { /* private mode */ }
     } catch (e) { /* offline: what was owned last time stands */ }

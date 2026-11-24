@@ -893,7 +893,15 @@
     toast(store.get(OWNED_KEY) === '1' ? 'Purchase restored' : 'No purchase found on this device (preview)');
   }
   if (INAPP) {
-    window.ECGInApp.listen('ents', (d) => { shop.app = !!d.billing; shop.dev = !!d.dev; shop.ents = d.ents || {}; shop.prices = d.prices || {}; if (!$('home').hidden) renderHome(); if (!$('paywall').hidden) payButtons($('payBuy').disabled); });
+    window.ECGInApp.listen('ents', (d) => {
+      shop.app = !!d.billing; shop.dev = !!d.dev; shop.ents = d.ents || {}; shop.prices = d.prices || {};
+      if (!$('home').hidden) renderHome();
+      if (!$('paywall').hidden) {
+        // (a payment confirmed after the purchase sheet closed, or a code redeemed in the Play Store: leave the unlock page)
+        if (ownsTraining()) { payButtons(false); unlocked(); toast('Training unlocked. Thank you!'); }
+        else payButtons($('payBuy').disabled);
+      }
+    });
     window.ECGInApp.listen('bought', (d) => {
       payButtons(false);
       if (d.ok) { unlocked(); toast('Training unlocked. Thank you!'); }
