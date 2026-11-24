@@ -289,7 +289,7 @@
     occlusionDeadS: null, occlusionBorderMm: { LAD: 18 }, occlusionScarWindow: { RCA: 0 },   // occlusionScarWindow: per family, the scar window instead of scarWindow
     occlusionMarginMm: { RCA: 2 },   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
-    pericardDepth: 0.7, pericardDv: 14, pericardAmpDrop: 0.35, pericardSag: -0.55, pericardNotch: 0, pericardNotchMin: 10, pericardNotchMs: 80, pericardApd: 0, pericardRepW: 1, pericardAtrialDv: 20, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
+    pericardDepth: 0.7, pericardDv: 14, pericardAmpDrop: 0.35, pericardSag: -0.55, pericardNotch: 0, pericardNotchMin: 10, pericardNotchMs: 80, pericardApd: 0, pericardRepW: 1, pericardKeepEnd: 0, pericardAtrialDv: 20, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
     ischBlockInj: 0.7,     // injury level above which living ischaemic muscle (after 2 h) no longer conducts
     ischHaloMm: 10, ischHaloLate: 0.45,   // zone of ischaemia around the infarct: width (mm) and late APD prolongation (T inversion)
@@ -2069,6 +2069,9 @@
           // rises again into the T wave: the concave-upward "saddle")
           this.pDecl[c] = (amp < 1 && this.brugada && A.label[c] === LAB.RV ? 1 - (1 - P.plateauDecline) / amp
             : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline + nsSag) + declE;
+          // (pericardRepW with pericardKeepEnd: the inflamed layer's repolarisation starts earlier and more gradually but ends
+          // when it did: the APD moves earlier by half the widening, so the T's upslope begins inside the ST)
+          if (peri && P.pericardKeepEnd && periRepW !== 1) apd -= 0.5 * this._repWBase[c] * repWE * (periRepW - 1) / this._apdBase[c];
           this.vAmp0[c] = this._vAmpBase[c] * amp; this.apdMax0[c] = this._apdBase[c] * apd;
           if (!this._ischCells.has(c)) { this.vAmp[c] = this.vAmp0[c]; this.apdMax[c] = this.apdMax0[c]; }
         } else if (k === KIND.ATRIAL) {

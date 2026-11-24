@@ -3298,3 +3298,9 @@ waves after an old anterior infarct (read as hyperkalemia).
   small knob. Not adopted: with the injury strongest right after the QRS the J point always leads. A concave ST that builds
   into the T would need the inflamed layer's repolarisation reshaped instead (the `pericardRepW` test showed a dip after
   the T; untried: an accelerating plateau decline).
+- The author's question (repolarisation timing of the epicardium): yes, but earlier and more gradual with the end kept
+  (`pericardKeepEnd` with `pericardRepW`, off): the inflamed layer's repolarisation window widens towards its start only (the
+  APD moves earlier by half the widening). The dip after the T goes (it came from the widened window ending late), and the
+  ST ramps into the T with no J knob. The T grows (earlier outer-layer repolarisation widens the gradient that makes it):
+  II / V3 / V5 T 4.5 / 5.5 / 2.3 mm now, ×1.4 6.1 / 7.9 / 2.9, ×1.6 6.7 / 8.9 / 3.2, ×1.8 7.2 / 9.8 / 3.4; the J point and
+  ST elevation unchanged; reader clean to ×1.8, at ×2.5 an inferior Q is read. Awaiting the author.
