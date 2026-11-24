@@ -672,11 +672,13 @@
     // second lead falls short, or a pair spanning two groups (V4–V5), costs nothing. ST depression ≥ 0.5 mm (4th UDMI),
     // ST elevation by steLeads (1 mm; 2 mm in V2–V3), T inversion by twiLeads (≥ 1 mm with a prominent R), Q waves by qLeads)
     const groupsOf = (leads) => Object.keys(RL).filter((t) => RL[t].some((n) => leads.includes(n)));
-    const dipped = (L) => groupsOf(contiguous(LEADS.filter((n) => n !== 'aVR' && L[n].st80 <= -0.05)));
+    const dipped = (L) => groupsOf(contiguous(LEADS.filter((n) => n !== 'aVR' && L[n].stJ <= -0.05)));
     const raised = (L) => groupsOf(steLeads(L));
     const inverted = (L) => groupsOf(twiLeads(L));
     const qGroups = (L) => groupsOf(qLeads(L));
-    const stdLeads = (L) => contiguous(LEADS.filter((n) => !['aVR', 'V1'].includes(n) && L[n].st80 <= -0.1 && L[n].st80 - L[n].stJ < 0.05));
+    // (measured at the J point, as the 4th UDMI does (the author, 2026-11-24; was J+80); horizontal or downsloping: the ST at
+    // J+80 not 0.5 mm or more above it)
+    const stdLeads = (L) => contiguous(LEADS.filter((n) => !['aVR', 'V1'].includes(n) && L[n].stJ <= -0.1 && L[n].st80 - L[n].stJ < 0.05));
     // T inversion (4th UDMI): ≥ 1 mm in two contiguous leads with a prominent R wave (R/S > 1); aVR, III and
     // V1 not counted
     // (behind Q/QS waves the R is gone and inverted T still counts)
@@ -717,11 +719,11 @@
           const std = stdLeads(L);
           // (the author, 2026-11-23: ST depression under 1 mm is a non-specific ST-T abnormality, from 1 mm ST depression: a
           // narrowing whose depression stays under 1 mm (≥ 0.5 mm in two contiguous leads, or flat T) is asked as non-specific)
-          if (std.length < 2 && !steLeads(L).length && LEADS.every((n) => ['aVR', 'V1'].includes(n) || L[n].st80 > -0.1)) {   // (no lead at 1 mm or more: a 1 mm depression is read by eye as ST depression)
-            const ns = criteria('nsstt', a, m, L), dip = contiguous(LEADS.filter((n) => !['aVR', 'V1'].includes(n) && L[n].st80 <= -0.05));
-            if (dip.length >= 2 || ns.ok) return { ...yes(true, `ST depression under 1 mm in ${dip.map((n) => `${n} ${(L[n].st80 * 10).toFixed(1)}`).join(', ') || 'none'}${ns.ok ? `; ${ns.why}` : ''}: non-specific`, dip.length >= 2 ? dip : ns.leads), nonspecific: true };
+          if (std.length < 2 && !steLeads(L).length && LEADS.every((n) => ['aVR', 'V1'].includes(n) || L[n].stJ > -0.1)) {   // (no lead at 1 mm or more: a 1 mm depression is read by eye as ST depression)
+            const ns = criteria('nsstt', a, m, L), dip = contiguous(LEADS.filter((n) => !['aVR', 'V1'].includes(n) && L[n].stJ <= -0.05));
+            if (dip.length >= 2 || ns.ok) return { ...yes(true, `ST depression under 1 mm in ${dip.map((n) => `${n} ${(L[n].stJ * 10).toFixed(1)}`).join(', ') || 'none'}${ns.ok ? `; ${ns.why}` : ''}: non-specific`, dip.length >= 2 ? dip : ns.leads), nonspecific: true };
           }
-          return yes(std.length >= 2 && !steLeads(L).length, `ST depression (J+80) in ${std.map((n) => `${n} ${(L[n].st80 * 10).toFixed(1)}`).join(', ') || 'none ≥ 1 mm horizontal'}${steLeads(L).length ? `, ST elevation in ${steLeads(L).join(' ')}` : ''}`, std);
+          return yes(std.length >= 2 && !steLeads(L).length, `ST depression (J point) in ${std.map((n) => `${n} ${(L[n].stJ * 10).toFixed(1)}`).join(', ') || 'none ≥ 1 mm horizontal'}${steLeads(L).length ? `, ST elevation in ${steLeads(L).join(' ')}` : ''}`, std);
         }
         case 'hyper': {
           // textbook: T ≥ 5 mm in a limb lead or ≥ 10 mm in a chest lead, in two contiguous leads of the
@@ -1110,7 +1112,7 @@
         if (tmed) { tw = twinDiff(med, tmed, a.k); if (!tw.ok) { const f = dropOr(a, `${a.k} barely changes the tracing (${tw.max} mV)`, 'twin'); if (f) return f; continue; } }
         // (the author, reading batches 1–3: ST depression of 1.1–1.5 mm read as non-specific ST-T by eye in 3 of 3 cases; under
         // 2 mm at its deepest, non-specific ST-T is an equal answer)
-        const mildStd = (leads) => (Math.min(...leads.map((n) => r.L[n].st80)) > -0.2 ? { alts: ['nsstt'] } : {});
+        const mildStd = (leads) => (Math.min(...leads.map((n) => r.L[n].stJ)) > -0.2 ? { alts: ['nsstt'] } : {});
         if (a.k === 'narrow' && c.nonspecific) {
           // (the author's eye check: non-specific ST-T is true here but not required)
           optional.add('nsstt');
@@ -1119,7 +1121,7 @@
         } else if (a.k === 'narrow') {
           // (ST depression does not localise the artery: the region asked is where the depression is deepest; any
           // other lead group that shows it is accepted too)
-          const site = MI_SITES[a.site], terr = terrOf(c.leads), depth = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].st80));
+          const site = MI_SITES[a.site], terr = terrOf(c.leads), depth = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].stJ));
           const main = terr.slice().sort((x, y) => depth(x) - depth(y))[0];
           findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok, ...dipped(r.L)])].filter((t) => t !== main), ...mildStd(c.leads) });
           mark('std', c.leads); if (r.L.aVR.stJ >= 0.05) mark('std', ['aVR']);
@@ -1129,7 +1131,7 @@
           const terr = terrOf(c.leads), names = a.sites.map((x) => MI_SITES[x].name);
           // (the region asked: where the depression is deepest, as for a single narrowing (reading batch 2, ECG 13: II, aVF, V5–V6
           // deepest, asked as anterior from V4))
-          const depthM = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].st80)), mainM = terr.slice().sort((x, y) => depthM(x) - depthM(y))[0];
+          const depthM = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].stJ)), mainM = terr.slice().sort((x, y) => depthM(x) - depthM(y))[0];
           // (diffuse depression does not localise: any lead group that shows it is fully right (the author, reading batch 3, ECG 07))
           findings.push({ id: 'std', skill: d.skill, regions: [mainM], anyRegion: true, okRegions: [...new Set([...terr, ...dipped(r.L)])].filter((t) => t !== mainM), ...mildStd(c.leads) });
           optional.add('avrste');   // (the author: ST elevation in aVR is true here but not asked)

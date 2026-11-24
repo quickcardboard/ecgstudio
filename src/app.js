@@ -2354,7 +2354,7 @@
       // ST deviation must hold from early ST (J+20) to J+40, so the upstroke of an early tall T is not read as ST shift
       const s20 = at(k, J + 20) - base, s40 = at(k, J + 40) - base;
       const st = s20 * s40 > 0 ? Math.sign(s40) * Math.min(Math.abs(s20), Math.abs(s40)) : 0;
-      const stJ = at(k, J) - base, st80 = at(k, J + 80) - base;   // (textbook ST depression: at J+80, and its slope from J)
+      const stJ = at(k, J) - base, st80 = at(k, J + 80) - base;   // (textbook ST depression: at the J point; J+80 for its slope)
       let qDur = 0, qAmp = 0, rMax = 0;
       for (let t = vb.on; t < vb.on + 60; t++) { const v = at(k, t) - base; if (v > 0.05) break; if (v < -0.04) qDur = t - vb.on + 1; qAmp = Math.min(qAmp, v); }
       for (let t = vb.on; t <= J; t++) rMax = Math.max(rMax, at(k, t) - base);
@@ -2510,9 +2510,9 @@
     if (sub) {
       // subendocardial injury points into the cavity: ST depression over the
       // region (elevation in the opposite leads is its mirror image, not a STEMI).
-      // Textbook (4th UDMI, at the teaching threshold): ≥ 1 mm at J+80, horizontal or downsloping (rising
-      // < 0.5 mm from the J point), in two contiguous leads, aVR and V1 not counted; upsloping is nonspecific
-      const hd = (n) => !['aVR', 'V1'].includes(n) && m[n].st80 <= -0.1 && m[n].st80 - m[n].stJ < 0.05;
+      // Textbook (4th UDMI, at the teaching threshold): ≥ 1 mm at the J point, horizontal or downsloping (the ST at J+80
+      // rising < 0.5 mm from the J point), in two contiguous leads, aVR and V1 not counted; upsloping is nonspecific
+      const hd = (n) => !['aVR', 'V1'].includes(n) && m[n].stJ <= -0.1 && m[n].st80 - m[n].stJ < 0.05;
       const Ds = order(contiguous(hd)), Es = order(new Set(LH.LEADS.filter((n) => m[n].st >= 0.08)));
       if (Ds.length >= 2) {
         out.push({ head: true, text: `ST depression in ${span(Ds)}` });

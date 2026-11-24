@@ -3208,3 +3208,12 @@ inferior ST depression (−1.2 mm at J+80; to watch). Batch 2 made with the fixe
   depression is required. `score()` gives full credit for an equal answer without lead groups. Checked with Training's own
   `score()` on the batch 3 reads: ECG 07 (lateral) and 12 (non-specific) 100%; ST depression in a wrong group still half.
 - Still to check: whether the J+80 measurement against its baseline overstates the depression the eye sees.
+
+## claude/training-as-is round 5: ST depression measured at the J point
+
+The author: ST depression is judged at the J point (4th UDMI), not J+80. `stdLeads`, `dipped`, the narrowing checks and
+regions, the non-specific allowance (`mildStd`) and the simulator's analysis (`src/app.js`) now read `stJ`; horizontal or
+downsloping still means the ST at J+80 not 0.5 mm or more above the J point. In this model the depression at the J point is
+about the same as at J+80 or slightly deeper (single narrowings 1.0–2.5 mm; 24 site and severity checks: all but one asked,
+OM1 at 0.8 not), so the J+80 point did not explain the shallower look by eye; the baseline is the TP segment as it should
+be. Most single narrowings stay under 2 mm, where non-specific ST-T is an equal answer.
