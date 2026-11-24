@@ -3183,3 +3183,18 @@ arrhythmia the scenario did not ask for now discards), atrial tachycardia with a
 with pre-excitation), right axis in WPW not credited (LAD/RAD now optional from the measured axis). AVRT earns half for
 AVNRT, as AVNRT did for AVRT. The author's misses were mostly first-degree block and LAFB (not measured by eye) and a subtle
 inferior ST depression (−1.2 mm at J+80; to watch). Batch 2 made with the fixes: 20/20 on their first build.
+
+## claude/training-as-is round 3: reading batch 2 (`tools/data/reading/batch2_review.md`); hypokalaemia U wave; reading page
+
+- Keys fixed: AF that turned into a regular tachycardia the engine did not log as a ventricular rhythm (no ventricular beat
+  logged for over 2.5 s and twice the usual RR, with no pause or block asked for, now discards; AF must stay irregular in
+  both halves of the strip, which also discards AF that came out perfectly regular at 62/min; a regular rhythm whose rate
+  changes by over 30% between the halves discards); high-grade AV block keyed Mobitz II with complete AV block half; the ST
+  depression region of a multivessel narrowing is where it is deepest; a recent infarct with the ST still up accepts STEMI
+  for its Q waves (`alts`).
+- Hypokalaemia U wave (the author: too like a P wave): `elecHypoKTail` 0.18 → 0.13, `elecHypoKTailW` 90 → 130 ms: a low,
+  broad U running off the end of the T in V2–V3 instead of a separate rounded hump (simulator and Training; ECG library
+  image rebuilt).
+- Reading batches move to a page (claude.ai artifact "ECG Reading Batches", free-text reads saved per ECG in its store,
+  collection `reads`, documents `<batch>-<nn>`; `batches/<batch>` marks one done). Batch 3: 20/20 kept, one on its second
+  build.

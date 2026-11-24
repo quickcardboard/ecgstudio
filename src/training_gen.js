@@ -858,7 +858,7 @@
       '1st-degree AVB': 'avb1', 'long QT': 'longqt', 'T inversion': 'twi', 'Brugada type 1': 'brugada', pericarditis: 'pericarditis', 'WPW pattern': 'wpw', 'poor R progression': 'poorR' };
     const dxId = (dx) => DX_ID[dx] || (/^STEMI posterior/.test(dx) ? 'posteriorMI' : /^STEMI/.test(dx) ? 'ste' : /^old MI/.test(dx) ? 'qwaves' : /^ST depression/.test(dx) ? 'std' : null);
     // the rhythm key for an AV conduction pattern the engine produced (graded AV block)
-    const AV_KEY = { complete: 'chb', '2:1': 'mobitz2', mobitz1: 'mobitz1', mobitz2: 'mobitz2', 'mixed 2:1': 'mobitz2', high: 'mobitz2' };
+    const AV_KEY = { complete: 'chb', '2:1': 'mobitz2', mobitz1: 'mobitz1', mobitz2: 'mobitz2', 'mixed 2:1': 'mobitz2', high: 'mobitz2' };   // (high grade: complete AV block half, reading batch 2)
     function buildOnce(rec, opts = {}) {
       const fail = (why, stage) => ({ ok: false, why, stage });
       const asIs = AS_IS && !opts.strict, dropped = new Map(), asIsNotes = [], asQ = new Set();
@@ -871,6 +871,25 @@
       // (a ventricular arrhythmia the scenario did not ask for, e.g. VF from a PVC on the T of an ischemic heart (reading batch
       // 1, ECG 05): the strip changes rhythm halfway, which no answer key describes)
       if (sim.S.arrhythmia && ['vf', 'vt', 'tdp'].includes(sim.S.arrhythmia.type) && !['vf', 'vt', 'tdp'].includes(rec.rhythm)) return fail(`${sim.S.arrhythmia.type} started by itself`, 'rhythm');
+      // (ventricular beats no longer logged for a long stretch: a re-entry the engine did not register as a ventricular rhythm
+      // (reading batch 2, ECG 14: AF, then a regular tachycardia at ~200/min with no beats in the log after 2.2 s))
+      if (!R.vf && !R.vt && !R.block && !rec.avs && !rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].sinusNode || ABN[x.k].block)) {
+        const ons = [0, ...V.map((v) => v.on), STRIP], gaps = ons.slice(1).map((t, i) => t - ons[i]), rr0 = V.slice(1).map((v, i) => v.on - V[i].on).sort((x, y) => x - y), med = rr0[rr0.length >> 1] || 1000;
+        const g = Math.max(...gaps);
+        if (g > Math.max(2500, 2 * med)) return fail(`no ventricular beats logged for ${Math.round(g)} ms`, 'rhythm');
+      }
+      // (the rhythm changing partway through the strip: AF that turned into a regular tachycardia at ~200/min (reading batch 2,
+      // ECG 14). AF: each half of the strip must stay irregular; a regular rhythm without ectopy, pauses or blocks: each
+      // half at about the same rate)
+      {
+        const half = (k) => { const vv = V.filter((v) => (k ? v.on >= STRIP / 2 : v.on < STRIP / 2)), r2 = vv.slice(1).map((v, i) => v.on - vv[i].on); if (r2.length < 3) return null; const mu = r2.reduce((x, y) => x + y, 0) / r2.length; return { mu, cv: Math.sqrt(r2.reduce((x, y) => x + (y - mu) ** 2, 0) / r2.length) / mu }; };
+        const h0 = half(0), h1 = half(1);
+        if (h0 && h1) {
+          if (rec.rhythm === 'af' && Math.min(h0.cv, h1.cv) < 0.06) return fail(`AF regular in half the strip (RR CV ${h0.cv.toFixed(2)} / ${h1.cv.toFixed(2)})`, 'rhythm');
+          const plain = !R.block && !rec.avs && !R.vf && !['af', 'flutterVar', 'mat', 'wap', 'sinusArr'].includes(rec.rhythm) && !rec.abn.some((x) => ABN[x.k].ectopy || ABN[x.k].pause || ABN[x.k].sinusNode || ABN[x.k].block);
+          if (plain && Math.abs(h0.mu - h1.mu) / Math.min(h0.mu, h1.mu) > 0.3) return fail(`rate changed partway (RR ${Math.round(h0.mu)} → ${Math.round(h1.mu)} ms)`, 'rhythm');
+        }
+      }
       const rrs = V.slice(1).map((v, i) => v.on - V[i].on), rate = R.vf ? null : Math.round(60000 * rrs.length / rrs.reduce((x, y) => x + y, 0));
       // rhythm: from the engine; P waves must be visible where the rhythm is read from them
       let rhythm = rec.rhythm;
@@ -898,7 +917,8 @@
           if (!asIs || !pat) return fail(`AV pattern ${pat || 'none'}, not ${R.avPattern}`, 'rhythm');
           // (as is: the conduction that happened names the rhythm; first degree or normal: a sinus rhythm, with a long PR)
           asIsNotes.push(`AV pattern ${pat}, not ${R.avPattern}`);
-          if (pat === 'mixed 2:1') rhythmAlt = ['mobitz1'];   // (the author: 2:1 conduction is always Mobitz II; Wenckebach cycles between the 2:1 stretches: Mobitz I half)
+          if (pat === 'mixed 2:1') rhythmAlt = ['mobitz1'];
+          if (pat === 'high') rhythmAlt = ['chb'];   // (advanced second degree: several P's blocked in a row; read as complete AV block by many)   // (the author: 2:1 conduction is always Mobitz II; Wenckebach cycles between the 2:1 stretches: Mobitz I half)
           if (AV_KEY[pat]) rhythm = AV_KEY[pat]; else { rhythm = rate < 60 ? 'sinusBrady' : rate > 100 ? 'sinusTachy' : 'sinus'; avFirst = pat === 'first'; }
         }
         if (pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.2)) { if (!asIs) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm'); asIsNotes.push(`P hidden in ${pv.hidden}/${pv.n} beats`); }
@@ -1104,7 +1124,10 @@
           ['reciprocal'].forEach((x) => optional.add(x)); if (twiLeads(r.L).length) optional.add('twi');
         } else if (a.k === 'multinarrow') {
           const terr = terrOf(c.leads), names = a.sites.map((x) => MI_SITES[x].name);
-          findings.push({ id: 'std', skill: d.skill, regions: terr.slice(0, 1), okRegions: [...new Set([...terr.slice(1), ...dipped(r.L)])].filter((t) => t !== terr[0]) });
+          // (the region asked: where the depression is deepest, as for a single narrowing (reading batch 2, ECG 13: II, aVF, V5–V6
+          // deepest, asked as anterior from V4))
+          const depthM = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].st80)), mainM = terr.slice().sort((x, y) => depthM(x) - depthM(y))[0];
+          findings.push({ id: 'std', skill: d.skill, regions: [mainM], okRegions: [...new Set([...terr, ...dipped(r.L)])].filter((t) => t !== mainM) });
           optional.add('avrste');   // (the author: ST elevation in aVR is true here but not asked)
           mark('std', [...c.leads, 'aVR']);
           lines.std = `Widespread ST depression in ${c.leads.join(', ')}: diffuse subendocardial ischemia, not one territory.`;
@@ -1157,7 +1180,8 @@
           ['std', 'reciprocal', 'hyperacute', 'posteriorMI'].forEach((x) => optional.add(x));
         } else if (d.isch) {
           const site = MI_SITES[a.site], acute = d.isch < 24, ex = acute ? site.ste : site.q, terr = terrOf(c.leads);
-          findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...(acute ? raised(r.L) : qGroups(r.L))])].filter((t) => !ex.req.includes(t)) });
+          findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...(acute ? raised(r.L) : qGroups(r.L))])].filter((t) => !ex.req.includes(t)),
+            ...(asQ.has(a) && steLeads(r.L).length ? { alts: ['ste'] } : {}) });   // (a recent infarct with the ST still up: STEMI named counts for the Q waves; reading batches 1–2)
           mark(d.id, c.leads);
           lines[d.id] = a.k === 'evolving' ? `ST elevation in ${c.leads.join(', ')}, past its peak, with Q waves forming${a.h >= 12 ? ' and T waves starting to invert' : ''}: an evolving ${ex.req.join('/')} STEMI, about ${a.h} hours old.`
             : acute ? `ST elevation in ${c.leads.join(', ')}: acute ${ex.req.join('/')} STEMI.` : `Q waves in ${c.leads.join(', ')}: old ${wallName(ex, terr)} infarct.`;
