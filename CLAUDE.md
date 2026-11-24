@@ -12,7 +12,8 @@ all rights reserved (LICENSE).
   it is what the site serves.
   Variants (`src/variants/*.json`: other engine defaults and torso field) build to `<dir>/` as a preview with its own shell,
   simulator and Training pages: `app-oldmodel/` is the model live until Round 69 (`app-48normalaxis/` now redirects to /app).
-  It also writes `training/index.html` and the app shell `app/index.html` (`src/shell.html`, a preview framing both pages
+  It also writes Training to `app/training.html` (`ecgstudio.app/training` is the Android app's page since launch:
+  `tools/learn_pages.py`, screenshots `node tools/app_shots.js`) and the app shell `app/index.html` (`src/shell.html`, a preview framing both pages
   with `?app`; `src/inapp.js` handles that mode; `src/tutorial.js`, the interactive tutorial, goes into both pages); `--app` adds `app/www/` for the native app (not in git).
 - `src/engine.js`: anatomy, model, simulation and lead fields; runs in the browser
   (`window.ECGStudio`) and in Node (`require('./src/engine.js')`). Parameters live in `DEFAULTS`.
@@ -22,7 +23,8 @@ all rights reserved (LICENSE).
   keeps a replica Sim that never steps: commands run on it and are forwarded, and each frame's snapshot (time, per-cell
   activation, ECG samples, logs, rhythm state) is written into it. `?noworker` steps on the page as before (also the
   fallback without workers or if the worker fails).
-- `site.json`: author, contact, year shown in Help → About; the build stamps date + commit. `contactForm` (a Google Form
+- `site.json`: author, contact, year shown in Help → About; the build stamps date + commit. `premium: true` locks Training
+  until bought (on since the Google Play launch; the website's unlock button opens the store page). `contactForm` (a Google Form
   link) builds the contact page `/contact/`; `verify` holds search-engine ownership codes.
 - `src/learn/topics.json` → the ECG library at `/ecg/` (`tools/learn_pages.py`, run by the build; images and reads:
   `node tools/seo_shots.js`, rerun after engine changes), plus `sitemap.xml`, `llms.txt`. Marketing plan: `docs/MARKETING.md`.
