@@ -3259,8 +3259,8 @@ waves after an old anterior infarct (read as hyperkalemia).
   and its end), deepest `elecOsbornMinMs` 25 ms after the upstroke and back to the dome by `elecOsbornMs` 90 ms. Before, it
   was a lowered plateau climbing back over the whole APD, which drew a downsloping ST like pericarditis (the author read
   it as pericarditis). Now a hump right after the QRS in II and V3–V6 with the ST at baseline. Depth `elecOsbornNotch`
-  0.6 for now; 0.4 compared at the author's request (0.6 makes the V3–V4 J wave almost as tall as the R). Awaiting the
-  author's choice.
+  0.25 (the author: at 0.4 and 0.6 the V3–V4 hump merged into the QRS and looked like an RBBB R′). J hump vs R (mm), II
+  1.6/9.9, V3 0.6/5.1, V4 1.2/7.7, V5 1.0/7.9; at 0.4 the V3 R grew 5.1 → 6.1 (hump merging), at 0.6 to 10.3.
 - Pericarditis: a late notch option (`pericardNotch`, off) kept the QRS but gave almost no ST elevation; a deeper plateau
   sag pulled the mid-ST below baseline; a larger plateau drop shrinks the R waves and the blind read then calls an
   inferior Q. Proposed (not yet applied): resting shift 14, plateau drop 0.35, atrial injury 20, the strongest setting

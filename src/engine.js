@@ -249,7 +249,7 @@
     elecHyperKRepW: 0.5, elecHyperKApd: 0.85, elecHyperKGrad: 0.3, elecHyperKSync: 0, elecHyperKCv: 2.6, elecHyperKCvAtrial: 1.8, elecHyperKPAmp: 0.4,
     elecHypoKRepW: 1.2, elecHypoKSag: 0.05, elecHypoKMid: 0, elecHypoKLayer: 0.5, elecHypoKLayerW: 0.25, elecHypoKTail: 0.13, elecHypoKTailMs: 230, elecHypoKTailW: 130,
     elecHypoCaApd: 1.45, elecHyperCaApd: 0.75,
-    elecHypothermiaApd: 1.3, elecHypothermiaCv: 1.25, elecOsbornNotch: 0.6, elecOsbornMinMs: 25, elecOsbornMs: 90,   // (Osborn: the outer wall's notch depth, the ms to its deepest point, and to the dome)
+    elecHypothermiaApd: 1.3, elecHypothermiaCv: 1.25, elecOsbornNotch: 0.25, elecOsbornMinMs: 25, elecOsbornMs: 90,   // (Osborn: the outer wall's notch depth, the ms to its deepest point, and to the dome)
     wellensA: 0.65, wellensB: 1.2, wellensEndo: 0.1, wellensAt: 0.22,   // Wellens (Sim.setWellens): APD prolongation of type A / B, inner-wall share, LAD node (fraction along it)
     stenosisGlobal: 0.3,   // narrowing: share of its severity in the rest of the LV inner wall
     stenosisBaseGain: 1, stenosisBaseZ: 0.6,   // narrowing: severity in the basal inner wall (apicobasal UVC above stenosisBaseZ)
