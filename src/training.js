@@ -780,6 +780,14 @@
       if ((key.neutral || []).includes(p.id)) { out.rows.push({ id: p.id, cls: 'info', label: chipLabel(p), tag: 'cannot be judged here', neutral: true }); continue; }
       wrong++; out.rows.push({ id: p.id, cls: 'bad', label: chipLabel(p) }); out.wrong = out.wrong || p;
     }
+    // (simulated but not asked, as is: the ECG did not show it clearly; a row of its own, or the note on the student's
+    // credited row when they named it)
+    for (const n of key.notAsked || []) {
+      if (!BY_ID[n.id]) continue;
+      const own = out.rows.find((r) => r.id === n.id && !r.rhythm);
+      if (own) { own.note = n; continue; }
+      out.rows.push({ id: n.id, cls: 'info', label: BY_ID[n.id].name, tag: 'simulated, not asked', note: n });
+    }
     // (an ECG whose only abnormality is its rhythm: the rhythm is the whole answer, so it carries the score;
     // a finding that is not there costs 20%)
     if (!req.length) s = (out.rhythm === 'ok' ? 1 : out.rhythm === 'part' ? 0.5 : 0) + (s - (out.rhythm === 'ok' ? 0.4 : out.rhythm === 'part' ? 0.2 : 0)) - 0.2 * wrong;
@@ -824,6 +832,11 @@
     const L = it.lines || {}, name = BY_ID[r.id] ? BY_ID[r.id].name : r.label;
     if (r.rhythm) return r.cls === 'bad' ? `Not ${name.toLowerCase()}. ${L.rhythm}` : L.rhythm;
     if (r.cls === 'bad') return `${r.label}: not present on this ECG.`;
+    if (r.note) {
+      const n = r.note, what = n.what ? n.what[0].toUpperCase() + n.what.slice(1) : `${name}${n.site ? ` (${n.site})` : ''}`;
+      const why = n.reason === 'small' ? 'it barely changes this tracing' : n.reason === 'beats' ? 'the beats did not come out clearly on this strip' : `it does not meet its ECG criteria on this tracing${n.detail ? ` (${n.detail})` : ''}`;
+      return `${what} was simulated, but ${why}, so it is not asked. Naming it is credited${r.cls === 'ok' ? ' (as you did)' : ''}. The simulator link shows it as simulated.`;
+    }
     if (r.neutral && r.id === 'avb1') return `${r.label}: at this rate the P wave sits on the end of the T wave, so the PR is hard to judge by eye. The measured PR is ${it.m.pr} ms. Neither credited nor counted against you.`;
     if (r.neutral && (r.id === 'lafb' || r.id === 'bifascicular')) return `${r.label}: in this simulator a right bundle branch block on its own already turns the axis left (about −50°), so an added left anterior fascicular block cannot be told apart. Neither credited nor counted against you.`;
     if (r.neutral && it.key.rhythm === 'idioventricular') return `${r.label}: the QRS shape of a ventricular escape beat comes from where it starts, so this describes the escape beat rather than a separate finding. Neither credited nor counted against you.`;
@@ -1032,7 +1045,7 @@
     // (an installed iOS web app can settle its screen size and home-bar inset only after the first layout)
     addEventListener('pageshow', () => requestAnimationFrame(sizeBottom));
     if (window.visualViewport) visualViewport.addEventListener('resize', () => requestAnimationFrame(sizeBottom));
-    window.ECGTraining = { st, gen, tour, prepTour, showPaywall, ownsTraining, premiumOn, pick, submit, toggleRegion, endRegion, setPage, setFs, score, nextItem, startMode, goHome, VOCAB, BY_ID, suggest: () => suggestions().list.map((x) => x.t.name) };   // (automated tests)
+    window.ECGTraining = { st, gen, tour, prepTour, showPaywall, ownsTraining, premiumOn, pick, submit, toggleRegion, endRegion, setPage, setFs, score, rowLine, nextItem, startMode, goHome, VOCAB, BY_ID, suggest: () => suggestions().list.map((x) => x.t.name) };   // (automated tests)
     startWorker(); renderHome(); syncFs(); requestAnimationFrame(sizeBottom);   // (the heart is built in the background while the home screen shows)
     if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(drawAll));
   }

@@ -875,7 +875,7 @@
       if (sim.S.arrhythmia && ['vf', 'vt', 'tdp'].includes(sim.S.arrhythmia.type) && !['vf', 'vt', 'tdp'].includes(rec.rhythm)) return fail(`${sim.S.arrhythmia.type} started by itself`, 'rhythm');
       // (ventricular beats no longer logged for a long stretch: a re-entry the engine did not register as a ventricular rhythm
       // (reading batch 2, ECG 14: AF, then a regular tachycardia at ~200/min with no beats in the log after 2.2 s))
-      if (!R.vf && !R.vt && !R.block && !rec.avs && !rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].sinusNode || ABN[x.k].block)) {
+      if (!R.vf && !R.vt && !['vt', 'vf', 'tdp'].includes(rec.rhythm) && !R.block && !rec.avs && !rec.abn.some((x) => ABN[x.k].pause || ABN[x.k].sinusNode || ABN[x.k].block)) {
         const ons = [0, ...V.map((v) => v.on), STRIP], gaps = ons.slice(1).map((t, i) => t - ons[i]), rr0 = V.slice(1).map((v, i) => v.on - V[i].on).sort((x, y) => x - y), med = rr0[rr0.length >> 1] || 1000;
         const g = Math.max(...gaps);
         if (g > Math.max(2500, 2 * med)) return fail(`no ventricular beats logged for ${Math.round(g)} ms`, 'rhythm');
@@ -888,7 +888,7 @@
         const h0 = half(0), h1 = half(1);
         if (h0 && h1) {
           if (rec.rhythm === 'af' && Math.min(h0.cv, h1.cv) < 0.06) return fail(`AF regular in half the strip (RR CV ${h0.cv.toFixed(2)} / ${h1.cv.toFixed(2)})`, 'rhythm');
-          const plain = !R.block && !rec.avs && !R.vf && !['af', 'flutterVar', 'mat', 'wap', 'sinusArr'].includes(rec.rhythm) && !rec.abn.some((x) => ABN[x.k].ectopy || ABN[x.k].pause || ABN[x.k].sinusNode || ABN[x.k].block);
+          const plain = !R.block && !rec.avs && !R.vf && !['af', 'flutterVar', 'mat', 'wap', 'sinusArr', 'tdp', 'vt'].includes(rec.rhythm) && !rec.abn.some((x) => ABN[x.k].ectopy || ABN[x.k].pause || ABN[x.k].sinusNode || ABN[x.k].block);
           if (plain && Math.abs(h0.mu - h1.mu) / Math.min(h0.mu, h1.mu) > 0.3) return fail(`rate changed partway (RR ${Math.round(h0.mu)} → ${Math.round(h1.mu)} ms)`, 'rhythm');
         }
       }
@@ -1235,7 +1235,12 @@
       if (flutter21) rhythmAlt = ['svt', 'avnrt'];
       const key = { rhythm, alt: rhythmAlt || R.alt || (SINUS.includes(rhythm) && rhythm !== 'sinus' ? ['sinus'] : []), findings, optional: [...optional] };
       if (rhythmSame) key.same = rhythmSame;   // (named instead of the key's rhythm: full credit)
-      if (neutral.size) key.neutral = [...neutral];   // (named: no credit, no penalty: it cannot be judged on this ECG)
+      if (neutral.size) key.neutral = [...neutral];
+      // (as is: what was simulated but did not come out, for the result screen: { id, site, reason, detail })
+      const WHAT = { hyper: (x) => `an occlusion of the ${x} 15 minutes old (hyperacute T waves)`, stemi: (x) => `an acute ${x} occlusion (STEMI)`, evolving: (x) => `an evolving ${x} STEMI`,
+        recent: (x) => `a recent ${x} infarct (2 days old)`, oldmi: (x) => `an old ${x} infarct`, narrow: (x) => `a ${x} narrowing (ST depression)`, multinarrow: (x) => `narrowing of several arteries (ST depression)` };
+      if (dropped.size) key.notAsked = [...dropped].map(([a, why]) => ({ id: ABN[a.k].id || a.k, site: a.site ? MI_SITES[a.site].name : null, what: WHAT[a.k] && a.site ? WHAT[a.k](MI_SITES[a.site].name) : null,
+        reason: /barely changes/.test(why) ? 'small' : /ectopic beats|pause|SA exit/.test(why) ? 'beats' : 'criteria', detail: (why.match(/\(([^()]*(\([^()]*\)[^()]*)*)\)\s*$/) || [])[1] || '' }));   // (named: no credit, no penalty: it cannot be judged on this ECG)
       // (as is: a first-degree block the graded AV node produced instead of the block asked for is a finding)
       if (avFirst && !findings.some((f) => f.id === 'avb1')) { findings.push({ id: 'avb1', skill: 'conduction' }); lines.avb1 = ABN.avb1.line || 'PR over 200 ms with every P conducted: first-degree AV block.'; optional.delete('avb1'); }
       // (the rating and skills from what is asked: an abnormality that did not come out does not count)

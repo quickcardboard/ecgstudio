@@ -3217,3 +3217,16 @@ downsloping still means the ST at J+80 not 0.5 mm or more above the J point. In 
 about the same as at J+80 or slightly deeper (single narrowings 1.0–2.5 mm; 24 site and severity checks: all but one asked,
 OM1 at 0.8 not), so the J+80 point did not explain the shallower look by eye; the baseline is the TP segment as it should
 be. Most single narrowings stay under 2 mm, where non-specific ST-T is an equal answer.
+
+## claude/training-as-is round 6: "simulated, not asked" on the result screen; checks before replacing the live generator
+
+- What was simulated but did not come out is listed on the result screen (`key.notAsked`: id, site, a plain name such as
+  "a recent mid RCA infarct (2 days old)", why): a grey "simulated, not asked" chip, or a note on the student's credited
+  chip when they named it; tapping it says why it was not asked, that naming it is credited and that the simulator link
+  shows it as simulated (`rowLine`; exposed on `window.ECGTraining` for tests).
+- Torsades and VT are excluded from the "no beats logged" and "rate changed partway" checks (their rate swings by nature;
+  a torsades strip was discarded by them).
+- Checks: 100-recipe audit 97/102 kept (95%; discards: AF turning regular ×2, VF started by itself, too few beats, the
+  torsades case, now kept), no errors, median build 5.6 s with the cores shared; blind reader 55/57 (none wrong);
+  scorecard 61/66 (as Round 69); Training in app mode on a Pixel 7 profile: first ECG in 5 s, the next in 7 s, scoring
+  and the result screen working, no console errors.
