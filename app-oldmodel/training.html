@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-24 (7dd126c)">
+<meta name="version" content="2026-11-24 (561285b)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -966,7 +966,7 @@ body.land #fsClose { display: none; }
     occlusionDeadS: null, occlusionBorderMm: { LAD: 18 }, occlusionScarWindow: { RCA: 0 },   // occlusionScarWindow: per family, the scar window instead of scarWindow
     occlusionMarginMm: { RCA: 2 },   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
-    pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.3, pericardSag: -0.55, pericardNotch: 0, pericardNotchMin: 20, pericardNotchMs: 180, pericardApd: 0, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
+    pericardDepth: 0.7, pericardDv: 14, pericardAmpDrop: 0.35, pericardSag: -0.55, pericardNotch: 0, pericardNotchMin: 20, pericardNotchMs: 180, pericardApd: 0, pericardRepW: 1, pericardAtrialDv: 20, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
     ischBlockInj: 0.7,     // injury level above which living ischaemic muscle (after 2 h) no longer conducts
     ischHaloMm: 10, ischHaloLate: 0.45,   // zone of ischaemia around the infarct: width (mm) and late APD prolongation (T inversion)
@@ -2701,6 +2701,7 @@ body.land #fsClose { display: none; }
           const outer = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (A.tm[c] - P.pericardDepth) / (1 - P.pericardDepth)));
           const peri = this.pericarditis && outer > 0;
           if (peri) { dv += P.pericardDv * outer; if (!P.pericardNotch) amp *= 1 - P.pericardAmpDrop * outer; apd *= 1 + P.pericardApd * outer; }   // (pericardApd: delayed repolarisation of the inflamed layer; 0 = none)
+          const periRepW = peri ? 1 + (P.pericardRepW - 1) * outer : 1;   // (pericardRepW: a wider, more gradual repolarisation of the inflamed layer; 1 = none)
           let nsSag = 0;
           if (patch) {
             // flatten the transmural gradient here: endocardium shorter, epicardium longer, by up to nssttGrad of it
@@ -2731,7 +2732,7 @@ body.land #fsClose { display: none; }
           // APD, which drew a downsloping ST like pericarditis)
           this.notchN[c] = notch; this.notchMs[c] = nMs; this.notchMin[c] = nMin;
           if (this.wellens && this._wellensMap.has(c)) apd *= 1 + (this.wellens === 'A' ? P.wellensA : P.wellensB) * this._wellensMap.get(c) * (P.wellensEndo + (1 - P.wellensEndo) * tmE);
-          this.cvElec[c] = cvE; this.repW[c] = (this._repWBase || (this._repWBase = this.repW.slice()))[c] * repWE;
+          this.cvElec[c] = cvE; this.repW[c] = (this._repWBase || (this._repWBase = this.repW.slice()))[c] * repWE * periRepW;
           if (this.brugada && A.label[c] === LAB.RV && A.epi[c]) {
             const d = Math.hypot(A.pos[3 * c] - puv[0], A.pos[3 * c + 1] - puv[1], A.pos[3 * c + 2] - puv[2]);
             const w = Math.max(0, Math.min(1, (P.brugadaMm - d) / 8));
@@ -3811,10 +3812,14 @@ function read(rec, hint, rr, opts = {}) {
   const pr = pOn !== null ? on - pOn : null, pdur = pOn !== null ? pOff - pOn : null;
   // P amplitude per lead (largest excursion between P onset and end), V1 terminal negativity (mm·s, PTF),
   // PR-segment level (10–20 ms before the QRS, against the TP baseline)
-  const pAmp = {}, prSeg = {}; let ptfV1 = 0;
+  const pAmp = {}, prSeg = {}, prDeep = {}; let ptfV1 = 0;
   for (const n of LEADS) {
     const k = K(n); let a = 0; if (pOn !== null) for (let t = pOn; t <= pOff; t++) if (Math.abs(x(t, k)) > Math.abs(a)) a = x(t, k);
     pAmp[n] = +a.toFixed(3); let sg = 0; for (let t = on - 20; t < on - 10; t++) sg += x(t, k) / 10; prSeg[n] = +sg.toFixed(3);
+    // (the deepest PR-segment level: the 10-ms mean furthest from baseline from 90 ms after the P onset (past a normal P) to 10 ms
+    // before the QRS, downward in II, upward in aVR: with a long PR the atria have repolarised before the fixed window. Anchored
+    // on the P onset: in pericarditis the depressed PR segment can be the last atrial peak the P finder takes)
+    if (pOn !== null && (n === 'II' || n === 'aVR')) { let best = 0; for (let t0 = pOn + 90; t0 + 10 <= on - 10; t0++) { let m2 = 0; for (let t = t0; t < t0 + 10; t++) m2 += x(t, k) / 10; if (n === 'II' ? m2 < best : m2 > best) best = m2; } prDeep[n] = +best.toFixed(3); }
   }
   if (pOn !== null) { const k = K('V1'); for (let t = pOn; t <= pOff; t++) if (x(t, k) < 0) ptfV1 += -x(t, k) * 10 * 0.001; }   // mm × s
   // P mitrale notch: two humps in II (5 ms smoothing) with a dip of ≥ 0.02 mV between them; the gap in ms
@@ -3856,7 +3861,7 @@ function read(rec, hint, rr, opts = {}) {
   const qrs = off - on, axis = Math.round(Math.atan2((2 / Math.sqrt(3)) * L.aVF.net, L.I.net) * 180 / Math.PI);
   // delta wave: slow initial QRS (largest-R lead: time from QRS onset to half its R peak)
   const big = LEADS.reduce((b, n) => (L[n].R > L[b].R ? n : b), 'I'), kb = K(big); let up = 0; while (up < 120 && x(on + up, kb) < 0.5 * L[big].R) up++;
-  const m = { on, qrs, pr, pdur, qt, qtc: Math.round(qtc), axis, rate: Math.round(60000 / (rr || 833)), pAmp, prSeg, ptfV1: +ptfV1.toFixed(3), pNotch, upstroke: up, upLead: big };
+  const m = { on, qrs, pr, pdur, qt, qtc: Math.round(qtc), axis, rate: Math.round(60000 / (rr || 833)), pAmp, prSeg, prDeep, ptfV1: +ptfV1.toFixed(3), pNotch, upstroke: up, upLead: big };
   return { m, L, interpret };
   function interpret() { return diagnose(m, L); }
 }
@@ -3927,7 +3932,7 @@ function diagnose(m, L) {
     // acute pericarditis: ST elevation in ≥ 4 leads over ≥ 2 territories, ST depression in aVR, no
     // reciprocal depression outside aVR and V1, PR depression (II ≤ −0.08 mV or aVR ≥ +0.08 mV)
     const recip = std.filter((n) => n !== 'V1');
-    const peri = ste.length >= 4 && f.steT.filter((t) => t !== 'posterior').length >= 2 && L.aVR.stJ <= -0.05 && !recip.length && m.prSeg && (m.prSeg.II <= -0.08 || m.prSeg.aVR >= 0.08);
+    const peri = ste.length >= 4 && f.steT.filter((t) => t !== 'posterior').length >= 2 && L.aVR.stJ <= -0.05 && !recip.length && m.prSeg && (m.prSeg.II <= -0.08 || m.prSeg.aVR >= 0.08 || (m.prDeep && (m.prDeep.II <= -0.08 || m.prDeep.aVR >= 0.08)));
     // Brugada type 1: coved J elevation ≥ 0.2 mV in V1 or V2, the ST descending into a negative T
     const brug = ['V1', 'V2'].filter((n) => L[n].stJ >= 0.2 && L[n].stJ > L[n].st40 && L[n].st40 > L[n].st80 && L[n].tTerm < -0.03);
     if (peri) dx.push('pericarditis');
@@ -4987,7 +4992,14 @@ return module.exports; })();
             const conc = ste.filter((n) => L[n].st40 < (L[n].stJ + L[n].st80) / 2 - 0.005);
             return yes(diffuse && conc.length >= Math.ceil(ste.length / 2), `ST up in ${ste.join(' ')}, concave in ${conc.join(' ')}, aVR ${L.aVR.stJ}`, ste);
           }
-          return yes(diffuse && m.prSeg && (m.prSeg.II <= -0.08 || m.prSeg.aVR >= 0.08), `ST up in ${ste.join(' ')}, aVR ${L.aVR.stJ}`, ste);
+          // (PR depression in II or elevation in aVR, in the fixed window before the QRS or at its deepest after the P: with a
+          // first-degree block or a broad P the fixed window misses it)
+          // (PR depression is supportive, not required: where the PR segment cannot be judged (PR over 200 ms: the atria have
+          // repolarised before the QRS; under 40 ms from the end of the P to the QRS: a broad P) the diffuse ST pattern stands
+          // alone (the author, 2026-11-24))
+          const prJudged = !(m.pr > 200 || (m.pdur && m.pr - m.pdur < 40));
+          const prOk = !prJudged || (m.prSeg && (m.prSeg.II <= -0.08 || m.prSeg.aVR >= 0.08 || (m.prDeep && (m.prDeep.II <= -0.08 || m.prDeep.aVR >= 0.08))));
+          return yes(diffuse && prOk, `ST up in ${ste.join(' ')}, aVR ${L.aVR.stJ}, PR ${m.prDeep ? `II ${(m.prDeep.II * 10).toFixed(1)}, aVR ${(m.prDeep.aVR * 10).toFixed(1)} mm` : 'not measured'}`, ste);
         }
         // electrolytes (Round 51): the change itself is checked on the twin (visible); here the textbook measure
         case 'hyperK': case 'hyperK2': { const tall = ['V2', 'V3', 'V4', 'II'].filter((n) => L[n].T >= (n === 'II' ? 0.7 : 0.9)); return yes(tall.length, `T ${tall.map((n) => `${n} ${(L[n].T * 10).toFixed(0)} mm`).join(', ') || 'not tall'}${k === 'hyperK2' ? `, QRS ${m.qrs} ms` : ''}`, tall); }

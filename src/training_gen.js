@@ -757,7 +757,14 @@
             const conc = ste.filter((n) => L[n].st40 < (L[n].stJ + L[n].st80) / 2 - 0.005);
             return yes(diffuse && conc.length >= Math.ceil(ste.length / 2), `ST up in ${ste.join(' ')}, concave in ${conc.join(' ')}, aVR ${L.aVR.stJ}`, ste);
           }
-          return yes(diffuse && m.prSeg && (m.prSeg.II <= -0.08 || m.prSeg.aVR >= 0.08), `ST up in ${ste.join(' ')}, aVR ${L.aVR.stJ}`, ste);
+          // (PR depression in II or elevation in aVR, in the fixed window before the QRS or at its deepest after the P: with a
+          // first-degree block or a broad P the fixed window misses it)
+          // (PR depression is supportive, not required: where the PR segment cannot be judged (PR over 200 ms: the atria have
+          // repolarised before the QRS; under 40 ms from the end of the P to the QRS: a broad P) the diffuse ST pattern stands
+          // alone (the author, 2026-11-24))
+          const prJudged = !(m.pr > 200 || (m.pdur && m.pr - m.pdur < 40));
+          const prOk = !prJudged || (m.prSeg && (m.prSeg.II <= -0.08 || m.prSeg.aVR >= 0.08 || (m.prDeep && (m.prDeep.II <= -0.08 || m.prDeep.aVR >= 0.08))));
+          return yes(diffuse && prOk, `ST up in ${ste.join(' ')}, aVR ${L.aVR.stJ}, PR ${m.prDeep ? `II ${(m.prDeep.II * 10).toFixed(1)}, aVR ${(m.prDeep.aVR * 10).toFixed(1)} mm` : 'not measured'}`, ste);
         }
         // electrolytes (Round 51): the change itself is checked on the twin (visible); here the textbook measure
         case 'hyperK': case 'hyperK2': { const tall = ['V2', 'V3', 'V4', 'II'].filter((n) => L[n].T >= (n === 'II' ? 0.7 : 0.9)); return yes(tall.length, `T ${tall.map((n) => `${n} ${(L[n].T * 10).toFixed(0)} mm`).join(', ') || 'not tall'}${k === 'hyperK2' ? `, QRS ${m.qrs} ms` : ''}`, tall); }

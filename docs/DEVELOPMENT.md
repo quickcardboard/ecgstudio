@@ -3252,7 +3252,7 @@ Second batch in a row with no wrong key. Model traits the author's reads exposed
 II (read as sinus with first-degree block), J (Osborn) waves that look like diffuse ST elevation, and tall broad inferior T
 waves after an old anterior infarct (read as hyperkalemia).
 
-## claude/osborn-pericarditis round 1 (work in progress): Osborn wave as a notch; pericarditis tried
+## claude/osborn-pericarditis round 1: Osborn wave as a notch; pericarditis tried
 
 - Hypothermia's J (Osborn) wave: the outer wall's action potential gets an early notch (new per-cell `notchN`,
   `notchMin`, `notchMs`; `vm()` and two new ECG pieces, `NOTCH` and `NOTCH + 2`, with events at the notch's lowest point
@@ -3268,3 +3268,19 @@ waves after an old anterior infarct (read as hyperkalemia).
 - Pericarditis's delayed repolarisation (the author's question): `pericardApd` (off) lengthens the inflamed layer's APD by
   that share × outer. With the proposed setting, +8% flattens the T and +18% flattens it further, with the ST still
   raised: the stage 2–3 picture (T flattening, then inversion), not stage 1, whose T stays upright.
+
+- Adopted: Osborn notch 0.25; pericarditis `pericardDv` 10 → 14, `pericardAmpDrop` 0.3 → 0.35, `pericardAtrialDv` 12 → 20
+  (a little more ST elevation, ST depression in aVR and PR depression; R waves kept, blind read clean on three seeds). The
+  ST is still not concave (the author): every cell's plateau is a straight line, so their sum is straight until the T. A
+  wider, earlier repolarisation of the inflamed layer (`pericardRepW`, off) bends the ST into the T but adds a dip after the
+  T (the outer layer then finishes before the inner wall); not adopted. A concave ST would need a curved plateau for the
+  inflamed layer (a fast early fall then a slower one, built from more straight pieces as the Osborn notch is).
+- PR depression with a first-degree block or LAE (the author): the reader's PR level (10–20 ms before the QRS) missed it
+  (atria already repolarised with a long PR; a broad P leaves no PR segment). New `prDeep`: the deepest 10-ms level from 90
+  ms after the P onset to the QRS (anchored on the P onset: in pericarditis the depressed PR segment can be the last atrial
+  peak the P finder takes, which also inflated its P durations); used by the reader's pericarditis read and Training's
+  criterion, which also waives PR depression where the PR segment cannot be judged (PR over 200 ms, or under 40 ms from P end
+  to QRS). Pericarditis with a first-degree block now measures PR II −0.9, aVR +1.1 mm and is asked; with LAE aVR +0.8 mm.
+- Checks: reader 55/57 (pericarditis and Brugada read right), scorecard 61/66; Training builds hypothermia (4 rates) and
+  pericarditis (alone, with a first-degree block, LAE, RAE) as asked; the simulator with each condition (worker and
+  `?noworker`) without errors; ECG library images rebuilt (hypothermia, pericarditis).
