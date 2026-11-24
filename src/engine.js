@@ -247,7 +247,7 @@
     stenosisSev: { LAD: 0.65, LCx: 0.8, RCA: 0.45, LM: 0.5 },   // (Round 68: LCx 0.55 → 0.8, RCA 0.17 → 0.45 with subendoQRS 0.3)
     // electrolytes and hypothermia (Sim.setElectrolyte): factors on the healthy values
     elecHyperKRepW: 0.5, elecHyperKApd: 0.85, elecHyperKGrad: 0.3, elecHyperKSync: 0, elecHyperKCv: 2.6, elecHyperKCvAtrial: 1.8, elecHyperKPAmp: 0.4,
-    elecHypoKRepW: 1.2, elecHypoKSag: 0.05, elecHypoKMid: 0, elecHypoKLayer: 0.5, elecHypoKLayerW: 0.25, elecHypoKTail: 0.18, elecHypoKTailMs: 230, elecHypoKTailW: 90,
+    elecHypoKRepW: 1.2, elecHypoKSag: 0.05, elecHypoKMid: 0, elecHypoKLayer: 0.5, elecHypoKLayerW: 0.25, elecHypoKTail: 0.13, elecHypoKTailMs: 230, elecHypoKTailW: 130,
     elecHypoCaApd: 1.45, elecHyperCaApd: 0.75,
     elecHypothermiaApd: 1.3, elecHypothermiaCv: 1.25, elecOsbornNotch: 0.5,
     wellensA: 0.65, wellensB: 1.2, wellensEndo: 0.1, wellensAt: 0.22,   // Wellens (Sim.setWellens): APD prolongation of type A / B, inner-wall share, LAD node (fraction along it)

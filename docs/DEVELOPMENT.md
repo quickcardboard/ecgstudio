@@ -3153,3 +3153,101 @@ Not adopted after a closer look at the passes as well as the failures: fast AF (
 4/8, and by eye an inferior STEMI at 149/min is plain where the gate's ST measurement missed it (to the author); narrowing
 above 100/min passed 11/16. The flutter and atrial tachycardia strips the blind rhythm read rejected (16) rendered for the
 author.
+
+## claude/training-as-is round 1: answer keys read from the ECG as it came out (no discards)
+
+The author's direction (2026-11-23): Training discarded about a quarter of its builds (and the variety with them) because
+an ECG did not show what was put in. On this branch the key is what the ECG shows (`AS_IS` in `src/training_gen.js`;
+`opts.strict` or `setAsIs(false)` restores the gate):
+- Rhythm from the engine's beats, not the blind rhythm read (its disagreement is noted in the checks). A graded AV block
+  is keyed from the conduction that happened (`AV_KEY`): 2:1, high grade and Wenckebach with 2:1 stretches → Mobitz II
+  (the author: 2:1 is always Mobitz II; Mobitz I half for the mixed pattern), complete → complete AV block, first degree →
+  sinus with first-degree AV block asked. Hidden P waves, a slight sinus arrhythmia (→ the sinus rhythm of its rate) and a
+  regular variable flutter (→ flutter) no longer discard.
+- An abnormality whose criteria are not met, that barely changes the tracing (twin), whose ectopic beats did not show
+  as planned, or whose pauses did not show is not asked but credited if named (`dropOr`; optional), and leaves the rating
+  and the skills. A recent infarct with Q waves but no T inversion yet is asked as Q waves (`asQ`).
+- A finding the blind read sees that was not put in is credited if named (optional, `DX_ID`), not a discard.
+- Kept discards: not induced, too few beats, the sinus-arrest P check and escape rate, too few atrial foci (WAP/MAT), a
+  left-atrial focus whose P is not inverted.
+- Round 5's audit exclusions undone (hyperacute T weight 2, Mobitz I to 98/min, recent/old infarct sites): nothing is
+  discarded for them now.
+- First 20-ECG reading batch for the author (keys in `tools/data/reading/batch1_keys.json`): 20/20 kept on their first
+  build, 1.4–21 s each.
+
+## claude/training-as-is round 2: reading batch 1 (the author's reads, `tools/data/reading/batch1_review.md`)
+
+9/20 agreed fully. Four keys were wrong and are fixed: a PVC that set off VF halfway through the strip (a ventricular
+arrhythmia the scenario did not ask for now discards), atrial tachycardia with a first-degree block conducting in groups
+(a P-wave rhythm dropping beats without an AV block asked for now discards), RBBB read in WPW (RBBB, LBBB and IVCD neutral
+with pre-excitation), right axis in WPW not credited (LAD/RAD now optional from the measured axis). AVRT earns half for
+AVNRT, as AVNRT did for AVRT. The author's misses were mostly first-degree block and LAFB (not measured by eye) and a subtle
+inferior ST depression (−1.2 mm at J+80; to watch). Batch 2 made with the fixes: 20/20 on their first build.
+
+## claude/training-as-is round 3: reading batch 2 (`tools/data/reading/batch2_review.md`); hypokalaemia U wave; reading page
+
+- Keys fixed: AF that turned into a regular tachycardia the engine did not log as a ventricular rhythm (no ventricular beat
+  logged for over 2.5 s and twice the usual RR, with no pause or block asked for, now discards; AF must stay irregular in
+  both halves of the strip, which also discards AF that came out perfectly regular at 62/min; a regular rhythm whose rate
+  changes by over 30% between the halves discards); high-grade AV block keyed Mobitz II with complete AV block half; the ST
+  depression region of a multivessel narrowing is where it is deepest; a recent infarct with the ST still up accepts STEMI
+  for its Q waves (`alts`).
+- Hypokalaemia U wave (the author: too like a P wave): `elecHypoKTail` 0.18 → 0.13, `elecHypoKTailW` 90 → 130 ms: a low,
+  broad U running off the end of the T in V2–V3 instead of a separate rounded hump (simulator and Training; ECG library
+  image rebuilt).
+- Reading batches move to a page (claude.ai artifact "ECG Reading Batches", free-text reads saved per ECG in its store,
+  collection `reads`, documents `<batch>-<nn>`; `batches/<batch>` marks one done). Batch 3: 20/20 kept, one on its second
+  build.
+
+## claude/training-as-is round 4: reading batch 3 (`tools/data/reading/batch3_review.md`, 14/20)
+
+- Diffuse (multivessel) ST depression: any lead group that shows it is fully right (`anyRegion` on the finding; `score()`
+  in `src/training.js` takes any allowed group instead of the deepest one).
+- Non-specific ST-T loosened (the author): ST depression under 2 mm at its deepest accepts non-specific ST-T as an equal
+  answer (`alts`), after 1.1–1.5 mm inferior depressions were read as non-specific by eye in 3 of 3 cases. From 2 mm ST
+  depression is required. `score()` gives full credit for an equal answer without lead groups. Checked with Training's own
+  `score()` on the batch 3 reads: ECG 07 (lateral) and 12 (non-specific) 100%; ST depression in a wrong group still half.
+- Still to check: whether the J+80 measurement against its baseline overstates the depression the eye sees.
+
+## claude/training-as-is round 5: ST depression measured at the J point
+
+The author: ST depression is judged at the J point (4th UDMI), not J+80. `stdLeads`, `dipped`, the narrowing checks and
+regions, the non-specific allowance (`mildStd`) and the simulator's analysis (`src/app.js`) now read `stJ`; horizontal or
+downsloping still means the ST at J+80 not 0.5 mm or more above the J point. In this model the depression at the J point is
+about the same as at J+80 or slightly deeper (single narrowings 1.0–2.5 mm; 24 site and severity checks: all but one asked,
+OM1 at 0.8 not), so the J+80 point did not explain the shallower look by eye; the baseline is the TP segment as it should
+be. Most single narrowings stay under 2 mm, where non-specific ST-T is an equal answer.
+
+## claude/training-as-is round 6: "simulated, not asked" on the result screen; checks before replacing the live generator
+
+- What was simulated but did not come out is listed on the result screen (`key.notAsked`: id, site, a plain name such as
+  "a recent mid RCA infarct (2 days old)", why): a grey "simulated, not asked" chip, or a note on the student's credited
+  chip when they named it; tapping it says why it was not asked, that naming it is credited and that the simulator link
+  shows it as simulated (`rowLine`; exposed on `window.ECGTraining` for tests).
+- Torsades and VT are excluded from the "no beats logged" and "rate changed partway" checks (their rate swings by nature;
+  a torsades strip was discarded by them).
+- Checks: 100-recipe audit 97/102 kept (95%; discards: AF turning regular ×2, VF started by itself, too few beats, the
+  torsades case, now kept), no errors, median build 5.6 s with the cores shared; blind reader 55/57 (none wrong);
+  scorecard 61/66 (as Round 69); Training in app mode on a Pixel 7 profile: first ECG in 5 s, the next in 7 s, scoring
+  and the result screen working, no console errors.
+
+## claude/training-as-is round 7: reading batch 4 (`tools/data/reading/batch4_review.md`, 11/20, no wrong keys)
+
+A single narrowing's ST depression now accepts any lead group showing it (`anyRegion`, as for diffuse depression): it does
+not localise the artery, and V4 and V5 equally deep were asked as anterior. The other differences were reading calls
+(LAFB, RVH read as LPFB, small normal inferior q read as Q, trigeminy named as single ectopics).
+
+## claude/training-as-is round 8: Q waves deeper than 25% of the QRS
+
+The author: a Q wave also counts when deeper than 25% of the QRS height (R plus the deepest negative deflection), with the
+existing 30 ms floor (`qBig` in `qLeads`). Without the floor every normal ECG would show inferior Q waves: this model's
+normal inferior q is III 31 ms / 3.7 mm (~60% of its QRS), aVF 26 ms / 3.2 mm (~37%), II 23 ms / 2.9 mm (~24%). Normal
+ECGs stay clean, and the rule changed none of the 80 reading-batch keys (each batch re-keyed with and without it): every
+Q of 30 ms or more there was already at least 2 mm deep, or had no contiguous partner.
+
+## claude/training-as-is round 9: reading batch 5 (`tools/data/reading/batch5_review.md`, 11/20, no wrong keys)
+
+Electrolytes and hypothermia keyed correctly (hypercalcemia ×4, hypocalcemia ×2, hyperkalemia, hypokalemia, hypothermia).
+Second batch in a row with no wrong key. Model traits the author's reads exposed (not key errors): small flutter waves in
+II (read as sinus with first-degree block), J (Osborn) waves that look like diffuse ST elevation, and tall broad inferior T
+waves after an old anterior infarct (read as hyperkalemia).
