@@ -3284,3 +3284,17 @@ waves after an old anterior infarct (read as hyperkalemia).
 - Checks: reader 55/57 (pericarditis and Brugada read right), scorecard 61/66; Training builds hypothermia (4 rates) and
   pericarditis (alone, with a first-degree block, LAE, RAE) as asked; the simulator with each condition (worker and
   `?noworker`) without errors; ECG library images rebuilt (hypothermia, pericarditis).
+
+## claude/peri-curve round 1 (experiment, not adopted): a curved plateau for pericarditis
+
+- The notch's end and lowest point are now capped to fit the action potential (`_nEnd`: at most 55% of the APD; `_nMin`: at
+  most 40% of that), so a notch is always drawn in the ECG; before, a notch ending after repolarisation began was skipped
+  by the ECG pieces (why the round-1 "late notch" showed almost nothing). Hypothermia's output is unchanged (checked equal).
+- Pericarditis's curved plateau (`pericardNotch`, off; the plateau drop and sag now apply alongside it): a dip at
+  activation recovering by `pericardNotchMs` on a smaller plateau drop (drop 0.2, dip 0.2, 80 ms, sag −0.4) gives a
+  saddle-shaped ST in I, II, V5 that passes the reader and every case tried (80, 100, 62/min, first-degree block, LAE, AF,
+  where the concavity check passes and the current setting fails). The author: the J point standing out before the dip
+  looks like an Osborn wave. Slower recovery (130, 160 ms) deepens the dip (an "M" in V3); gentler dips (0.1, 0.06) keep a
+  small knob. Not adopted: with the injury strongest right after the QRS the J point always leads. A concave ST that builds
+  into the T would need the inflamed layer's repolarisation reshaped instead (the `pericardRepW` test showed a dip after
+  the T; untried: an accelerating plateau decline).

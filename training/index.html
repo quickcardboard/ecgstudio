@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-24 (561285b)">
+<meta name="version" content="2026-11-24 (c74205a)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -966,7 +966,7 @@ body.land #fsClose { display: none; }
     occlusionDeadS: null, occlusionBorderMm: { LAD: 18 }, occlusionScarWindow: { RCA: 0 },   // occlusionScarWindow: per family, the scar window instead of scarWindow
     occlusionMarginMm: { RCA: 2 },   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
-    pericardDepth: 0.7, pericardDv: 14, pericardAmpDrop: 0.35, pericardSag: -0.55, pericardNotch: 0, pericardNotchMin: 20, pericardNotchMs: 180, pericardApd: 0, pericardRepW: 1, pericardAtrialDv: 20, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
+    pericardDepth: 0.7, pericardDv: 14, pericardAmpDrop: 0.35, pericardSag: -0.55, pericardNotch: 0, pericardNotchMin: 10, pericardNotchMs: 80, pericardApd: 0, pericardRepW: 1, pericardAtrialDv: 20, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
     ischBlockInj: 0.7,     // injury level above which living ischaemic muscle (after 2 h) no longer conducts
     ischHaloMm: 10, ischHaloLate: 0.45,   // zone of ischaemia around the infarct: width (mm) and late APD prolongation (T inversion)
@@ -2700,7 +2700,7 @@ body.land #fsClose { display: none; }
         if (k === KIND.VENT) {
           const outer = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (A.tm[c] - P.pericardDepth) / (1 - P.pericardDepth)));
           const peri = this.pericarditis && outer > 0;
-          if (peri) { dv += P.pericardDv * outer; if (!P.pericardNotch) amp *= 1 - P.pericardAmpDrop * outer; apd *= 1 + P.pericardApd * outer; }   // (pericardApd: delayed repolarisation of the inflamed layer; 0 = none)
+          if (peri) { dv += P.pericardDv * outer; amp *= 1 - P.pericardAmpDrop * outer; apd *= 1 + P.pericardApd * outer; }   // (pericardApd: delayed repolarisation of the inflamed layer; 0 = none)
           const periRepW = peri ? 1 + (P.pericardRepW - 1) * outer : 1;   // (pericardRepW: a wider, more gradual repolarisation of the inflamed layer; 1 = none)
           let nsSag = 0;
           if (patch) {
@@ -2722,9 +2722,10 @@ body.land #fsClose { display: none; }
           if (E.hypoCa) apd *= P.elecHypoCaApd;
           if (E.hyperCa) apd *= P.elecHyperCaApd;
           let notch = 0, nMin = P.elecOsbornMinMs, nMs = P.elecOsbornMs;
-          // (pericarditis as a late notch, when pericardNotch is set: the inflamed outer layer starts at full height, so the QRS
-          // keeps its size, drops by pericardNotch × outer within pericardNotchMin after the upstroke and recovers by
-          // pericardNotchMs: ST elevation without losing R waves)
+          // (pericarditis's curved plateau, when pericardNotch is set: on top of the lowered, climbing plateau, the inflamed layer
+          // dips by pericardNotch × outer within pericardNotchMin after the upstroke and recovers by pericardNotchMs: a fast
+          // early recovery and a slow late one, so the ST elevation falls quickly after the J point and then levels off into the
+          // T (a concave, saddle-shaped ST) instead of a straight line)
           if (peri && P.pericardNotch) { notch = P.pericardNotch * outer; nMin = P.pericardNotchMin; nMs = P.pericardNotchMs; }
           if (E.hypothermia) { apd *= P.elecHypothermiaApd; cvE *= P.elecHypothermiaCv; const epi = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (tmE - 0.6) / 0.3)); notch = Math.max(notch, P.elecOsbornNotch * epi); }
           // (the J (Osborn) wave: the outer wall's action potential dips right after the upstroke and its dome recovers within
@@ -2744,7 +2745,7 @@ body.land #fsClose { display: none; }
           // (negative slope), so ST elevation is highest at the J point, sags mid-ST and
           // rises again into the T wave: the concave-upward "saddle")
           this.pDecl[c] = (amp < 1 && this.brugada && A.label[c] === LAB.RV ? 1 - (1 - P.plateauDecline) / amp
-            : peri && !P.pericardNotch ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline + nsSag) + declE;
+            : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline + nsSag) + declE;
           this.vAmp0[c] = this._vAmpBase[c] * amp; this.apdMax0[c] = this._apdBase[c] * apd;
           if (!this._ischCells.has(c)) { this.vAmp[c] = this.vAmp0[c]; this.apdMax[c] = this.apdMax0[c]; }
         } else if (k === KIND.ATRIAL) {
@@ -3413,10 +3414,15 @@ body.land #fsClose { display: none; }
       let rep = 1; const r0 = apd - 0.5 * w;
       if (s > r0) { const x = (s - r0) / w; rep = 1 - x * x * (3 - 2 * x); }
       let pl = 1 - this.pDecl[c] * (s < apd ? s / apd : 1);
-      const nn = this.notchN[c];   // (the notch: deepening to its lowest at notchMin, then recovering by notchMs)
-      if (nn && s < this.notchMs[c]) { const m = this.notchMin[c]; pl *= 1 - nn * (s < m ? s / m : 1 - (s - m) / (this.notchMs[c] - m)); }
+      const nn = this.notchN[c];   // (the notch: deepening to its lowest at notchMin, then recovering by notchMs; both capped to fit the APD)
+      if (nn) { const e = this._nEnd(c); if (s < e) { const m = this._nMin(c); pl *= 1 - nn * (s < m ? (m > 0 ? s / m : 1) : 1 - (s - m) / (e - m)); } }
       return vr + this.vAmp[c] * up * pl * rep;
     }
+
+    // the notch's end and lowest point (ms after activation), capped so the notch ends well before repolarisation starts (the
+    // ECG pieces need it to): at most 55% of the APD, its lowest point at most 40% of that
+    _nEnd(c) { return Math.min(this.notchMs[c], 0.55 * this.apd[c]); }
+    _nMin(c) { return Math.min(this.notchMin[c], 0.4 * this._nEnd(c)); }
 
     phase(c, t = this.t) {
       const s = t - this.tAct[c], apd = this.apd[c], w = this.repW[c];
@@ -3441,7 +3447,7 @@ body.land #fsClose { display: none; }
       if (piece === FLAT) {                                  // plateau after the APD (pl = 1 − p), cancelled by the convolution
         k0 = this.vAmp[c] * (1 - this.pDecl[c]);
       } else if (piece === NOTCH || piece === NOTCH + 2) {   // the notch: down to its lowest point, then back up to the dome (two straight lines)
-        const ta = this.tAct[c], tm = ta + this.notchMin[c], t0 = piece === NOTCH ? Math.ceil(ta + this.P.upW) : tm, t1 = piece === NOTCH ? tm : ta + this.notchMs[c], va = this.vm(c, t0) - this.vRest[c], vb = this.vm(c, t1) - this.vRest[c];
+        const ta = this.tAct[c], tm = ta + Math.max(this.P.upW, this._nMin(c)), t0 = piece === NOTCH ? Math.ceil(ta + this.P.upW) : tm, t1 = piece === NOTCH ? tm : ta + this._nEnd(c), va = this.vm(c, t0) - this.vRest[c], vb = this.vm(c, t1) - this.vRest[c];
         const b = (vb - va) / Math.max(1, t1 - t0); k0 = va - b * t0; k1 = -b;
       } else if (piece === 1) {                              // plateau
         const A = this.vAmp[c], p = this.pDecl[c], apd = this.apd[c];
@@ -3472,9 +3478,9 @@ body.land #fsClose { display: none; }
       this._histRemove(c);
       if (tRep <= tPl) { this._dynAdd(c); return; }             // (very short APD: summed explicitly)
       this._dynRemove(c);
-      const notched = this.notchN[c] > 0 && ta + this.notchMs[c] < tRep - 1;
+      const notched = this.notchN[c] > 0 && ta + this._nEnd(c) < tRep - 1;
       this._setPiece(c, notched ? NOTCH : 1);
-      if (notched) { this.tbuckets[Math.max(Math.ceil(ta + this.notchMin[c]), this.t + 1) % RING].push(c, g, NOTCH + 2); this.tbuckets[Math.max(Math.ceil(ta + this.notchMs[c]), this.t + 1) % RING].push(c, g, NOTCH_END); }
+      if (notched) { this.tbuckets[Math.max(Math.ceil(ta + Math.max(this.P.upW, this._nMin(c))), this.t + 1) % RING].push(c, g, NOTCH + 2); this.tbuckets[Math.max(Math.ceil(ta + this._nEnd(c)), this.t + 1) % RING].push(c, g, NOTCH_END); }
       const p = this.pDecl[c];
       if (Math.abs(p) > 0.1 + 1e-6) {                           // unusual plateau (Brugada dome, inflamed atria): exact segments
         this.tbuckets[Math.max(this._segT(c, 0), this.t + 1) % RING].push(c, g, 2);
