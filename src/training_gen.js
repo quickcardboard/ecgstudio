@@ -1108,6 +1108,9 @@
         const twinRec = { ...rec, abn: rec.abn.filter((x) => x !== a) }, tsim = simulate(twinRec, twinStrip(rec)), tmed = tsim && medianBeat(tsim);
         let tw = null;
         if (tmed) { tw = twinDiff(med, tmed, a.k); if (!tw.ok) { const f = dropOr(a, `${a.k} barely changes the tracing (${tw.max} mV)`, 'twin'); if (f) return f; continue; } }
+        // (the author, reading batches 1–3: ST depression of 1.1–1.5 mm read as non-specific ST-T by eye in 3 of 3 cases; under
+        // 2 mm at its deepest, non-specific ST-T is an equal answer)
+        const mildStd = (leads) => (Math.min(...leads.map((n) => r.L[n].st80)) > -0.2 ? { alts: ['nsstt'] } : {});
         if (a.k === 'narrow' && c.nonspecific) {
           // (the author's eye check: non-specific ST-T is true here but not required)
           optional.add('nsstt');
@@ -1118,7 +1121,7 @@
           // other lead group that shows it is accepted too)
           const site = MI_SITES[a.site], terr = terrOf(c.leads), depth = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].st80));
           const main = terr.slice().sort((x, y) => depth(x) - depth(y))[0];
-          findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok, ...dipped(r.L)])].filter((t) => t !== main) });
+          findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok, ...dipped(r.L)])].filter((t) => t !== main), ...mildStd(c.leads) });
           mark('std', c.leads); if (r.L.aVR.stJ >= 0.05) mark('std', ['aVR']);
           lines.std = `ST depression in ${c.leads.join(', ')}${r.L.aVR.stJ >= 0.05 ? ', ST up in aVR' : ''}: subendocardial ischemia (NSTEMI pattern). It does not localise the artery.`;
           ['reciprocal'].forEach((x) => optional.add(x)); if (twiLeads(r.L).length) optional.add('twi');
@@ -1127,7 +1130,8 @@
           // (the region asked: where the depression is deepest, as for a single narrowing (reading batch 2, ECG 13: II, aVF, V5–V6
           // deepest, asked as anterior from V4))
           const depthM = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].st80)), mainM = terr.slice().sort((x, y) => depthM(x) - depthM(y))[0];
-          findings.push({ id: 'std', skill: d.skill, regions: [mainM], okRegions: [...new Set([...terr, ...dipped(r.L)])].filter((t) => t !== mainM) });
+          // (diffuse depression does not localise: any lead group that shows it is fully right (the author, reading batch 3, ECG 07))
+          findings.push({ id: 'std', skill: d.skill, regions: [mainM], anyRegion: true, okRegions: [...new Set([...terr, ...dipped(r.L)])].filter((t) => t !== mainM), ...mildStd(c.leads) });
           optional.add('avrste');   // (the author: ST elevation in aVR is true here but not asked)
           mark('std', [...c.leads, 'aVR']);
           lines.std = `Widespread ST depression in ${c.leads.join(', ')}: diffuse subendocardial ischemia, not one territory.`;

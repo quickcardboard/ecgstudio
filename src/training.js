@@ -762,8 +762,9 @@
       const pp = !p && fp.find((x) => !x.matched && [...(PART_FINDING[f.id] || []), ...(f.part || [])].includes(x.id));   // (f.part: this ECG's own, e.g. non-specific ST-T for a mild ST depression)
       if (pp) { pp.matched = true; credit(f, 0.5); s += share / 2; out.rows.push({ id: pp.id, cls: 'part', label: chipLabel(pp), tag: `more exactly: ${BY_ID[f.id].name}` }); out.regionMiss = out.regionMiss || f; continue; }
       if (!p) { credit(f, 0); out.rows.push({ id: f.id, cls: 'miss', label: f.regions ? `${BY_ID[f.id].name}, ${regionText(f.regions)}` : BY_ID[f.id].name }); out.missed = out.missed || f; continue; }
-      if (!f.regions) { credit(f, 1); s += share; out.rows.push({ id: f.id, cls: 'ok', label: chipLabel(p) }); continue; }
-      const allowed = [...f.regions, ...(f.okRegions || [])], regOk = f.regions.every((r) => p.regions.includes(r)) && p.regions.every((r) => allowed.includes(r));
+      if (!f.regions || !p.regions) { credit(f, 1); s += share; out.rows.push({ id: f.id, cls: 'ok', label: chipLabel(p) }); continue; }   // (an equal answer without lead groups, e.g. non-specific ST-T for a mild ST depression)
+      // (f.anyRegion: diffuse findings, any of the allowed lead groups is fully right)
+      const allowed = [...f.regions, ...(f.okRegions || [])], regOk = (f.anyRegion ? p.regions.length > 0 : f.regions.every((r) => p.regions.includes(r))) && p.regions.every((r) => allowed.includes(r));
       s += regOk ? share : share / 2; credit(f, regOk ? 1 : 0.5);
       out.rows.push({ id: f.id, cls: regOk ? 'ok' : 'part', label: chipLabel(p), tag: regOk ? '' : `leads: ${regionText(f.regions)}` });
       if (!regOk) out.regionMiss = out.regionMiss || f;

@@ -3198,3 +3198,13 @@ inferior ST depression (−1.2 mm at J+80; to watch). Batch 2 made with the fixe
 - Reading batches move to a page (claude.ai artifact "ECG Reading Batches", free-text reads saved per ECG in its store,
   collection `reads`, documents `<batch>-<nn>`; `batches/<batch>` marks one done). Batch 3: 20/20 kept, one on its second
   build.
+
+## claude/training-as-is round 4: reading batch 3 (`tools/data/reading/batch3_review.md`, 14/20)
+
+- Diffuse (multivessel) ST depression: any lead group that shows it is fully right (`anyRegion` on the finding; `score()`
+  in `src/training.js` takes any allowed group instead of the deepest one).
+- Non-specific ST-T loosened (the author): ST depression under 2 mm at its deepest accepts non-specific ST-T as an equal
+  answer (`alts`), after 1.1–1.5 mm inferior depressions were read as non-specific by eye in 3 of 3 cases. From 2 mm ST
+  depression is required. `score()` gives full credit for an equal answer without lead groups. Checked with Training's own
+  `score()` on the batch 3 reads: ECG 07 (lateral) and 12 (non-specific) 100%; ST depression in a wrong group still half.
+- Still to check: whether the J+80 measurement against its baseline overstates the depression the eye sees.

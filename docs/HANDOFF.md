@@ -17,8 +17,8 @@ The history of every change is in `docs/DEVELOPMENT.md` ("Round N"; the latest a
   "ECG Reading Batches" (https://claude.ai/artifact/YEUQJ6NTdNy4Ut2Hr8mfgV; reads in its store, collection `reads`,
   `<batch>-<nn>`), and they are scored against the keys. Keys and reviews: `tools/data/reading/batch*_keys.json`,
   `batch*_review.md`. Agreement: batch 1 9/20, batch 2 11/20, batch 3 14/20.
-- Next: inferior ST depression of 1.1–1.5 mm (J+80) looks non-specific by eye in 3 of 3 cases: check the baseline and
-  measuring point against the TP segment; diffuse (multivessel) ST depression should accept any lead group; then batch 4.
+- Done after batch 3: diffuse ST depression accepts any lead group; non-specific ST-T is an equal answer for ST depression
+  under 2 mm. Next: check the J+80 measurement's baseline against the TP segment (the eye saw less depression); then batch 4.
 
 ## Where things are
 
