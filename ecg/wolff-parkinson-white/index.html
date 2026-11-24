@@ -58,13 +58,18 @@ li { margin: 2px 0; }
 iframe { display: block; width: 100%; height: 1100px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .small { font-size: 14px; color: var(--muted); }
 a.cta.play { margin-bottom: 4px; }
-.shots { display: flex; gap: min(24px, 4vw); justify-content: center; margin: 28px 0 8px; }
-figure.phone { width: min(300px, 44vw); background: #05090d; border: 0; border-radius: 36px; padding: 10px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
+.apphero { display: flex; gap: 40px; align-items: center; }
+.apptext { flex: 1 1 380px; }
+.apptext .lede { margin-bottom: 12px; }
+ul.feat { margin: 0 0 18px; }
+.shots { display: flex; gap: 20px; justify-content: center; }
+figure.phone { width: 230px; background: #05090d; border: 0; border-radius: 36px; padding: 10px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
 figure.phone img { border-radius: 28px; }
 figure.phone figcaption { color: #c9d3dc; text-align: center; padding: 10px 6px 4px; font-size: 15px; }
 header.top nav a { white-space: nowrap; }
-@media (max-width: 600px) { figure.phone { border-radius: 24px; padding: 6px; } figure.phone img { border-radius: 18px; } figure.phone figcaption { font-size: 13px; } }
-ul.feat { padding-left: 20px; } ul.feat li { margin: 8px 0; }
+@media (max-width: 860px) { .shots { display: none; } .apphero { display: block; } }
+@media (max-width: 400px) { .apptext h1 { font-size: 24px; margin-bottom: 8px; } .apptext .lede { font-size: 16px; } ul.feat li { margin: 3px 0; } .apptext .cta { margin: 10px 0 6px; } }
+ul.feat { padding-left: 20px; } ul.feat li { margin: 6px 0; }
 @media (max-width: 600px) { h1 { font-size: 26px; } header.top nav a.hide { display: none; } }
 </style>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "MedicalWebPage", "name": "Wolff–Parkinson–White pattern", "headline": "Wolff–Parkinson–White (WPW) ECG: Short PR and Delta Wave", "description": "In Wolff–Parkinson–White (WPW) pattern an accessory pathway lets the atrial impulse reach the ventricles early, bypassing the AV node. The ECG shows a short PR interval, a slurred upstroke at the start of the QRS (the delta wave), and a widened QRS.", "url": "https://ecgstudio.app/ecg/wolff-parkinson-white/", "inLanguage": "en", "audience": {"@type": "MedicalAudience", "audienceType": "Clinician"}, "about": {"@type": "MedicalCondition", "name": "Wolff–Parkinson–White pattern"}, "author": {"@type": "Person", "name": "Thomas Liou"}, "isPartOf": {"@type": "WebSite", "name": "ECG Studio", "url": "https://ecgstudio.app/"}, "image": "https://ecgstudio.app/ecg/wolff-parkinson-white/ecg.png", "lastReviewed": "2026-11-24"}</script>
