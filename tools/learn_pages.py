@@ -266,7 +266,7 @@ def app_page(root, logo, author, contact):
 <li>Practice by skill, a daily ECG, works offline</li>
 </ul>
 {play}
-<p class="small">Free download · A one-time payment unlocks full Training.<br>iOS app in development.</p>
+<p class="small">A one-time payment unlocks full Training.<br>iOS app in development.</p>
 </div><div class="shots">{shot('question.jpg', 'ECG Studio Training: a 12-lead ECG with the answer being typed', 'A new ECG every time')}
 {shot('result.jpg', 'ECG Studio Training: the result, with the missed finding highlighted on the leads', 'What you missed, lead by lead')}</div></div>
 """
