@@ -3251,3 +3251,61 @@ Electrolytes and hypothermia keyed correctly (hypercalcemia ×4, hypocalcemia ×
 Second batch in a row with no wrong key. Model traits the author's reads exposed (not key errors): small flutter waves in
 II (read as sinus with first-degree block), J (Osborn) waves that look like diffuse ST elevation, and tall broad inferior T
 waves after an old anterior infarct (read as hyperkalemia).
+
+## claude/osborn-pericarditis round 1: Osborn wave as a notch; pericarditis tried
+
+- Hypothermia's J (Osborn) wave: the outer wall's action potential gets an early notch (new per-cell `notchN`,
+  `notchMin`, `notchMs`; `vm()` and two new ECG pieces, `NOTCH` and `NOTCH + 2`, with events at the notch's lowest point
+  and its end), deepest `elecOsbornMinMs` 25 ms after the upstroke and back to the dome by `elecOsbornMs` 90 ms. Before, it
+  was a lowered plateau climbing back over the whole APD, which drew a downsloping ST like pericarditis (the author read
+  it as pericarditis). Now a hump right after the QRS in II and V3–V6 with the ST at baseline. Depth `elecOsbornNotch`
+  0.25 (the author: at 0.4 and 0.6 the V3–V4 hump merged into the QRS and looked like an RBBB R′). J hump vs R (mm), II
+  1.6/9.9, V3 0.6/5.1, V4 1.2/7.7, V5 1.0/7.9; at 0.4 the V3 R grew 5.1 → 6.1 (hump merging), at 0.6 to 10.3.
+- Pericarditis: a late notch option (`pericardNotch`, off) kept the QRS but gave almost no ST elevation; a deeper plateau
+  sag pulled the mid-ST below baseline; a larger plateau drop shrinks the R waves and the blind read then calls an
+  inferior Q. Proposed (not yet applied): resting shift 14, plateau drop 0.35, atrial injury 20, the strongest setting
+  with a clean blind read on three seeds. Awaiting the author's choice.
+- Pericarditis's delayed repolarisation (the author's question): `pericardApd` (off) lengthens the inflamed layer's APD by
+  that share × outer. With the proposed setting, +8% flattens the T and +18% flattens it further, with the ST still
+  raised: the stage 2–3 picture (T flattening, then inversion), not stage 1, whose T stays upright.
+
+- Adopted: Osborn notch 0.25; pericarditis `pericardDv` 10 → 14, `pericardAmpDrop` 0.3 → 0.35, `pericardAtrialDv` 12 → 20
+  (a little more ST elevation, ST depression in aVR and PR depression; R waves kept, blind read clean on three seeds). The
+  ST is still not concave (the author): every cell's plateau is a straight line, so their sum is straight until the T. A
+  wider, earlier repolarisation of the inflamed layer (`pericardRepW`, off) bends the ST into the T but adds a dip after the
+  T (the outer layer then finishes before the inner wall); not adopted. A concave ST would need a curved plateau for the
+  inflamed layer (a fast early fall then a slower one, built from more straight pieces as the Osborn notch is).
+- PR depression with a first-degree block or LAE (the author): the reader's PR level (10–20 ms before the QRS) missed it
+  (atria already repolarised with a long PR; a broad P leaves no PR segment). New `prDeep`: the deepest 10-ms level from 90
+  ms after the P onset to the QRS (anchored on the P onset: in pericarditis the depressed PR segment can be the last atrial
+  peak the P finder takes, which also inflated its P durations); used by the reader's pericarditis read and Training's
+  criterion, which also waives PR depression where the PR segment cannot be judged (PR over 200 ms, or under 40 ms from P end
+  to QRS). Pericarditis with a first-degree block now measures PR II −0.9, aVR +1.1 mm and is asked; with LAE aVR +0.8 mm.
+- Checks: reader 55/57 (pericarditis and Brugada read right), scorecard 61/66; Training builds hypothermia (4 rates) and
+  pericarditis (alone, with a first-degree block, LAE, RAE) as asked; the simulator with each condition (worker and
+  `?noworker`) without errors; ECG library images rebuilt (hypothermia, pericarditis).
+
+## claude/peri-curve round 1 (experiment, not adopted): a curved plateau for pericarditis
+
+- The notch's end and lowest point are now capped to fit the action potential (`_nEnd`: at most 55% of the APD; `_nMin`: at
+  most 40% of that), so a notch is always drawn in the ECG; before, a notch ending after repolarisation began was skipped
+  by the ECG pieces (why the round-1 "late notch" showed almost nothing). Hypothermia's output is unchanged (checked equal).
+- Pericarditis's curved plateau (`pericardNotch`, off; the plateau drop and sag now apply alongside it): a dip at
+  activation recovering by `pericardNotchMs` on a smaller plateau drop (drop 0.2, dip 0.2, 80 ms, sag −0.4) gives a
+  saddle-shaped ST in I, II, V5 that passes the reader and every case tried (80, 100, 62/min, first-degree block, LAE, AF,
+  where the concavity check passes and the current setting fails). The author: the J point standing out before the dip
+  looks like an Osborn wave. Slower recovery (130, 160 ms) deepens the dip (an "M" in V3); gentler dips (0.1, 0.06) keep a
+  small knob. Not adopted: with the injury strongest right after the QRS the J point always leads. A concave ST that builds
+  into the T would need the inflamed layer's repolarisation reshaped instead (the `pericardRepW` test showed a dip after
+  the T; untried: an accelerating plateau decline).
+- The author's question (repolarisation timing of the epicardium): yes, but earlier and more gradual with the end kept
+  (`pericardKeepEnd` with `pericardRepW`, off): the inflamed layer's repolarisation window widens towards its start only (the
+  APD moves earlier by half the widening). The dip after the T goes (it came from the widened window ending late), and the
+  ST ramps into the T with no J knob. The T grows (earlier outer-layer repolarisation widens the gradient that makes it):
+  II / V3 / V5 T 4.5 / 5.5 / 2.3 mm now, ×1.4 6.1 / 7.9 / 2.9, ×1.6 6.7 / 8.9 / 3.2, ×1.8 7.2 / 9.8 / 3.4; the J point and
+  ST elevation unchanged; reader clean to ×1.8, at ×2.5 an inferior Q is read. Awaiting the author.
+- Adopted (the author): `pericardRepW` 1.4 with `pericardKeepEnd` (×1.2 and ×1.0 compared; ×1.0 is the old setting): the ST
+  ramps into the T with no J knob; T II / V3 / V5 6.1 / 7.9 / 2.9 mm (was 4.5 / 5.5 / 2.3); ST elevation unchanged. AF
+  pericarditis now passes the concavity check in every raised lead (the old setting failed it). Reader 55/57 (pericarditis
+  read right), scorecard 61/66; Training: pericarditis at 62, 80, 100/min, with a first-degree block, LAE, RAE and in AF all
+  asked; hypothermia and Brugada unchanged. ECG library image rebuilt. The curved-plateau dip (`pericardNotch`) stays off.

@@ -368,10 +368,10 @@
    "PR 136 ms",
    "QRS 85 ms",
    "QT/QTcF 372/395 ms",
-   "Axis 0° · normal axis"
+   "Axis -6° · normal axis"
   ],
   "findings": [
-   "Diffuse ST elevation (I, II, aVF, V2, V3, V4) with ST depression in aVR and PR depression in II (-0.09 mV): acute pericarditis pattern"
+   "Acute pericarditis"
   ]
  },
  "brugada-syndrome": {
@@ -451,11 +451,11 @@
    "Rate 45 bpm",
    "PR 162 ms",
    "QRS 93 ms",
-   "QT/QTcF 491/446 ms",
-   "Axis -1° · normal axis"
+   "QT/QTcF 490/445 ms",
+   "Axis +15° · normal axis"
   ],
   "findings": [
-   "J (Osborn) waves at the end of the QRS, long QT and bradycardia: hypothermia pattern"
+   "Hypothermia pattern (Osborn waves)"
   ]
  },
  "right-atrial-enlargement": {
