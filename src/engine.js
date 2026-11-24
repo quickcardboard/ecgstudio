@@ -289,7 +289,7 @@
     occlusionDeadS: null, occlusionBorderMm: { LAD: 18 }, occlusionScarWindow: { RCA: 0 },   // occlusionScarWindow: per family, the scar window instead of scarWindow
     occlusionMarginMm: { RCA: 2 },   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
-    pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.3, pericardSag: -0.55, pericardNotch: 0, pericardNotchMin: 20, pericardNotchMs: 180, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
+    pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.3, pericardSag: -0.55, pericardNotch: 0, pericardNotchMin: 20, pericardNotchMs: 180, pericardApd: 0, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
     ischBlockInj: 0.7,     // injury level above which living ischaemic muscle (after 2 h) no longer conducts
     ischHaloMm: 10, ischHaloLate: 0.45,   // zone of ischaemia around the infarct: width (mm) and late APD prolongation (T inversion)
@@ -2023,7 +2023,7 @@
         if (k === KIND.VENT) {
           const outer = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (A.tm[c] - P.pericardDepth) / (1 - P.pericardDepth)));
           const peri = this.pericarditis && outer > 0;
-          if (peri) { dv += P.pericardDv * outer; if (!P.pericardNotch) amp *= 1 - P.pericardAmpDrop * outer; }
+          if (peri) { dv += P.pericardDv * outer; if (!P.pericardNotch) amp *= 1 - P.pericardAmpDrop * outer; apd *= 1 + P.pericardApd * outer; }   // (pericardApd: delayed repolarisation of the inflamed layer; 0 = none)
           let nsSag = 0;
           if (patch) {
             // flatten the transmural gradient here: endocardium shorter, epicardium longer, by up to nssttGrad of it

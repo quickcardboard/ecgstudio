@@ -3265,3 +3265,6 @@ waves after an old anterior infarct (read as hyperkalemia).
   sag pulled the mid-ST below baseline; a larger plateau drop shrinks the R waves and the blind read then calls an
   inferior Q. Proposed (not yet applied): resting shift 14, plateau drop 0.35, atrial injury 20, the strongest setting
   with a clean blind read on three seeds. Awaiting the author's choice.
+- Pericarditis's delayed repolarisation (the author's question): `pericardApd` (off) lengthens the inflamed layer's APD by
+  that share × outer. With the proposed setting, +8% flattens the T and +18% flattens it further, with the ST still
+  raised: the stage 2–3 picture (T flattening, then inversion), not stage 1, whose T stays upright.
