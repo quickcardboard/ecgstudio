@@ -3230,3 +3230,9 @@ be. Most single narrowings stay under 2 mm, where non-specific ST-T is an equal 
   torsades case, now kept), no errors, median build 5.6 s with the cores shared; blind reader 55/57 (none wrong);
   scorecard 61/66 (as Round 69); Training in app mode on a Pixel 7 profile: first ECG in 5 s, the next in 7 s, scoring
   and the result screen working, no console errors.
+
+## claude/training-as-is round 7: reading batch 4 (`tools/data/reading/batch4_review.md`, 11/20, no wrong keys)
+
+A single narrowing's ST depression now accepts any lead group showing it (`anyRegion`, as for diffuse depression): it does
+not localise the artery, and V4 and V5 equally deep were asked as anterior. The other differences were reading calls
+(LAFB, RVH read as LPFB, small normal inferior q read as Q, trigeminy named as single ectopics).

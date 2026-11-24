@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-24 (1882bbe)">
+<meta name="version" content="2026-11-24 (8cc3b47)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -5333,7 +5333,9 @@ return module.exports; })();
           // other lead group that shows it is accepted too)
           const site = MI_SITES[a.site], terr = terrOf(c.leads), depth = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].stJ));
           const main = terr.slice().sort((x, y) => depth(x) - depth(y))[0];
-          findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok, ...dipped(r.L)])].filter((t) => t !== main), ...mildStd(c.leads) });
+          // (any group showing it is fully right: ST depression does not localise the artery (reading batch 4, ECG 13: V4 and V5
+          // equally deep, asked as anterior))
+          findings.push({ id: 'std', skill: d.skill, regions: [main], anyRegion: true, okRegions: [...new Set([...terr, ...dipped(r.L)])].filter((t) => t !== main), ...mildStd(c.leads) });
           mark('std', c.leads); if (r.L.aVR.stJ >= 0.05) mark('std', ['aVR']);
           lines.std = `ST depression in ${c.leads.join(', ')}${r.L.aVR.stJ >= 0.05 ? ', ST up in aVR' : ''}: subendocardial ischemia (NSTEMI pattern). It does not localise the artery.`;
           ['reciprocal'].forEach((x) => optional.add(x)); if (twiLeads(r.L).length) optional.add('twi');

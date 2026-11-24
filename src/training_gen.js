@@ -1123,7 +1123,9 @@
           // other lead group that shows it is accepted too)
           const site = MI_SITES[a.site], terr = terrOf(c.leads), depth = (t) => Math.min(...RL[t].filter((n) => c.leads.includes(n)).map((n) => r.L[n].stJ));
           const main = terr.slice().sort((x, y) => depth(x) - depth(y))[0];
-          findings.push({ id: 'std', skill: d.skill, regions: [main], okRegions: [...new Set([...terr, ...site.ste.req, ...site.ste.ok, ...dipped(r.L)])].filter((t) => t !== main), ...mildStd(c.leads) });
+          // (any group showing it is fully right: ST depression does not localise the artery (reading batch 4, ECG 13: V4 and V5
+          // equally deep, asked as anterior))
+          findings.push({ id: 'std', skill: d.skill, regions: [main], anyRegion: true, okRegions: [...new Set([...terr, ...dipped(r.L)])].filter((t) => t !== main), ...mildStd(c.leads) });
           mark('std', c.leads); if (r.L.aVR.stJ >= 0.05) mark('std', ['aVR']);
           lines.std = `ST depression in ${c.leads.join(', ')}${r.L.aVR.stJ >= 0.05 ? ', ST up in aVR' : ''}: subendocardial ischemia (NSTEMI pattern). It does not localise the artery.`;
           ['reciprocal'].forEach((x) => optional.add(x)); if (twiLeads(r.L).length) optional.add('twi');
