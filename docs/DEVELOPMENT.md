@@ -3251,3 +3251,17 @@ Electrolytes and hypothermia keyed correctly (hypercalcemia ×4, hypocalcemia ×
 Second batch in a row with no wrong key. Model traits the author's reads exposed (not key errors): small flutter waves in
 II (read as sinus with first-degree block), J (Osborn) waves that look like diffuse ST elevation, and tall broad inferior T
 waves after an old anterior infarct (read as hyperkalemia).
+
+## claude/osborn-pericarditis round 1 (work in progress): Osborn wave as a notch; pericarditis tried
+
+- Hypothermia's J (Osborn) wave: the outer wall's action potential gets an early notch (new per-cell `notchN`,
+  `notchMin`, `notchMs`; `vm()` and two new ECG pieces, `NOTCH` and `NOTCH + 2`, with events at the notch's lowest point
+  and its end), deepest `elecOsbornMinMs` 25 ms after the upstroke and back to the dome by `elecOsbornMs` 90 ms. Before, it
+  was a lowered plateau climbing back over the whole APD, which drew a downsloping ST like pericarditis (the author read
+  it as pericarditis). Now a hump right after the QRS in II and V3–V6 with the ST at baseline. Depth `elecOsbornNotch`
+  0.6 for now; 0.4 compared at the author's request (0.6 makes the V3–V4 J wave almost as tall as the R). Awaiting the
+  author's choice.
+- Pericarditis: a late notch option (`pericardNotch`, off) kept the QRS but gave almost no ST elevation; a deeper plateau
+  sag pulled the mid-ST below baseline; a larger plateau drop shrinks the R waves and the blind read then calls an
+  inferior Q. Proposed (not yet applied): resting shift 14, plateau drop 0.35, atrial injury 20, the strongest setting
+  with a clean blind read on three seeds. Awaiting the author's choice.
