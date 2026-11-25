@@ -3399,3 +3399,10 @@ from a fixed share of the RR or a Bazett QT, also blind to a long QT.
   bigeminy coupling ≥ qtEnd + 10).
 - Checks: 33 Training strips with long-QT conditions and premature beats: QRS before the previous T peak 4 → 0. Reader
   55/57, scorecard 61/66, `arrhythmia.js` AF 107 → 100/min (one 10-beat sample; rand stream).
+## claude/svt-switch round 1: AVNRT ↔ AVRT directly
+
+Choosing AVRT while AVNRT ran left AVNRT running (the author): `stopArrhythmia` stops drivers, and a re-entry circuit has
+none, so the new extrastimulus fell into the running circuit. `startRhythm` now ends a running AVNRT/AVRT first with
+`S.shock()` (as choosing sinus already did) when another rhythm is chosen, and AVRT turns the dual AV-nodal pathways off
+(as AVNRT turns the accessory pathway off: one circuit at a time). Browser, sinus 72 and 120: AVNRT → AVRT, AVRT → AVNRT,
+AVNRT → flutter and AVRT → sinus all switch.

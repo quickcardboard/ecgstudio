@@ -951,7 +951,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-25 (c3e727e).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-25 (71f12fd).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -996,7 +996,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-25 (c3e727e).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-25 (71f12fd).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -7338,6 +7338,10 @@ THE SOFTWARE.
   // start a rhythm (Rhythm menu and the heart gestures)
   function startRhythm(type) {
     if (type !== 'af' && S.arrhythmia && S.arrhythmia.type === 'af') leaveAF();
+    // (AVNRT and AVRT have no driver to stop: a running circuit kept going under the new rhythm, and AVNRT → AVRT stayed
+    // AVNRT (the author). It ends first, as a return to sinus ends it)
+    const cur = currentRhythm();
+    if ((cur === 'avnrt' || cur === 'avrt') && type !== cur) { S.shock(); ui.rhythmFrom = S.t; }
     ui.avnrt = null; ui.pendingRhythm = null; markChange();
     if (ui.rateHeld) { S.setRate(ui.rate); ui.rateHeld = false; }   // (a sinus rate held during AVNRT/AVRT applies again)
     if (type === 'avnrt') {
@@ -7349,6 +7353,7 @@ THE SOFTWARE.
     }
     if (type === 'avrt') {
       if (!S.ap || S.apLocation !== 'left-lateral') setCondition('ap', true);
+      if (ui.struct.dual) setCondition('dual', false);             // (as AVNRT takes the pathway away: one circuit at a time)
       S.stopArrhythmia();
       // (above 80/min no atrial extrastimulus finds the window where the pathway is refractory and the AV node conducts:
       // the sinus drive slows to 60 for 2.5 s first, as the EP lab paces at a set cycle, and stays there while AVRT runs:
