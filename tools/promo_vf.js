@@ -31,6 +31,7 @@ const SHOTS = {
   },
 };
 const CLICK_LAD = [1.5, 1.68], CLICK_PVC = 8.6;   // recipe-local times (s)
+const LAD_AT = 0.2;   // the occlusion site: this far along the LAD
 const CAPTIONS = [
   [0.15, 2.85, 'This is a recipe for disaster', 'hook'],
   [3.35, 6.35, '1 blocked artery'],
@@ -121,9 +122,19 @@ async function recordVF(browser, url, file) {
 
 // 2: the recipe. Returns the recipe-local time VF began.
 async function recordRecipe(browser, url, file) {
-  const S = SHOTS.recipe, P = await openPage(browser, url, S.hash, S.group), pg = P.page;
-  for (let i = 0; i < 352; i++) await P.step(1000 / 32, lerpKeys(S.heart, 0));
-  const ladNode = await pg.evaluate(() => window.ECGStudioApp.model.coronary.branches.LAD[0]);
+  const S0 = SHOTS.recipe, P = await openPage(browser, url, S0.hash, S0.group), pg = P.page;
+  for (let i = 0; i < 352; i++) await P.step(1000 / 32, lerpKeys(S0.heart, 0));
+  // the occlusion: the LAD a fifth of the way along, where it runs down the front of the heart in plain view
+  const ladNode = await pg.evaluate((f) => { const ids = window.ECGStudioApp.model.coronary.branches.LAD; return ids[Math.round(ids.length * f)]; }, LAD_AT);
+  // turn the recipe so the LAD faces the camera: +55° from the app's chest view puts it down the middle of the front (checked
+  // on screenshots: the chest view shows it to one side, negative angles show it through the heart from behind)
+  const AZ0 = 55;
+  const S = { ...S0, heart: S0.heart.map(([t, az, ...rest]) => [t, az + AZ0, ...rest]) };
+  await pg.evaluate((c) => window.__cam(...c), lerpKeys(S.heart, 1.6));
+  const ladView = await pg.evaluate((n) => window.ECGStudioApp.coronaryScreen(n), ladNode);
+  S.zoom = S0.zoom.map((k) => (k[0] >= 1.5 && k[0] <= 2.6 ? [k[0], k[1], ladView.x, ladView.y] : k));
+  console.log('  LAD facing the camera at azimuth', AZ0, '; on screen at', Math.round(ladView.x), Math.round(ladView.y));
+  await pg.evaluate((c) => window.__cam(...c), lerpKeys(S.heart, 0));
   const ladAt = () => pg.evaluate((n) => window.ECGStudioApp.coronaryScreen(n), ladNode);
   // the PVC's target: the middle of the purple (ischaemic) muscle as drawn, so the click lands on damaged tissue in sight
   const zoneAt = async () => {
