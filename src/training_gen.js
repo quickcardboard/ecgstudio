@@ -79,10 +79,22 @@
     atrialTach: { w: 0.6, open: true, pRhythm: true, gateRead: true, rating: 170, rate: [112, 150], link: 'a=ectopic', alt: ['svt'], notWith: ['rae', 'lae', 'bae', 'wpw', 'peri'],
       start: (S, rec, M) => { S.run(2000); S.startArrhythmia('ectopic', { cell: atrialFocusCell(M, rec.focus) }); S.setRate(rec.rate); }, read: (r) => /ectopic atrial|atrial tachycardia/.test(r) },   // (no left-atrial focus: at 112–150/min its P sits on the T)
     junctional: { w: 0.8, open: true, noP: true, notWith: ['lbbb', 'rbbb', 'nsstt'],   // (a wide QRS would pass for a ventricular escape; the retrograde P sits on the ST-T)
-      rating: 140, block: ['SAN', 'arrest'], optional: ['sinusPause'], read: () => true, escRate: [41, 59] },
+      rating: 140, block: ['SAN', 'arrest'], optional: ['sinusPause'], read: () => true, escRate: [41, 59], escLim: [40, 60] },
+    // accelerated junctional rhythm (the author, 2026-11-25: the faster escapes of the simulator's escape sliders): the same
+    // junctional focus at 65–100/min, faster than an escape and below a tachycardia; a junctional escape rhythm partly right
+    accelJunctional: { w: 0.5, open: true, noP: true, notWith: ['lbbb', 'rbbb', 'nsstt'], rating: 170, block: ['SAN', 'arrest'], optional: ['sinusPause'], read: () => true,
+      escRate: [65, 100], escLim: [60, 105], alt: ['junctional'] },
     // (2026-11-18, the author: the escape rate varies, 40–60 junctional and 20–40 ventricular, and the ventricular escape
     // comes from one of five sites, each with its own QRS shape: escapeCell)
-    idioventricular: { w: 0.5, noP: true, wide: true, rating: 160, block: ['SAN', 'arrest'], block2: ['HIS', 'complete'], optional: ['sinusPause'], read: () => true, escRate: [22, 38], escFoci: ['lpf', 'laf', 'rv', 'lvLat', 'apex'] },
+    idioventricular: { w: 0.5, noP: true, wide: true, rating: 160, block: ['SAN', 'arrest'], block2: ['HIS', 'complete'], optional: ['sinusPause'], read: () => true, escRate: [22, 38], escLim: [20, 40], escFoci: ['lpf', 'laf', 'rv', 'lvLat', 'apex'] },
+    // accelerated idioventricular rhythm (AIVR): the ventricular focus at 50–100/min, from the same five sites; an
+    // idioventricular rhythm partly right
+    aivr: { w: 0.4, noP: true, wide: true, rating: 190, block: ['SAN', 'arrest'], block2: ['HIS', 'complete'], optional: ['sinusPause'], read: () => true, escRate: [50, 100], escLim: [45, 105],
+      escFoci: ['lpf', 'laf', 'rv', 'lvLat', 'apex'], alt: ['idioventricular'] },
+    // no escape at all (the author: sinus arrest with the escapes off): asystole, a flat line; P-wave asystole (ventricular
+    // standstill): complete block with P waves and no escape
+    asystole: { w: 0.15, noQrs: true, vf: true, tachy: true, rating: 60, block: ['SAN', 'arrest'], escOff: true, read: () => true },
+    standstill: { w: 0.25, noQrs: true, vf: true, tachy: true, rating: 120, block: ['HIS', 'complete'], escOff: true, rate: [60, 90], read: () => true, alt: ['asystole', 'chb'] },
   };
   // the focus of the atrial rhythms: the right-atrial cell nearest the AV node at least ECT_MM from it (low in the right
   // atrium, so the P is inverted in II, III and aVF; far enough for a normal PR)
@@ -135,6 +147,10 @@
     vf: 'Chaotic, irregular deflections with no identifiable QRS complexes: ventricular fibrillation. Defibrillate.',
     junctional: 'No P waves before the QRS (sinus arrest); regular narrow QRS at 40–60/min: junctional escape rhythm.',
     idioventricular: 'No P waves (sinus arrest); regular wide QRS at 20–40/min: ventricular escape (idioventricular) rhythm.',
+    accelJunctional: 'No P waves before the QRS; regular narrow QRS at 60–100/min, faster than a junctional escape: accelerated junctional rhythm.',
+    aivr: 'No P waves; regular wide QRS at 50–100/min, faster than a ventricular escape and slower than VT: accelerated idioventricular rhythm (AIVR).',
+    asystole: 'A flat line: no P waves and no QRS complexes (sinus arrest with no escape rhythm): asystole. Check the leads and the gain, then start CPR.',
+    standstill: 'P waves march on, but no QRS follows any of them and no escape rhythm takes over: ventricular standstill (P-wave asystole), complete AV block with no escape. Start CPR and pace.',
   };
 
   // ---------------------------------------------------------------- abnormalities
@@ -279,7 +295,7 @@
     // timed from the last QRS)
     if ((a.ectopy || a.pause || a.sinusNode) && !['sinus', 'sinusBrady'].includes(rh) && !(VENT_ECT.includes(k) && AF_FL.includes(rh))) return false;
     // (pericarditis: with P waves (PR depression read), or in AF (diffuse concave ST elevation alone))
-    if (k === 'peri' && !(R.pRhythm || rh === 'af' || rh === 'junctional')) return false;
+    if (k === 'peri' && !(R.pRhythm || rh === 'af' || rh === 'junctional' || rh === 'accelJunctional')) return false;
     if (has('wpw') && all.some((x) => ABN[x].pause || ABN[x].sinusNode)) return false;   // (pauses; ectopic beats allowed with WPW: the author, 2026-11-23)
     for (const j of list) {
       const b = ABN[j];
@@ -462,8 +478,9 @@
       if (atria.ra || atria.la) S.setAtrialEnlargement(atria);
       if (rec.avs) S.setBlock(rec.avs.site, 'severity', { s: rec.avs.s }); else if (R.block) S.setBlock(R.block[0], R.block[1], R.block[2] || {});
       if (R.block2) S.setBlock(R.block2[0], R.block2[1], R.block2[2] || {});
+      if (R.escOff) S.setEscapeRates({ junctional: 0, ventricular: 0 });
       if (rec.esc) {   // (the escape pacemaker's rate, and for a ventricular escape its site)
-        const pm = S.pacemakers.find((p) => p.name === (rec.rhythm === 'junctional' ? 'junctional' : 'ventricular'));
+        const pm = S.pacemakers.find((p) => p.name === (R.wide ? 'ventricular' : 'junctional'));
         if (pm) { if (rec.esc.focus) { const c = escapeCell(M, rec.esc.focus); if (c >= 0) { pm.cell = c; S.tAct[c] = 0; S.refEnd[c] = 0; S.repEnd[c] = 0; } } pm.cl = 60000 / rec.esc.rate; }
       }
       const isch = rec.abn.find((a) => ABN[a.k].isch);
@@ -803,6 +820,8 @@
       if (rhythm === 'af' && rate) return rate < 60 ? 'Irregularly irregular, no P waves, ventricular rate under 60: atrial fibrillation with a slow ventricular response.' : rate > 100 ? 'Irregularly irregular, no P waves, ventricular rate over 100: atrial fibrillation with a rapid ventricular response (AF with RVR).' : 'Irregularly irregular, no P waves, ventricular rate 60–100: atrial fibrillation with a controlled ventricular response.';
       if (rec.focus === 'la' && rhythm === 'ectopicAtrial') return 'A P before every QRS, but inverted in I and aVL and upright in V1 (a left atrial focus), rate under 100: ectopic atrial rhythm (left atrial).';
       if (rec.focus === 'la' && rhythm === 'atrialTach') return 'Regular, rate over 100, a P before every QRS but inverted in I and aVL and upright in V1 (a left atrial focus): atrial tachycardia.';
+      if (rec.esc && rhythm === 'accelJunctional') return `No P waves before the QRS; regular narrow QRS at ${rate}/min, faster than a junctional escape (40–60) and below 100: accelerated junctional rhythm.`;
+      if (rec.esc && rhythm === 'aivr') return `No P waves; regular wide QRS at ${rate}/min, faster than a ventricular escape (20–40) and slower than VT: accelerated idioventricular rhythm (AIVR).`;
       if (rec.esc && rhythm === 'junctional') return `No P waves before the QRS (sinus arrest); regular narrow QRS at ${rate}/min (40–60): junctional escape rhythm.`;
       if (rec.esc && rhythm === 'idioventricular') return `No P waves (sinus arrest); regular wide QRS at ${rate}/min (20–40): ventricular escape (idioventricular) rhythm. The QRS shape shows where it starts${{ lpf: ': here the left posterior fascicle, with a left, superior axis', laf: ': here the left anterior fascicle, with a right axis', rv: ': here the right ventricle, with an LBBB-like shape (QS in V1)', lvLat: ': here the LV lateral wall, with a dominant R in V1 and an extreme axis', apex: ': here the LV apex, with QS waves inferiorly and a superior axis' }[rec.esc.focus] || ''}.`;
       return RHYTHM_LINE[rhythm];
@@ -916,7 +935,7 @@
         // (sinus arrest: no atrial activation may precede a QRS by the time of a PR; retrograde P after it is expected)
         const pre = A.filter((a) => V.some((v) => v.on - a.on > 60 && v.on - a.on < 300)).length;
         if (pre) return fail(`${pre} P waves before a QRS in sinus arrest`, 'rhythm');
-        const lim = rec.rhythm === 'junctional' ? [40, 60] : [20, 40];
+        const lim = R.escLim || (R.wide ? [20, 40] : [40, 60]);
         if (rate < lim[0] || rate > lim[1]) return fail(`escape rate ${rate}`, 'rhythm');
       }
       if (R.block && !R.noP && pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.5)) { if (!asIs) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm'); asIsNotes.push(`P hidden in ${pv.hidden}/${pv.n} beats`); }

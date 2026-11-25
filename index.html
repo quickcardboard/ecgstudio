@@ -752,9 +752,9 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
               <input id="rate" type="range" min="30" max="180" step="1" value="72" aria-label="Sinus rate">
             </div>
             <div class="ctl" id="escCtl" hidden>
-              <div class="row"><span class="lab">Junctional escape</span><span class="val" id="junVal">48 bpm</span></div>
+              <div class="row" id="junRow"><span class="lab">Junctional escape</span><span class="val" id="junVal">48 bpm</span></div>
               <input id="junRate" type="range" min="18" max="140" step="2" value="48" aria-label="Junctional escape rate; far left: off">
-              <div class="row"><span class="lab">Ventricular escape</span><span class="val" id="venVal">32 bpm</span></div>
+              <div class="row" id="venRow"><span class="lab">Ventricular escape</span><span class="val" id="venVal">32 bpm</span></div>
               <input id="venRate" type="range" min="14" max="120" step="2" value="32" aria-label="Ventricular escape rate; far left: off">
             </div>
             <div class="ctl">
@@ -951,7 +951,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-25 (875a555).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-25 (f63c6cd).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -996,7 +996,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-25 (875a555).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-25 (f63c6cd).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -6769,13 +6769,20 @@ THE SOFTWARE.
     $('junRate').value = ui.esc.j || ESC_OFF.j; $('venRate').value = ui.esc.v || ESC_OFF.v;
     $('junVal').textContent = ui.esc.j ? `${ui.esc.j} bpm` : 'Off'; $('venVal').textContent = ui.esc.v ? `${ui.esc.v} bpm` : 'Off';
   }
-  // (shown when an escape can take over: sinus pauses or arrest, high-grade or complete AV block, both bundles blocked, an
-  // escape beat in the last 10 s; or the rates were changed)
+  // (one slider, for the escape that would take over (the author): ventricular when conduction is lost below the AV node
+  // (His–Purkinje severe or complete, both bundle branches), junctional when it is lost at the SA or AV node (severe or
+  // complete); else the escape that fired in the last 10 s; none: both hidden)
+  function escapeKind() {
+    const B = S.blocks, sev = (k, min) => B[k] && (B[k].type === 'severity' ? levelOf(k, B[k].s) >= min : B[k].type === 'complete');
+    if (sev('HIS', 3) || (B.RBB && (B.LBB || (B.LAF && B.LPF)))) return 'v';
+    if (sanLevel() >= 3 || sev('AVN', 3)) return 'j';
+    const f = S.fireLog.filter((x) => x.t > S.t - 10000 && /junctional|ventricular/.test(x.name)).pop();
+    return f ? (f.name === 'junctional' ? 'j' : 'v') : null;
+  }
   function syncEscapeCtl() {
-    const B = S.blocks, sev = (k, min) => B[k] && (B[k].type === 'severity' ? levelOf(k, B[k].s) >= min : true);
-    const show = sanLevel() >= 3 || sev('AVN', 3) || sev('HIS', 3) || (B.RBB && (B.LBB || (B.LAF && B.LPF))) || ui.esc.j !== ESC_DEF.j || ui.esc.v !== ESC_DEF.v
-      || S.fireLog.some((f) => f.t > S.t - 10000 && /junctional|ventricular/.test(f.name));
-    if ($('escCtl').hidden === show) $('escCtl').hidden = !show;
+    const k = escapeKind();
+    if ($('escCtl').hidden !== !k) $('escCtl').hidden = !k;
+    for (const [kind, ids] of [['j', ['junRow', 'junRate']], ['v', ['venRow', 'venRate']]]) for (const id of ids) if ($(id).hidden !== (k !== kind)) $(id).hidden = k !== kind;
   }
   // the escape rhythm's name at the rate set (escape ≤ 60 junctional / ≤ 40 ventricular; faster: accelerated)
   function escName(kind) {

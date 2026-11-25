@@ -1444,13 +1444,20 @@
     $('junRate').value = ui.esc.j || ESC_OFF.j; $('venRate').value = ui.esc.v || ESC_OFF.v;
     $('junVal').textContent = ui.esc.j ? `${ui.esc.j} bpm` : 'Off'; $('venVal').textContent = ui.esc.v ? `${ui.esc.v} bpm` : 'Off';
   }
-  // (shown when an escape can take over: sinus pauses or arrest, high-grade or complete AV block, both bundles blocked, an
-  // escape beat in the last 10 s; or the rates were changed)
+  // (one slider, for the escape that would take over (the author): ventricular when conduction is lost below the AV node
+  // (His–Purkinje severe or complete, both bundle branches), junctional when it is lost at the SA or AV node (severe or
+  // complete); else the escape that fired in the last 10 s; none: both hidden)
+  function escapeKind() {
+    const B = S.blocks, sev = (k, min) => B[k] && (B[k].type === 'severity' ? levelOf(k, B[k].s) >= min : B[k].type === 'complete');
+    if (sev('HIS', 3) || (B.RBB && (B.LBB || (B.LAF && B.LPF)))) return 'v';
+    if (sanLevel() >= 3 || sev('AVN', 3)) return 'j';
+    const f = S.fireLog.filter((x) => x.t > S.t - 10000 && /junctional|ventricular/.test(x.name)).pop();
+    return f ? (f.name === 'junctional' ? 'j' : 'v') : null;
+  }
   function syncEscapeCtl() {
-    const B = S.blocks, sev = (k, min) => B[k] && (B[k].type === 'severity' ? levelOf(k, B[k].s) >= min : true);
-    const show = sanLevel() >= 3 || sev('AVN', 3) || sev('HIS', 3) || (B.RBB && (B.LBB || (B.LAF && B.LPF))) || ui.esc.j !== ESC_DEF.j || ui.esc.v !== ESC_DEF.v
-      || S.fireLog.some((f) => f.t > S.t - 10000 && /junctional|ventricular/.test(f.name));
-    if ($('escCtl').hidden === show) $('escCtl').hidden = !show;
+    const k = escapeKind();
+    if ($('escCtl').hidden !== !k) $('escCtl').hidden = !k;
+    for (const [kind, ids] of [['j', ['junRow', 'junRate']], ['v', ['venRow', 'venRate']]]) for (const id of ids) if ($(id).hidden !== (k !== kind)) $(id).hidden = k !== kind;
   }
   // the escape rhythm's name at the rate set (escape ≤ 60 junctional / ≤ 40 ventricular; faster: accelerated)
   function escName(kind) {

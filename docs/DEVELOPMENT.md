@@ -3364,3 +3364,16 @@ graded sinus node disease.
   "Acquiring…").
 - Share links: `SAN.sa-exit4`, `SAN.pauses`, `je=`/`ve=` (0: off); Reset restores the defaults; a heart rebuilt for a
   condition keeps the rates.
+
+## claude/sinus-escape round 2: one escape slider; the new rhythms in Training
+
+- One escape slider (the author): ventricular when conduction is lost below the AV node (His–Purkinje severe or
+  complete, both bundle branches), junctional when lost at the SA or AV node (severe or complete); otherwise the escape
+  that fired in the last 10 s; nothing: hidden.
+- Training (`training_gen.js`, `training_vocab.txt`): accelerated junctional rhythm (`accelJunctional`: sinus arrest, the
+  junctional focus at 65–100/min, measured 60–105; junctional rhythm partly right), accelerated idioventricular rhythm
+  (`aivr`: 50–100/min from the five escape sites, measured 45–105; idioventricular partly right), asystole (`asystole`:
+  sinus arrest, escapes off) and ventricular standstill (`standstill`: complete His block, escapes off, P waves at
+  60–90/min; asystole or complete AV block partly right). The no-QRS strips take VF's path (no measurements). Escape
+  rhythms take their limits from `escLim`; `escOff` turns the escapes off (`Sim.setEscapeRates`). Built on the Training
+  page through its worker: all four, no errors.
