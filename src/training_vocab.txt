@@ -33,6 +33,10 @@ mat | Multifocal atrial tachycardia | MAT, chaotic atrial tachycardia, multifoca
 wap | Wandering atrial pacemaker | WAP, wandering pacemaker, multifocal atrial rhythm, WAP/MAT
 junctional | Junctional rhythm | nodal rhythm, junctional escape, junctional escape rhythm, JR
 idioventricular | Idioventricular rhythm | ventricular escape rhythm, IVR, ventricular escape
+accelJunctional | Accelerated junctional rhythm | AJR, accelerated junctional, accelerated nodal rhythm, nonparoxysmal junctional tachycardia
+aivr | Accelerated idioventricular rhythm | AIVR, accelerated ventricular rhythm, accelerated IVR, accelerated idioventricular, slow VT
+asystole | Asystole | flat line, flatline, cardiac standstill, sinus arrest without escape, no electrical activity
+standstill | Ventricular standstill | P wave asystole, P-wave asystole, ventricular asystole, complete heart block without escape, CHB no escape
 
 ## Findings
 # (most common first)
