@@ -3377,3 +3377,25 @@ graded sinus node disease.
   60–90/min; asystole or complete AV block partly right). The no-QRS strips take VF's path (no measurements). Escape
   rhythms take their limits from `escLim`; `escOff` turns the escapes off (`Sim.setEscapeRates`). Built on the Training
   page through its worker: all four, no errors.
+## claude/r-on-t round 1: no QRS on the T wave in AF or after Training's premature beats
+
+The author saw R on T in AF and with PACs. Measured on the ECG (V3: is the previous T still rising when the next QRS
+starts?): plain AF and PACs with a normal QT almost never did it; with a long QT they did. AF's ventricular response
+draws each RR from 0.55–1.45 of the target, knowing nothing of the QT, so with hypocalcaemia, hypothermia or hypokalaemia
+the short cycles put the QRS on (even before the peak of) the T. AF 110 with hypocalcaemia: 4 of 22 beats before the T
+peak, and beats dropped; AF 140 with hypothermia: an R on T set off polymorphic VT. Training's PACs and PVCs were timed
+from a fixed share of the RR or a Bazett QT, also blind to a long QT.
+
+- `Sim.qtEnd()`: the last beat's T end (90% of the ventricular myocardium it activated repolarised: APD + repW/2),
+  cached per beat; 380 ms at 72/min (measured QT 373), 475 with hypocalcaemia.
+- AF: an impulse reaching the lower AV node whose QRS would come before that T end − 100 ms − random 0–80 ms (drawn once
+  per beat) is not conducted (`_afOnT`, `afQtGap`, `afQtJitter`, `afJoinToQrs`). Checked against the beat that has just
+  ended, at the node: a floor set at the previous conduction used the QT of the beat before (too short after a long
+  pause), and each wave it blocked re-armed the node and slowed the response; one fixed limit lined the early beats up at
+  it and the AF looked regular. Normal-QT AF unchanged (mean rate over 3 seeds: 104 vs 106 at 110, 120 vs 118 at 140);
+  long QT: no QRS before the T peak, the response slower (AF 110 with hypocalcaemia: 91/min).
+- Training (`training_gen.js`): PVCs (single, bigeminy, AF/flutter, the first of a run) at least `qtEnd() + 40` after the
+  QRS; PACs (single, bigeminy, couplet, the first of a run) so that their QRS comes after the T (P' ≥ QRS + qtEnd − 120;
+  bigeminy coupling ≥ qtEnd + 10).
+- Checks: 33 Training strips with long-QT conditions and premature beats: QRS before the previous T peak 4 → 0. Reader
+  55/57, scorecard 61/66, `arrhythmia.js` AF 107 → 100/min (one 10-beat sample; rand stream).
