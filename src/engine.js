@@ -212,6 +212,7 @@
     // instead of sweeping the atria as one; in sinus rhythm the P wave is broader.
     fibCv: 1, fibHet: 0.45,
     afDefaultRate: 110, afIrregularity: 0.45, afAvnToV: 110, afAvnRvrExp: 2,   // AF ventricular response: mean rate, ±fraction of RR
+    afQtGap: -100, afQtJitter: 80, afJoinToQrs: 40,   // AF: the next conducted QRS no earlier than the last beat's T end (qtEnd) plus afQtGap and a random 0–afQtJitter (on the T's last tail at most, as in fast AF); the lower AV node to QRS onset (ms)
     flutterRingSlow: 1.1, flutterIsthmusSlow: 2.8, flutterGateTol: 0.03, flutterRadius: 25, flutterBachmannSlow: 40,
     matClMin: 380, matClMax: 640,
     ectopicDist: 25,        // ectopic atrial focus: distance (mm) from the AV node, low in the right atrium
@@ -302,6 +303,9 @@
     junctionalRate: 48,
     ventEscapeRate: 32,
     idioventricularRate: 34,
+    // recurring sinus pauses (SAN 'pauses', the SA node slider): each pause 2–3 s, the next 2–4 s after it ends, so a 10 s
+    // strip always shows at least one whole pause (the author: a little random, at least once per 10 s)
+    sinusPauseMin: 2000, sinusPauseMax: 3000, sinusPauseGapMin: 2000, sinusPauseGapMax: 4000,
 
     // ECG
     ecgGain: 0.0123,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm; rescaled for the rebuild-1 heart and torso-field limb leads)
@@ -1715,6 +1719,19 @@
     setSinusArrhythmia(opts) {
       this.sinusArr = opts && opts.amp > 0 ? { amp: Math.min(0.35, opts.amp), period: opts.period || 5000, t0: this.t } : null;
     }
+    // escape pacemaker rates (bpm; 0: that escape does not fire at all). Ventricular sets both ventricular escape foci
+    // (below the His bundle and in the left posterior Purkinje network). Each still takes over only when conduction from
+    // above it is interrupted; the rate sets how fast it then goes (accelerated junctional, accelerated idioventricular)
+    setEscapeRates({ junctional, ventricular } = {}) {
+      this.escapeRates = { ...(this.escapeRates || {}) };
+      if (junctional !== undefined) this.escapeRates.junctional = junctional;
+      if (ventricular !== undefined) this.escapeRates.ventricular = ventricular;
+      const cl = (r) => (r > 0 ? 60000 / r : 0);
+      for (const pm of this.pacemakers) {
+        if (pm.name === 'junctional' && this.escapeRates.junctional !== undefined) pm.cl = cl(this.escapeRates.junctional);
+        if ((pm.name === 'ventricular' || pm.name === 'idioventricular') && this.escapeRates.ventricular !== undefined) pm.cl = cl(this.escapeRates.ventricular);
+      }
+    }
     setRate(bpm) {
       this.sinusBpm = bpm;
       this._avnTone = Math.pow(72 / bpm, this.P.avnToneExp);
@@ -1726,7 +1743,7 @@
 
     // ---- Conduction blocks ---------------------------------------------------
     // Block types by structure (the UI offers the ones listed for each site):
-    //   SAN: 'sa-exit' (2nd-degree SA exit block, n:n−1), 'pause' (one sinus pause), 'arrest'
+    //   SAN: 'sa-exit' (2nd-degree SA exit block, n:n−1), 'pause' (one sinus pause), 'pauses' (recurring), 'arrest'
     //   AVN: 'first' (1st degree), 'wenckebach' (Mobitz I), 'two-to-one', 'complete'
     //   HIS: 'mobitz2' (infranodal intermittent, n:n−1), 'complete'
     //   LBB, RBB, LAF, LPF: 'complete'
@@ -1735,7 +1752,7 @@
       const cells = site === 'SAN' ? [M.sanCell] : site === 'AVN' ? M.avn : cs[site];
       // clear what this site had
       for (const c of cells) { this.blocked[c] = 0; this.gates.delete(c); if (site !== 'AVN' && site !== 'SAN') this.cvMul[c] = 1; }
-      if (site === 'SAN') { this.saExit = null; this.sinusArrest = false; this.sinusPauseUntil = -1; }
+      if (site === 'SAN') { this.saExit = null; this.sinusArrest = false; this.sinusPauseUntil = -1; this.sinusPauses = null; }
       if (site === 'AVN') { this.avnBlockMul = 1; for (const c of M.avn) { this.erpExtra[c] = P.avnErpExtra; this.cvK[c] = P.avnCvRestK; this.cvTau[c] = P.avnCvRestTau; } }
       delete this.blocks[site];
       if (site === M.lsfTie) for (const c of cs.LSF) { this.blocked[c] = 0; this.cvMul[c] = 1; }
@@ -1745,6 +1762,7 @@
       if (site === 'SAN') {
         if (type === 'sa-exit') this.saExit = { n: opts.n || 3, count: 0 };
         else if (type === 'pause') { this.sinusPauseUntil = this.t + (opts.ms || 2800); this.pauseEscape = opts.escape !== false; }   // (escape: false: the junctional escape stays silent too, a pure pause)
+        else if (type === 'pauses') { this.sinusPauses = { nextAt: this.t + 1000 + this.rand() * 2000 }; this.pauseEscape = true; }
         else if (type === 'arrest') this.sinusArrest = true;
       } else if (site === 'AVN') {
         if (type === 'first') this.avnBlockMul = P.avnFirstDegreeMul;
@@ -2509,6 +2527,30 @@
     // to ~2 days after onset)
     vulnerable() { return this.insults.length > 0 && this.ischemiaHours >= 0.1 && this.ischemiaHours <= 48; }
 
+    // the end of the last beat's T wave, in ms after its QRS onset: 90% of the ventricular myocardium that beat activated has
+    // finished repolarising (each cell's repolarisation window is centred on its APD, repW wide). Cached per beat once the
+    // beat is complete. Used to keep AF's next conducted beat and Training's premature beats off the T wave
+    qtEnd() {
+      const v = this.log.vent[this.log.vent.length - 1];
+      if (!v) return this._qtVal || 400;
+      if (this._qtFor === v.on) return this._qtVal;
+      if (this.t < v.on + 200 && this._qtVal) return this._qtVal;   // (the beat still under way: the one before)
+      const M = this.M, vals = [];
+      for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.VENT && this.tAct[c] >= v.on - 20) vals.push(this.repEnd[c] + 0.5 * this.repW[c]);
+      if (vals.length < 50) return this._qtVal || 400;
+      vals.sort((a, b) => a - b);
+      const q = vals[Math.floor(0.9 * (vals.length - 1))] - v.on;
+      if (this.t > v.on + 200) { this._qtFor = v.on; this._qtVal = q; }
+      return q;
+    }
+    // AF: would a QRS at time t land on the last beat's T wave? (its end (qtEnd) plus afQtGap, plus a random 0–afQtJitter
+    // drawn once per beat: one fixed limit lined every early beat up at it, and the response looked regular)
+    _afOnT(t) {
+      const P = this.P, v = this.log.vent[this.log.vent.length - 1], lim = v.on + this.qtEnd() + P.afQtGap;
+      if (t >= lim + P.afQtJitter) return false;
+      if (this._afJitFor !== v.on) { this._afJitFor = v.on; this._afJit = this.rand() * P.afQtJitter; }
+      return t < lim + this._afJit;
+    }
     // ventricular response in AF and flutter (bpm; null = natural for flutter, default for AF)
     // opts.variable (flutter): conduction ratios drawn at random beat by beat (e.g. [2, 4]: variable 2:1–4:1 block),
     // so the response is irregular; bpm then only sets the first ratio
@@ -2640,6 +2682,12 @@
       const M = this.M, st = M.start, nb = M.nbr, w0 = M.w0, nVox = M.nVox;
       const cvE = this.cvElec, blocked = this.blocked, cvMul = this.cvMul, refEnd = this.refEnd, repEnd = this.repEnd, cvK = this.cvK, cvTau = this.cvTau, arrive = this.arrive, tAct = this.tAct;
       const fg = this._flutterGate, iaSlow = this._iaSlow;
+      // AF: an impulse reaching the lower AV node (where the pathways join) before the last beat's T wave has ended (less
+      // afQtGap) does not go on: the next QRS would land on that T. The random RR drawn below knew nothing of the QT, so
+      // with a long QT (hypocalcaemia, hypothermia, hypokalaemia) the short cycles put the QRS on the T (the author: R on T).
+      // (checked here, against the beat that has just ended, not as a floor set at the previous conduction: that used the
+      // QT of the beat before, too short after a long pause, and every wave it blocked re-armed the node and slowed it)
+      const afJoin = this.arrhythmia && this.arrhythmia.type === 'af' ? M.avn[M.avn.length - 2] : -1;
       for (let e = st[c]; e < st[c + 1]; e++) {
         const j = nb[e];
         if (blocked[j]) { if (this._pOn && this.phantom[j] && ta + w0[e] * cvMul[j] - this._pAct[j] >= P.scarRefractory) this.schedule(j, ta + w0[e] * cvMul[j]); continue; }
@@ -2653,6 +2701,7 @@
         if (iaSlow && j < nVox && c < nVox && this._atrialSide[c] > 0 && this._atrialSide[j] < 0) tau *= iaSlow;   // RA→LA delay (LAE)
         const tEst = ta + tau;
         if (tEst < refEnd[j]) continue;               // will meet refractory tissue
+        if (j === afJoin && this.log.vent.length && this._afOnT(tEst + P.afJoinToQrs)) continue;
         const dij = tEst - repEnd[j], ct = cvTau[j];
         if (dij < 12 * ct) tau *= 1 + cvK[j] * Math.exp(-Math.max(dij, 0) / ct);   // (fully recovered tissue: no slowing)
         const tArr = ta + tau;
@@ -2831,6 +2880,12 @@
     }    // Advance one millisecond
     step() {
       const t = this.t;
+      // 0. recurring sinus pauses: at a random moment the node stops for a random 2–3 s, then the next is drawn
+      if (this.sinusPauses && t >= this.sinusPauses.nextAt) {
+        const P = this.P, d = P.sinusPauseMin + this.rand() * (P.sinusPauseMax - P.sinusPauseMin);
+        this.sinusPauseUntil = t + d;
+        this.sinusPauses.nextAt = t + d + P.sinusPauseGapMin + this.rand() * (P.sinusPauseGapMax - P.sinusPauseGapMin);
+      }
       // 1. automaticity: a pacemaker fires when its cycle length has elapsed
       //    since it was last activated (being activated resets it: overdrive suppression)
       for (const pm of this.pacemakers) {

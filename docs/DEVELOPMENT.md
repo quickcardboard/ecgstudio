@@ -3342,3 +3342,67 @@ waves after an old anterior infarct (read as hyperkalemia).
   (the sinus rate sets the AV node's tone; a faster node ends the circuit). The rate slider during AVNRT/AVRT is held
   and applied when the rhythm is sinus again. Browser check at sinus 60/100/130/150: AVNRT 165–216/min and AVRT
   201/min sustained for 20 s at every rate (before: AVRT ended within 3 s above 80/min).
+
+## claude/sinus-escape round 1: SA node slider, escape rate sliders
+
+For making teaching ECGs (the author): a faster junctional or ventricular escape, or none at all (sinus arrest), and
+graded sinus node disease.
+
+- Blocks tab: an SA node slider above the AV node and His–Purkinje sliders, its stops named by severity as theirs are
+  (Normal, Mild, Moderate, Severe, Complete): mild 2nd-degree SA exit block 4:3, moderate 3:2, severe recurrent sinus
+  pauses, complete sinus arrest. The Active blocks list and the reading name what it produces. A tap on the SA node
+  opens the sliders (as the AV node's does) instead of a menu (desktop) or cycling (phones).
+- Engine: SAN `'pauses'`: the node stops at random moments for 2–3 s (`sinusPauseMin/Max`), the next 2–4 s after
+  (`sinusPauseGapMin/Max`): every 10 s window holds a whole pause (checked over 2 min at sinus 60, 72, 100). The
+  junctional escape breaks a pause after its cycle (48/min: ~1.25 s), as in life; with it off the whole pause shows.
+- Rhythm tab: junctional and ventricular escape rate sliders (`Sim.setEscapeRates`; the ventricular one sets both
+  ventricular foci), far left Off, shown once an escape can come on (severe or complete SA node, severe or complete AV
+  block, both bundles blocked, an escape beat in the last 10 s, or rates changed). The escape still takes over only when
+  conduction from above is lost. The reading names the rhythm at the rate: junctional escape (≤ 60), accelerated
+  junctional (61–100), junctional tachycardia (> 100); ventricular escape (≤ 40), accelerated idioventricular (> 40);
+  no QRS for 6 s: asystole, or ventricular standstill with P waves (the reading needed two beats and stayed on
+  "Acquiring…").
+- Share links: `SAN.sa-exit4`, `SAN.pauses`, `je=`/`ve=` (0: off); Reset restores the defaults; a heart rebuilt for a
+  condition keeps the rates.
+
+## claude/sinus-escape round 2: one escape slider; the new rhythms in Training
+
+- One escape slider (the author): ventricular when conduction is lost below the AV node (His–Purkinje severe or
+  complete, both bundle branches), junctional when lost at the SA or AV node (severe or complete); otherwise the escape
+  that fired in the last 10 s; nothing: hidden.
+- Training (`training_gen.js`, `training_vocab.txt`): accelerated junctional rhythm (`accelJunctional`: sinus arrest, the
+  junctional focus at 65–100/min, measured 60–105; junctional rhythm partly right), accelerated idioventricular rhythm
+  (`aivr`: 50–100/min from the five escape sites, measured 45–105; idioventricular partly right), asystole (`asystole`:
+  sinus arrest, escapes off) and ventricular standstill (`standstill`: complete His block, escapes off, P waves at
+  60–90/min; asystole or complete AV block partly right). The no-QRS strips take VF's path (no measurements). Escape
+  rhythms take their limits from `escLim`; `escOff` turns the escapes off (`Sim.setEscapeRates`). Built on the Training
+  page through its worker: all four, no errors.
+## claude/r-on-t round 1: no QRS on the T wave in AF or after Training's premature beats
+
+The author saw R on T in AF and with PACs. Measured on the ECG (V3: is the previous T still rising when the next QRS
+starts?): plain AF and PACs with a normal QT almost never did it; with a long QT they did. AF's ventricular response
+draws each RR from 0.55–1.45 of the target, knowing nothing of the QT, so with hypocalcaemia, hypothermia or hypokalaemia
+the short cycles put the QRS on (even before the peak of) the T. AF 110 with hypocalcaemia: 4 of 22 beats before the T
+peak, and beats dropped; AF 140 with hypothermia: an R on T set off polymorphic VT. Training's PACs and PVCs were timed
+from a fixed share of the RR or a Bazett QT, also blind to a long QT.
+
+- `Sim.qtEnd()`: the last beat's T end (90% of the ventricular myocardium it activated repolarised: APD + repW/2),
+  cached per beat; 380 ms at 72/min (measured QT 373), 475 with hypocalcaemia.
+- AF: an impulse reaching the lower AV node whose QRS would come before that T end − 100 ms − random 0–80 ms (drawn once
+  per beat) is not conducted (`_afOnT`, `afQtGap`, `afQtJitter`, `afJoinToQrs`). Checked against the beat that has just
+  ended, at the node: a floor set at the previous conduction used the QT of the beat before (too short after a long
+  pause), and each wave it blocked re-armed the node and slowed the response; one fixed limit lined the early beats up at
+  it and the AF looked regular. Normal-QT AF unchanged (mean rate over 3 seeds: 104 vs 106 at 110, 120 vs 118 at 140);
+  long QT: no QRS before the T peak, the response slower (AF 110 with hypocalcaemia: 91/min).
+- Training (`training_gen.js`): PVCs (single, bigeminy, AF/flutter, the first of a run) at least `qtEnd() + 40` after the
+  QRS; PACs (single, bigeminy, couplet, the first of a run) so that their QRS comes after the T (P' ≥ QRS + qtEnd − 120;
+  bigeminy coupling ≥ qtEnd + 10).
+- Checks: 33 Training strips with long-QT conditions and premature beats: QRS before the previous T peak 4 → 0. Reader
+  55/57, scorecard 61/66, `arrhythmia.js` AF 107 → 100/min (one 10-beat sample; rand stream).
+## claude/svt-switch round 1: AVNRT ↔ AVRT directly
+
+Choosing AVRT while AVNRT ran left AVNRT running (the author): `stopArrhythmia` stops drivers, and a re-entry circuit has
+none, so the new extrastimulus fell into the running circuit. `startRhythm` now ends a running AVNRT/AVRT first with
+`S.shock()` (as choosing sinus already did) when another rhythm is chosen, and AVRT turns the dual AV-nodal pathways off
+(as AVNRT turns the accessory pathway off: one circuit at a time). Browser, sinus 72 and 120: AVNRT → AVRT, AVRT → AVNRT,
+AVNRT → flutter and AVRT → sinus all switch.
