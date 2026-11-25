@@ -513,16 +513,18 @@
         const fire = () => {
           const lv = S.log.vent[S.log.vent.length - 1], next = S.nextSinus();
           if (kind === 'pac' || kind === 'acouplet') {
-            let tp = next - 0.35 * rr; if (tp <= S.t + 5) tp += rr; S.stimulateAt(cell, tp); stims.push({ t: tp, kind: 'pac' });
-            if (kind === 'acouplet') { const t2 = tp + Math.max(440, 0.62 * rr); S.stimulateAt(cell, t2); stims.push({ t: t2, kind: 'pac' }); }   // (the second PAC early after the first)
+            // (its QRS after the last T wave: the PAC's P no earlier than the T end less about a PR; with a long QT
+            // (hypocalcaemia, hypothermia) a fixed 0.65 RR put the conducted QRS on the T: the author, R on T)
+            let tp = Math.max(next - 0.35 * rr, lv ? lv.on + S.qtEnd() - 120 : 0); if (tp <= S.t + 5) tp += rr; S.stimulateAt(cell, tp); stims.push({ t: tp, kind: 'pac' });
+            if (kind === 'acouplet') { const t2 = tp + Math.max(440, 0.62 * rr, S.qtEnd() + 10); S.stimulateAt(cell, t2); stims.push({ t: t2, kind: 'pac' }); }   // (the second PAC early after the first)
             return;
           }
           // (the PVC well before the next sinus P, so it cannot fuse with the conducted beat (the author: a couplet's first beat
           // looked like fusion); seen too late in this cycle: tried again in the next)
           // (AF and flutter: no sinus P to wait for; the PVC at a fixed coupling after the last QRS, fired only when the cycle is
           // caught early enough, so a conducted beat cannot come first)
-          if (afl) { const tq = lv.on + Math.max(400, 0.55 * rr); if (S.t + 5 > tq) return false; S.stimulateAt(cell, tq); stims.push({ t: tq, kind: 'pvc' }); if (kind === 'couplet') { S.stimulateAt(cell, tq + 380); stims.push({ t: tq + 380, kind: 'pvc' }); } return; }
-          const tp = Math.max(S.t + 5, lv.on + Math.max(420, 0.6 * rr));
+          if (afl) { const tq = lv.on + Math.max(400, 0.55 * rr, S.qtEnd() + 40); if (S.t + 5 > tq) return false; S.stimulateAt(cell, tq); stims.push({ t: tq, kind: 'pvc' }); if (kind === 'couplet') { S.stimulateAt(cell, tq + 380); stims.push({ t: tq + 380, kind: 'pvc' }); } return; }
+          const tp = Math.max(S.t + 5, lv.on + Math.max(420, 0.6 * rr, S.qtEnd() + 40));   // (after the T wave, also with a long QT)
           const la = S.log.atrial[S.log.atrial.length - 1];
           if (tp > next - 40 || (la && la.on > lv.on)) return false;   // (a sinus P already on its way to the ventricles: fusion)
           { S.stimulateAt(cell, tp); stims.push({ t: tp, kind: 'pvc' }); if (kind === 'couplet') { S.stimulateAt(cell, tp + 380); stims.push({ t: tp + 380, kind: 'pvc' }); } }
@@ -540,7 +542,8 @@
             if (!b || b.on <= st.handled || isOwn(b.on)) return;
             st.handled = b.on; st.n++;
             if (st.n % every) return;
-            const tp = b.on + (chamber === 'v' ? vCoup : aCoup);
+            // (never on the T: the coupling at least the measured T end (a PVC 40 ms after it; a PAC's QRS, a PR later, after it))
+            const tp = b.on + (chamber === 'v' ? Math.max(vCoup, S.qtEnd() + 40) : Math.max(aCoup, S.qtEnd() + 10));
             if (tp < S.t + 2) return;
             S.stimulateAt(cell, tp); stims.push({ t: tp, kind: chamber === 'v' ? 'pvc' : 'pac' });
           };
@@ -549,8 +552,8 @@
           const n = kind === 'nsvt' ? 3 + Math.floor(er() * 4) : 4 + Math.floor(er() * 4), cyc = kind === 'nsvt' ? 360 + 40 * er() : 380 + 40 * er();
           events.push({ t: 3600, fn: () => {
             const lv = S.log.vent[S.log.vent.length - 1], next = S.nextSinus();
-            if (afl) { const tq = lv.on + Math.max(400, 0.55 * rr); if (S.t + 5 > tq) return false; for (let i = 0; i < n; i++) { S.stimulateAt(cell, tq + i * cyc); stims.push({ t: tq + i * cyc, kind: 'pvc' }); } return; }
-            const t1 = kind === 'nsvt' ? Math.max(S.t + 5, lv.on + Math.max(420, 0.6 * rr)) : Math.max(S.t + 5, next - 0.35 * rr);
+            if (afl) { const tq = lv.on + Math.max(400, 0.55 * rr, S.qtEnd() + 40); if (S.t + 5 > tq) return false; for (let i = 0; i < n; i++) { S.stimulateAt(cell, tq + i * cyc); stims.push({ t: tq + i * cyc, kind: 'pvc' }); } return; }
+            const t1 = kind === 'nsvt' ? Math.max(S.t + 5, lv.on + Math.max(420, 0.6 * rr, S.qtEnd() + 40)) : Math.max(S.t + 5, next - 0.35 * rr, lv.on + S.qtEnd() - 120);   // (the run's first beat off the T)
             // (the run's first PVC well before the next sinus P, as for a single PVC: one fired as the sinus beat conducted
             // fused with it, on time, and the run read as a couplet (problem report 2026-11-23); seen too late: the next cycle)
             const la = S.log.atrial[S.log.atrial.length - 1];
