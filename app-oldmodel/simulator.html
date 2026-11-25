@@ -943,7 +943,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-24 (9647632).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-24 (1d6b183).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -988,7 +988,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-24 (9647632).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-24 (1d6b183).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -5375,6 +5375,8 @@ THE SOFTWARE.
         const r = $('c3d').getBoundingClientRect(), lx = x - r.left, ly = y - r.top, ray = rayAt(lx, ly);
         if (pathwayAt(lx, ly)) return 'AP';
         if (ui.view === 'cutaway') { const site = conductionAt(ray, lx, ly); if (site) return site; }
+        if (ray.intersectObject(g3.sanPick, false).length) return 'SAN';
+        if (onArtery(ray, lx, ly)) return 'artery';   // (a coronary artery or marker within reach: a tap acts on it first)
         const c = tissueAt(ray); if (c < 0) return null;
         return A.label[c] === LH.LAB.RA ? 'RA' : A.label[c] === LH.LAB.LA ? 'LA' : 'V';
       },
@@ -6034,7 +6036,7 @@ THE SOFTWARE.
       // tappable through it)
       const deep = SEE_THROUGH.includes(name);
       if (deep) { const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, depthTest: false, depthWrite: false })); ghost.renderOrder = 9; grp.add(ghost); }
-      const pick = new THREE.Mesh(new THREE.TubeGeometry(curve, tub, name === 'LM' ? 5 : 3.6, rad, false), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      const pick = new THREE.Mesh(new THREE.TubeGeometry(curve, tub, name === 'LM' ? 2.6 : 1.8, rad, false), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
       pick.userData.map = map; pick.userData.seeThrough = deep; grp.add(pick); g3.corPick.push(pick);
     }
     // where a see-through vessel leaves its parent: a short stretch of the parent drawn the same way (whole, solid where
@@ -6812,12 +6814,16 @@ THE SOFTWARE.
       // (sinus node; the rest in the cut view) blocks, a coronary artery or its marker narrows/occludes, muscle stimulates
       // (the conduction system is drawn in the cut view, see-through over the tissue; the sinus node marker in both views)
       if (ray.intersectObject(g3.sanPick, false).length || (ui.view === 'cutaway' && ray.intersectObjects(g3.pickTubes, false).length)) { pickBlock(ray, x, y); return; }
+      // (three quick clicks in one spot on the muscle start flutter or VT, four AF or VF, as taps do on phones)
+      const n = countTap(x, y, e.timeStamp, 12);
       if (onArtery(ray, x, y)) {
+        if (n >= 3) { const c = tissueAt(ray); if (c >= 0 && quickBurst(c, n, x, y)) { cancelArteryTaps(ischClick); return; } }
         // a click narrows the artery (after a moment, so a double-click can occlude it instead)
         const r0 = new THREE.Raycaster(); r0.ray.copy(ray.ray);
         ischPress(ischClick, x, y, e.timeStamp, (mode) => pickIschemia(r0, x, y, mode), 12);
         return;
       }
+      { const c = tissueAt(ray); if (c >= 0 && n >= 3 && quickBurst(c, n, x, y)) return; }
       pickStimulus(ray, x, y);
     });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideBlockMenu(); });
@@ -6913,7 +6919,7 @@ THE SOFTWARE.
     if (!g3.cor.visible) return -1;
     const corHit = ray.intersectObjects(g3.corPick, false).find((h) => h.object.userData.seeThrough || inSight(h.point));
     if (corHit) return corHit.object.userData.map[corHit.face.a];
-    const cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld, R = (isM() ? 30 : 20) ** 2, near = [];
+    const cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld, R = (isM() ? 12 : 12) ** 2, near = [];
     g3.corPos.forEach((q, i) => {
       if (!cor.branches[cor.nodes[i].branch]) return;
       v.copy(q).applyMatrix4(mw).project(g3.camera);
@@ -6985,7 +6991,8 @@ THE SOFTWARE.
     const l = st.last;
     if (l && now - l.t < DOUBLE_MS && Math.hypot(x - l.x, y - l.y) < tol) {
       st.last = null;
-      if (l.timer) { clearTimeout(l.timer); run('occlude'); return; }
+      // (the occlusion waits DOUBLE_MS: a third quick tap in the same spot is an arrhythmia burst instead, quickBurst)
+      if (l.timer) { clearTimeout(l.timer); st.occTimer = setTimeout(() => { st.occTimer = 0; run('occlude'); }, DOUBLE_MS); return; }
       const d = l.done;
       if (!d || !d.region) return;
       const cur = S.insults.find((v) => (v.kind === 'occlusion' || v.stenosis) && segmentName(v.node) === d.region);
@@ -7121,16 +7128,33 @@ THE SOFTWARE.
   // AVNRT induction as in the EP lab: a PAC after a sinus beat, each one more
   // premature than the last, until one blocks in the fast pathway, conducts
   // down the slow one and re-enters (the window moves with the sinus rate)
-  function avnrtTrial(c) {
-    const t0 = S.nextSinus();
-    S.stimulateAt(A.nearest(A.landmarks.SVC.c, (x) => A.label[x] === 4), t0 + c);
-    ui.avnrt = { c, checkAt: t0 + c + 1600 };
+  // AVNRT / AVRT induction: an atrial extrastimulus a set interval after a sinus beat (high RA for AVNRT, LA appendage for
+  // AVRT over the left lateral pathway), 20 ms earlier each time it fails, down to 140 ms. Success is re-entry in the
+  // engine's logs (retrograde slow-pathway echoes; retrograde-only pathway conduction), not a fast rate: sinus tachycardia
+  // above 133/min passed the old RR < 450 ms test, so induction stopped as if it had worked
+  function reentryNow(kind) {
+    const from = S.t - 1200;
+    if (kind === 'avnrt') return (S.retroLog || []).filter((x) => x.t > from).length >= 3;
+    const ap = (S.apLog || []).filter((x) => x.t > from);
+    return ap.filter((x) => x.dir === 'retrograde').length >= 3 && !ap.some((x) => x.dir === 'antegrade');
+  }
+  function inductionTrial(kind, c) {
+    const t0 = S.nextSinus(), cell = kind === 'avnrt' ? A.nearest(A.landmarks.SVC.c, (x) => A.label[x] === 4) : A.nearest(A.landmarks.LAA.c, (x) => A.label[x] === 3);
+    S.stimulateAt(cell, t0 + c);
+    ui.avnrt = { kind, c, checkAt: t0 + c + 1600 };
   }
   function checkAvnrt() {
-    if (!ui.avnrt || S.t < ui.avnrt.checkAt) return;
-    const V = S.log.vent.filter((v) => v.on > ui.avnrt.checkAt - 1200), rr = V.slice(1).map((v, i) => v.on - V[i].on);
-    const tachy = rr.length >= 2 && rr.every((x) => x < 450);
-    if (tachy || ui.avnrt.c <= 160 || S.arrhythmia) ui.avnrt = null; else avnrtTrial(ui.avnrt.c - 20);
+    const a = ui.avnrt;
+    if (a) {
+      if (a.startAt !== undefined) { if (S.t >= a.startAt) inductionTrial(a.kind, a.c0); }
+      else if (S.t >= a.checkAt) {
+        if (reentryNow(a.kind) || S.arrhythmia) { ui.avnrt = null; if (!S.arrhythmia) ui.pendingRhythm = { type: a.kind, until: S.t + 2500 }; }   // (the label holds until the rhythm read confirms it)
+        else if (a.c - 20 >= 140) inductionTrial(a.kind, a.c - 20);
+        else { ui.avnrt = null; toast(`${a.kind === 'avnrt' ? 'AVNRT' : 'AVRT'} could not be started this time: choose it again.`, 3200); }
+      }
+    }
+    // (the sinus rate set while AVNRT/AVRT ran (or the slower drive for AVRT) applies once the rhythm is sinus again)
+    if (ui.rateHeld && !ui.avnrt && !['avnrt', 'avrt'].includes(currentRhythm())) { S.setRate(ui.rate); ui.rateHeld = false; }
   }
   // Rhythm menu (Rhythm tab): shows the rhythm running now (sinus after a shock or
   // adenosine, VF after an R-on-T PVC…) and starts the one chosen. The rate slider
@@ -7145,7 +7169,7 @@ THE SOFTWARE.
   function currentRhythm() {
     const arr = S.arrhythmia && S.arrhythmia.type;
     if (arr) return arr;
-    if (ui.avnrt) return 'avnrt';                                  // induction under way
+    if (ui.avnrt) return ui.avnrt.kind || 'avnrt';                 // induction under way
     if (ui.pendingRhythm && S.t < ui.pendingRhythm.until) return ui.pendingRhythm.type;
     const from = Math.max(S.t - 3000, ui.rhythmFrom || 0);          // (beats before a return to sinus or a shock do not count)
     const apWin = (S.apLog || []).filter((x) => x.t > from);
@@ -7207,18 +7231,22 @@ THE SOFTWARE.
   function startRhythm(type) {
     if (type !== 'af' && S.arrhythmia && S.arrhythmia.type === 'af') leaveAF();
     ui.avnrt = null; ui.pendingRhythm = null; markChange();
+    if (ui.rateHeld) { S.setRate(ui.rate); ui.rateHeld = false; }   // (a sinus rate held during AVNRT/AVRT applies again)
     if (type === 'avnrt') {
       if (S.ap) setCondition('ap', false);
       if (!ui.struct.dual) setCondition('dual', true);             // AVNRT needs dual AV-nodal pathways (as AVRT needs a pathway)
       S.stopArrhythmia();
-      avnrtTrial(280);
+      inductionTrial('avnrt', Math.min(280, Math.round(60000 / ui.rate - 80)));
       return;
     }
     if (type === 'avrt') {
       if (!S.ap || S.apLocation !== 'left-lateral') setCondition('ap', true);
-      ui.pendingRhythm = { type: 'avrt', until: S.t + 3000 };
       S.stopArrhythmia();
-      S.stimulateAt(A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === 3), S.nextSinus() + 270);
+      // (above 80/min no atrial extrastimulus finds the window where the pathway is refractory and the AV node conducts:
+      // the sinus drive slows to 60 for 2.5 s first, as the EP lab paces at a set cycle, and stays there while AVRT runs:
+      // the sinus rate also sets the AV node's tone, and a faster node ends the circuit)
+      if (ui.rate > 80) { S.setRate(60); ui.rateHeld = true; ui.avnrt = { kind: 'avrt', startAt: S.t + 2500, c0: 270 }; }
+      else inductionTrial('avrt', 270);
       return;
     }
     if (type === 'af' && !ui.struct.fib) { setCondition('fib', true); toast('AF needs a substrate: atrial fibrosis added. It stays after a shock and goes when you choose another rhythm.', 4200); }
@@ -7296,7 +7324,7 @@ THE SOFTWARE.
       let mn = Infinity, mx = -Infinity, first = NaN;
       for (let s = a; s < b; s++) {
         const ahead = (s - cursor + PAGE) % PAGE;
-        if (ahead > 0 && ahead < ERASE) continue;           // erase bar ahead of the cursor
+        if (cursor >= 0 && ahead > 0 && ahead < ERASE) continue;           // erase bar ahead of the cursor (none on a saved sheet: cursor −1)
         const v = buf[s]; if (v !== v) continue;
         if (first !== first) first = v;
         if (v < mn) mn = v; if (v > mx) mx = v;
@@ -7317,6 +7345,7 @@ THE SOFTWARE.
   function drawECG() {
     if (!ecg.mm || (ecg.canvas.isConnected && !ecg.canvas.offsetWidth)) return;   // (phones show it only full screen)
     const ctx = ecg.ctx, mm = ecg.mm;
+    if (ecg.export) { ctx.drawImage(ecg.grid, 0, 0); drawRange(ctx, 0, PAGE, -1); return; }   // (a saved sheet: no sweep cursor or erase bar)
     const cursor = Math.floor((S.t + ecg.t0) % PAGE);
     if (ecg.full) {
       ctx.drawImage(ecg.grid, 0, 0);
@@ -8183,14 +8212,19 @@ body.only .chips { margin-top: 0; }
   // The ECG as shown, with the interpretation above it and a "simulated" stamp
   // The 12-lead sheet: the one on screen, or (phones, where it is shown only
   // full screen) one drawn offscreen at a fixed size
+  // (always drawn offscreen, at the on-screen size where the sheet is shown, from the last 10 s in time order: the sheet on
+  // screen is a sweep, split at the drawing line with an erase bar ahead of it, so a save mid-sweep cut the strip in two)
   function sheetCanvas() {
-    if (ecg.canvas.offsetWidth) return { cv: ecg.canvas, dpr: ecg.canvas.width / $('ecgWrap').clientWidth };
-    const keep = { canvas: ecg.canvas, ctx: ecg.ctx, grid: ecg.grid, mm: ecg.mm, W: ecg.W, H: ecg.H, ox: ecg.ox, oy: ecg.oy, lastCursor: ecg.lastCursor }, keepP = Object.assign({}, PAPER);
+    const wrap = $('ecgWrap'), shown = ecg.canvas.offsetWidth && wrap.clientWidth;
+    const size = shown ? { w: wrap.clientWidth, h: wrap.clientHeight, dpr: Math.max(2, Math.min(3, window.devicePixelRatio || 1)) } : { w: 1100, h: 540, dpr: 2 };
+    const keep = { canvas: ecg.canvas, ctx: ecg.ctx, grid: ecg.grid, mm: ecg.mm, W: ecg.W, H: ecg.H, ox: ecg.ox, oy: ecg.oy, lastCursor: ecg.lastCursor, buf: ecg.buf }, keepP = Object.assign({}, PAPER);
+    // the ring buffer rotated so index 0 is the oldest sample (the newest is at the sweep's cursor)
+    const cur = Math.floor((S.t + ecg.t0) % PAGE), rot = ecg.buf.map((b) => { const r = new Float32Array(PAGE); for (let i = 0; i < PAGE; i++) r[i] = b[(cur + 1 + i) % PAGE]; return r; });
     const cv = document.createElement('canvas');
-    Object.assign(ecg, { canvas: cv, ctx: cv.getContext('2d'), grid: document.createElement('canvas') });
-    resizeECG({ w: 1100, h: 540, dpr: 2 }); drawECG();
-    Object.assign(ecg, keep, { full: true }); Object.assign(PAPER, keepP);
-    return { cv, dpr: 2 };
+    Object.assign(ecg, { canvas: cv, ctx: cv.getContext('2d'), grid: document.createElement('canvas'), buf: rot, export: true });
+    try { resizeECG(size); ecg.full = true; drawECG(); }
+    finally { Object.assign(ecg, keep, { full: true, export: false }); Object.assign(PAPER, keepP); }
+    return { cv, dpr: size.dpr };
   }
   function saveEcgPng() {
     const { cv: src, dpr } = sheetCanvas(), W = src.width;
@@ -8526,7 +8560,7 @@ body.only .chips { margin-top: 0; }
   const ARR_NAME = { flutter: 'Atrial flutter', af: 'Atrial fibrillation', vt: 'Ventricular tachycardia', vf: 'Ventricular fibrillation' };
   const AV_CYCLE = [null, ['AVN', 'first'], ['AVN', 'wenckebach'], ['AVN', 'two-to-one'], ['HIS', 'mobitz2'], ['AVN', 'complete'], ['HIS', 'complete']];
   const SA_CYCLE = [null, 'sa-exit', 'pause', 'arrest'];
-  const burst = { region: '', n: 0, t: 0, x: 0, y: 0 }, avTaps = { n: 0, timer: 0, last: 0, commit: null };
+  const avTaps = { n: 0, timer: 0, last: 0, commit: null };
   let lastEmpty = null;
   function rayAt(x, y) {
     const r = $('c3d').getBoundingClientRect(), ray = new THREE.Raycaster();
@@ -8595,17 +8629,29 @@ body.only .chips { margin-top: 0; }
     }
     buzz(); renderBlockList(); interpret(true);
   }
+  // quick taps (or clicks) in one spot, whatever they land on: the third (and fourth) start an arrhythmia when the spot is
+  // muscle, even within reach of a coronary artery, whose pending narrowing or occlusion is then cancelled (the arteries'
+  // fingertip zones cover about two thirds of the heart on a phone, so bursts there never reached the muscle)
+  const tapSeq = { n: 0, t: -1e9, x: 0, y: 0 };
+  function countTap(x, y, now, px) {
+    const same = now - tapSeq.t < BURST_MS && Math.hypot(x - tapSeq.x, y - tapSeq.y) < px;
+    if (same) tapSeq.n++; else Object.assign(tapSeq, { n: 1, x, y });
+    tapSeq.t = now; return tapSeq.n;
+  }
+  function cancelArteryTaps(st) { if (!st) return; if (st.last && st.last.timer) clearTimeout(st.last.timer); clearTimeout(st.occTimer); st.occTimer = 0; st.last = null; }
+  function quickBurst(c, n, x, y) {
+    const lab = A.label[c], region = lab === LH.LAB.RA || lab === LH.LAB.LA ? 'A' : 'V';
+    const arr = n === 3 ? (region === 'A' ? 'flutter' : 'vt') : n === 4 ? (region === 'A' ? 'af' : 'vf') : null;
+    if (!arr) return false;
+    startRhythm(arr); syncRate(); interpret(); updateFloat(); flash(x, y, ARR_NAME[arr]); buzz(40);
+    return true;
+  }
   // taps on muscle stimulate; three quick ones on an atrium or ventricle start
   // a tachyarrhythmia (as burst pacing does), a fourth on the ventricles VF
   // taps in one spot (within BURST_PX of the first) count as a burst: in either
   // atrium three start flutter and a fourth AF; on the ventricles three start VT, a fourth VF
-  function burstTap(c, x, y, now) {
-    const lab = A.label[c], region = lab === LH.LAB.RA || lab === LH.LAB.LA ? 'A' : 'V';
-    const same = burst.region === region && now - burst.t < BURST_MS && Math.hypot(x - burst.x, y - burst.y) < BURST_PX;
-    if (same) burst.n++; else Object.assign(burst, { n: 1, x, y });
-    burst.region = region; burst.t = now;
-    const arr = burst.n === 3 ? (region === 'A' ? 'flutter' : 'vt') : burst.n === 4 ? (region === 'A' ? 'af' : 'vf') : null;
-    if (arr) { startRhythm(arr); syncRate(); interpret(); updateFloat(); flash(x, y, ARR_NAME[arr]); buzz(40); return; }
+  function burstTap(c, x, y, n) {
+    if (quickBurst(c, n, x, y)) return;
     stimulateAt(c, x, y); buzz();
   }
   // the accessory pathway marker (any view) within a fingertip of the tap
@@ -8631,7 +8677,7 @@ body.only .chips { margin-top: 0; }
   // (now: when the finger touched, so a busy main thread does not stretch a burst)
   function mobileTap(x, y, now) {
     hideBlockMenu();
-    const ray = rayAt(x, y);
+    const ray = rayAt(x, y), n = countTap(x, y, now, BURST_PX);
     if (pathwayAt(x, y)) { lastEmpty = null; pathwayTap(x, y, now); return; }
     // a tap on (or within a fingertip of) a coronary artery acts on it, whatever tab is open: one tap narrows it (after a
     // moment, so a second tap can occlude it instead); elsewhere on the muscle, taps stimulate
@@ -8641,11 +8687,12 @@ body.only .chips { margin-top: 0; }
     if (site) { lastEmpty = null; conductionTap(site, x, y, now); return; }
     if (onArtery(ray, x, y)) {
       lastEmpty = null;
+      if (n >= 3) { const c = tissueAt(ray); if (c >= 0 && quickBurst(c, n, x, y)) { cancelArteryTaps(ischTap); return; } }
       ischPress(ischTap, x, y, now, (mode) => { buzz(mode === 'narrow' ? 15 : 35); return mobileIsch(x, y, mode); }, 40);
       return;
     }
     const c = tissueAt(ray);
-    if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }
+    if (c >= 0) { lastEmpty = null; burstTap(c, x, y, n); return; }
     // empty space: a double-tap fills the screen with the heart (and back)
     if (isM() && lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
     else lastEmpty = { x, y, t: now };
@@ -8902,7 +8949,11 @@ body.only .chips { margin-top: 0; }
     const rate = $('rate');
     rate.addEventListener('input', () => {
       if (ui.rateMode === 'ventricular') { ui.vRate = +rate.value; S.setVentricularResponse(ui.vRate, { variable: ui.fVar }); $('rateVal').textContent = `${ui.vRate} bpm`; return; }
-      ui.rate = +rate.value; $('rateVal').textContent = `${ui.rate} bpm`; S.setRate(ui.rate);
+      ui.rate = +rate.value; $('rateVal').textContent = `${ui.rate} bpm`;
+      // (during AVNRT/AVRT the sinus rate is kept for afterwards: setting it now would also change the AV node's tone,
+      // which can end the tachycardia)
+      if (ui.avnrt || ['avnrt', 'avrt'].includes(currentRhythm())) { ui.rateHeld = true; return; }
+      S.setRate(ui.rate);
     });
     const ts = $('timescale');
     ts.addEventListener('input', () => { ui.scaleIdx = +ts.value; $('tsVal').textContent = SCALE_LABEL[ui.scaleIdx]; });
@@ -8922,7 +8973,7 @@ body.only .chips { margin-top: 0; }
     $('btnPause').addEventListener('click', () => setPaused(!ui.paused));
     // Reset: normal sinus rhythm at 72 bpm with no abnormalities
     $('btnReset').addEventListener('click', async () => {
-      ui.avnrt = null; ui.pendingRhythm = null; ui.preAtrRate = null; ui.vRate = null; ui.fVar = null;
+      ui.avnrt = null; ui.pendingRhythm = null; ui.preAtrRate = null; ui.vRate = null; ui.fVar = null; ui.rateHeld = false;
       S.setSinusArrhythmia(null);
       ui.rate = 72; $('rate').value = 72;
       const prev = heartKey(), rebuild = !!ui.preset || CONDITIONS.some((c) => c.rebuild && ui.struct[c.id]);
