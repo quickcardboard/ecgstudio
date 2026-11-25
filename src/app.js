@@ -1934,6 +1934,10 @@
   // start a rhythm (Rhythm menu and the heart gestures)
   function startRhythm(type) {
     if (type !== 'af' && S.arrhythmia && S.arrhythmia.type === 'af') leaveAF();
+    // (AVNRT and AVRT have no driver to stop: a running circuit kept going under the new rhythm, and AVNRT → AVRT stayed
+    // AVNRT (the author). It ends first, as a return to sinus ends it)
+    const cur = currentRhythm();
+    if ((cur === 'avnrt' || cur === 'avrt') && type !== cur) { S.shock(); ui.rhythmFrom = S.t; }
     ui.avnrt = null; ui.pendingRhythm = null; markChange();
     if (ui.rateHeld) { S.setRate(ui.rate); ui.rateHeld = false; }   // (a sinus rate held during AVNRT/AVRT applies again)
     if (type === 'avnrt') {
@@ -1945,6 +1949,7 @@
     }
     if (type === 'avrt') {
       if (!S.ap || S.apLocation !== 'left-lateral') setCondition('ap', true);
+      if (ui.struct.dual) setCondition('dual', false);             // (as AVNRT takes the pathway away: one circuit at a time)
       S.stopArrhythmia();
       // (above 80/min no atrial extrastimulus finds the window where the pathway is refractory and the AV node conducts:
       // the sinus drive slows to 60 for 2.5 s first, as the EP lab paces at a set cycle, and stays there while AVRT runs:

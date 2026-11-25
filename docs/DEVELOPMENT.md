@@ -3342,3 +3342,11 @@ waves after an old anterior infarct (read as hyperkalemia).
   (the sinus rate sets the AV node's tone; a faster node ends the circuit). The rate slider during AVNRT/AVRT is held
   and applied when the rhythm is sinus again. Browser check at sinus 60/100/130/150: AVNRT 165–216/min and AVRT
   201/min sustained for 20 s at every rate (before: AVRT ended within 3 s above 80/min).
+
+## claude/svt-switch round 1: AVNRT ↔ AVRT directly
+
+Choosing AVRT while AVNRT ran left AVNRT running (the author): `stopArrhythmia` stops drivers, and a re-entry circuit has
+none, so the new extrastimulus fell into the running circuit. `startRhythm` now ends a running AVNRT/AVRT first with
+`S.shock()` (as choosing sinus already did) when another rhythm is chosen, and AVRT turns the dual AV-nodal pathways off
+(as AVNRT turns the accessory pathway off: one circuit at a time). Browser, sinus 72 and 120: AVNRT → AVRT, AVRT → AVNRT,
+AVNRT → flutter and AVRT → sinus all switch.
