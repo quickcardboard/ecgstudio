@@ -3342,3 +3342,25 @@ waves after an old anterior infarct (read as hyperkalemia).
   (the sinus rate sets the AV node's tone; a faster node ends the circuit). The rate slider during AVNRT/AVRT is held
   and applied when the rhythm is sinus again. Browser check at sinus 60/100/130/150: AVNRT 165–216/min and AVRT
   201/min sustained for 20 s at every rate (before: AVRT ended within 3 s above 80/min).
+
+## claude/sinus-escape round 1: SA node slider, escape rate sliders
+
+For making teaching ECGs (the author): a faster junctional or ventricular escape, or none at all (sinus arrest), and
+graded sinus node disease.
+
+- Blocks tab: an SA node slider above the AV node and His–Purkinje sliders, its stops named by severity as theirs are
+  (Normal, Mild, Moderate, Severe, Complete): mild 2nd-degree SA exit block 4:3, moderate 3:2, severe recurrent sinus
+  pauses, complete sinus arrest. The Active blocks list and the reading name what it produces. A tap on the SA node
+  opens the sliders (as the AV node's does) instead of a menu (desktop) or cycling (phones).
+- Engine: SAN `'pauses'`: the node stops at random moments for 2–3 s (`sinusPauseMin/Max`), the next 2–4 s after
+  (`sinusPauseGapMin/Max`): every 10 s window holds a whole pause (checked over 2 min at sinus 60, 72, 100). The
+  junctional escape breaks a pause after its cycle (48/min: ~1.25 s), as in life; with it off the whole pause shows.
+- Rhythm tab: junctional and ventricular escape rate sliders (`Sim.setEscapeRates`; the ventricular one sets both
+  ventricular foci), far left Off, shown once an escape can come on (severe or complete SA node, severe or complete AV
+  block, both bundles blocked, an escape beat in the last 10 s, or rates changed). The escape still takes over only when
+  conduction from above is lost. The reading names the rhythm at the rate: junctional escape (≤ 60), accelerated
+  junctional (61–100), junctional tachycardia (> 100); ventricular escape (≤ 40), accelerated idioventricular (> 40);
+  no QRS for 6 s: asystole, or ventricular standstill with P waves (the reading needed two beats and stayed on
+  "Acquiring…").
+- Share links: `SAN.sa-exit4`, `SAN.pauses`, `je=`/`ve=` (0: off); Reset restores the defaults; a heart rebuilt for a
+  condition keeps the rates.

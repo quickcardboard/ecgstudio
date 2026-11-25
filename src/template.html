@@ -574,6 +574,12 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
               <div class="row"><span class="lab" id="rateLab">Sinus rate</span><span class="val" id="rateVal">72 bpm</span></div>
               <input id="rate" type="range" min="30" max="180" step="1" value="72" aria-label="Sinus rate">
             </div>
+            <div class="ctl" id="escCtl" hidden>
+              <div class="row"><span class="lab">Junctional escape</span><span class="val" id="junVal">48 bpm</span></div>
+              <input id="junRate" type="range" min="18" max="140" step="2" value="48" aria-label="Junctional escape rate; far left: off">
+              <div class="row"><span class="lab">Ventricular escape</span><span class="val" id="venVal">32 bpm</span></div>
+              <input id="venRate" type="range" min="14" max="120" step="2" value="32" aria-label="Ventricular escape rate; far left: off">
+            </div>
             <div class="ctl">
               <span class="lab">Therapy</span>
               <div class="btnrow">
@@ -585,6 +591,8 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
 
           <section class="tabpanel" data-panel="blocks" hidden>
             <div class="ctl" id="avCtl">
+              <div class="row"><span class="lab">SA node</span><span class="val" id="sanVal">Normal</span></div>
+              <input id="sanSev" type="range" min="0" max="4" step="1" value="0" aria-label="SA node disease, from normal to sinus arrest">
               <div class="row"><span class="lab">AV node</span><span class="val" id="avnVal">Normal</span></div>
               <input id="avnSev" type="range" min="0" max="4" step="1" value="0" aria-label="AV node disease, from normal to complete block">
               <div class="row"><span class="lab">His–Purkinje</span><span class="val" id="hisVal">Normal</span></div>
