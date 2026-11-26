@@ -97,6 +97,8 @@ One link from a well-known teaching site does more than months of posts, for peo
 your name, your background and your inbox. Personalise the first line every time (mention a post or video of theirs).
 
 **Who** (find each one's contact page on their site):
+- "Recipe for disaster" TikTok (19.6 s, portrait): `node tools/promo_vf.js <outdir>` (~25 min). Commands and lessons for all
+  the video tools: `docs/HANDOFF.md`, "Marketing and video tools".
 - FOAMed ECG sites: Life in the Fast Lane (LITFL) ECG Library; Dr. Smith's ECG Blog; ECG Weekly; Medmastery; ECGpedia;
   the ECG teaching accounts on X and Instagram.
 - YouTube educators who teach ECGs (cardiology, emergency medicine, paramedic and nursing channels).
