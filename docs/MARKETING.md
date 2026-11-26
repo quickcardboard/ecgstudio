@@ -44,6 +44,8 @@ people who teach and learn ECGs. Cost: none except time.
   a pull-back revealing the app and its 12-lead ECG, Training on a phone, and the animated logo. Camera keyframes, speed
   ramps, events and captions are tables at the top of the script. Upload it to YouTube (unlisted is fine) and paste the
   link into Play Console → Store listing → Video.
+- "Recipe for disaster" TikTok (19.6 s, portrait): `node tools/promo_vf.js <outdir>` (~25 min). Commands and lessons for all
+  the video tools: `docs/HANDOFF.md`, "Marketing and video tools".
 
 ## Why this is the right first step
 
