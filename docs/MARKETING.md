@@ -44,6 +44,8 @@ people who teach and learn ECGs. Cost: none except time.
   a pull-back revealing the app and its 12-lead ECG, Training on a phone, and the animated logo. Camera keyframes, speed
   ramps, events and captions are tables at the top of the script. Upload it to YouTube (unlisted is fine) and paste the
   link into Play Console → Store listing → Video.
+- "Recipe for disaster" TikTok (19.6 s, portrait): `node tools/promo_vf.js <outdir>` (~25 min). Commands and lessons for all
+  the video tools: `docs/HANDOFF.md`, "Marketing and video tools".
 
 ## Why this is the right first step
 
@@ -97,8 +99,6 @@ One link from a well-known teaching site does more than months of posts, for peo
 your name, your background and your inbox. Personalise the first line every time (mention a post or video of theirs).
 
 **Who** (find each one's contact page on their site):
-- "Recipe for disaster" TikTok (19.6 s, portrait): `node tools/promo_vf.js <outdir>` (~25 min). Commands and lessons for all
-  the video tools: `docs/HANDOFF.md`, "Marketing and video tools".
 - FOAMed ECG sites: Life in the Fast Lane (LITFL) ECG Library; Dr. Smith's ECG Blog; ECG Weekly; Medmastery; ECGpedia;
   the ECG teaching accounts on X and Instagram.
 - YouTube educators who teach ECGs (cardiology, emergency medicine, paramedic and nursing channels).
