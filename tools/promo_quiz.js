@@ -15,15 +15,20 @@ const SPEED = 0.5;                       // simulated time per real time (half s
 const TAKE = 17.0, END = 2.8, XF = 0.35, TOTAL = TAKE + END;
 const HASH = 'r=72&a=flutter&v=75';
 
-// heart camera keyframes, eased: [t, azimuth°, elevation°, distance, cut %, lift] relative to the app's four-chamber view
-// (tour.cut4()); lift raises the heart on screen (a fraction of the screen height) to clear the strip panel, shift moves it
-// left (a fraction of the screen width; the four-chamber cut sits right of centre in a full-screen view)
+// heart camera keyframes [t, azimuth°, elevation°, distance, lift, shift] relative to the app's four-chamber view
+// (tour.cut4()), joined by a smooth curve (monotone cubic: the camera never stops between keyframes, which per-segment
+// easing did, a visible hitch); lift raises the heart on screen (a fraction of the screen height) to clear the strip
+// panel, shift moves it left (a fraction of the screen width; the four-chamber cut sits right of centre full screen).
+// CUT: the cut-away %, eased between its own keyframes [t, %].
 const HEART = [
-  [0.0, -90, -30, 0.52, 0, 0, 0], [1.2, -86, -28, 0.55, 0, 0, 0],            // close on the right atrium, outside
-  [1.6, -80, -27, 0.58, 0, 0, 0], [4.6, 0, 0, 0.8, 100, 0, 0.04],           // orbit, cut in, pull back to the four-chamber cut
-  [6.0, 4, 0, 0.8, 100, 0, 0.04], [6.8, 6, 0, 0.94, 100, 0.23, 0.01],        // up into the top half as the strips come in
-  [17.0, 16, 2, 0.94, 100, 0.23, 0],                                       // a slow drift while the strips are read
+  [0.0, -92, -31, 0.52, 0, 0],      // close on the right atrium, outside
+  [1.4, -84, -27, 0.56, 0, 0],      // (a slow creep, then the orbit)
+  [4.6, 0, 0, 0.8, 0, 0.04],        // the four-chamber cut
+  [6.0, 4, 0, 0.8, 0, 0.04],
+  [6.8, 6, 0, 0.94, 0.23, 0.01],    // up into the top half as the strips come in
+  [17.0, 16, 2, 0.94, 0.23, 0],     // a slow drift while the strips are read
 ];
+const CUT = [[0, 0], [1.6, 0], [4.4, 100], [17.0, 100]];
 const PANEL_IN = [6.0, 6.7], PEN = { start: 6.7, dur: 1.2, gap: 0.6 };   // strip panel slide, pen sweeps (s)
 const CAPTIONS = [   // [t0, t1, html, class]
   [0.3, 5.8, 'Do you recognize this rhythm based on the depolarization pattern?<small>It has been slowed to half speed</small>', 'top'],
@@ -38,6 +43,23 @@ const lerpKeys = (keys, t) => {
   const a = keys[k - 1], b = keys[k], e = ease((t - a[0]) / (b[0] - a[0]));
   return a.slice(1).map((v, i) => v + (b[i + 1] - v) * e);
 };
+
+// monotone cubic (Fritsch-Carlson) through keyframes [t, ...values]: smooth velocity, no overshoot
+function smoothKeys(keys, t) {
+  if (t <= keys[0][0]) return keys[0].slice(1);
+  if (t >= keys[keys.length - 1][0]) return keys[keys.length - 1].slice(1);
+  const k = keys.findIndex((c) => c[0] > t) - 1, n = keys.length;
+  return keys[0].slice(1).map((_, j) => {
+    const x = keys.map((c) => c[0]), y = keys.map((c) => c[j + 1]);
+    const d = x.slice(1).map((xi, i) => (y[i + 1] - y[i]) / (xi - x[i]));
+    const m = x.map((_, i) => (i === 0 ? d[0] : i === n - 1 ? d[n - 2] : d[i - 1] * d[i] <= 0 ? 0 : 2 / (1 / d[i - 1] + 1 / d[i])));
+    if (k === 0) m[0] = 0;   // (starts from rest)
+    if (k === n - 2) m[n - 1] = 0;
+    const h = x[k + 1] - x[k], s = (t - x[k]) / h, s2 = s * s, s3 = s2 * s;
+    return (2 * s3 - 3 * s2 + 1) * y[k] + (s3 - 2 * s2 + s) * h * m[k] + (-2 * s3 + 3 * s2) * y[k + 1] + (s3 - s2) * h * m[k + 1];
+  });
+}
+const camAt = (t) => { const [az, el, dist, lift, shift] = smoothKeys(HEART, t); return [az, el, dist, lerpKeys(CUT, t)[0], lift, shift]; };
 
 // the three strips (lead II, mV at 1 kHz), from the engine
 function makeStrips() {
@@ -110,11 +132,11 @@ function encoder(file) {
 
 async function recordHeart(browser, url, file) {
   const P = await openPage(browser, url);
-  for (let i = 0; i < 320; i++) await P.step(1000 / 32, lerpKeys(HEART, 0));   // 10 s of flutter first (steps under 34 ms: full quality)
+  for (let i = 0; i < 320; i++) await P.step(1000 / 32, camAt(0));   // 10 s of flutter first (steps under 34 ms: full quality)
   const ff = PREVIEW ? null : encoder(file), n = Math.round(TAKE * FPS);
   for (let f = 0; f < n; f++) {
     const t = f / FPS;
-    await P.step(1000 / FPS * SPEED, lerpKeys(HEART, t));
+    await P.step(1000 / FPS * SPEED, camAt(t));
     if (PREVIEW) {
       if (PREVIEW.some((x) => Math.round(x * FPS) === f)) await P.page.screenshot({ path: path.join(out, `still-${t.toFixed(1)}.png`) });
       if (f > Math.max(...PREVIEW) * FPS) break;
