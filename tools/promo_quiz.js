@@ -12,7 +12,7 @@ const SKIP = process.argv.includes('--skip-take');
 const PREVIEW = process.env.QUIZ_PREVIEW ? process.env.QUIZ_PREVIEW.split(',').map(Number) : null;   // stills at these times (s), 1x, no video
 const FPS = 60, VW = 432, VH = 768, DSF = PREVIEW ? 1 : 2.5;
 const SPEED = 0.5;                       // simulated time per real time (half speed)
-const TAKE = 17.0, END = 2.8, XF = 0.35, TOTAL = TAKE + END;
+const TAKE = 17.0, END = 3.6, XF = 0.35, TOTAL = TAKE + END;
 const HASH = 'r=72&a=flutter&v=75';
 
 // heart camera keyframes [t, azimuth°, elevation°, distance, lift, shift] relative to the app's four-chamber view
@@ -160,11 +160,18 @@ html, body { margin: 0; width: 1080px; height: 1920px; background: transparent; 
 #panel { position: absolute; left: 0; right: 0; top: 960px; height: 960px; background: #0b131a; border-top: 3px solid #22313f; }
 #panel canvas { position: absolute; left: 0; top: 0; }
 #end { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 42%, #172533, #0b131a 72%); }
-#mark { position: absolute; left: 50%; top: 470px; transform: translateX(-50%); width: 460px; height: 460px; }
-#name { position: absolute; left: 0; right: 0; top: 990px; text-align: center; font: 700 150px/1 'IBM Plex Sans Condensed', sans-serif; }
+#mark { position: absolute; left: 50%; top: 360px; transform: translateX(-50%); width: 460px; height: 460px; }
+#name { position: absolute; left: 0; right: 0; top: 870px; text-align: center; font: 700 150px/1 'IBM Plex Sans Condensed', sans-serif; }
 #name span { color: #ef5b7a; }
-#tag { position: absolute; left: 0; right: 0; top: 1175px; text-align: center; font-size: 50px; font-weight: 500; color: #d6e0e8; }
-#url { position: absolute; left: 50%; top: 1300px; transform: translateX(-50%); padding: 26px 60px; border-radius: 999px; background: #ef5b7a; color: #160a0d; font-size: 78px; font-weight: 700; }`;
+#tag { position: absolute; left: 0; right: 0; top: 1050px; text-align: center; font-size: 50px; font-weight: 500; color: #d6e0e8; }
+#url { position: absolute; left: 50%; top: 1170px; transform: translateX(-50%); padding: 26px 60px; border-radius: 999px; background: #ef5b7a; color: #160a0d; font-size: 78px; font-weight: 700; }
+#play { position: absolute; left: 50%; top: 1390px; width: max-content; transform: translateX(-50%); display: flex; align-items: center; gap: 30px; padding: 26px 56px 26px 44px;
+  border-radius: 30px; background: #000; border: 3px solid #a6a6a6; }
+#play svg { width: 96px; height: 106px; }
+#play .t1 { font: 500 34px/1 'IBM Plex Sans', sans-serif; letter-spacing: 2px; color: #fff; }
+#play .t2 { font: 600 72px/1.05 'IBM Plex Sans', sans-serif; color: #fff; white-space: nowrap; }
+#search { position: absolute; left: 0; right: 0; top: 1640px; text-align: center; font-size: 46px; font-weight: 500; color: #d6e0e8; }
+#search b { color: #fff; }`;
 
 // the strip panel, drawn in the overlay page: ECG paper (25 mm/s, 10 mm/mV), a letter per strip, a pen sweep
 const PANEL_JS = `
@@ -231,17 +238,19 @@ window.__drawPanel = (prog) => {
   if (PREVIEW) { fs.copyFileSync(path.join(pdir, `p${String(nP - 1).padStart(4, '0')}.png`), f('still-panel.png')); for (const [fc] of ov) fs.copyFileSync(fc, f(path.basename(fc))); await browser.close(); fs.rmSync(tmp, { recursive: true, force: true }); return; }
   const panelHold = path.join(tmp, 'panel-hold.png'); fs.copyFileSync(path.join(pdir, `p${String(nP - 1).padStart(4, '0')}.png`), panelHold);
   const panelHoldT0 = PANEL_IN[0] + nP / FPS;
-  await set(`<div id="end"><div id="mark"></div><div id="name">ECG <span>Studio</span></div><div id="tag">A 3D heart that computes its own ECG</div><div id="url">ecgstudio.app</div></div>`);
+  await set(`<div id="end"><div id="mark"></div><div id="name">ECG <span>Studio</span></div><div id="tag">A 3D heart that computes its own ECG</div><div id="url">ecgstudio.app</div><div id="play"><svg viewBox="0 0 90 100"><g stroke-linejoin="round" stroke-width="6"><path d="M6 6 L52 50 L6 94 Z" fill="#00a0ff" stroke="#00a0ff"/><path d="M6 6 L67 36 L52 50 Z" fill="#00d26a" stroke="#00d26a"/><path d="M6 94 L52 50 L67 64 Z" fill="#ff3a44" stroke="#ff3a44"/><path d="M52 50 L67 36 L86 47 Q90 50 86 53 L67 64 Z" fill="#ffc400" stroke="#ffc400"/></g></svg><div><div class="t1">GET IT ON</div><div class="t2">Google Play</div></div></div><div id="search">Search <b>“ECG Studio”</b> in the Play Store</div></div>`);
   const sdir = path.join(tmp, 'end'); fs.mkdirSync(sdir);
   const nE = Math.round((END + XF) * FPS);
   for (let k = 0; k < nE; k++) {
     const lt = k / FPS - XF * 0.5, cl = (a, b) => Math.max(0, Math.min(1, (lt - a) / (b - a)));
-    await page.evaluate(([svg, nm, tg, ur]) => {
+    await page.evaluate(([svg, nm, tg, ur, pl, se]) => {
       document.getElementById('mark').innerHTML = svg;
       const n = document.getElementById('name'); n.style.clipPath = `inset(0 ${(1 - nm) * 50}% 0 ${(1 - nm) * 50}%)`; n.style.transform = `translateY(${(1 - nm) * 24}px)`;
       const t = document.getElementById('tag'); t.style.opacity = tg;
       const u = document.getElementById('url'); u.style.opacity = ur; u.style.transform = `translateX(-50%) scale(${0.8 + 0.2 * ur})`;
-    }, [logoSvg(Math.max(0, lt)), ease(cl(1.3, 1.75)), ease(cl(1.6, 1.95)), ease(cl(1.8, 2.15))]);
+      const g = document.getElementById('play'); g.style.opacity = pl; g.style.transform = `translateX(-50%) translateY(${(1 - pl) * 40}px)`;
+      document.getElementById('search').style.opacity = se;
+    }, [logoSvg(Math.max(0, lt)), ease(cl(1.3, 1.75)), ease(cl(1.6, 1.95)), ease(cl(1.8, 2.15)), ease(cl(2.05, 2.4)), ease(cl(2.3, 2.65))]);
     await page.screenshot({ path: path.join(sdir, `e${String(k).padStart(4, '0')}.png`) });
   }
   await browser.close();
