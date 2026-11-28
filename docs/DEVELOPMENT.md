@@ -3445,3 +3445,11 @@ AVNRT → flutter and AVRT → sinus all switch.
 - The build number is set only for a build going to Apple: `npm run release:ios` (sync, then `tools/ios_version.js`);
   `npm run sync:ios` leaves the committed Xcode project (`app/ios`, on `milestone-1` since its first commit from the Mac)
   unchanged, so day-to-day Simulator builds leave git clean.
+
+## claude/festive-cori round 4: iOS icon, splash and export compliance
+
+- The iOS icon and launch screen were Capacitor's placeholders (Apple rejects a placeholder icon). Generated from the
+  Android app's sources in `app/assets` (`npx @capacitor/assets generate --ios`, background `#0b131a`): the 1024 px icon
+  and light/dark splash images in `app/ios/App/App/Assets.xcassets`; the three placeholder splash files removed.
+- `ITSAppUsesNonExemptEncryption` false in `app/ios/App/App/Info.plist` (the app uses only the system's HTTPS), so App
+  Store Connect does not ask about export compliance for each build.
