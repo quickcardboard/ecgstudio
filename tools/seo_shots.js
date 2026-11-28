@@ -44,6 +44,8 @@ async function dismiss(page) {   // first-visit tip / tutorial offer, if any
     await page.waitForFunction(() => { const t = document.getElementById('rhythm').textContent; return t && t !== 'Acquiring…'; }, null, { timeout: 240000, polling: 500 });
     const s0 = await page.evaluate(() => window.ECGStudioApp.sim.t);
     await page.waitForFunction((s0) => window.ECGStudioApp.sim.t > s0 + 600, s0, { timeout: 60000, polling: 300 });
+    // (and a full 10 s page since the scenario loaded: VF is read at once, with no acquisition, and its image was ~1 s of trace)
+    await page.waitForFunction(() => window.ECGStudioApp.sim.t > 10500, null, { timeout: 240000, polling: 500 });
     await page.click('#btnPause').catch(() => {});   // (still, so the sheet and the read match)
     const read = await page.evaluate(() => ({
       rhythm: document.getElementById('rhythm').textContent.trim(),

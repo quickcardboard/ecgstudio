@@ -371,12 +371,16 @@
     // two-pane framing: the vertical field of view widens instead of cropping the sides
     const FIT = 0.85;
     g3.camera.fov = w / h < FIT ? 2 * Math.atan(Math.tan(16 * Math.PI / 180) * FIT / (w / h)) * 180 / Math.PI : 32;
-    // keep the heart clear of the floating control panel
-    // keep the heart clear of the tab row above and the view bar below: the view
-    // is shifted down by the difference of the two insets
-    const panel = $('controls'), shift = panel.classList.contains('collapsed') || w < 560 ? 0 : Math.min(130, panel.offsetWidth / 2);
-    const vb = parseFloat(getComputedStyle(el).getPropertyValue('--vb')) || 44, down = Math.round(0.06 * h + (vb - 44) / 2);
-    g3.camera.setViewOffset(w, h, -shift, -down, w, h);
+    // (the heart no longer moves aside when the control panel opens: it jumped each time a menu opened or closed on larger
+    // screens; the panel covers it instead (the author, 2026-11-27))
+    // centre the heart in the space between the tab row above and the view bar below, measured (it was shifted down by 6% of
+    // the pane's height: in the tall, narrow pane of a tablet held sideways the heart sat low, the author 2026-11-28); on
+    // phones and upright tablets neither bar is in the pane, and the heart is centred in it
+    const pr = el.getBoundingClientRect(), tb = $('tabs'), vbar = el.querySelector('.viewbar');
+    const top = tb && tb.offsetHeight ? Math.max(0, tb.getBoundingClientRect().bottom - pr.top) : 0;
+    const bot = vbar && vbar.offsetHeight ? Math.max(0, pr.bottom - vbar.getBoundingClientRect().top) : 0;
+    const down = Math.round((top - bot) / 2);
+    g3.camera.setViewOffset(w, h, 0, -down, w, h);
     g3.camera.updateProjectionMatrix();
   }
 
@@ -876,6 +880,10 @@
       chest: { world: [0, 0, 1], p: g3.lvCenter, up: [0, 1, 0], dist: 395 },          // true anterior: from the front of the chest, head up (frontal plane faces the viewer)
       lateral: { world: [1, 0.05, 0.1], p: g3.lvCenter, up: [0, 1, 0], dist: 375 },   // from the patient's left
       short: { n: saN, p: saP, up: [0, 0, 1], dist: 330 },
+      // the LAD face-on (the tutorial's "tap the LAD", the author 2026-11-27): from the front of the chest the LAD runs down the
+      // heart's left border, at a glancing angle; turned 50° toward the patient's left and 10° from above it runs down the
+      // middle (97% of it can be tapped, 68% from the front)
+      lad: { world: [0.75, 0.17, 0.63], up: [0, 1, 0], dist: 395 },
     };
     // Cut face by stencil capping. Every surface (which together bound the
     // heart wall as one closed solid) is drawn into the stencil buffer only:
@@ -1465,7 +1473,14 @@
     return ui.esc.v > 40 ? 'accelerated idioventricular rhythm' : 'ventricular escape rhythm';
   }
   // a tap on the AV node or His bundle: the sliders (Blocks panel; phones: the sheet), instead of a list or cycling
+  // phones and tablets: the conduction sliders stay hidden in the Blocks sheet until the SA or AV node is tapped (the
+  // author, 2026-11-27), or while an SA, AV or His block is on (to change or undo it); the desktop panel always has them
+  function syncAvVisible() {
+    const show = !isM() || ui.avShown || !!(S.blocks.SAN || S.blocks.AVN || S.blocks.HIS);
+    if ($('avCtl').hidden === show) $('avCtl').hidden = !show;
+  }
   function showAvSliders(x, y) {
+    ui.avShown = true; syncAvVisible();
     if (isM()) openSheet('blocks'); else if (INAPP) setTab('blocks', false, true); else autoTab('blocks');
     const el = $('avCtl'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
     if (x !== undefined) flash(x, y, 'Conduction: use the sliders');
@@ -1479,7 +1494,7 @@
   }
 
   function renderBlockList() {
-    markChange(); updateBadges(); emit('blocks'); syncAvSliders(); drawBlockChips(); syncEscapeCtl();
+    markChange(); updateBadges(); emit('blocks'); syncAvSliders(); drawBlockChips(); syncEscapeCtl(); syncAvVisible();
   }
   // the Active blocks list (also redrawn when a graded AV block's reading changes, without restarting the reading)
   // (the AV node and His–Purkinje make one entry, "AV block: <the degree it is producing>", and its × clears both)
@@ -1540,7 +1555,7 @@
   }
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
-    blocks: 'Tap the conduction system to cycle through blocks; the AV node and His bundle open the sliders below.',
+    blocks: 'Tap the conduction system to cycle through blocks; the SA node, AV node and His bundle open the sliders below.',
     ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marker again to remove it.',
   };
 
@@ -2989,7 +3004,10 @@ body.only .chips { margin-top: 0; }
     const size = shown ? { w: wrap.clientWidth, h: wrap.clientHeight, dpr: Math.max(2, Math.min(3, window.devicePixelRatio || 1)) } : { w: 1100, h: 540, dpr: 2 };
     const keep = { canvas: ecg.canvas, ctx: ecg.ctx, grid: ecg.grid, mm: ecg.mm, W: ecg.W, H: ecg.H, ox: ecg.ox, oy: ecg.oy, lastCursor: ecg.lastCursor, buf: ecg.buf }, keepP = Object.assign({}, PAPER);
     // the ring buffer rotated so index 0 is the oldest sample (the newest is at the sweep's cursor)
-    const cur = Math.floor((S.t + ecg.t0) % PAGE), rot = ecg.buf.map((b) => { const r = new Float32Array(PAGE); for (let i = 0; i < PAGE; i++) r[i] = b[(cur + 1 + i) % PAGE]; return r; });
+    // (the last 10 s in order, oldest first; a page not yet full (under 10 s since a reset or a new scenario) is drawn from the
+    // left as on screen: rotated, its blank start pushed the trace to the right edge (the ECG library's VF image))
+    const cur = Math.floor((S.t + ecg.t0) % PAGE), full = !Number.isNaN(ecg.buf[0][(cur + 1) % PAGE]);
+    const rot = ecg.buf.map((b) => { const r = new Float32Array(PAGE); for (let i = 0; i < PAGE; i++) r[i] = full ? b[(cur + 1 + i) % PAGE] : (i <= cur ? b[i] : NaN); return r; });
     const cv = document.createElement('canvas');
     Object.assign(ecg, { canvas: cv, ctx: cv.getContext('2d'), grid: document.createElement('canvas'), buf: rot, export: true });
     try { resizeECG(size); ecg.full = true; drawECG(); }
@@ -3040,6 +3058,10 @@ body.only .chips { margin-top: 0; }
   // rhythm strip in the ECG pane instead of one lead group (body.t). Narrower tablets (7") keep the phone's lead groups;
   // tablets held sideways get the desktop layout.
   const MQ_TAB = matchMedia('(min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (pointer: coarse)');
+  // touch tablets held sideways (body.t.tl; taller than a phone, up to the 12.9" iPad Pro): the same touch layout, heart and
+  // ECG side by side, the tab bar and its sheets under and over the heart (the author, 2026-11-28: the desktop layout
+  // wrapped and scrolled sideways on an iPad mini)
+  const MQ_TABL = matchMedia('(min-width: 900px) and (max-width: 1400px) and (min-height: 501px) and (orientation: landscape) and (pointer: coarse)');
   const isT = () => document.body.classList.contains('t');
   const isM = () => document.body.classList.contains('m');
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
@@ -3049,8 +3071,9 @@ body.only .chips { margin-top: 0; }
   const buzz = (ms = 10) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
 
   function setMode() {
-    const b = document.body, was = isM(), tab = MQ_TAB.matches, m = MQ_PORT.matches || MQ_LAND.matches || tab;
-    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab);
+    const b = document.body, was = isM(), tl = MQ_TABL.matches, tab = MQ_TAB.matches || tl, m = MQ_PORT.matches || MQ_LAND.matches || tab;
+    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab); b.classList.toggle('tl', tl);
+    if (S) syncAvVisible();   // (turned sideways: the desktop layout, sliders shown)
     // phones (website and app): dark only, as the app; desktop follows the system setting
     if (m) document.documentElement.dataset.theme = 'dark'; else if (!INAPP) delete document.documentElement.dataset.theme;
     const ctl = $('controls');
@@ -3139,6 +3162,7 @@ body.only .chips { margin-top: 0; }
         g3.planeDirty = true;
       },
       outside() { setCut(0); cameraPreset('chest'); },
+      ladView() { setCut(0); cutPreset('lad'); },
       cut4() { setCut(100); cameraPreset('front'); },
       group(i) { if (isM()) { setGroup(i); drawPhone(); } },
       reset() { $('btnReset').click(); setPaused(false); if (isM()) { setGroup(0); drawPhone(); } },
@@ -3196,6 +3220,13 @@ body.only .chips { margin-top: 0; }
   function setSheetFull(f) { document.body.classList.toggle('sheet-full', f); }
   function sizeSheet() {
     if (!isM()) return;
+    // (tablets held sideways: the tab bar and the sheets span the heart pane only; the sheet may rise to the pane's top)
+    if (document.body.classList.contains('tl')) {
+      const r = $('pane3d').getBoundingClientRect(), tabs = $('mTabs').getBoundingClientRect().top;
+      document.body.style.setProperty('--heartR', `${Math.round(r.right + 6)}px`);
+      document.body.style.setProperty('--sheetmax', `${Math.max(160, Math.round(tabs - r.top))}px`);
+      return;
+    }
     const tabs = $('mTabs').getBoundingClientRect().top, b = document.body.classList;
     const top = b.contains('fs-heart') ? (() => { const r = $('pane3d').getBoundingClientRect(); return r.top + 0.55 * r.height; })() : $('paneEcg').getBoundingClientRect().top;
     document.body.style.setProperty('--sheetmax', `${Math.max(160, Math.round(tabs - top))}px`);
@@ -3203,7 +3234,8 @@ body.only .chips { margin-top: 0; }
   function openSheet(tab) {
     const was = sheetOpen();
     setTab(tab);
-    if (!was) openLayer('sheet', () => { toggleControls(false); setSheetFull(false); });
+    syncAvVisible();
+    if (!was) openLayer('sheet', () => { toggleControls(false); setSheetFull(false); ui.avShown = false; syncAvVisible(); });
   }
 
   function setPaused(p) {
@@ -3637,7 +3669,7 @@ body.only .chips { margin-top: 0; }
   }
 
   function initPhone() {
-    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode); MQ_TAB.addEventListener('change', setMode);
+    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode); MQ_TAB.addEventListener('change', setMode); MQ_TABL.addEventListener('change', setMode);
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
     initTouch(); initEcgTouch(); initSheet(); initAlpha();
@@ -3698,8 +3730,12 @@ body.only .chips { margin-top: 0; }
     $('interp').addEventListener('click', (e) => {
       if (!isM() || document.body.classList.contains('fs-ecg') || e.target.closest('button')) return;
       if (hasLayer('interp')) closeLayer('interp');
-      else { document.body.classList.add('interp-open'); openLayer('interp', () => document.body.classList.remove('interp-open')); }
+      // (opened, the reading drops down over the ECG as a panel; the ECG keeps its size and place: the pane keeps the closed
+      // reading's height at its top. It grew into the ECG before, squeezing the strips (the author, 2026-11-28))
+      else { $('paneEcg').style.setProperty('--interpH', `${$('interp').offsetHeight}px`); document.body.classList.add('interp-open'); openLayer('interp', () => document.body.classList.remove('interp-open')); }
     });
+    // (a tap outside the open reading closes it)
+    document.addEventListener('pointerdown', (e) => { if (hasLayer('interp') && !$('interp').contains(e.target)) closeLayer('interp'); }, true);
     $('mDots').innerHTML = GROUPS.map((g, i) => `<button type="button" role="tab" aria-label="${g.join(', ')}" aria-selected="${i === ph.group}"></button>`).join('');
     [...$('mDots').children].forEach((d, i) => d.addEventListener('click', () => { if (i !== ph.group && ph.peek === null) { const f = (i - ph.group + GROUPS.length) % GROUPS.length; if (f === 1 || f === GROUPS.length - 1) slideGroup(f === 1 ? 1 : -1); else setGroup(i); } }));
     $('mSecs').addEventListener('click', () => {

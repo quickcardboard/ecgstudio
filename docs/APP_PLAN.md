@@ -109,10 +109,21 @@ release AAB on demand once the upload key is in the secrets (below). Next: the u
 - **Engine and shared code** stay on `milestone-1` (the website updates when it is pushed). `origin/milestone-1` is merged
   into `app-1` to bring them to the app (never copied by hand). Once the app is live, `app-1` goes into `milestone-1`
   through a pull request, so one branch holds both.
-- **The app carries a copy of the pages** from when it was built. It changes only when a new version is uploaded to
-  Google Play: run the workflow with "release" (version number goes up by itself), then upload the AAB in Play Console
-  (later this upload can be automated with a Play service account). Phones then update from the Play Store by themselves.
-- Bump `versionName` in `app/android/app/build.gradle` for releases users will notice (0.1.0, 0.2.0, ... 1.0.0 at launch).
+- **The apps carry a copy of the pages** from when they were built. They change only when a new version is uploaded;
+  release both from the same `milestone-1` commit, a few fixes at a time (the website updates on every merge).
+- **One version number:** `"version"` in `app/package.json` (1.0.0 at launch). Android's `versionName`
+  (`app/android/app/build.gradle`) and iOS's version (`tools/ios_version.js`, run by `npm run release:ios`) both read it.
+  Raise it for releases users will notice (1.0.1 fixes, 1.1.0 features). Build numbers count up by themselves: Android's
+  is the workflow's run number, iOS's the UTC date and time (YYMMDD.HHMM).
+- **Each release:**
+  1. Website: merge into `milestone-1` (live in minutes).
+  2. Android: Actions > Android app > Run workflow on `milestone-1`, "release" ticked; upload the run's AAB
+     (`ecgstudio-release-aab`) in Play Console and roll it out. (Later: the upload itself with a Play service account.)
+  3. iOS, on the Mac: `cd ~/ecgstudio && git checkout milestone-1 && git pull`, then `cd app && npm run release:ios` (sets the version and a
+     new build number); in Xcode, Product > Archive > Distribute App > App Store Connect; commit the Xcode project's change
+     (`git commit -am "iOS <version> (<build>)"`, the record of what went to Apple); in App Store Connect, the new
+     version with that build, submitted for review. (Day to day, `npm run sync:ios` for the Simulator changes no file in git.) (Later: archive and upload in one `fastlane` command with an App Store Connect API key.)
+  `npm run build` in `app/` writes only `app/www/` (`tools/build.py --app-only`), so a build on the Mac leaves git clean.
 
 ### Release signing: the upload key (the author, once)
 

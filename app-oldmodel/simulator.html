@@ -239,7 +239,7 @@ html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.4 var(--font-ui); overflow: hidden; }
 #app {
   height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-left: max(16px, var(--sa-l)); padding-right: max(16px, var(--sa-r));
   padding-block: 10px;
 }
 header.top { display: flex; align-items: center; gap: 14px; min-height: 36px; }
@@ -474,7 +474,7 @@ body.m .vsum { display: none; }
 .calnote { position: absolute; right: 8px; bottom: 6px; font: 500 11px/1 var(--font-data); color: #8a5a66; background: rgba(255,255,255,0.85); padding: 3px 5px; border-radius: 3px; }
 
 /* modal + loading */
-.overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(5, 10, 15, 0.55); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(5, 10, 15, 0.55); padding-left: max(16px, var(--sa-l)); padding-right: max(16px, var(--sa-r)); }
 .sheet { background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; max-width: 640px; width: 100%; max-height: 86%; overflow: auto; padding: 20px 22px; box-sizing: border-box; }
 .sheet h2 { margin: 0 0 4px; font: 600 22px/1.2 var(--font-display); }
 .sheet h3 { margin: 18px 0 6px; font: 600 13px/1.2 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
@@ -518,8 +518,8 @@ body:not(.m) .toc .mo, body.m .toc .dk { display: none; }
 body.m { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 body.m button { touch-action: manipulation; }
 body.m #c3d, body.m #ecgWrap, body.m .live, body.m #shead { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-body.m #app { padding: env(safe-area-inset-top, 0px) 0 0; gap: 0; }
-body.m header.top { min-height: 50px; gap: 8px; padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); }
+body.m #app { padding: var(--sa-t) 0 0; gap: 0; }
+body.m header.top { min-height: 50px; gap: 8px; padding: 0 max(12px, var(--sa-r)) 0 max(12px, var(--sa-l)); }
 body.m .brand h1 { font-size: 19px; }
 body.m .brand .logo { width: 26px; height: 26px; }
 body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp, body.m #btnContact, body.m #btnAlpha { display: none; }
@@ -532,7 +532,7 @@ body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mplay.paused .ir { display: inline; }
 .mplay::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--accent); }
 .mplay.holding::after { width: 100%; transition: width 0.7s linear; }
-body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index: 21; right: max(10px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 50px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index: 21; right: max(10px, var(--sa-r)); top: calc(var(--sa-t) + 50px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
 .mmenu button, .mmenu a { color: inherit; text-decoration: none; font-family: var(--font-ui); }
 .mmenu button, .mmenu a { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
 .mmenu .malpha { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; color: var(--accent); font-weight: 600; }
@@ -575,23 +575,25 @@ body.m .gbar { display: flex; align-items: center; gap: 6px; position: absolute;
 .dots button { width: 18px; height: 20px; padding: 0; border: 0; background: none; display: grid; place-items: center; }
 .dots button::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #e2b0bd; }
 .dots button[aria-selected="true"]::before { background: #c2304f; }
-body.m #interp { order: 2; flex: none; flex-wrap: wrap; gap: 6px; padding: 8px 32px 8px 10px; border-bottom: 0; border-top: 1px solid var(--line); cursor: pointer; position: relative; }
-body.m #interp::after { content: "▴"; position: absolute; right: 12px; top: 8px; color: var(--muted); font-size: 13px; }
+/* (the rhythm reading above the ECG on phones and tablets too, as on the desktop (the author, 2026-11-28); it opens downward) */
+body.m #interp { order: 0; flex: none; flex-wrap: wrap; gap: 6px; padding: 8px 32px 8px 10px; border-top: 0; border-bottom: 1px solid var(--line); cursor: pointer; position: relative; }
+body.m #interp::after { content: "▾"; position: absolute; right: 12px; top: 8px; color: var(--muted); font-size: 13px; }
 body.m #rhythm { flex: 1 1 100%; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.m .chips { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-height: 23px; }
 body.m .chips::-webkit-scrollbar { display: none; }
 body.m .chip { font-size: 11px; padding: 4px 6px; }
 body.m .findings { display: none; }
-body.m.interp-open #interp { max-height: 55%; overflow-y: auto; cursor: default; }
-body.m.interp-open #interp::after { content: "▾"; }
+body.m.interp-open #paneEcg { padding-top: var(--interpH, 0px); }
+body.m.interp-open #interp { position: absolute; z-index: 6; top: 0; left: 0; right: 0; max-height: 75%; overflow-y: auto; cursor: default; background: var(--surface); box-shadow: 0 10px 28px rgba(0,0,0,0.45); border-radius: 0 0 12px 12px; }
+body.m.interp-open #interp::after { content: "▴"; }
 body.m.interp-open #rhythm { white-space: normal; }
 body.m.interp-open .chips { flex-wrap: wrap; }
 body.m.interp-open .findings { display: flex; font-size: 13px; }
 
 /* controls: bottom sheet above the tab bar (half height, or full) */
-body.m #controls { position: fixed; z-index: 12; left: 8px; right: 8px; top: auto; bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); width: auto; flex: none; height: auto; max-height: var(--sheetmax, 40vh); margin: 0; box-shadow: 0 -6px 24px rgba(0,0,0,0.3); border-radius: 14px 14px 0 0; border-bottom: 0; background: var(--viewport); backdrop-filter: none; }
+body.m #controls { position: fixed; z-index: 12; left: 8px; right: 8px; top: auto; bottom: calc(var(--tabh) + var(--sa-b)); width: auto; flex: none; height: auto; max-height: var(--sheetmax, 40vh); margin: 0; box-shadow: 0 -6px 24px rgba(0,0,0,0.3); border-radius: 14px 14px 0 0; border-bottom: 0; background: var(--viewport); backdrop-filter: none; }
 body.m #controls.wide { width: auto; }
-body.m.sheet-full #controls { position: fixed; z-index: 12; left: 0; right: 0; margin: 0; max-height: none; top: calc(env(safe-area-inset-top, 0px) + 50px); bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); height: auto; }
+body.m.sheet-full #controls { position: fixed; z-index: 12; left: 0; right: 0; margin: 0; max-height: none; top: calc(var(--sa-t) + 50px); bottom: calc(var(--tabh) + var(--sa-b)); height: auto; }
 body.m #controls .shead { display: flex; align-items: center; gap: 8px; padding: 14px 10px 4px 14px; position: sticky; top: 0; z-index: 1; background: var(--viewport); touch-action: none; }
 .shead .grab { position: absolute; left: 50%; top: 6px; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px; background: rgba(255,255,255,0.28); }
 .stitle { flex: 1; font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); }
@@ -600,7 +602,7 @@ body.m #controls .body { padding-top: 4px; }
 body.m #controls .presets button, body.m .btnrow button { padding: 10px 2px; font-size: 13px; }
 body.m .crow b { font-size: 14px; }
 body.m .crow { padding: 11px 12px; }
-body.m .mtabs { display: flex; flex: none; background: var(--surface); border-top: 1px solid var(--line); padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+body.m .mtabs { display: flex; flex: none; background: var(--surface); border-top: 1px solid var(--line); padding: 0 var(--sa-r) var(--sa-b) var(--sa-l); }
 .mtabs button { flex: 1; height: var(--tabh); padding: 0; border: 0; border-radius: 0; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; color: var(--muted); }
 .mtabs svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .mtabs button[aria-selected="true"] { color: var(--accent); }
@@ -631,9 +633,9 @@ body.m.fs-heart.has-isch .vinfo, body.m.fs-heart.has-isch .mfloat { bottom: 160p
 /* full 12-lead ECG, turned sideways (or upright when the phone is held sideways) */
 body.m.fs-ecg #paneEcg { position: fixed; z-index: 15; left: 50%; top: 50%; width: 100vh; width: 100dvh; height: 100vw; box-sizing: border-box;
   transform: translate(-50%, -50%) rotate(90deg); flex-direction: row; border: 0; border-radius: 0;
-  padding: 0 env(safe-area-inset-bottom, 0px) 0 env(safe-area-inset-top, 0px); }
-body.m.fs-ecg.flip #paneEcg { transform: translate(-50%, -50%) rotate(-90deg); padding: 0 env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
-body.m.fs-ecg.ml #paneEcg { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px); }
+  padding: 0 var(--sa-b) 0 var(--sa-t); }
+body.m.fs-ecg.flip #paneEcg { transform: translate(-50%, -50%) rotate(-90deg); padding: 0 var(--sa-t) 0 var(--sa-b); }
+body.m.fs-ecg.ml #paneEcg { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 var(--sa-r) 0 var(--sa-l); }
 body.m.fs-ecg #interp { order: 0; width: 172px; flex: none; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; max-height: none; overflow-y: auto; padding: 10px; border-top: 0; border-right: 1px solid var(--line); cursor: default; }
 body.m.fs-ecg #interp::after { display: none; }
 body.m.fs-ecg #rhythm { flex: none; font-size: 14px; white-space: normal; }
@@ -667,17 +669,31 @@ body.m.t #pane3d { flex: 0 0 50%; }
 body.m.t #controls, body.m.t.sheet-full #controls { left: 0; right: 0; width: auto; max-width: 680px; margin: 0 auto; }   /* (the control sheet: centred, not edge to edge) */
 body.m.t #cecg { display: block; width: 100%; height: 100%; }
 body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { display: none; }
+/* tablets held sideways (body.t.tl): heart and ECG side by side; the tab bar runs under the heart pane only (fixed, as wide
+   as the pane: --heartR, set by app.js) and its sheets open over the heart; the ECG pane runs to the bottom */
+body.m.tl #split { flex-direction: row; padding: 0 8px 8px; gap: 8px; }
+body.m.tl #pane3d { flex: 0 0 40%; margin-bottom: calc(var(--tabh) + var(--sa-b) - 8px); }
+body.m.tl #paneEcg { flex: 1 1 0; min-width: 0; }
+body.m.tl .mtabs { position: fixed; z-index: 11; left: 0; bottom: 0; width: var(--heartR, 50%); box-sizing: border-box; border-right: 1px solid var(--line); }
+body.m.tl #controls, body.m.tl.sheet-full #controls { left: 8px; right: auto; width: calc(var(--heartR, 50%) - 22px); max-width: none; margin: 0; }
+body.m.tl.sheet-full #controls { top: calc(var(--sa-t) + 50px); }
+body.m.tl.fs-ecg #paneEcg { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 var(--sa-r) 0 var(--sa-l); }
+body.m.tl.fs-ecg #fsFlip { display: none; }
 /* tablets held upright: heart above, ECG below */
 @media (min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (min-height: 501px) {
   #split { flex-direction: column; }
   #divider { flex: 0 0 12px; cursor: row-resize; }
   #divider::after { width: 44px; height: 4px; }
 }
+/* the screen's safe areas (notch, home bar), as variables: zero in the app, whose shell already keeps its frames clear of
+   them (iOS would give a frame the whole screen's insets again: a second gap, and the module tabs hidden) */
+:root { --sa-t: env(safe-area-inset-top, 0px); --sa-b: env(safe-area-inset-bottom, 0px); --sa-l: env(safe-area-inset-left, 0px); --sa-r: env(safe-area-inset-right, 0px); }
+html.inapp { --sa-t: 0px; --sa-b: 0px; --sa-l: 0px; --sa-r: 0px; }
 /* In the app (html.inapp, src/inapp.js): the app shell draws the module tabs over the left of the header, which
    turns dark (the app's chrome); the brand and Get the app (already in the app) are hidden. */
 html.inapp header.top { --bg: #0b131a; --surface: #1b2834; --fg: #e3eaf0; --muted: #93a3b1; --line: #33434f; --accent: #ef5b7a; --accent-fg: #160a0d;
   background: var(--bg); color: var(--fg); color-scheme: dark; min-height: 50px; box-sizing: border-box; padding-left: var(--tabs-w, 12px); }
-html.inapp body:not(.m) header.top { margin: -10px calc(-1 * max(16px, env(safe-area-inset-right, 0px))) 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-right: 16px; }
+html.inapp body:not(.m) header.top { margin: -10px calc(-1 * max(16px, var(--sa-r))) 0 calc(-1 * max(16px, var(--sa-l))); padding-right: 16px; }
 html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !important; }
 </style>
 
@@ -686,7 +702,9 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
 // (inside #app: the body exists by now) phone layout from the first paint (app.js setMode() repeats this once the page has loaded, and moves the controls):
 // without it the desktop layout shows while the large scripts below are parsed
 (function () { var p = matchMedia('(max-width: 743px) and (orientation: portrait)').matches, l = matchMedia('(max-height: 500px) and (orientation: landscape) and (pointer: coarse)').matches;
-  if (p || l) { document.body.classList.add('m'); document.documentElement.dataset.theme = 'dark'; } if (l && !p) document.body.classList.add('ml'); })();   // (phones: dark only, as the app)
+  var t = matchMedia('(min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (pointer: coarse)').matches, tl = matchMedia('(min-width: 900px) and (max-width: 1400px) and (min-height: 501px) and (orientation: landscape) and (pointer: coarse)').matches;
+  if (p || l || t || tl) { document.body.classList.add('m'); document.documentElement.dataset.theme = 'dark'; } if (l && !p) document.body.classList.add('ml');
+  if (t || tl) document.body.classList.add('t'); if (tl) document.body.classList.add('tl'); })();   // (phones: dark only, as the app)
 </script>
   <header class="top">
     <div class="brand"><svg class="logo" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -951,7 +969,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-25 (71f12fd).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (431f044).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -982,7 +1000,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
             <li>On the heart: tap an atrium or ventricle for an ectopic beat; three quick taps start flutter (atria) or VT (ventricles), four start AF or VF.</li>
           </ul>
         </li>
-        <li><b>Blocks:</b> opens the cut view. Tap the conduction system to cycle through its blocks; the AV node and His bundle open the AV node and His–Purkinje sliders.</li>
+        <li><b>Blocks:</b> opens the cut view. Tap the conduction system to cycle through its blocks; the SA node, AV node and His bundle open the SA node, AV node and His–Purkinje sliders.</li>
         <li><b>View:</b> External ↔ Cut slider, the Anterior / 4-chamber / Lateral / Apex views, and the Labels, Leads and Legend switches.</li>
         <li><b>Ischemia:</b> opens the outside view. From any tab, tap a coronary artery to narrow it (partial flow: ST depression and T changes) or double-tap to occlude it; taps elsewhere on the heart still give ectopic beats. Each region (for example proximal, mid or distal LAD) holds one marker, and one tap on it removes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
         <li><b>Conditions:</b> add or remove chronic and acute heart conditions.</li>
@@ -996,7 +1014,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-25 (71f12fd).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (431f044).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -2355,6 +2373,11 @@ THE SOFTWARE.
     vtCl: 330,
     tdpCl: 230, tdpSteps: 16,   // torsades: cycle length (ms, ±8%) and beats per full turn of the axis
     vfFoci: 12, vfClMin: 140, vfClMax: 240,
+    // VF as scattered wavelets (the author, 2026-11-28: VF looked like torsades): 6 random spots of ventricular muscle every
+    // 10–30 ms, only recovered patches responding, and a patchwork of refractoriness (vfApdHet: each cell's APD 0–20% longer,
+    // see _activate) that keeps the wavelets from settling into one rotor. On the app's heart (layered walls): 327–363/min,
+    // 19–23 mm in II, never organised over 20 s (four runs), the same computing as the 12 fixed foci it replaces (vfScatter 0)
+    vfScatter: 1, vfScatterMin: 10, vfScatterMax: 30, vfScatterN: 6, vfApdHet: 0.2, vfApdMin: 120, vfEcgGain: 0.35,
     adenosineDelay: 1000, adenosineBlock: 3000, shockRefractory: 160,
 
     // Accessory pathway (see Sim.setAccessoryPathway)
@@ -4653,7 +4676,13 @@ THE SOFTWARE.
         }
         this.drivers.push({ kind: 'tdp', cells: path, i: 0, next: this.t, cl: () => P.tdpCl * (0.92 + 0.16 * r()) });
       } else if (type === 'vf') {
-        for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
+        if (P.vfScatter) {
+          // (scattered wavelets: each stimulus at a new random spot in the ventricular muscle, every vfScatterMin–Max ms; only
+          // patches that have just recovered respond, so the wavelets are small, many and colliding, with no fixed source)
+          const cells = []; for (let c = 0; c < M.nVox; c++) if (vent(c)) cells.push(c);
+          this._vfHet = null;   // (a new patchwork for each episode)
+          this.drivers.push({ kind: 'scatter', cells, next: this.t, cl: rand(P.vfScatterMin, P.vfScatterMax) });
+        } else for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
       } else throw new Error('unknown arrhythmia ' + type);
       this.arrhythmia = { type, t: this.t, cell: opts.cell, clockwise: !!opts.clockwise };
       this.rhythmChangedAt = this.t;
@@ -4735,9 +4764,10 @@ THE SOFTWARE.
           continue;
         }
         if (t >= d.next) {
-          const c = d.kind === 'rotate' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.kind === 'tdp' ? d.cells[d.i++ % d.cells.length] : d.cell;
+          const c = d.kind === 'rotate' || d.kind === 'scatter' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.kind === 'tdp' ? d.cells[d.i++ % d.cells.length] : d.cell;
           if (d.kind === 'rotate') { this.fireLog.push({ name: 'focus', t, cell: c }); if (this.fireLog.length > 40) this.fireLog.shift(); }   // (which MAT focus fired: read by the training generator)
           if (t >= this.refEnd[c] && !this.blocked[c]) this.schedule(c, t);
+          if (d.kind === 'scatter') for (let k = 1; k < this.P.vfScatterN; k++) { const q = d.cells[Math.floor(this.rand() * d.cells.length)]; if (t >= this.refEnd[q] && !this.blocked[q]) this.schedule(q, t); }
           d.next = t + d.cl();
         }
       }
@@ -4796,6 +4826,17 @@ THE SOFTWARE.
       // diastolic interval since previous repolarisation
       const DI = ta - this.repEnd[c];
       let apd = this.apdMax[c] * (1 - P.restA * Math.exp(-Math.max(DI, 0) / P.restTau));
+      // (VF: a fixed patchwork of refractoriness, each ventricular cell's APD 0–vfApdHet longer, drawn when VF starts: it keeps
+      // breaking the wavefronts, as in real VF; without it the scattered wavelets could settle within seconds into one stable
+      // rotor, a regular VT-like wave. Longer only: shorter APDs leave the ECG's fast plateau sums (16× the cells summed one
+      // by one, 2.6× the time). 0.4 slowed it to ~175/min and ~3 mm on the app's heart; 0.2 keeps ~350/min)
+      if (P.vfApdHet && c < this.M.nVox && this.arrhythmia && this.arrhythmia.type === 'vf' && this.M.kind[c] === KIND.VENT) {
+        if (!this._vfHet) { this._vfHet = new Float32Array(this.M.nVox); for (let q = 0; q < this.M.nVox; q++) this._vfHet[q] = 1 + P.vfApdHet * this.rand(); }
+        apd *= this._vfHet[c];
+        // (and no shorter than vfApdMin: the scattered stimuli otherwise drove some episodes into a degenerate state, every
+        // patch re-firing the moment it recovered, its APD collapsing: ~600/min, ~3 mm, twice the computing)
+        if (apd < P.vfApdMin) apd = P.vfApdMin;
+      }
       // atrial refractoriness floor at the fastest rates; in flutter the circuit
       // turns with an excitable gap at ~200 ms (≈300/min), not at the refractory limit of AF
       // (the left atrium, driven passively, keeps its own floor: at the flutter floor it could not follow
@@ -5204,6 +5245,13 @@ THE SOFTWARE.
         if (this._hpReset) { hx.set(L); this._hpReset = false; }   // absorb the step when ischaemia changes
         for (let k = 0; k < 12; k++) { const y = a * (hy[k] + L[k] - hx[k]); hx[k] = L[k]; hy[k] = y; L[k] = y; }
       }
+      // VF: a smaller ECG (the author, 2026-11-28: "the amplitude should be much lower"). Real VF is mostly 3–10 mm: its
+      // wavelets are far smaller than this model's and cancel more, and the ischaemic ventricles' action potentials shrink
+      // within the first minute. The leads are scaled by vfEcgGain while VF runs, easing in and out over ~0.5 s
+      const gT = this.arrhythmia && this.arrhythmia.type === 'vf' ? this.P.vfEcgGain : 1;
+      if (this._vfG === undefined) this._vfG = 1;
+      if (this._vfG !== gT) { this._vfG += (gT - this._vfG) / 500; if (Math.abs(this._vfG - gT) < 1e-4) this._vfG = gT; }
+      if (this._vfG !== 1) for (let k = 0; k < 12; k++) L[k] *= this._vfG;
       for (const f of this.listeners) f(t, L);
     }
 
@@ -5730,12 +5778,16 @@ THE SOFTWARE.
     // two-pane framing: the vertical field of view widens instead of cropping the sides
     const FIT = 0.85;
     g3.camera.fov = w / h < FIT ? 2 * Math.atan(Math.tan(16 * Math.PI / 180) * FIT / (w / h)) * 180 / Math.PI : 32;
-    // keep the heart clear of the floating control panel
-    // keep the heart clear of the tab row above and the view bar below: the view
-    // is shifted down by the difference of the two insets
-    const panel = $('controls'), shift = panel.classList.contains('collapsed') || w < 560 ? 0 : Math.min(130, panel.offsetWidth / 2);
-    const vb = parseFloat(getComputedStyle(el).getPropertyValue('--vb')) || 44, down = Math.round(0.06 * h + (vb - 44) / 2);
-    g3.camera.setViewOffset(w, h, -shift, -down, w, h);
+    // (the heart no longer moves aside when the control panel opens: it jumped each time a menu opened or closed on larger
+    // screens; the panel covers it instead (the author, 2026-11-27))
+    // centre the heart in the space between the tab row above and the view bar below, measured (it was shifted down by 6% of
+    // the pane's height: in the tall, narrow pane of a tablet held sideways the heart sat low, the author 2026-11-28); on
+    // phones and upright tablets neither bar is in the pane, and the heart is centred in it
+    const pr = el.getBoundingClientRect(), tb = $('tabs'), vbar = el.querySelector('.viewbar');
+    const top = tb && tb.offsetHeight ? Math.max(0, tb.getBoundingClientRect().bottom - pr.top) : 0;
+    const bot = vbar && vbar.offsetHeight ? Math.max(0, pr.bottom - vbar.getBoundingClientRect().top) : 0;
+    const down = Math.round((top - bot) / 2);
+    g3.camera.setViewOffset(w, h, 0, -down, w, h);
     g3.camera.updateProjectionMatrix();
   }
 
@@ -6235,6 +6287,10 @@ THE SOFTWARE.
       chest: { world: [0, 0, 1], p: g3.lvCenter, up: [0, 1, 0], dist: 395 },          // true anterior: from the front of the chest, head up (frontal plane faces the viewer)
       lateral: { world: [1, 0.05, 0.1], p: g3.lvCenter, up: [0, 1, 0], dist: 375 },   // from the patient's left
       short: { n: saN, p: saP, up: [0, 0, 1], dist: 330 },
+      // the LAD face-on (the tutorial's "tap the LAD", the author 2026-11-27): from the front of the chest the LAD runs down the
+      // heart's left border, at a glancing angle; turned 50° toward the patient's left and 10° from above it runs down the
+      // middle (97% of it can be tapped, 68% from the front)
+      lad: { world: [0.75, 0.17, 0.63], up: [0, 1, 0], dist: 395 },
     };
     // Cut face by stencil capping. Every surface (which together bound the
     // heart wall as one closed solid) is drawn into the stencil buffer only:
@@ -6824,7 +6880,14 @@ THE SOFTWARE.
     return ui.esc.v > 40 ? 'accelerated idioventricular rhythm' : 'ventricular escape rhythm';
   }
   // a tap on the AV node or His bundle: the sliders (Blocks panel; phones: the sheet), instead of a list or cycling
+  // phones and tablets: the conduction sliders stay hidden in the Blocks sheet until the SA or AV node is tapped (the
+  // author, 2026-11-27), or while an SA, AV or His block is on (to change or undo it); the desktop panel always has them
+  function syncAvVisible() {
+    const show = !isM() || ui.avShown || !!(S.blocks.SAN || S.blocks.AVN || S.blocks.HIS);
+    if ($('avCtl').hidden === show) $('avCtl').hidden = !show;
+  }
   function showAvSliders(x, y) {
+    ui.avShown = true; syncAvVisible();
     if (isM()) openSheet('blocks'); else if (INAPP) setTab('blocks', false, true); else autoTab('blocks');
     const el = $('avCtl'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
     if (x !== undefined) flash(x, y, 'Conduction: use the sliders');
@@ -6838,7 +6901,7 @@ THE SOFTWARE.
   }
 
   function renderBlockList() {
-    markChange(); updateBadges(); emit('blocks'); syncAvSliders(); drawBlockChips(); syncEscapeCtl();
+    markChange(); updateBadges(); emit('blocks'); syncAvSliders(); drawBlockChips(); syncEscapeCtl(); syncAvVisible();
   }
   // the Active blocks list (also redrawn when a graded AV block's reading changes, without restarting the reading)
   // (the AV node and His–Purkinje make one entry, "AV block: <the degree it is producing>", and its × clears both)
@@ -6899,7 +6962,7 @@ THE SOFTWARE.
   }
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
-    blocks: 'Tap the conduction system to cycle through blocks; the AV node and His bundle open the sliders below.',
+    blocks: 'Tap the conduction system to cycle through blocks; the SA node, AV node and His bundle open the sliders below.',
     ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marker again to remove it.',
   };
 
@@ -8348,7 +8411,10 @@ body.only .chips { margin-top: 0; }
     const size = shown ? { w: wrap.clientWidth, h: wrap.clientHeight, dpr: Math.max(2, Math.min(3, window.devicePixelRatio || 1)) } : { w: 1100, h: 540, dpr: 2 };
     const keep = { canvas: ecg.canvas, ctx: ecg.ctx, grid: ecg.grid, mm: ecg.mm, W: ecg.W, H: ecg.H, ox: ecg.ox, oy: ecg.oy, lastCursor: ecg.lastCursor, buf: ecg.buf }, keepP = Object.assign({}, PAPER);
     // the ring buffer rotated so index 0 is the oldest sample (the newest is at the sweep's cursor)
-    const cur = Math.floor((S.t + ecg.t0) % PAGE), rot = ecg.buf.map((b) => { const r = new Float32Array(PAGE); for (let i = 0; i < PAGE; i++) r[i] = b[(cur + 1 + i) % PAGE]; return r; });
+    // (the last 10 s in order, oldest first; a page not yet full (under 10 s since a reset or a new scenario) is drawn from the
+    // left as on screen: rotated, its blank start pushed the trace to the right edge (the ECG library's VF image))
+    const cur = Math.floor((S.t + ecg.t0) % PAGE), full = !Number.isNaN(ecg.buf[0][(cur + 1) % PAGE]);
+    const rot = ecg.buf.map((b) => { const r = new Float32Array(PAGE); for (let i = 0; i < PAGE; i++) r[i] = full ? b[(cur + 1 + i) % PAGE] : (i <= cur ? b[i] : NaN); return r; });
     const cv = document.createElement('canvas');
     Object.assign(ecg, { canvas: cv, ctx: cv.getContext('2d'), grid: document.createElement('canvas'), buf: rot, export: true });
     try { resizeECG(size); ecg.full = true; drawECG(); }
@@ -8399,6 +8465,10 @@ body.only .chips { margin-top: 0; }
   // rhythm strip in the ECG pane instead of one lead group (body.t). Narrower tablets (7") keep the phone's lead groups;
   // tablets held sideways get the desktop layout.
   const MQ_TAB = matchMedia('(min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (pointer: coarse)');
+  // touch tablets held sideways (body.t.tl; taller than a phone, up to the 12.9" iPad Pro): the same touch layout, heart and
+  // ECG side by side, the tab bar and its sheets under and over the heart (the author, 2026-11-28: the desktop layout
+  // wrapped and scrolled sideways on an iPad mini)
+  const MQ_TABL = matchMedia('(min-width: 900px) and (max-width: 1400px) and (min-height: 501px) and (orientation: landscape) and (pointer: coarse)');
   const isT = () => document.body.classList.contains('t');
   const isM = () => document.body.classList.contains('m');
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
@@ -8408,8 +8478,9 @@ body.only .chips { margin-top: 0; }
   const buzz = (ms = 10) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
 
   function setMode() {
-    const b = document.body, was = isM(), tab = MQ_TAB.matches, m = MQ_PORT.matches || MQ_LAND.matches || tab;
-    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab);
+    const b = document.body, was = isM(), tl = MQ_TABL.matches, tab = MQ_TAB.matches || tl, m = MQ_PORT.matches || MQ_LAND.matches || tab;
+    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab); b.classList.toggle('tl', tl);
+    if (S) syncAvVisible();   // (turned sideways: the desktop layout, sliders shown)
     // phones (website and app): dark only, as the app; desktop follows the system setting
     if (m) document.documentElement.dataset.theme = 'dark'; else if (!INAPP) delete document.documentElement.dataset.theme;
     const ctl = $('controls');
@@ -8498,6 +8569,7 @@ body.only .chips { margin-top: 0; }
         g3.planeDirty = true;
       },
       outside() { setCut(0); cameraPreset('chest'); },
+      ladView() { setCut(0); cutPreset('lad'); },
       cut4() { setCut(100); cameraPreset('front'); },
       group(i) { if (isM()) { setGroup(i); drawPhone(); } },
       reset() { $('btnReset').click(); setPaused(false); if (isM()) { setGroup(0); drawPhone(); } },
@@ -8555,6 +8627,13 @@ body.only .chips { margin-top: 0; }
   function setSheetFull(f) { document.body.classList.toggle('sheet-full', f); }
   function sizeSheet() {
     if (!isM()) return;
+    // (tablets held sideways: the tab bar and the sheets span the heart pane only; the sheet may rise to the pane's top)
+    if (document.body.classList.contains('tl')) {
+      const r = $('pane3d').getBoundingClientRect(), tabs = $('mTabs').getBoundingClientRect().top;
+      document.body.style.setProperty('--heartR', `${Math.round(r.right + 6)}px`);
+      document.body.style.setProperty('--sheetmax', `${Math.max(160, Math.round(tabs - r.top))}px`);
+      return;
+    }
     const tabs = $('mTabs').getBoundingClientRect().top, b = document.body.classList;
     const top = b.contains('fs-heart') ? (() => { const r = $('pane3d').getBoundingClientRect(); return r.top + 0.55 * r.height; })() : $('paneEcg').getBoundingClientRect().top;
     document.body.style.setProperty('--sheetmax', `${Math.max(160, Math.round(tabs - top))}px`);
@@ -8562,7 +8641,8 @@ body.only .chips { margin-top: 0; }
   function openSheet(tab) {
     const was = sheetOpen();
     setTab(tab);
-    if (!was) openLayer('sheet', () => { toggleControls(false); setSheetFull(false); });
+    syncAvVisible();
+    if (!was) openLayer('sheet', () => { toggleControls(false); setSheetFull(false); ui.avShown = false; syncAvVisible(); });
   }
 
   function setPaused(p) {
@@ -8996,7 +9076,7 @@ body.only .chips { margin-top: 0; }
   }
 
   function initPhone() {
-    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode); MQ_TAB.addEventListener('change', setMode);
+    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode); MQ_TAB.addEventListener('change', setMode); MQ_TABL.addEventListener('change', setMode);
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
     initTouch(); initEcgTouch(); initSheet(); initAlpha();
@@ -9057,8 +9137,12 @@ body.only .chips { margin-top: 0; }
     $('interp').addEventListener('click', (e) => {
       if (!isM() || document.body.classList.contains('fs-ecg') || e.target.closest('button')) return;
       if (hasLayer('interp')) closeLayer('interp');
-      else { document.body.classList.add('interp-open'); openLayer('interp', () => document.body.classList.remove('interp-open')); }
+      // (opened, the reading drops down over the ECG as a panel; the ECG keeps its size and place: the pane keeps the closed
+      // reading's height at its top. It grew into the ECG before, squeezing the strips (the author, 2026-11-28))
+      else { $('paneEcg').style.setProperty('--interpH', `${$('interp').offsetHeight}px`); document.body.classList.add('interp-open'); openLayer('interp', () => document.body.classList.remove('interp-open')); }
     });
+    // (a tap outside the open reading closes it)
+    document.addEventListener('pointerdown', (e) => { if (hasLayer('interp') && !$('interp').contains(e.target)) closeLayer('interp'); }, true);
     $('mDots').innerHTML = GROUPS.map((g, i) => `<button type="button" role="tab" aria-label="${g.join(', ')}" aria-selected="${i === ph.group}"></button>`).join('');
     [...$('mDots').children].forEach((d, i) => d.addEventListener('click', () => { if (i !== ph.group && ph.peek === null) { const f = (i - ph.group + GROUPS.length) % GROUPS.length; if (f === 1 || f === GROUPS.length - 1) slideGroup(f === 1 ? 1 : -1); else setGroup(i); } }));
     $('mSecs').addEventListener('click', () => {
@@ -9310,8 +9394,10 @@ body.only .chips { margin-top: 0; }
     ring.classList.toggle('nodim', !!(t && t.noDim));   // (the rest stays bright and usable, e.g. the ECG to swipe)   // (a hole only: the shell rings its own tab)
     let ty = null;
     if (t && t.rect) {
-      const p = t.pad === undefined ? 4 : t.pad, r = t.rect;
-      Object.assign(ring.style, { left: `${r.left - p}px`, top: `${r.top - p}px`, width: `${r.width + 2 * p}px`, height: `${r.height + 2 * p}px` });
+      // (kept on the screen: a full-width panel at the bottom, as Training's keyboard and result, has its ring inside the edges)
+      const p = t.pad === undefined ? 4 : t.pad, r = t.rect, m = 2;
+      const L = Math.max(m, r.left - p), T = Math.max(m, r.top - p), Rt = Math.min(innerWidth - m, r.left + r.width + p), B = Math.min(H - m, r.top + r.height + p);
+      Object.assign(ring.style, { left: `${L}px`, top: `${T}px`, width: `${Math.max(0, Rt - L)}px`, height: `${Math.max(0, B - T)}px` });
       ring.classList.add('rect'); ty = r.top + r.height / 2;
     } else if (t) {
       const r = t.r || 26;
@@ -9324,8 +9410,8 @@ body.only .chips { margin-top: 0; }
     let where = view.modal || ty === null ? (view.where || 'center') : view.where || (ty > H * 0.45 ? 'top' : 'bottom');
     if (wide && tx !== null && where !== 'center') where = 'top';
     c.classList.toggle('center', where === 'center');
-    c.style.top = where === 'top' ? 'calc(env(safe-area-inset-top, 0px) + 58px)' : '';
-    c.style.bottom = where === 'bottom' ? 'calc(env(safe-area-inset-bottom, 0px) + 12px)' : '';
+    c.style.top = where === 'top' ? 'calc(var(--sa-t, env(safe-area-inset-top, 0px)) + 58px)' : '';
+    c.style.bottom = where === 'bottom' ? 'calc(var(--sa-b, env(safe-area-inset-bottom, 0px)) + 12px)' : '';
     const side = wide && tx !== null && where !== 'center' ? (tx < innerWidth / 2 ? 'right' : 'left') : '';
     c.style.left = side === 'right' ? '52%' : ''; c.style.right = side === 'left' ? '52%' : '';
   }
@@ -9418,7 +9504,7 @@ body.only .chips { margin-top: 0; }
       })(),
       (() => {
         let shown = false; const spot = dirSpot(() => T.arterySpot());
-        return { n: n(4), enter() { shown = false; T.closeAll(); T.outside(); T.group(0); },
+        return { n: n(4), enter() { shown = false; T.closeAll(); if (T.ladView) T.ladView(); else T.outside(); T.group(0); },
           view() {
             const ins = sim().insults, occ = ins.some((v) => v.kind === 'occlusion'), narrow = ins.some((v) => v.stenosis);
             if (occ) {

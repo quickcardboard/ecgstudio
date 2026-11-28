@@ -1,8 +1,12 @@
 """Assemble the single-file app: src/template.html + Three.js + engine + app + anatomy -> index.html,
 Training -> app/training.html (ecgstudio.app/training is the app's page: tools/learn_pages.py), and the app shell (src/shell.html) -> app/index.html (a preview that frames the two
 pages above). `--app` also writes app/www/ for the native app (the shell and both pages side by side, with local fonts;
-not in git; needs `npm install` in app/ first). Then `cd app && npx cap sync android`."""
+not in git; needs `npm install` in app/ first). Then `cd app && npx cap sync android` (or `ios`).
+`--app-only` (app/'s `npm run build`) writes app/www/ and nothing else: the website's files (index.html, ecg/, app/,
+the variants) stay as they are, so building the app (on the Mac, say) leaves no changes in git."""
 import datetime, html as htmlmod, json, pathlib, shutil, subprocess, sys
+APP_ONLY = '--app-only' in sys.argv
+APP = APP_ONLY or '--app' in sys.argv
 root = pathlib.Path(__file__).resolve().parent.parent
 src = root / 'src'
 html = (src / 'template.html').read_text()
@@ -53,12 +57,13 @@ html = html.replace('/*__APP__*/', (src / 'app.js').read_text(), 1)
 tour = (src / 'tutorial.js').read_text()   # (the interactive tutorial: the simulator's steps and Training's)
 assert '</script' not in tour
 html = html.replace('/*__TOUR__*/', tour, 1)
-(root / 'index.html').write_text(html)
-print('index.html', round(len(html.encode()) / 1e6, 2), 'MB')
-# ECG library (ecgstudio.app/ecg/), sitemap.xml and llms.txt: tools/learn_pages.py (images: tools/seo_shots.js)
-sys.path.insert(0, str(root / "tools")); sys.dont_write_bytecode = True
-import learn_pages
-learn_pages.build(root, LOGO_INLINE, site['author'], site.get('contactForm', ''))
+if not APP_ONLY:
+    (root / 'index.html').write_text(html)
+    print('index.html', round(len(html.encode()) / 1e6, 2), 'MB')
+    # ECG library (ecgstudio.app/ecg/), sitemap.xml and llms.txt: tools/learn_pages.py (images: tools/seo_shots.js)
+    sys.path.insert(0, str(root / "tools")); sys.dont_write_bytecode = True
+    import learn_pages
+    learn_pages.build(root, LOGO_INLINE, site['author'], site.get('contactForm', ''))
 
 # Training: src/training.html + training.js + the vocabulary, and a background worker that generates the ECGs live
 # (engine + blind readers + src/training_gen.js) -> app/training.html, framed by the /app preview and copied into the
@@ -105,9 +110,10 @@ for key, text in (('/*__INAPP__*/', inapp), ('/*__VOCAB__*/', json.dumps((src / 
                   ('/*__TRAIN__*/', (src / 'training.js').read_text()), ('/*__TOUR__*/', tour)):
     assert '</script' not in text
     t = t.replace(key, text, 1)
-(root / 'app').mkdir(exist_ok=True)
-(root / 'app' / 'training.html').write_text(t)
-print('app/training.html', round(len(t.encode()) / 1e6, 2), 'MB')
+if not APP_ONLY:
+    (root / 'app').mkdir(exist_ok=True)
+    (root / 'app' / 'training.html').write_text(t)
+    print('app/training.html', round(len(t.encode()) / 1e6, 2), 'MB')
 
 # The app shell (src/shell.html): one frame per module and the module tabs. app/index.html frames the website's
 # pages (../index.html, app/training.html) as a preview; --app writes app/www/ for Capacitor.
@@ -115,10 +121,11 @@ version = datetime.date.today().isoformat() + (f' ({rev})' if rev else '')
 def shell(urls):
     h = with_logo((src / 'shell.html').read_text()).replace('{{AUTHOR}}', htmlmod.escape(site['author'])).replace('{{VERSION}}', version)
     return h.replace('/*__URLS__*/', json.dumps(urls), 1)
-(root / 'app').mkdir(exist_ok=True)
-(root / 'app' / 'index.html').write_text(shell({'simulator': '../index.html?app', 'training': 'training.html?app'}))
-print('app/index.html (preview)')
-if '--app' in sys.argv:
+if not APP_ONLY:
+    (root / 'app').mkdir(exist_ok=True)
+    (root / 'app' / 'index.html').write_text(shell({'simulator': '../index.html?app', 'training': 'training.html?app'}))
+    print('app/index.html (preview)')
+if APP:
     www = root / 'app' / 'www'
     www.mkdir(parents=True, exist_ok=True)
     (www / 'index.html').write_text(shell({'simulator': 'simulator.html?app', 'training': 'training.html?app'}))
@@ -142,15 +149,15 @@ if '--app' in sys.argv:
         assert n == 1
         return h
     (www / 'index.html').write_text(offline((www / 'index.html').read_text()))
-    (www / 'simulator.html').write_text(offline((root / 'index.html').read_text()))
-    (www / 'training.html').write_text(offline((root / 'app' / 'training.html').read_text()))   # (the Training page itself, not the website's /training app page)
+    (www / 'simulator.html').write_text(offline(html))
+    (www / 'training.html').write_text(offline(t))   # (the Training page itself, not the website's /training app page)
     print('app/www/', sorted(p.name for p in www.iterdir()))
 
 # Variants (src/variants/*.json): a preview of other engine defaults at ecgstudio.app/<dir>/ — the app shell with its own
 # simulator and Training pages, built from the same sources with the variant's parameters (assigned to the engine's
 # DEFAULTS right after the engine is defined, in the pages and in Training's worker) and its own torso field.
 engine_src = (src / 'engine.js').read_text()
-for vf in sorted((src / 'variants').glob('*.json')) if (src / 'variants').is_dir() else []:
+for vf in sorted((src / 'variants').glob('*.json')) if (src / 'variants').is_dir() and not APP_ONLY else []:
     v = json.loads(vf.read_text())
     if 'dir' not in v: continue
     patch = ('\n;(function () { var E = (typeof window !== "undefined" ? window : globalThis).ECGStudio; if (E) Object.assign(E.DEFAULTS, '

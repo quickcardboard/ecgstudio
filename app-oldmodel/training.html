@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-25 (71f12fd)">
+<meta name="version" content="2026-11-28 (431f044)">
 <meta name="premium" content="1">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -219,17 +219,17 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
    dvh taller than the screen, which put the keyboard's bottom row under the home bar. The bottom areas (keyboard,
    result, region, pages) each keep clear of the home bar themselves, so #app adds no bottom padding.) */
 #app { position: fixed; top: 0; bottom: 0; left: 0; right: 0; max-width: 440px; margin: 0 auto; background: var(--bg); display: flex; flex-direction: column;
-  padding: env(safe-area-inset-top, 0px) 0 0; box-sizing: border-box; overflow: hidden; }
+  padding: var(--sa-t) 0 0; box-sizing: border-box; overflow: hidden; }
 header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; min-height: 36px; }
 #menuBtn, #homeMenuBtn { font-size: 18px; line-height: 1; padding: 6px 10px; border-radius: 999px; background: var(--surface); }
-.menu { position: absolute; z-index: 25; top: calc(env(safe-area-inset-top, 0px) + 48px); right: 10px; min-width: 210px; background: var(--raised); border: 1px solid #33434f; border-radius: 10px; padding: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
+.menu { position: absolute; z-index: 25; top: calc(var(--sa-t) + 48px); right: 10px; min-width: 210px; background: var(--raised); border: 1px solid #33434f; border-radius: 10px; padding: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
 .menu button, .menu a { all: unset; display: block; padding: 12px 12px; border-radius: 6px; font-size: 15px; cursor: pointer; color: var(--fg); }
 .menu button:active, .menu a:active { background: rgba(255,255,255,0.08); }
 .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
-.page { position: absolute; inset: 0; z-index: 24; background: var(--bg); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
+.page { position: absolute; inset: 0; z-index: 24; background: var(--bg); display: flex; flex-direction: column; padding-top: var(--sa-t); }
 .page .phead { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .page .phead h2 { margin: 0; font: 600 18px/1 var(--font-display); }
-.page .pbody { flex: 1; overflow-y: auto; padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 30px); -webkit-user-select: text; user-select: text; }
+.page .pbody { flex: 1; overflow-y: auto; padding: 14px 16px calc(var(--sa-b) + 30px); -webkit-user-select: text; user-select: text; }
 .page .pbody h3 { font: 600 13px/1.2 var(--font-ui); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 18px 0 8px; }
 .page .pbody p, .page .pbody li { line-height: 1.5; color: #c9d3dc; }
 .page .pbody ul { padding-left: 18px; margin: 6px 0; }
@@ -294,6 +294,10 @@ body.locked .hskills button b { margin-right: auto; }
 .hspace { flex: 1; }
 header h1 { margin: 0; font: 600 18px/1 var(--font-display); letter-spacing: 0.01em; flex: 1; }
 header h1 span { color: var(--accent); }
+/* the screen's safe areas (notch, home bar), as variables: zero in the app, whose shell already keeps its frames clear of
+   them (iOS would give a frame the whole screen's insets again: a second gap, and the module tabs hidden) */
+:root { --sa-t: env(safe-area-inset-top, 0px); --sa-b: env(safe-area-inset-bottom, 0px); --sa-l: env(safe-area-inset-left, 0px); --sa-r: env(safe-area-inset-right, 0px); }
+html.inapp { --sa-t: 0px; --sa-b: 0px; --sa-l: 0px; --sa-r: 0px; }
 /* In the app (html.inapp, src/inapp.js): the app shell draws the module tabs over the left of the header (and of the
    pages' headers); the way back to the simulator and the page title are the tabs' job */
 html.inapp header, html.inapp .app-bar { min-height: 50px; box-sizing: border-box; padding-top: 0; padding-bottom: 0; padding-left: var(--tabs-w, 12px); }
@@ -384,7 +388,7 @@ html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href]:not(.con
 
 /* in-app keyboard: QWERTY across the full width, Add (the first suggestion) and delete beside z–m,
    a space bar below */
-#kbd { display: flex; flex-direction: column; gap: 7px; padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 16px); background: #0f1922; border-top: 1px solid var(--line); }
+#kbd { display: flex; flex-direction: column; gap: 7px; padding: 6px 4px calc(var(--sa-b) + 16px); background: #0f1922; border-top: 1px solid var(--line); }
 #kbd .row { display: flex; gap: 5px; }
 #kbd button { flex: 1 1 0; min-width: 0; height: 56px; padding: 0; border-radius: 6px; background: var(--key); border-color: #2f3f4e; font: 500 19px/1 var(--font-ui); text-transform: lowercase; }
 #kbd button:active, #kbd button.down { background: #3a4d5f; }
@@ -395,7 +399,7 @@ html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href]:not(.con
 #kbd .gap { flex: 7 1 0; }
 
 /* region mode: pick the lead groups of a finding */
-#region { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 10px); overflow-y: auto; background: #0f1922; border-top: 1px solid var(--line); }
+#region { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px calc(var(--sa-b) + 10px); overflow-y: auto; background: #0f1922; border-top: 1px solid var(--line); }
 #region .title { font-size: 14px; }
 #region .title b { font-weight: 600; }
 #region .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -409,7 +413,7 @@ html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href]:not(.con
 /* result */
 #bottom { flex: none; display: flex; flex-direction: column; min-height: 0; }
 #bottom > #result, #bottom > #region { flex: 1 1 auto; min-height: 0; }
-#result { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px); }
+#result { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px calc(var(--sa-b) + 8px); }
 #result .rscroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; margin: -4px; }   /* (room for the selected chip's outline: a scrolling box clips what is drawn past its edge) */
 .scorebar { display: flex; align-items: center; gap: 10px; }
 .scorebar .bar { flex: 1; height: 10px; border-radius: 5px; background: var(--key); overflow: hidden; }
@@ -478,7 +482,7 @@ body.tabl #suggest button:nth-of-type(n+7) { display: none; }   /* (the best six
 body.tabl #fieldRow { order: 3; margin: 0; }
 body.tabl #field { height: 48px; font-size: 17px; }
 body.tabl #fieldRow #submit { height: 48px; padding: 0 20px; }
-body.tabl #kbd { margin-top: 0; padding: 10px 10px calc(env(safe-area-inset-bottom, 0px) + 12px); gap: 8px; }
+body.tabl #kbd { margin-top: 0; padding: 10px 10px calc(var(--sa-b) + 12px); gap: 8px; }
 body.tabl #kbd .row { gap: 6px; }
 body.tabl #kbd button { height: 54px; font-size: 20px; border-radius: 8px; }
 body.tabl #kbd .wide, body.tabl #kbd .fn, body.tabl #kbd .space { font-size: 15px; }
@@ -511,8 +515,8 @@ body.tabl #result, body.tabl #region { border-top: 0; }
 /* full 12-lead turned sideways (double-tap), or upright when the phone is held sideways (body.land) */
 #fs { position: fixed; inset: 0; z-index: 20; background: var(--bg); }
 #fs .inner { position: fixed; left: 50%; top: 50%; width: 100vh; width: 100dvh; height: 100vw; transform: translate(-50%, -50%) rotate(90deg);
-  display: flex; box-sizing: border-box; padding: 0 env(safe-area-inset-bottom, 0px) 0 env(safe-area-inset-top, 0px); }
-body.land #fs .inner { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px); }
+  display: flex; box-sizing: border-box; padding: 0 var(--sa-b) 0 var(--sa-t); }
+body.land #fs .inner { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 var(--sa-r) 0 var(--sa-l); }
 #fs aside { width: 168px; flex: none; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid var(--line); box-sizing: border-box; }
 #fs aside h3 { margin: 4px 0 0; font: 500 11px/1 var(--font-ui); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 #fs aside .chips { flex-direction: column; align-items: flex-start; padding: 0; overflow: visible; }
@@ -896,6 +900,11 @@ body.land #fsClose { display: none; }
     vtCl: 330,
     tdpCl: 230, tdpSteps: 16,   // torsades: cycle length (ms, ±8%) and beats per full turn of the axis
     vfFoci: 12, vfClMin: 140, vfClMax: 240,
+    // VF as scattered wavelets (the author, 2026-11-28: VF looked like torsades): 6 random spots of ventricular muscle every
+    // 10–30 ms, only recovered patches responding, and a patchwork of refractoriness (vfApdHet: each cell's APD 0–20% longer,
+    // see _activate) that keeps the wavelets from settling into one rotor. On the app's heart (layered walls): 327–363/min,
+    // 19–23 mm in II, never organised over 20 s (four runs), the same computing as the 12 fixed foci it replaces (vfScatter 0)
+    vfScatter: 1, vfScatterMin: 10, vfScatterMax: 30, vfScatterN: 6, vfApdHet: 0.2, vfApdMin: 120, vfEcgGain: 0.35,
     adenosineDelay: 1000, adenosineBlock: 3000, shockRefractory: 160,
 
     // Accessory pathway (see Sim.setAccessoryPathway)
@@ -3194,7 +3203,13 @@ body.land #fsClose { display: none; }
         }
         this.drivers.push({ kind: 'tdp', cells: path, i: 0, next: this.t, cl: () => P.tdpCl * (0.92 + 0.16 * r()) });
       } else if (type === 'vf') {
-        for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
+        if (P.vfScatter) {
+          // (scattered wavelets: each stimulus at a new random spot in the ventricular muscle, every vfScatterMin–Max ms; only
+          // patches that have just recovered respond, so the wavelets are small, many and colliding, with no fixed source)
+          const cells = []; for (let c = 0; c < M.nVox; c++) if (vent(c)) cells.push(c);
+          this._vfHet = null;   // (a new patchwork for each episode)
+          this.drivers.push({ kind: 'scatter', cells, next: this.t, cl: rand(P.vfScatterMin, P.vfScatterMax) });
+        } else for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
       } else throw new Error('unknown arrhythmia ' + type);
       this.arrhythmia = { type, t: this.t, cell: opts.cell, clockwise: !!opts.clockwise };
       this.rhythmChangedAt = this.t;
@@ -3276,9 +3291,10 @@ body.land #fsClose { display: none; }
           continue;
         }
         if (t >= d.next) {
-          const c = d.kind === 'rotate' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.kind === 'tdp' ? d.cells[d.i++ % d.cells.length] : d.cell;
+          const c = d.kind === 'rotate' || d.kind === 'scatter' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.kind === 'tdp' ? d.cells[d.i++ % d.cells.length] : d.cell;
           if (d.kind === 'rotate') { this.fireLog.push({ name: 'focus', t, cell: c }); if (this.fireLog.length > 40) this.fireLog.shift(); }   // (which MAT focus fired: read by the training generator)
           if (t >= this.refEnd[c] && !this.blocked[c]) this.schedule(c, t);
+          if (d.kind === 'scatter') for (let k = 1; k < this.P.vfScatterN; k++) { const q = d.cells[Math.floor(this.rand() * d.cells.length)]; if (t >= this.refEnd[q] && !this.blocked[q]) this.schedule(q, t); }
           d.next = t + d.cl();
         }
       }
@@ -3337,6 +3353,17 @@ body.land #fsClose { display: none; }
       // diastolic interval since previous repolarisation
       const DI = ta - this.repEnd[c];
       let apd = this.apdMax[c] * (1 - P.restA * Math.exp(-Math.max(DI, 0) / P.restTau));
+      // (VF: a fixed patchwork of refractoriness, each ventricular cell's APD 0–vfApdHet longer, drawn when VF starts: it keeps
+      // breaking the wavefronts, as in real VF; without it the scattered wavelets could settle within seconds into one stable
+      // rotor, a regular VT-like wave. Longer only: shorter APDs leave the ECG's fast plateau sums (16× the cells summed one
+      // by one, 2.6× the time). 0.4 slowed it to ~175/min and ~3 mm on the app's heart; 0.2 keeps ~350/min)
+      if (P.vfApdHet && c < this.M.nVox && this.arrhythmia && this.arrhythmia.type === 'vf' && this.M.kind[c] === KIND.VENT) {
+        if (!this._vfHet) { this._vfHet = new Float32Array(this.M.nVox); for (let q = 0; q < this.M.nVox; q++) this._vfHet[q] = 1 + P.vfApdHet * this.rand(); }
+        apd *= this._vfHet[c];
+        // (and no shorter than vfApdMin: the scattered stimuli otherwise drove some episodes into a degenerate state, every
+        // patch re-firing the moment it recovered, its APD collapsing: ~600/min, ~3 mm, twice the computing)
+        if (apd < P.vfApdMin) apd = P.vfApdMin;
+      }
       // atrial refractoriness floor at the fastest rates; in flutter the circuit
       // turns with an excitable gap at ~200 ms (≈300/min), not at the refractory limit of AF
       // (the left atrium, driven passively, keeps its own floor: at the flutter floor it could not follow
@@ -3745,6 +3772,13 @@ body.land #fsClose { display: none; }
         if (this._hpReset) { hx.set(L); this._hpReset = false; }   // absorb the step when ischaemia changes
         for (let k = 0; k < 12; k++) { const y = a * (hy[k] + L[k] - hx[k]); hx[k] = L[k]; hy[k] = y; L[k] = y; }
       }
+      // VF: a smaller ECG (the author, 2026-11-28: "the amplitude should be much lower"). Real VF is mostly 3–10 mm: its
+      // wavelets are far smaller than this model's and cancel more, and the ischaemic ventricles' action potentials shrink
+      // within the first minute. The leads are scaled by vfEcgGain while VF runs, easing in and out over ~0.5 s
+      const gT = this.arrhythmia && this.arrhythmia.type === 'vf' ? this.P.vfEcgGain : 1;
+      if (this._vfG === undefined) this._vfG = 1;
+      if (this._vfG !== gT) { this._vfG += (gT - this._vfG) / 500; if (Math.abs(this._vfG - gT) < 1e-4) this._vfG = gT; }
+      if (this._vfG !== 1) for (let k = 0; k < 12; k++) L[k] *= this._vfG;
       for (const f of this.listeners) f(t, L);
     }
 
@@ -4161,6 +4195,9 @@ function readRhythm(rec) {
   // VF: no consistent QRS shape and no isoelectric baseline (a slow escape with P waves landing on some complexes
   // keeps its baseline: iso ~0.8; VF ~0.1)
   if (morph < 0.7 && out.iso < 0.4) return { ...out, rhythm: 'ventricular fibrillation' };
+  // (continuous, irregular undulation with no separable complexes and no baseline at all: VF of scattered wavelets, whose
+  // smooth waves can look alike (morph up to ~0.9); VT is as continuous but regular, AF has a baseline and narrow QRS)
+  if (out.iso < 0.06 && width >= 250 && rrCv > 0.15) return { ...out, rhythm: 'ventricular fibrillation' };
   // ---- QRST template subtraction → atrial residual
   // template window: from just before the QRS to the end of the T wave (from the median beat), so a
   // conducted P wave before the QRS, or the next beat's P after the T, is not part of it
@@ -4335,12 +4372,12 @@ return module.exports; })();
     read: (r) => r === 'atrial fibrillation' },
     // (the author, 2026-11-18: no electrolyte change with flutter (U waves, flat or peaked T waves blur the sawtooth), and the
     // blind rhythm read must see flutter (gateRead), so a strip whose sawtooth reads as sinus or AF is not shown)
-    flutter: { w: 2.5, open: true, gateRead: true, notWith: ['oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB', 'hyperK', 'hyperK2', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia'],   // (flutter waves sit on the ST segment)
+    flutter: { w: 2.5, open: true, gateRead: true, strictRead: true, notWith: ['oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB', 'hyperK', 'hyperK2', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia'],   // (flutter waves sit on the ST segment)
       rating: 150, rate: [60, 150], vLink: true, link: 'a=flutter',   // (above ~115/min the response is 2:1: flutter waves hidden in the QRS/T)
       start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate); }, read: (r) => r === 'atrial flutter' },
     // irregular flutter (variable block): the conduction ratio changes beat by beat (2:1–4:1); answered as flutter, with
     // AF as partly correct (an irregular response hides the regular sawtooth less clearly)
-    flutterVar: { w: 0.8, open: true, gateRead: true, notWith: ['oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB', 'hyperK', 'hyperK2', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia'], rating: 190, rate: [80, 120],
+    flutterVar: { w: 0.8, open: true, gateRead: true, strictRead: true, notWith: ['oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB', 'hyperK', 'hyperK2', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia'], rating: 190, rate: [80, 120],
       variable: [[2, 4], [2, 3, 4], [2, 3]], vLink: true, link: 'a=flutter', key: 'flutter', alt: ['af'],
       start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate, { variable: rec.fv }); }, read: (r) => r === 'atrial flutter' },
     // multifocal atrial tachycardia: four atrial foci taking turns (±25% cycle), so ≥ 3 P shapes with varying PR and RR;
@@ -4589,6 +4626,9 @@ return module.exports; })();
     if (a.needP && !R.pRhythm) return false;
     if (a.group === 'av' && R.block) return false;
     if ((R.notWith || []).includes(k)) return false;
+    // (AF with hypokalaemia: the U wave is lost between irregular, often fast beats and in the fibrillatory baseline; the
+    // author's report 2026-11-27, AF 136/min with LAFB: "hypokalemia unreadable")
+    if (rh === 'af' && (k === 'hypoK')) return false;
     if (a.cold && rh !== 'sinusBrady') return false;   // (hypothermia slows the sinus node)
     // (ectopy and pauses are timed from sinus beats; PVCs, couplets and NSVT also in AF and flutter (the author, 2026-11-23),
     // timed from the last QRS)
@@ -5256,7 +5296,7 @@ return module.exports; })();
           if (AV_KEY[pat]) rhythm = AV_KEY[pat]; else { rhythm = rate < 60 ? 'sinusBrady' : rate > 100 ? 'sinusTachy' : 'sinus'; avFirst = pat === 'first'; }
         }
         if (pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.2)) { if (!asIs) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm'); asIsNotes.push(`P hidden in ${pv.hidden}/${pv.n} beats`); }
-      } else if (R.gateRead && rec.focus !== 'la' && !R.read(rr.rhythm)) { if (!asIs) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm'); asIsNotes.push(`blind rhythm read: "${rr.rhythm}"`); }   // (a left-atrial focus: its own P check on the median beat, below)
+      } else if (R.gateRead && rec.focus !== 'la' && !R.read(rr.rhythm)) { if (!asIs || R.strictRead) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm'); asIsNotes.push(`blind rhythm read: "${rr.rhythm}"`); }   // (a left-atrial focus: its own P check on the median beat, below)
       if (tachyHideP) rhythmAlt = ['sinus', 'svt'];
       if (rec.rhythm === 'sinusArr') {
         const span = Math.max(...rrs) - Math.min(...rrs);
@@ -5336,6 +5376,9 @@ return module.exports; })();
           if (dx === 'long QT' && ks.length) { optional.add('longqt'); continue; }
           if (dx.startsWith('old MI') && ks.includes('lafb') && !ks.includes('oldmi') && !ks.includes('recent')) { optional.add('qwaves'); continue; }   // (LAFB pseudo-infarct)
           if (dx === '1st-degree AVB' && rca) { optional.add('avb1'); continue; }
+          // (a posterior STEMI is seen as ST depression in V1–V3: the author's report 2026-11-27, recent pLCx, "septal anterior
+          // ST depression is present")
+          if (/^STEMI.*posterior/.test(dx)) { optional.add('posteriorMI'); optional.add('std'); }
           if (dx.startsWith('STEMI') && ks.includes('recent')) { optional.add('ste'); recentSte = true; continue; }   // (residual ST elevation at 2 days)
           if (dx.startsWith('old MI') && ks.includes('stemi')) { optional.add('qwaves'); continue; }   // (Q waves form within hours of a STEMI)
           // (an infarct moves the axis and the R waves: lateral and posterior loss gives right axis and a tall R
@@ -5352,6 +5395,12 @@ return module.exports; })();
           if (!asIs) return fail(`unexpected "${dx}" in the blind read`, 'extra');
           { const id = dxId(dx); if (id) optional.add(id); asIsNotes.push(`blind read also: ${dx}${id ? '' : ' (not in the vocabulary)'}`); }
         }
+        // (a recent infarct (2 days): residual ST elevation over the territory is common, read or not (the author's report
+        // 2026-11-27: recent PDA in fast AF, inferior ST elevation seen but not accepted))
+        if (rec.abn.some((x) => x.k === 'recent')) optional.add('ste');
+        // (an infarct that removes lateral and posterior forces leaves a dominant R in V1 (the author's report 2026-11-27,
+        // old LM: "V1 is positive"): accepted as a dominant R in V1; RVH is not)
+        if (rec.abn.some((x) => ABN[x.k].isch && ABN[x.k].isch >= 24) && r.L.V1 && r.L.V1.R > r.L.V1.S) optional.add('dominantRV1');
         if (b.f.axis === 'LAD') optional.add('lad');
         if (b.f.axis === 'RAD') optional.add('rad');
         if (r.m.axis !== null && (r.m.axis < -90 || r.m.axis > 180)) optional.add('ead');
@@ -5499,7 +5548,8 @@ return module.exports; })();
           ['twi', 'reciprocal'].forEach((x) => optional.add(x));
         } else if (a.k === 'recent' && !asQ.has(a)) {
           const site = MI_SITES[a.site], ex = site.q, terr = terrOf(c.leads), tt = terrOf(c.leads2), ts = terrStrong(c.leads2);
-          findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...qGroups(r.L)])].filter((t) => !ex.req.includes(t)) });
+          findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...qGroups(r.L)])].filter((t) => !ex.req.includes(t)),
+            ...(steLeads(r.L).length ? { alts: ['ste'] } : { part: ['ste'] }) });   // (ST elevation named for a recent infarct's Q waves: as below)
           // (T inversion asked where it is: a territory of the site's that shows it in two of its leads, else the territory with the most)
           const most = (ts.length ? ts : tt).slice().sort((x, y) => RL[y].filter((n) => c.leads2.includes(n)).length - RL[x].filter((n) => c.leads2.includes(n)).length);
           const tReq = ts.filter((t) => ex.req.includes(t)).length ? ts.filter((t) => ex.req.includes(t)) : most.slice(0, 1);
@@ -5521,7 +5571,10 @@ return module.exports; })();
         } else if (d.isch) {
           const site = MI_SITES[a.site], acute = d.isch < 24, ex = acute ? site.ste : site.q, terr = terrOf(c.leads);
           findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...(acute ? raised(r.L) : qGroups(r.L))])].filter((t) => !ex.req.includes(t)),
-            ...(asQ.has(a) && steLeads(r.L).length ? { alts: ['ste'] } : {}) });   // (a recent infarct with the ST still up: STEMI named counts for the Q waves; reading batches 1–2)
+            // (a recent infarct (2 days): ST elevation named in its leads finds the infarct. With the ST still up it counts fully
+            // for the Q waves (reading batches 1–2); without, half ("more exactly: Q waves"): the infarct and its place were
+            // found, its age (the Q waves) missed (the author, 2026-11-28: losing all the marks was unfair))
+            ...(a.k === 'recent' || asQ.has(a) ? (steLeads(r.L).length ? { alts: ['ste'] } : { part: ['ste'] }) : {}) });
           mark(d.id, c.leads);
           lines[d.id] = a.k === 'evolving' ? `ST elevation in ${c.leads.join(', ')}, past its peak, with Q waves forming${a.h >= 12 ? ' and T waves starting to invert' : ''}: an evolving ${ex.req.join('/')} STEMI, about ${a.h} hours old.`
             : acute ? `ST elevation in ${c.leads.join(', ')}: acute ${ex.req.join('/')} STEMI.` : `Q waves in ${c.leads.join(', ')}: old ${wallName(ex, terr)} infarct.`;
@@ -6032,8 +6085,9 @@ self.onmessage = (e) => {
   // premium for everyone: site.json "premium" (the build's meta tag); a preview: this device only
   const premiumLive = ((document.querySelector('meta[name="premium"]') || {}).content || '') === '1';
   const premiumOn = () => premiumLive || store.get(PREMIUM_KEY) === '1';
-  // what is owned: in the app, from Google Play through the shell ('ents'); elsewhere (previews) the stand-in purchase
-  const shop = { app: false, dev: false, ents: {}, prices: {} };
+  // what is owned: in the app, from the phone's store (Google Play or the App Store) through the shell ('ents'); elsewhere
+  // (previews) the stand-in purchase
+  const shop = { app: false, dev: false, ents: {}, prices: {}, store: 'Google Play', account: 'Google account' };
   // (a preview: the stand-in purchase on this device; the website with premium on for everyone: never owned, bought in the app)
   const preview = () => store.get(PREMIUM_KEY) === '1';
   const ownsTraining = () => !premiumOn() || (shop.app ? shop.dev || !!shop.ents.training : preview() && store.get(OWNED_KEY) === '1');
@@ -6531,7 +6585,7 @@ self.onmessage = (e) => {
   function payButtons(busy) {
     const web = webStore();
     $('payPrice').textContent = price();
-    $('payBuy').textContent = busy ? 'Opening Google Play…' : web ? 'Get ECG Studio on Google Play' : `Unlock Training · ${price()}`;
+    $('payBuy').textContent = busy ? `Opening ${shop.store}…` : web ? 'Get ECG Studio on Google Play' : `Unlock Training · ${price()}`;
     $('payBuy').disabled = !!busy; $('payRestore').hidden = web;
   }
   function showPaywall() { payButtons(false); $('paywall').hidden = false; }
@@ -6549,6 +6603,7 @@ self.onmessage = (e) => {
   if (INAPP) {
     window.ECGInApp.listen('ents', (d) => {
       shop.app = !!d.billing; shop.dev = !!d.dev; shop.ents = d.ents || {}; shop.prices = d.prices || {};
+      if (d.store) { shop.store = d.store; shop.account = d.account; }
       if (!$('home').hidden) renderHome();
       if (!$('paywall').hidden) {
         // (a payment confirmed after the purchase sheet closed, or a code redeemed in the Play Store: leave the unlock page)
@@ -6559,12 +6614,12 @@ self.onmessage = (e) => {
     window.ECGInApp.listen('bought', (d) => {
       payButtons(false);
       if (d.ok) { unlocked(); toast('Training unlocked. Thank you!'); }
-      else if (d.pending) toast('Payment pending: Training unlocks when Google Play confirms it');
+      else if (d.pending) toast(`Payment pending: Training unlocks when ${shop.store} confirms it`);
       else if (!d.cancelled) toast('The purchase did not go through. Please try again.');
     });
     window.ECGInApp.listen('restored', (d) => {
       $('payRestore').disabled = false;
-      if (ownsTraining()) { unlocked(); toast('Purchase restored'); } else toast('No Training purchase found for this Google account');
+      if (ownsTraining()) { unlocked(); toast('Purchase restored'); } else toast(`No Training purchase found for this ${shop.account}`);
     });
   }
   function shareDaily() {
@@ -6828,8 +6883,10 @@ self.onmessage = (e) => {
     ring.classList.toggle('nodim', !!(t && t.noDim));   // (the rest stays bright and usable, e.g. the ECG to swipe)   // (a hole only: the shell rings its own tab)
     let ty = null;
     if (t && t.rect) {
-      const p = t.pad === undefined ? 4 : t.pad, r = t.rect;
-      Object.assign(ring.style, { left: `${r.left - p}px`, top: `${r.top - p}px`, width: `${r.width + 2 * p}px`, height: `${r.height + 2 * p}px` });
+      // (kept on the screen: a full-width panel at the bottom, as Training's keyboard and result, has its ring inside the edges)
+      const p = t.pad === undefined ? 4 : t.pad, r = t.rect, m = 2;
+      const L = Math.max(m, r.left - p), T = Math.max(m, r.top - p), Rt = Math.min(innerWidth - m, r.left + r.width + p), B = Math.min(H - m, r.top + r.height + p);
+      Object.assign(ring.style, { left: `${L}px`, top: `${T}px`, width: `${Math.max(0, Rt - L)}px`, height: `${Math.max(0, B - T)}px` });
       ring.classList.add('rect'); ty = r.top + r.height / 2;
     } else if (t) {
       const r = t.r || 26;
@@ -6842,8 +6899,8 @@ self.onmessage = (e) => {
     let where = view.modal || ty === null ? (view.where || 'center') : view.where || (ty > H * 0.45 ? 'top' : 'bottom');
     if (wide && tx !== null && where !== 'center') where = 'top';
     c.classList.toggle('center', where === 'center');
-    c.style.top = where === 'top' ? 'calc(env(safe-area-inset-top, 0px) + 58px)' : '';
-    c.style.bottom = where === 'bottom' ? 'calc(env(safe-area-inset-bottom, 0px) + 12px)' : '';
+    c.style.top = where === 'top' ? 'calc(var(--sa-t, env(safe-area-inset-top, 0px)) + 58px)' : '';
+    c.style.bottom = where === 'bottom' ? 'calc(var(--sa-b, env(safe-area-inset-bottom, 0px)) + 12px)' : '';
     const side = wide && tx !== null && where !== 'center' ? (tx < innerWidth / 2 ? 'right' : 'left') : '';
     c.style.left = side === 'right' ? '52%' : ''; c.style.right = side === 'left' ? '52%' : '';
   }
@@ -6936,7 +6993,7 @@ self.onmessage = (e) => {
       })(),
       (() => {
         let shown = false; const spot = dirSpot(() => T.arterySpot());
-        return { n: n(4), enter() { shown = false; T.closeAll(); T.outside(); T.group(0); },
+        return { n: n(4), enter() { shown = false; T.closeAll(); if (T.ladView) T.ladView(); else T.outside(); T.group(0); },
           view() {
             const ins = sim().insults, occ = ins.some((v) => v.kind === 'occlusion'), narrow = ins.some((v) => v.stenosis);
             if (occ) {

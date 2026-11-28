@@ -36,12 +36,12 @@
     read: (r) => r === 'atrial fibrillation' },
     // (the author, 2026-11-18: no electrolyte change with flutter (U waves, flat or peaked T waves blur the sawtooth), and the
     // blind rhythm read must see flutter (gateRead), so a strip whose sawtooth reads as sinus or AF is not shown)
-    flutter: { w: 2.5, open: true, gateRead: true, notWith: ['oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB', 'hyperK', 'hyperK2', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia'],   // (flutter waves sit on the ST segment)
+    flutter: { w: 2.5, open: true, gateRead: true, strictRead: true, notWith: ['oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB', 'hyperK', 'hyperK2', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia'],   // (flutter waves sit on the ST segment)
       rating: 150, rate: [60, 150], vLink: true, link: 'a=flutter',   // (above ~115/min the response is 2:1: flutter waves hidden in the QRS/T)
       start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate); }, read: (r) => r === 'atrial flutter' },
     // irregular flutter (variable block): the conduction ratio changes beat by beat (2:1–4:1); answered as flutter, with
     // AF as partly correct (an irregular response hides the regular sawtooth less clearly)
-    flutterVar: { w: 0.8, open: true, gateRead: true, notWith: ['oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB', 'hyperK', 'hyperK2', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia'], rating: 190, rate: [80, 120],
+    flutterVar: { w: 0.8, open: true, gateRead: true, strictRead: true, notWith: ['oldmi', 'recent', 'hyper', 'narrow', 'multinarrow', 'nsstt', 'wellensA', 'wellensB', 'hyperK', 'hyperK2', 'hypoK', 'hypoCa', 'hyperCa', 'hypothermia'], rating: 190, rate: [80, 120],
       variable: [[2, 4], [2, 3, 4], [2, 3]], vLink: true, link: 'a=flutter', key: 'flutter', alt: ['af'],
       start: (S, rec) => { S.run(2000); S.startArrhythmia('flutter'); S.run(3000); S.setVentricularResponse(rec.rate, { variable: rec.fv }); }, read: (r) => r === 'atrial flutter' },
     // multifocal atrial tachycardia: four atrial foci taking turns (±25% cycle), so ≥ 3 P shapes with varying PR and RR;
@@ -290,6 +290,9 @@
     if (a.needP && !R.pRhythm) return false;
     if (a.group === 'av' && R.block) return false;
     if ((R.notWith || []).includes(k)) return false;
+    // (AF with hypokalaemia: the U wave is lost between irregular, often fast beats and in the fibrillatory baseline; the
+    // author's report 2026-11-27, AF 136/min with LAFB: "hypokalemia unreadable")
+    if (rh === 'af' && (k === 'hypoK')) return false;
     if (a.cold && rh !== 'sinusBrady') return false;   // (hypothermia slows the sinus node)
     // (ectopy and pauses are timed from sinus beats; PVCs, couplets and NSVT also in AF and flutter (the author, 2026-11-23),
     // timed from the last QRS)
@@ -957,7 +960,7 @@
           if (AV_KEY[pat]) rhythm = AV_KEY[pat]; else { rhythm = rate < 60 ? 'sinusBrady' : rate > 100 ? 'sinusTachy' : 'sinus'; avFirst = pat === 'first'; }
         }
         if (pv.share > (rec.rhythm === 'chb' ? 0.65 : 0.2)) { if (!asIs) return fail(`P hidden in ${pv.hidden}/${pv.n} beats`, 'rhythm'); asIsNotes.push(`P hidden in ${pv.hidden}/${pv.n} beats`); }
-      } else if (R.gateRead && rec.focus !== 'la' && !R.read(rr.rhythm)) { if (!asIs) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm'); asIsNotes.push(`blind rhythm read: "${rr.rhythm}"`); }   // (a left-atrial focus: its own P check on the median beat, below)
+      } else if (R.gateRead && rec.focus !== 'la' && !R.read(rr.rhythm)) { if (!asIs || R.strictRead) return fail(`rhythm read as "${rr.rhythm}"`, 'rhythm'); asIsNotes.push(`blind rhythm read: "${rr.rhythm}"`); }   // (a left-atrial focus: its own P check on the median beat, below)
       if (tachyHideP) rhythmAlt = ['sinus', 'svt'];
       if (rec.rhythm === 'sinusArr') {
         const span = Math.max(...rrs) - Math.min(...rrs);
@@ -1037,6 +1040,9 @@
           if (dx === 'long QT' && ks.length) { optional.add('longqt'); continue; }
           if (dx.startsWith('old MI') && ks.includes('lafb') && !ks.includes('oldmi') && !ks.includes('recent')) { optional.add('qwaves'); continue; }   // (LAFB pseudo-infarct)
           if (dx === '1st-degree AVB' && rca) { optional.add('avb1'); continue; }
+          // (a posterior STEMI is seen as ST depression in V1–V3: the author's report 2026-11-27, recent pLCx, "septal anterior
+          // ST depression is present")
+          if (/^STEMI.*posterior/.test(dx)) { optional.add('posteriorMI'); optional.add('std'); }
           if (dx.startsWith('STEMI') && ks.includes('recent')) { optional.add('ste'); recentSte = true; continue; }   // (residual ST elevation at 2 days)
           if (dx.startsWith('old MI') && ks.includes('stemi')) { optional.add('qwaves'); continue; }   // (Q waves form within hours of a STEMI)
           // (an infarct moves the axis and the R waves: lateral and posterior loss gives right axis and a tall R
@@ -1053,6 +1059,12 @@
           if (!asIs) return fail(`unexpected "${dx}" in the blind read`, 'extra');
           { const id = dxId(dx); if (id) optional.add(id); asIsNotes.push(`blind read also: ${dx}${id ? '' : ' (not in the vocabulary)'}`); }
         }
+        // (a recent infarct (2 days): residual ST elevation over the territory is common, read or not (the author's report
+        // 2026-11-27: recent PDA in fast AF, inferior ST elevation seen but not accepted))
+        if (rec.abn.some((x) => x.k === 'recent')) optional.add('ste');
+        // (an infarct that removes lateral and posterior forces leaves a dominant R in V1 (the author's report 2026-11-27,
+        // old LM: "V1 is positive"): accepted as a dominant R in V1; RVH is not)
+        if (rec.abn.some((x) => ABN[x.k].isch && ABN[x.k].isch >= 24) && r.L.V1 && r.L.V1.R > r.L.V1.S) optional.add('dominantRV1');
         if (b.f.axis === 'LAD') optional.add('lad');
         if (b.f.axis === 'RAD') optional.add('rad');
         if (r.m.axis !== null && (r.m.axis < -90 || r.m.axis > 180)) optional.add('ead');
@@ -1200,7 +1212,8 @@
           ['twi', 'reciprocal'].forEach((x) => optional.add(x));
         } else if (a.k === 'recent' && !asQ.has(a)) {
           const site = MI_SITES[a.site], ex = site.q, terr = terrOf(c.leads), tt = terrOf(c.leads2), ts = terrStrong(c.leads2);
-          findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...qGroups(r.L)])].filter((t) => !ex.req.includes(t)) });
+          findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...qGroups(r.L)])].filter((t) => !ex.req.includes(t)),
+            ...(steLeads(r.L).length ? { alts: ['ste'] } : { part: ['ste'] }) });   // (ST elevation named for a recent infarct's Q waves: as below)
           // (T inversion asked where it is: a territory of the site's that shows it in two of its leads, else the territory with the most)
           const most = (ts.length ? ts : tt).slice().sort((x, y) => RL[y].filter((n) => c.leads2.includes(n)).length - RL[x].filter((n) => c.leads2.includes(n)).length);
           const tReq = ts.filter((t) => ex.req.includes(t)).length ? ts.filter((t) => ex.req.includes(t)) : most.slice(0, 1);
@@ -1222,7 +1235,10 @@
         } else if (d.isch) {
           const site = MI_SITES[a.site], acute = d.isch < 24, ex = acute ? site.ste : site.q, terr = terrOf(c.leads);
           findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...(acute ? raised(r.L) : qGroups(r.L))])].filter((t) => !ex.req.includes(t)),
-            ...(asQ.has(a) && steLeads(r.L).length ? { alts: ['ste'] } : {}) });   // (a recent infarct with the ST still up: STEMI named counts for the Q waves; reading batches 1–2)
+            // (a recent infarct (2 days): ST elevation named in its leads finds the infarct. With the ST still up it counts fully
+            // for the Q waves (reading batches 1–2); without, half ("more exactly: Q waves"): the infarct and its place were
+            // found, its age (the Q waves) missed (the author, 2026-11-28: losing all the marks was unfair))
+            ...(a.k === 'recent' || asQ.has(a) ? (steLeads(r.L).length ? { alts: ['ste'] } : { part: ['ste'] }) : {}) });
           mark(d.id, c.leads);
           lines[d.id] = a.k === 'evolving' ? `ST elevation in ${c.leads.join(', ')}, past its peak, with Q waves forming${a.h >= 12 ? ' and T waves starting to invert' : ''}: an evolving ${ex.req.join('/')} STEMI, about ${a.h} hours old.`
             : acute ? `ST elevation in ${c.leads.join(', ')}: acute ${ex.req.join('/')} STEMI.` : `Q waves in ${c.leads.join(', ')}: old ${wallName(ex, terr)} infarct.`;

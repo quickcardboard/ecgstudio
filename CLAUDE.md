@@ -14,7 +14,7 @@ all rights reserved (LICENSE).
   simulator and Training pages: `app-oldmodel/` is the model live until Round 69 (`app-48normalaxis/` now redirects to /app).
   It also writes Training to `app/training.html` (`ecgstudio.app/training` is the Android app's page since launch:
   `tools/learn_pages.py`, screenshots `node tools/app_shots.js`) and the app shell `app/index.html` (`src/shell.html`, a preview framing both pages
-  with `?app`; `src/inapp.js` handles that mode; `src/tutorial.js`, the interactive tutorial, goes into both pages); `--app` adds `app/www/` for the native app (not in git).
+  with `?app`; `src/inapp.js` handles that mode; `src/tutorial.js`, the interactive tutorial, goes into both pages); `--app` adds `app/www/` for the native app (not in git); `--app-only` (the app's `npm run build`) writes only `app/www/`.
 - `src/engine.js`: anatomy, model, simulation and lead fields; runs in the browser
   (`window.ECGStudio`) and in Node (`require('./src/engine.js')`). Parameters live in `DEFAULTS`.
 - `src/app.js`: Three.js view, ECG paper, interpretation, controls, share links, PNG export.

@@ -110,8 +110,10 @@
     ring.classList.toggle('nodim', !!(t && t.noDim));   // (the rest stays bright and usable, e.g. the ECG to swipe)   // (a hole only: the shell rings its own tab)
     let ty = null;
     if (t && t.rect) {
-      const p = t.pad === undefined ? 4 : t.pad, r = t.rect;
-      Object.assign(ring.style, { left: `${r.left - p}px`, top: `${r.top - p}px`, width: `${r.width + 2 * p}px`, height: `${r.height + 2 * p}px` });
+      // (kept on the screen: a full-width panel at the bottom, as Training's keyboard and result, has its ring inside the edges)
+      const p = t.pad === undefined ? 4 : t.pad, r = t.rect, m = 2;
+      const L = Math.max(m, r.left - p), T = Math.max(m, r.top - p), Rt = Math.min(innerWidth - m, r.left + r.width + p), B = Math.min(H - m, r.top + r.height + p);
+      Object.assign(ring.style, { left: `${L}px`, top: `${T}px`, width: `${Math.max(0, Rt - L)}px`, height: `${Math.max(0, B - T)}px` });
       ring.classList.add('rect'); ty = r.top + r.height / 2;
     } else if (t) {
       const r = t.r || 26;
@@ -124,8 +126,8 @@
     let where = view.modal || ty === null ? (view.where || 'center') : view.where || (ty > H * 0.45 ? 'top' : 'bottom');
     if (wide && tx !== null && where !== 'center') where = 'top';
     c.classList.toggle('center', where === 'center');
-    c.style.top = where === 'top' ? 'calc(env(safe-area-inset-top, 0px) + 58px)' : '';
-    c.style.bottom = where === 'bottom' ? 'calc(env(safe-area-inset-bottom, 0px) + 12px)' : '';
+    c.style.top = where === 'top' ? 'calc(var(--sa-t, env(safe-area-inset-top, 0px)) + 58px)' : '';
+    c.style.bottom = where === 'bottom' ? 'calc(var(--sa-b, env(safe-area-inset-bottom, 0px)) + 12px)' : '';
     const side = wide && tx !== null && where !== 'center' ? (tx < innerWidth / 2 ? 'right' : 'left') : '';
     c.style.left = side === 'right' ? '52%' : ''; c.style.right = side === 'left' ? '52%' : '';
   }
@@ -218,7 +220,7 @@
       })(),
       (() => {
         let shown = false; const spot = dirSpot(() => T.arterySpot());
-        return { n: n(4), enter() { shown = false; T.closeAll(); T.outside(); T.group(0); },
+        return { n: n(4), enter() { shown = false; T.closeAll(); if (T.ladView) T.ladView(); else T.outside(); T.group(0); },
           view() {
             const ins = sim().insults, occ = ins.some((v) => v.kind === 'occlusion'), narrow = ins.some((v) => v.stenosis);
             if (occ) {
