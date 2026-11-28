@@ -3517,5 +3517,5 @@ tab bar under the heart pane only and its sheets over the heart (`--heartR`, set
 without rotation. The first-paint script knows tablets too (no desktop flash). Checked: iPad mini (website and app),
 1180×820, 1366×1024: no sideways scroll, no wrapping; upright iPads, desktops (a 1024 px window with a mouse included) and
 phones unchanged.
-- (round 4) Tablets held sideways: the rhythm reading sits above the ECG, as on the desktop (the author), not below it as on
-  phones; tapping it opens it downward. Upright tablets and phones keep it below.
+- (round 4) The rhythm reading sits above the ECG on phones and tablets too, as on the desktop (the author); tapping it opens
+  it downward. The full-screen ECG keeps it as its side column.

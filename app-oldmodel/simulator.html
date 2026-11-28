@@ -575,15 +575,16 @@ body.m .gbar { display: flex; align-items: center; gap: 6px; position: absolute;
 .dots button { width: 18px; height: 20px; padding: 0; border: 0; background: none; display: grid; place-items: center; }
 .dots button::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #e2b0bd; }
 .dots button[aria-selected="true"]::before { background: #c2304f; }
-body.m #interp { order: 2; flex: none; flex-wrap: wrap; gap: 6px; padding: 8px 32px 8px 10px; border-bottom: 0; border-top: 1px solid var(--line); cursor: pointer; position: relative; }
-body.m #interp::after { content: "▴"; position: absolute; right: 12px; top: 8px; color: var(--muted); font-size: 13px; }
+/* (the rhythm reading above the ECG on phones and tablets too, as on the desktop (the author, 2026-11-28); it opens downward) */
+body.m #interp { order: 0; flex: none; flex-wrap: wrap; gap: 6px; padding: 8px 32px 8px 10px; border-top: 0; border-bottom: 1px solid var(--line); cursor: pointer; position: relative; }
+body.m #interp::after { content: "▾"; position: absolute; right: 12px; top: 8px; color: var(--muted); font-size: 13px; }
 body.m #rhythm { flex: 1 1 100%; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.m .chips { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-height: 23px; }
 body.m .chips::-webkit-scrollbar { display: none; }
 body.m .chip { font-size: 11px; padding: 4px 6px; }
 body.m .findings { display: none; }
 body.m.interp-open #interp { max-height: 55%; overflow-y: auto; cursor: default; }
-body.m.interp-open #interp::after { content: "▾"; }
+body.m.interp-open #interp::after { content: "▴"; }
 body.m.interp-open #rhythm { white-space: normal; }
 body.m.interp-open .chips { flex-wrap: wrap; }
 body.m.interp-open .findings { display: flex; font-size: 13px; }
@@ -677,10 +678,6 @@ body.m.tl #controls, body.m.tl.sheet-full #controls { left: 8px; right: auto; wi
 body.m.tl.sheet-full #controls { top: calc(var(--sa-t) + 50px); }
 body.m.tl.fs-ecg #paneEcg { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 var(--sa-r) 0 var(--sa-l); }
 body.m.tl.fs-ecg #fsFlip { display: none; }
-/* (the rhythm reading above the ECG, as on the desktop, not below it as on phones (the author, 2026-11-28); it opens downward) */
-body.m.tl #interp { order: 0; border-top: 0; border-bottom: 1px solid var(--line); }
-body.m.tl #interp::after { content: "▾"; }
-body.m.tl.interp-open #interp::after { content: "▴"; }
 /* tablets held upright: heart above, ECG below */
 @media (min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (min-height: 501px) {
   #split { flex-direction: column; }
@@ -971,7 +968,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (d6ff743).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (3ca6d3e).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -1016,7 +1013,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (d6ff743).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (3ca6d3e).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
