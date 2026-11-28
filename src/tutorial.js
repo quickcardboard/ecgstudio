@@ -220,7 +220,7 @@
       })(),
       (() => {
         let shown = false; const spot = dirSpot(() => T.arterySpot());
-        return { n: n(4), enter() { shown = false; T.closeAll(); T.outside(); T.group(0); },
+        return { n: n(4), enter() { shown = false; T.closeAll(); if (T.ladView) T.ladView(); else T.outside(); T.group(0); },
           view() {
             const ins = sim().insults, occ = ins.some((v) => v.kind === 'occlusion'), narrow = ins.some((v) => v.stenosis);
             if (occ) {

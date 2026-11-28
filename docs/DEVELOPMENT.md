@@ -3453,3 +3453,20 @@ AVNRT → flutter and AVRT → sinus all switch.
   and light/dark splash images in `app/ios/App/App/Assets.xcassets`; the three placeholder splash files removed.
 - `ITSAppUsesNonExemptEncryption` false in `app/ios/App/App/Info.plist` (the app uses only the system's HTTPS), so App
   Store Connect does not ask about export compliance for each build.
+
+## claude/round-3 round 1: tutorial LAD view, touch Blocks sheet, fixed heart on desktop, Training reports
+
+- Tutorial, "tap the LAD": a new camera preset `lad` (world direction [0.75, 0.17, 0.63]: 50° toward the patient's left,
+  10° from above). From the front of the chest the LAD runs down the heart's left border at a glancing angle (68% of it
+  tappable); in this view it runs down the middle (97%). A scan of yaw −40…65° and pitch 0/20° chose it.
+- Phones and tablets: the Blocks sheet hides the SA/AV/His sliders until the SA or AV node is tapped, or while an SA, AV
+  or His block is on (`syncAvVisible`, `ui.avShown`, cleared when the sheet closes); the desktop panel always shows them.
+- Larger screens: the heart no longer shifts aside when the control panel opens or closes (`resize3D`: no horizontal view
+  offset); the panel covers it. Checked at 1280×720, 1440×900, 1920×1080: the heart stays put.
+- Training (problem reports 2026-11-27): a posterior STEMI in the blind read also accepts ST depression and posterior MI
+  (seen as ST depression in V1–V3); a recent infarct always accepts ST elevation (residual at 2 days); an infarct of a day or
+  more with R > S in V1 accepts a dominant R in V1 (not RVH); no hypokalaemia with AF (the U wave is lost); flutter and
+  variable flutter must pass the blind rhythm read also in "as is" mode (`strictRead`: rebuilt otherwise; measured 4 of 14
+  flutter and 4 of 6 variable flutter strips read as AF, sinus or SVT).
+- Seen on the way: fast AF (150–170/min) fell into an unlogged ventricular re-entry in 5–8 of 12 ten-second runs before
+  the R-on-T fix and 0–2 of 12 after; Training rejects those strips and rebuilds.

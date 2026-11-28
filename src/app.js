@@ -371,12 +371,12 @@
     // two-pane framing: the vertical field of view widens instead of cropping the sides
     const FIT = 0.85;
     g3.camera.fov = w / h < FIT ? 2 * Math.atan(Math.tan(16 * Math.PI / 180) * FIT / (w / h)) * 180 / Math.PI : 32;
-    // keep the heart clear of the floating control panel
+    // (the heart no longer moves aside when the control panel opens: it jumped each time a menu opened or closed on larger
+    // screens; the panel covers it instead (the author, 2026-11-27))
     // keep the heart clear of the tab row above and the view bar below: the view
     // is shifted down by the difference of the two insets
-    const panel = $('controls'), shift = panel.classList.contains('collapsed') || w < 560 ? 0 : Math.min(130, panel.offsetWidth / 2);
     const vb = parseFloat(getComputedStyle(el).getPropertyValue('--vb')) || 44, down = Math.round(0.06 * h + (vb - 44) / 2);
-    g3.camera.setViewOffset(w, h, -shift, -down, w, h);
+    g3.camera.setViewOffset(w, h, 0, -down, w, h);
     g3.camera.updateProjectionMatrix();
   }
 
@@ -876,6 +876,10 @@
       chest: { world: [0, 0, 1], p: g3.lvCenter, up: [0, 1, 0], dist: 395 },          // true anterior: from the front of the chest, head up (frontal plane faces the viewer)
       lateral: { world: [1, 0.05, 0.1], p: g3.lvCenter, up: [0, 1, 0], dist: 375 },   // from the patient's left
       short: { n: saN, p: saP, up: [0, 0, 1], dist: 330 },
+      // the LAD face-on (the tutorial's "tap the LAD", the author 2026-11-27): from the front of the chest the LAD runs down the
+      // heart's left border, at a glancing angle; turned 50° toward the patient's left and 10° from above it runs down the
+      // middle (97% of it can be tapped, 68% from the front)
+      lad: { world: [0.75, 0.17, 0.63], up: [0, 1, 0], dist: 395 },
     };
     // Cut face by stencil capping. Every surface (which together bound the
     // heart wall as one closed solid) is drawn into the stencil buffer only:
@@ -1465,7 +1469,14 @@
     return ui.esc.v > 40 ? 'accelerated idioventricular rhythm' : 'ventricular escape rhythm';
   }
   // a tap on the AV node or His bundle: the sliders (Blocks panel; phones: the sheet), instead of a list or cycling
+  // phones and tablets: the conduction sliders stay hidden in the Blocks sheet until the SA or AV node is tapped (the
+  // author, 2026-11-27), or while an SA, AV or His block is on (to change or undo it); the desktop panel always has them
+  function syncAvVisible() {
+    const show = !isM() || ui.avShown || !!(S.blocks.SAN || S.blocks.AVN || S.blocks.HIS);
+    if ($('avCtl').hidden === show) $('avCtl').hidden = !show;
+  }
   function showAvSliders(x, y) {
+    ui.avShown = true; syncAvVisible();
     if (isM()) openSheet('blocks'); else if (INAPP) setTab('blocks', false, true); else autoTab('blocks');
     const el = $('avCtl'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
     if (x !== undefined) flash(x, y, 'Conduction: use the sliders');
@@ -1479,7 +1490,7 @@
   }
 
   function renderBlockList() {
-    markChange(); updateBadges(); emit('blocks'); syncAvSliders(); drawBlockChips(); syncEscapeCtl();
+    markChange(); updateBadges(); emit('blocks'); syncAvSliders(); drawBlockChips(); syncEscapeCtl(); syncAvVisible();
   }
   // the Active blocks list (also redrawn when a graded AV block's reading changes, without restarting the reading)
   // (the AV node and His–Purkinje make one entry, "AV block: <the degree it is producing>", and its × clears both)
@@ -3051,6 +3062,7 @@ body.only .chips { margin-top: 0; }
   function setMode() {
     const b = document.body, was = isM(), tab = MQ_TAB.matches, m = MQ_PORT.matches || MQ_LAND.matches || tab;
     b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab);
+    if (S) syncAvVisible();   // (turned sideways: the desktop layout, sliders shown)
     // phones (website and app): dark only, as the app; desktop follows the system setting
     if (m) document.documentElement.dataset.theme = 'dark'; else if (!INAPP) delete document.documentElement.dataset.theme;
     const ctl = $('controls');
@@ -3139,6 +3151,7 @@ body.only .chips { margin-top: 0; }
         g3.planeDirty = true;
       },
       outside() { setCut(0); cameraPreset('chest'); },
+      ladView() { setCut(0); cutPreset('lad'); },
       cut4() { setCut(100); cameraPreset('front'); },
       group(i) { if (isM()) { setGroup(i); drawPhone(); } },
       reset() { $('btnReset').click(); setPaused(false); if (isM()) { setGroup(0); drawPhone(); } },
@@ -3203,7 +3216,8 @@ body.only .chips { margin-top: 0; }
   function openSheet(tab) {
     const was = sheetOpen();
     setTab(tab);
-    if (!was) openLayer('sheet', () => { toggleControls(false); setSheetFull(false); });
+    syncAvVisible();
+    if (!was) openLayer('sheet', () => { toggleControls(false); setSheetFull(false); ui.avShown = false; syncAvVisible(); });
   }
 
   function setPaused(p) {
