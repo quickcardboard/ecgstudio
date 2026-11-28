@@ -1,4 +1,6 @@
-// The iOS app's version and build number (run by app/'s `npm run sync:ios`, after `npx cap sync ios`).
+// The iOS app's version and build number, for a build going to App Store Connect: app/'s `npm run release:ios` (the build,
+// `npx cap sync ios`, then this). Only then: the Xcode project changes, and that change is committed as the record of the
+// release (`npm run sync:ios`, for the Simulator, leaves the project as it is).
 // - version (MARKETING_VERSION, what the App Store shows): app/package.json's "version", the one number for the website,
 //   Android (app/android/app/build.gradle reads it too) and iOS
 // - build number (CURRENT_PROJECT_VERSION): the UTC date and time as YYMMDD.HHMM, so every build is higher than the last

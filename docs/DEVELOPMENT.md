@@ -3442,3 +3442,6 @@ AVNRT → flutter and AVRT → sinus all switch.
   `npm run sync:ios`) writes it to the Xcode project's `MARKETING_VERSION` with a build number from the UTC date and time
   (`CURRENT_PROJECT_VERSION`, YYMMDD.HHMM, always higher). Checked on a freshly generated Capacitor iOS project: both
   settings in both build configurations. The release routine for the website and both apps: docs/APP_PLAN.md.
+- The build number is set only for a build going to Apple: `npm run release:ios` (sync, then `tools/ios_version.js`);
+  `npm run sync:ios` leaves the committed Xcode project (`app/ios`, on `milestone-1` since its first commit from the Mac)
+  unchanged, so day-to-day Simulator builds leave git clean.

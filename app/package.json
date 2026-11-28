@@ -6,7 +6,8 @@
   "scripts": {
     "build": "cd .. && python3 tools/build.py --app-only",
     "sync": "npm run build && npx cap sync android",
-    "sync:ios": "npm run build && npx cap sync ios && node ../tools/ios_version.js"
+    "sync:ios": "npm run build && npx cap sync ios",
+    "release:ios": "npm run sync:ios && node ../tools/ios_version.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.0",
