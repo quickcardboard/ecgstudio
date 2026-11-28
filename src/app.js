@@ -3730,8 +3730,12 @@ body.only .chips { margin-top: 0; }
     $('interp').addEventListener('click', (e) => {
       if (!isM() || document.body.classList.contains('fs-ecg') || e.target.closest('button')) return;
       if (hasLayer('interp')) closeLayer('interp');
-      else { document.body.classList.add('interp-open'); openLayer('interp', () => document.body.classList.remove('interp-open')); }
+      // (opened, the reading drops down over the ECG as a panel; the ECG keeps its size and place: the pane keeps the closed
+      // reading's height at its top. It grew into the ECG before, squeezing the strips (the author, 2026-11-28))
+      else { $('paneEcg').style.setProperty('--interpH', `${$('interp').offsetHeight}px`); document.body.classList.add('interp-open'); openLayer('interp', () => document.body.classList.remove('interp-open')); }
     });
+    // (a tap outside the open reading closes it)
+    document.addEventListener('pointerdown', (e) => { if (hasLayer('interp') && !$('interp').contains(e.target)) closeLayer('interp'); }, true);
     $('mDots').innerHTML = GROUPS.map((g, i) => `<button type="button" role="tab" aria-label="${g.join(', ')}" aria-selected="${i === ph.group}"></button>`).join('');
     [...$('mDots').children].forEach((d, i) => d.addEventListener('click', () => { if (i !== ph.group && ph.peek === null) { const f = (i - ph.group + GROUPS.length) % GROUPS.length; if (f === 1 || f === GROUPS.length - 1) slideGroup(f === 1 ? 1 : -1); else setGroup(i); } }));
     $('mSecs').addEventListener('click', () => {

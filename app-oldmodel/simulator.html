@@ -583,7 +583,8 @@ body.m .chips { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-w
 body.m .chips::-webkit-scrollbar { display: none; }
 body.m .chip { font-size: 11px; padding: 4px 6px; }
 body.m .findings { display: none; }
-body.m.interp-open #interp { max-height: 55%; overflow-y: auto; cursor: default; }
+body.m.interp-open #paneEcg { padding-top: var(--interpH, 0px); }
+body.m.interp-open #interp { position: absolute; z-index: 6; top: 0; left: 0; right: 0; max-height: 75%; overflow-y: auto; cursor: default; background: var(--surface); box-shadow: 0 10px 28px rgba(0,0,0,0.45); border-radius: 0 0 12px 12px; }
 body.m.interp-open #interp::after { content: "▴"; }
 body.m.interp-open #rhythm { white-space: normal; }
 body.m.interp-open .chips { flex-wrap: wrap; }
@@ -968,7 +969,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (3ca6d3e).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (431f044).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -1013,7 +1014,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (3ca6d3e).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (431f044).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -9136,8 +9137,12 @@ body.only .chips { margin-top: 0; }
     $('interp').addEventListener('click', (e) => {
       if (!isM() || document.body.classList.contains('fs-ecg') || e.target.closest('button')) return;
       if (hasLayer('interp')) closeLayer('interp');
-      else { document.body.classList.add('interp-open'); openLayer('interp', () => document.body.classList.remove('interp-open')); }
+      // (opened, the reading drops down over the ECG as a panel; the ECG keeps its size and place: the pane keeps the closed
+      // reading's height at its top. It grew into the ECG before, squeezing the strips (the author, 2026-11-28))
+      else { $('paneEcg').style.setProperty('--interpH', `${$('interp').offsetHeight}px`); document.body.classList.add('interp-open'); openLayer('interp', () => document.body.classList.remove('interp-open')); }
     });
+    // (a tap outside the open reading closes it)
+    document.addEventListener('pointerdown', (e) => { if (hasLayer('interp') && !$('interp').contains(e.target)) closeLayer('interp'); }, true);
     $('mDots').innerHTML = GROUPS.map((g, i) => `<button type="button" role="tab" aria-label="${g.join(', ')}" aria-selected="${i === ph.group}"></button>`).join('');
     [...$('mDots').children].forEach((d, i) => d.addEventListener('click', () => { if (i !== ph.group && ph.peek === null) { const f = (i - ph.group + GROUPS.length) % GROUPS.length; if (f === 1 || f === GROUPS.length - 1) slideGroup(f === 1 ? 1 : -1); else setGroup(i); } }));
     $('mSecs').addEventListener('click', () => {

@@ -408,7 +408,8 @@ body.m .chips { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-w
 body.m .chips::-webkit-scrollbar { display: none; }
 body.m .chip { font-size: 11px; padding: 4px 6px; }
 body.m .findings { display: none; }
-body.m.interp-open #interp { max-height: 55%; overflow-y: auto; cursor: default; }
+body.m.interp-open #paneEcg { padding-top: var(--interpH, 0px); }
+body.m.interp-open #interp { position: absolute; z-index: 6; top: 0; left: 0; right: 0; max-height: 75%; overflow-y: auto; cursor: default; background: var(--surface); box-shadow: 0 10px 28px rgba(0,0,0,0.45); border-radius: 0 0 12px 12px; }
 body.m.interp-open #interp::after { content: "▴"; }
 body.m.interp-open #rhythm { white-space: normal; }
 body.m.interp-open .chips { flex-wrap: wrap; }

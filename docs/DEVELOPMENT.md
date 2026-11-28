@@ -3519,3 +3519,6 @@ without rotation. The first-paint script knows tablets too (no desktop flash). C
 phones unchanged.
 - (round 4) The rhythm reading sits above the ECG on phones and tablets too, as on the desktop (the author); tapping it opens
   it downward. The full-screen ECG keeps it as its side column.
+- (round 4) The opened rhythm reading (phones and tablets) drops down over the ECG as a panel (shadow, its own scrolling,
+  up to 75% of the pane) instead of growing into it: the pane keeps the closed reading's height at its top (`--interpH`),
+  so the ECG keeps its size and place (it squeezed a phone's lead strips to a sliver; the author). A tap outside closes it.
