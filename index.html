@@ -955,7 +955,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (2ab3692).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (de5cbab).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -986,7 +986,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
             <li>On the heart: tap an atrium or ventricle for an ectopic beat; three quick taps start flutter (atria) or VT (ventricles), four start AF or VF.</li>
           </ul>
         </li>
-        <li><b>Blocks:</b> opens the cut view. Tap the conduction system to cycle through its blocks; the AV node and His bundle open the AV node and His–Purkinje sliders.</li>
+        <li><b>Blocks:</b> opens the cut view. Tap the conduction system to cycle through its blocks; the SA node, AV node and His bundle open the SA node, AV node and His–Purkinje sliders.</li>
         <li><b>View:</b> External ↔ Cut slider, the Anterior / 4-chamber / Lateral / Apex views, and the Labels, Leads and Legend switches.</li>
         <li><b>Ischemia:</b> opens the outside view. From any tab, tap a coronary artery to narrow it (partial flow: ST depression and T changes) or double-tap to occlude it; taps elsewhere on the heart still give ectopic beats. Each region (for example proximal, mid or distal LAD) holds one marker, and one tap on it removes it. Use the time scrubber on the heart to follow the injury from onset to one month.</li>
         <li><b>Conditions:</b> add or remove chronic and acute heart conditions.</li>
@@ -1000,7 +1000,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (2ab3692).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (de5cbab).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -2359,6 +2359,11 @@ THE SOFTWARE.
     vtCl: 330,
     tdpCl: 230, tdpSteps: 16,   // torsades: cycle length (ms, ±8%) and beats per full turn of the axis
     vfFoci: 12, vfClMin: 140, vfClMax: 240,
+    // VF as scattered wavelets (the author, 2026-11-28: VF looked like torsades): 6 random spots of ventricular muscle every
+    // 10–30 ms, only recovered patches responding, and a patchwork of refractoriness (vfApdHet: each cell's APD 0–20% longer,
+    // see _activate) that keeps the wavelets from settling into one rotor. On the app's heart (layered walls): 327–363/min,
+    // 19–23 mm in II, never organised over 20 s (four runs), the same computing as the 12 fixed foci it replaces (vfScatter 0)
+    vfScatter: 1, vfScatterMin: 10, vfScatterMax: 30, vfScatterN: 6, vfApdHet: 0.2, vfApdMin: 120,
     adenosineDelay: 1000, adenosineBlock: 3000, shockRefractory: 160,
 
     // Accessory pathway (see Sim.setAccessoryPathway)
@@ -4657,7 +4662,13 @@ THE SOFTWARE.
         }
         this.drivers.push({ kind: 'tdp', cells: path, i: 0, next: this.t, cl: () => P.tdpCl * (0.92 + 0.16 * r()) });
       } else if (type === 'vf') {
-        for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
+        if (P.vfScatter) {
+          // (scattered wavelets: each stimulus at a new random spot in the ventricular muscle, every vfScatterMin–Max ms; only
+          // patches that have just recovered respond, so the wavelets are small, many and colliding, with no fixed source)
+          const cells = []; for (let c = 0; c < M.nVox; c++) if (vent(c)) cells.push(c);
+          this._vfHet = null;   // (a new patchwork for each episode)
+          this.drivers.push({ kind: 'scatter', cells, next: this.t, cl: rand(P.vfScatterMin, P.vfScatterMax) });
+        } else for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
       } else throw new Error('unknown arrhythmia ' + type);
       this.arrhythmia = { type, t: this.t, cell: opts.cell, clockwise: !!opts.clockwise };
       this.rhythmChangedAt = this.t;
@@ -4739,9 +4750,10 @@ THE SOFTWARE.
           continue;
         }
         if (t >= d.next) {
-          const c = d.kind === 'rotate' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.kind === 'tdp' ? d.cells[d.i++ % d.cells.length] : d.cell;
+          const c = d.kind === 'rotate' || d.kind === 'scatter' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.kind === 'tdp' ? d.cells[d.i++ % d.cells.length] : d.cell;
           if (d.kind === 'rotate') { this.fireLog.push({ name: 'focus', t, cell: c }); if (this.fireLog.length > 40) this.fireLog.shift(); }   // (which MAT focus fired: read by the training generator)
           if (t >= this.refEnd[c] && !this.blocked[c]) this.schedule(c, t);
+          if (d.kind === 'scatter') for (let k = 1; k < this.P.vfScatterN; k++) { const q = d.cells[Math.floor(this.rand() * d.cells.length)]; if (t >= this.refEnd[q] && !this.blocked[q]) this.schedule(q, t); }
           d.next = t + d.cl();
         }
       }
@@ -4800,6 +4812,17 @@ THE SOFTWARE.
       // diastolic interval since previous repolarisation
       const DI = ta - this.repEnd[c];
       let apd = this.apdMax[c] * (1 - P.restA * Math.exp(-Math.max(DI, 0) / P.restTau));
+      // (VF: a fixed patchwork of refractoriness, each ventricular cell's APD 0–vfApdHet longer, drawn when VF starts: it keeps
+      // breaking the wavefronts, as in real VF; without it the scattered wavelets could settle within seconds into one stable
+      // rotor, a regular VT-like wave. Longer only: shorter APDs leave the ECG's fast plateau sums (16× the cells summed one
+      // by one, 2.6× the time). 0.4 slowed it to ~175/min and ~3 mm on the app's heart; 0.2 keeps ~350/min)
+      if (P.vfApdHet && c < this.M.nVox && this.arrhythmia && this.arrhythmia.type === 'vf' && this.M.kind[c] === KIND.VENT) {
+        if (!this._vfHet) { this._vfHet = new Float32Array(this.M.nVox); for (let q = 0; q < this.M.nVox; q++) this._vfHet[q] = 1 + P.vfApdHet * this.rand(); }
+        apd *= this._vfHet[c];
+        // (and no shorter than vfApdMin: the scattered stimuli otherwise drove some episodes into a degenerate state, every
+        // patch re-firing the moment it recovered, its APD collapsing: ~600/min, ~3 mm, twice the computing)
+        if (apd < P.vfApdMin) apd = P.vfApdMin;
+      }
       // atrial refractoriness floor at the fastest rates; in flutter the circuit
       // turns with an excitable gap at ~200 ms (≈300/min), not at the refractory limit of AF
       // (the left atrium, driven passively, keeps its own floor: at the flutter floor it could not follow
@@ -6912,7 +6935,7 @@ THE SOFTWARE.
   }
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
-    blocks: 'Tap the conduction system to cycle through blocks; the AV node and His bundle open the sliders below.',
+    blocks: 'Tap the conduction system to cycle through blocks; the SA node, AV node and His bundle open the sliders below.',
     ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marker again to remove it.',
   };
 
@@ -8361,7 +8384,10 @@ body.only .chips { margin-top: 0; }
     const size = shown ? { w: wrap.clientWidth, h: wrap.clientHeight, dpr: Math.max(2, Math.min(3, window.devicePixelRatio || 1)) } : { w: 1100, h: 540, dpr: 2 };
     const keep = { canvas: ecg.canvas, ctx: ecg.ctx, grid: ecg.grid, mm: ecg.mm, W: ecg.W, H: ecg.H, ox: ecg.ox, oy: ecg.oy, lastCursor: ecg.lastCursor, buf: ecg.buf }, keepP = Object.assign({}, PAPER);
     // the ring buffer rotated so index 0 is the oldest sample (the newest is at the sweep's cursor)
-    const cur = Math.floor((S.t + ecg.t0) % PAGE), rot = ecg.buf.map((b) => { const r = new Float32Array(PAGE); for (let i = 0; i < PAGE; i++) r[i] = b[(cur + 1 + i) % PAGE]; return r; });
+    // (the last 10 s in order, oldest first; a page not yet full (under 10 s since a reset or a new scenario) is drawn from the
+    // left as on screen: rotated, its blank start pushed the trace to the right edge (the ECG library's VF image))
+    const cur = Math.floor((S.t + ecg.t0) % PAGE), full = !Number.isNaN(ecg.buf[0][(cur + 1) % PAGE]);
+    const rot = ecg.buf.map((b) => { const r = new Float32Array(PAGE); for (let i = 0; i < PAGE; i++) r[i] = full ? b[(cur + 1 + i) % PAGE] : (i <= cur ? b[i] : NaN); return r; });
     const cv = document.createElement('canvas');
     Object.assign(ecg, { canvas: cv, ctx: cv.getContext('2d'), grid: document.createElement('canvas'), buf: rot, export: true });
     try { resizeECG(size); ecg.full = true; drawECG(); }

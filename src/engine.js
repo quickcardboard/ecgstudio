@@ -219,6 +219,11 @@
     vtCl: 330,
     tdpCl: 230, tdpSteps: 16,   // torsades: cycle length (ms, ±8%) and beats per full turn of the axis
     vfFoci: 12, vfClMin: 140, vfClMax: 240,
+    // VF as scattered wavelets (the author, 2026-11-28: VF looked like torsades): 6 random spots of ventricular muscle every
+    // 10–30 ms, only recovered patches responding, and a patchwork of refractoriness (vfApdHet: each cell's APD 0–20% longer,
+    // see _activate) that keeps the wavelets from settling into one rotor. On the app's heart (layered walls): 327–363/min,
+    // 19–23 mm in II, never organised over 20 s (four runs), the same computing as the 12 fixed foci it replaces (vfScatter 0)
+    vfScatter: 1, vfScatterMin: 10, vfScatterMax: 30, vfScatterN: 6, vfApdHet: 0.2, vfApdMin: 120,
     adenosineDelay: 1000, adenosineBlock: 3000, shockRefractory: 160,
 
     // Accessory pathway (see Sim.setAccessoryPathway)
@@ -2517,7 +2522,13 @@
         }
         this.drivers.push({ kind: 'tdp', cells: path, i: 0, next: this.t, cl: () => P.tdpCl * (0.92 + 0.16 * r()) });
       } else if (type === 'vf') {
-        for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
+        if (P.vfScatter) {
+          // (scattered wavelets: each stimulus at a new random spot in the ventricular muscle, every vfScatterMin–Max ms; only
+          // patches that have just recovered respond, so the wavelets are small, many and colliding, with no fixed source)
+          const cells = []; for (let c = 0; c < M.nVox; c++) if (vent(c)) cells.push(c);
+          this._vfHet = null;   // (a new patchwork for each episode)
+          this.drivers.push({ kind: 'scatter', cells, next: this.t, cl: rand(P.vfScatterMin, P.vfScatterMax) });
+        } else for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
       } else throw new Error('unknown arrhythmia ' + type);
       this.arrhythmia = { type, t: this.t, cell: opts.cell, clockwise: !!opts.clockwise };
       this.rhythmChangedAt = this.t;
@@ -2599,9 +2610,10 @@
           continue;
         }
         if (t >= d.next) {
-          const c = d.kind === 'rotate' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.kind === 'tdp' ? d.cells[d.i++ % d.cells.length] : d.cell;
+          const c = d.kind === 'rotate' || d.kind === 'scatter' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.kind === 'tdp' ? d.cells[d.i++ % d.cells.length] : d.cell;
           if (d.kind === 'rotate') { this.fireLog.push({ name: 'focus', t, cell: c }); if (this.fireLog.length > 40) this.fireLog.shift(); }   // (which MAT focus fired: read by the training generator)
           if (t >= this.refEnd[c] && !this.blocked[c]) this.schedule(c, t);
+          if (d.kind === 'scatter') for (let k = 1; k < this.P.vfScatterN; k++) { const q = d.cells[Math.floor(this.rand() * d.cells.length)]; if (t >= this.refEnd[q] && !this.blocked[q]) this.schedule(q, t); }
           d.next = t + d.cl();
         }
       }
@@ -2660,6 +2672,17 @@
       // diastolic interval since previous repolarisation
       const DI = ta - this.repEnd[c];
       let apd = this.apdMax[c] * (1 - P.restA * Math.exp(-Math.max(DI, 0) / P.restTau));
+      // (VF: a fixed patchwork of refractoriness, each ventricular cell's APD 0–vfApdHet longer, drawn when VF starts: it keeps
+      // breaking the wavefronts, as in real VF; without it the scattered wavelets could settle within seconds into one stable
+      // rotor, a regular VT-like wave. Longer only: shorter APDs leave the ECG's fast plateau sums (16× the cells summed one
+      // by one, 2.6× the time). 0.4 slowed it to ~175/min and ~3 mm on the app's heart; 0.2 keeps ~350/min)
+      if (P.vfApdHet && c < this.M.nVox && this.arrhythmia && this.arrhythmia.type === 'vf' && this.M.kind[c] === KIND.VENT) {
+        if (!this._vfHet) { this._vfHet = new Float32Array(this.M.nVox); for (let q = 0; q < this.M.nVox; q++) this._vfHet[q] = 1 + P.vfApdHet * this.rand(); }
+        apd *= this._vfHet[c];
+        // (and no shorter than vfApdMin: the scattered stimuli otherwise drove some episodes into a degenerate state, every
+        // patch re-firing the moment it recovered, its APD collapsing: ~600/min, ~3 mm, twice the computing)
+        if (apd < P.vfApdMin) apd = P.vfApdMin;
+      }
       // atrial refractoriness floor at the fastest rates; in flutter the circuit
       // turns with an excitable gap at ~200 ms (≈300/min), not at the refractory limit of AF
       // (the left atrium, driven passively, keeps its own floor: at the flutter floor it could not follow

@@ -110,9 +110,9 @@
  },
  "ventricular-fibrillation": {
   "hash": "r=72&a=vf",
-  "rhythm": "Ventricular fibrillation: shock now",
+  "rhythm": "Ventricular fibrillation",
   "chips": [
-   "Rhythm chaotic, no QRS complexes"
+   "QRS none"
   ],
   "findings": []
  },

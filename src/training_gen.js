@@ -1212,7 +1212,8 @@
           ['twi', 'reciprocal'].forEach((x) => optional.add(x));
         } else if (a.k === 'recent' && !asQ.has(a)) {
           const site = MI_SITES[a.site], ex = site.q, terr = terrOf(c.leads), tt = terrOf(c.leads2), ts = terrStrong(c.leads2);
-          findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...qGroups(r.L)])].filter((t) => !ex.req.includes(t)) });
+          findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...qGroups(r.L)])].filter((t) => !ex.req.includes(t)),
+            ...(steLeads(r.L).length ? { alts: ['ste'] } : { part: ['ste'] }) });   // (ST elevation named for a recent infarct's Q waves: as below)
           // (T inversion asked where it is: a territory of the site's that shows it in two of its leads, else the territory with the most)
           const most = (ts.length ? ts : tt).slice().sort((x, y) => RL[y].filter((n) => c.leads2.includes(n)).length - RL[x].filter((n) => c.leads2.includes(n)).length);
           const tReq = ts.filter((t) => ex.req.includes(t)).length ? ts.filter((t) => ex.req.includes(t)) : most.slice(0, 1);
@@ -1234,7 +1235,10 @@
         } else if (d.isch) {
           const site = MI_SITES[a.site], acute = d.isch < 24, ex = acute ? site.ste : site.q, terr = terrOf(c.leads);
           findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...(acute ? raised(r.L) : qGroups(r.L))])].filter((t) => !ex.req.includes(t)),
-            ...(asQ.has(a) && steLeads(r.L).length ? { alts: ['ste'] } : {}) });   // (a recent infarct with the ST still up: STEMI named counts for the Q waves; reading batches 1–2)
+            // (a recent infarct (2 days): ST elevation named in its leads finds the infarct. With the ST still up it counts fully
+            // for the Q waves (reading batches 1–2); without, half ("more exactly: Q waves"): the infarct and its place were
+            // found, its age (the Q waves) missed (the author, 2026-11-28: losing all the marks was unfair))
+            ...(a.k === 'recent' || asQ.has(a) ? (steLeads(r.L).length ? { alts: ['ste'] } : { part: ['ste'] }) : {}) });
           mark(d.id, c.leads);
           lines[d.id] = a.k === 'evolving' ? `ST elevation in ${c.leads.join(', ')}, past its peak, with Q waves forming${a.h >= 12 ? ' and T waves starting to invert' : ''}: an evolving ${ex.req.join('/')} STEMI, about ${a.h} hours old.`
             : acute ? `ST elevation in ${c.leads.join(', ')}: acute ${ex.req.join('/')} STEMI.` : `Q waves in ${c.leads.join(', ')}: old ${wallName(ex, terr)} infarct.`;

@@ -3470,3 +3470,27 @@ AVNRT → flutter and AVRT → sinus all switch.
   flutter and 4 of 6 variable flutter strips read as AF, sinus or SVT).
 - Seen on the way: fast AF (150–170/min) fell into an unlogged ventricular re-entry in 5–8 of 12 ten-second runs before
   the R-on-T fix and 0–2 of 12 after; Training rejects those strips and rebuilds.
+
+## claude/round-3 round 2: VF that does not look like torsades; SA node wording; Q-wave credit; PNG of a short page
+
+- VF (the author: "looks very similar to torsades"). The 12 fixed foci (140–240 ms) each swept most of the ventricles: large,
+  repeating complexes with a turning axis, as torsades. Now (`vfScatter`): 6 random spots of ventricular muscle every
+  10–30 ms, only recovered patches responding, so wavelets are many, small and colliding; a fixed patchwork of refractoriness
+  for each episode (`vfApdHet` 0.2: each cell's APD 0–20% longer) keeps them from settling into one rotor (without it, one of
+  four 20 s runs became a regular wave at 0.99 organisation); an APD floor in VF (`vfApdMin` 120 ms) stops a degenerate state
+  in which patches re-fired the moment they recovered (~600/min, ~3 mm, twice the computing). Measured on the app's heart
+  (hypertrophyOptions anatomy: the plain Anatomy that most tools use behaves differently) over 20 s, four runs: 297–339/min,
+  16–20 mm in II, organisation (share of power at the dominant frequency, per 4 s) ≤ 0.85, ~880 ms of computing per simulated
+  second (old VF ~800). A lower rate (a wait after recovery, ~300/min) brought back large organised waves: the difference from
+  torsades is organisation, not rate. `tools/rhythmread.js`: VF also when the strip has no baseline (iso < 0.06), no separable
+  complexes (width ≥ 250 ms) and an irregular cycle (CV > 0.15): the new VF's smooth waves can correlate up to ~0.9. Reader
+  55/57, scorecard 61/66, Training VF read as VF (4 of 4); the shock ends it. (Testing note: parameters set with
+  `Object.assign(S.P, …)` change the shared model's P for every later Sim in the process: one setting per process.)
+- `tools/seo_shots.js` waits for a full 10 s page since the scenario loaded (VF is read at once and its image had ~1 s of
+  trace); the VF library image is redone.
+- Save PNG: a page not yet full (under 10 s since a reset or a new scenario) is drawn from the left, as on screen.
+- The Blocks note and the phone help name the SA node with the AV node and His bundle as opening the sliders.
+- Tablet tutorial: the heart was off centre because of the panel shift removed in round 1 (the sheet counted as the panel);
+  now centred in every tutorial view (iPad mini, iPad 7th gen).
+- Training: ST elevation named for a recent infarct's Q waves counts fully when the ST is still up in those leads, half
+  ("more exactly: Q waves") otherwise (the author: losing all the marks was unfair); both recent-infarct branches.

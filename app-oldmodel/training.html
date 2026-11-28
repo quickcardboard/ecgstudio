@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-28 (2ab3692)">
+<meta name="version" content="2026-11-28 (de5cbab)">
 <meta name="premium" content="1">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -900,6 +900,11 @@ body.land #fsClose { display: none; }
     vtCl: 330,
     tdpCl: 230, tdpSteps: 16,   // torsades: cycle length (ms, ±8%) and beats per full turn of the axis
     vfFoci: 12, vfClMin: 140, vfClMax: 240,
+    // VF as scattered wavelets (the author, 2026-11-28: VF looked like torsades): 6 random spots of ventricular muscle every
+    // 10–30 ms, only recovered patches responding, and a patchwork of refractoriness (vfApdHet: each cell's APD 0–20% longer,
+    // see _activate) that keeps the wavelets from settling into one rotor. On the app's heart (layered walls): 327–363/min,
+    // 19–23 mm in II, never organised over 20 s (four runs), the same computing as the 12 fixed foci it replaces (vfScatter 0)
+    vfScatter: 1, vfScatterMin: 10, vfScatterMax: 30, vfScatterN: 6, vfApdHet: 0.2, vfApdMin: 120,
     adenosineDelay: 1000, adenosineBlock: 3000, shockRefractory: 160,
 
     // Accessory pathway (see Sim.setAccessoryPathway)
@@ -3198,7 +3203,13 @@ body.land #fsClose { display: none; }
         }
         this.drivers.push({ kind: 'tdp', cells: path, i: 0, next: this.t, cl: () => P.tdpCl * (0.92 + 0.16 * r()) });
       } else if (type === 'vf') {
-        for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
+        if (P.vfScatter) {
+          // (scattered wavelets: each stimulus at a new random spot in the ventricular muscle, every vfScatterMin–Max ms; only
+          // patches that have just recovered respond, so the wavelets are small, many and colliding, with no fixed source)
+          const cells = []; for (let c = 0; c < M.nVox; c++) if (vent(c)) cells.push(c);
+          this._vfHet = null;   // (a new patchwork for each episode)
+          this.drivers.push({ kind: 'scatter', cells, next: this.t, cl: rand(P.vfScatterMin, P.vfScatterMax) });
+        } else for (const c of pick(vent, P.vfFoci)) this.drivers.push({ kind: 'focus', cell: c, next: this.t + r() * 120, cl: rand(P.vfClMin, P.vfClMax) });
       } else throw new Error('unknown arrhythmia ' + type);
       this.arrhythmia = { type, t: this.t, cell: opts.cell, clockwise: !!opts.clockwise };
       this.rhythmChangedAt = this.t;
@@ -3280,9 +3291,10 @@ body.land #fsClose { display: none; }
           continue;
         }
         if (t >= d.next) {
-          const c = d.kind === 'rotate' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.kind === 'tdp' ? d.cells[d.i++ % d.cells.length] : d.cell;
+          const c = d.kind === 'rotate' || d.kind === 'scatter' ? d.cells[Math.floor(this.rand() * d.cells.length)] : d.kind === 'tdp' ? d.cells[d.i++ % d.cells.length] : d.cell;
           if (d.kind === 'rotate') { this.fireLog.push({ name: 'focus', t, cell: c }); if (this.fireLog.length > 40) this.fireLog.shift(); }   // (which MAT focus fired: read by the training generator)
           if (t >= this.refEnd[c] && !this.blocked[c]) this.schedule(c, t);
+          if (d.kind === 'scatter') for (let k = 1; k < this.P.vfScatterN; k++) { const q = d.cells[Math.floor(this.rand() * d.cells.length)]; if (t >= this.refEnd[q] && !this.blocked[q]) this.schedule(q, t); }
           d.next = t + d.cl();
         }
       }
@@ -3341,6 +3353,17 @@ body.land #fsClose { display: none; }
       // diastolic interval since previous repolarisation
       const DI = ta - this.repEnd[c];
       let apd = this.apdMax[c] * (1 - P.restA * Math.exp(-Math.max(DI, 0) / P.restTau));
+      // (VF: a fixed patchwork of refractoriness, each ventricular cell's APD 0–vfApdHet longer, drawn when VF starts: it keeps
+      // breaking the wavefronts, as in real VF; without it the scattered wavelets could settle within seconds into one stable
+      // rotor, a regular VT-like wave. Longer only: shorter APDs leave the ECG's fast plateau sums (16× the cells summed one
+      // by one, 2.6× the time). 0.4 slowed it to ~175/min and ~3 mm on the app's heart; 0.2 keeps ~350/min)
+      if (P.vfApdHet && c < this.M.nVox && this.arrhythmia && this.arrhythmia.type === 'vf' && this.M.kind[c] === KIND.VENT) {
+        if (!this._vfHet) { this._vfHet = new Float32Array(this.M.nVox); for (let q = 0; q < this.M.nVox; q++) this._vfHet[q] = 1 + P.vfApdHet * this.rand(); }
+        apd *= this._vfHet[c];
+        // (and no shorter than vfApdMin: the scattered stimuli otherwise drove some episodes into a degenerate state, every
+        // patch re-firing the moment it recovered, its APD collapsing: ~600/min, ~3 mm, twice the computing)
+        if (apd < P.vfApdMin) apd = P.vfApdMin;
+      }
       // atrial refractoriness floor at the fastest rates; in flutter the circuit
       // turns with an excitable gap at ~200 ms (≈300/min), not at the refractory limit of AF
       // (the left atrium, driven passively, keeps its own floor: at the flutter floor it could not follow
@@ -4165,6 +4188,9 @@ function readRhythm(rec) {
   // VF: no consistent QRS shape and no isoelectric baseline (a slow escape with P waves landing on some complexes
   // keeps its baseline: iso ~0.8; VF ~0.1)
   if (morph < 0.7 && out.iso < 0.4) return { ...out, rhythm: 'ventricular fibrillation' };
+  // (continuous, irregular undulation with no separable complexes and no baseline at all: VF of scattered wavelets, whose
+  // smooth waves can look alike (morph up to ~0.9); VT is as continuous but regular, AF has a baseline and narrow QRS)
+  if (out.iso < 0.06 && width >= 250 && rrCv > 0.15) return { ...out, rhythm: 'ventricular fibrillation' };
   // ---- QRST template subtraction → atrial residual
   // template window: from just before the QRS to the end of the T wave (from the median beat), so a
   // conducted P wave before the QRS, or the next beat's P after the T, is not part of it
@@ -5515,7 +5541,8 @@ return module.exports; })();
           ['twi', 'reciprocal'].forEach((x) => optional.add(x));
         } else if (a.k === 'recent' && !asQ.has(a)) {
           const site = MI_SITES[a.site], ex = site.q, terr = terrOf(c.leads), tt = terrOf(c.leads2), ts = terrStrong(c.leads2);
-          findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...qGroups(r.L)])].filter((t) => !ex.req.includes(t)) });
+          findings.push({ id: 'qwaves', skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...qGroups(r.L)])].filter((t) => !ex.req.includes(t)),
+            ...(steLeads(r.L).length ? { alts: ['ste'] } : { part: ['ste'] }) });   // (ST elevation named for a recent infarct's Q waves: as below)
           // (T inversion asked where it is: a territory of the site's that shows it in two of its leads, else the territory with the most)
           const most = (ts.length ? ts : tt).slice().sort((x, y) => RL[y].filter((n) => c.leads2.includes(n)).length - RL[x].filter((n) => c.leads2.includes(n)).length);
           const tReq = ts.filter((t) => ex.req.includes(t)).length ? ts.filter((t) => ex.req.includes(t)) : most.slice(0, 1);
@@ -5537,7 +5564,10 @@ return module.exports; })();
         } else if (d.isch) {
           const site = MI_SITES[a.site], acute = d.isch < 24, ex = acute ? site.ste : site.q, terr = terrOf(c.leads);
           findings.push({ id: d.id, skill: d.skill, regions: ex.req, okRegions: [...new Set([...ex.ok, ...terr, ...(acute ? raised(r.L) : qGroups(r.L))])].filter((t) => !ex.req.includes(t)),
-            ...(asQ.has(a) && steLeads(r.L).length ? { alts: ['ste'] } : {}) });   // (a recent infarct with the ST still up: STEMI named counts for the Q waves; reading batches 1–2)
+            // (a recent infarct (2 days): ST elevation named in its leads finds the infarct. With the ST still up it counts fully
+            // for the Q waves (reading batches 1–2); without, half ("more exactly: Q waves"): the infarct and its place were
+            // found, its age (the Q waves) missed (the author, 2026-11-28: losing all the marks was unfair))
+            ...(a.k === 'recent' || asQ.has(a) ? (steLeads(r.L).length ? { alts: ['ste'] } : { part: ['ste'] }) : {}) });
           mark(d.id, c.leads);
           lines[d.id] = a.k === 'evolving' ? `ST elevation in ${c.leads.join(', ')}, past its peak, with Q waves forming${a.h >= 12 ? ' and T waves starting to invert' : ''}: an evolving ${ex.req.join('/')} STEMI, about ${a.h} hours old.`
             : acute ? `ST elevation in ${c.leads.join(', ')}: acute ${ex.req.join('/')} STEMI.` : `Q waves in ${c.leads.join(', ')}: old ${wallName(ex, terr)} infarct.`;

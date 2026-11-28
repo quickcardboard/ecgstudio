@@ -48,6 +48,9 @@ function readRhythm(rec) {
   // VF: no consistent QRS shape and no isoelectric baseline (a slow escape with P waves landing on some complexes
   // keeps its baseline: iso ~0.8; VF ~0.1)
   if (morph < 0.7 && out.iso < 0.4) return { ...out, rhythm: 'ventricular fibrillation' };
+  // (continuous, irregular undulation with no separable complexes and no baseline at all: VF of scattered wavelets, whose
+  // smooth waves can look alike (morph up to ~0.9); VT is as continuous but regular, AF has a baseline and narrow QRS)
+  if (out.iso < 0.06 && width >= 250 && rrCv > 0.15) return { ...out, rhythm: 'ventricular fibrillation' };
   // ---- QRST template subtraction → atrial residual
   // template window: from just before the QRS to the end of the T wave (from the median beat), so a
   // conducted P wave before the QRS, or the next beat's P after the T, is not part of it

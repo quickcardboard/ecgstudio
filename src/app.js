@@ -1551,7 +1551,7 @@
   }
   const PHONE_NOTE = {
     rhythm: 'Tap the heart for isolated ectopics, triple tap to start re-entry arrhythmia. Four taps to start fibrillation.',
-    blocks: 'Tap the conduction system to cycle through blocks; the AV node and His bundle open the sliders below.',
+    blocks: 'Tap the conduction system to cycle through blocks; the SA node, AV node and His bundle open the sliders below.',
     ischemia: 'Tap a coronary artery to narrow it (partial flow), double-tap to occlude it. Tap a marker again to remove it.',
   };
 
@@ -3000,7 +3000,10 @@ body.only .chips { margin-top: 0; }
     const size = shown ? { w: wrap.clientWidth, h: wrap.clientHeight, dpr: Math.max(2, Math.min(3, window.devicePixelRatio || 1)) } : { w: 1100, h: 540, dpr: 2 };
     const keep = { canvas: ecg.canvas, ctx: ecg.ctx, grid: ecg.grid, mm: ecg.mm, W: ecg.W, H: ecg.H, ox: ecg.ox, oy: ecg.oy, lastCursor: ecg.lastCursor, buf: ecg.buf }, keepP = Object.assign({}, PAPER);
     // the ring buffer rotated so index 0 is the oldest sample (the newest is at the sweep's cursor)
-    const cur = Math.floor((S.t + ecg.t0) % PAGE), rot = ecg.buf.map((b) => { const r = new Float32Array(PAGE); for (let i = 0; i < PAGE; i++) r[i] = b[(cur + 1 + i) % PAGE]; return r; });
+    // (the last 10 s in order, oldest first; a page not yet full (under 10 s since a reset or a new scenario) is drawn from the
+    // left as on screen: rotated, its blank start pushed the trace to the right edge (the ECG library's VF image))
+    const cur = Math.floor((S.t + ecg.t0) % PAGE), full = !Number.isNaN(ecg.buf[0][(cur + 1) % PAGE]);
+    const rot = ecg.buf.map((b) => { const r = new Float32Array(PAGE); for (let i = 0; i < PAGE; i++) r[i] = full ? b[(cur + 1 + i) % PAGE] : (i <= cur ? b[i] : NaN); return r; });
     const cv = document.createElement('canvas');
     Object.assign(ecg, { canvas: cv, ctx: cv.getContext('2d'), grid: document.createElement('canvas'), buf: rot, export: true });
     try { resizeECG(size); ecg.full = true; drawECG(); }
