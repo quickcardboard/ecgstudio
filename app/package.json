@@ -1,12 +1,12 @@
 {
   "name": "ecgstudio-app",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "ECG Studio Android app (Capacitor shell around the website's pages; see docs/APP_PLAN.md)",
   "scripts": {
     "build": "cd .. && python3 tools/build.py --app-only",
     "sync": "npm run build && npx cap sync android",
-    "sync:ios": "npm run build && npx cap sync ios"
+    "sync:ios": "npm run build && npx cap sync ios && node ../tools/ios_version.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.0",

@@ -3434,3 +3434,11 @@ AVNRT → flutter and AVRT → sinus all switch.
 - `python3 tools/build.py --app-only` (app/'s `npm run build`; `npm run sync:ios` adds the iOS sync) writes `app/www/`
   from memory and nothing else, so building the app on the Mac leaves git clean. Checked: the same `app/www/` as
   `--app`, and no tracked file changed.
+
+## claude/festive-cori round 3: one version number for Android and iOS
+
+- `app/package.json` `"version"` (now 1.0.0, the version on Google Play) is the app's one version number: Android's
+  `versionName` reads it in `app/android/app/build.gradle` (Groovy's JsonSlurper), and `tools/ios_version.js` (run by
+  `npm run sync:ios`) writes it to the Xcode project's `MARKETING_VERSION` with a build number from the UTC date and time
+  (`CURRENT_PROJECT_VERSION`, YYMMDD.HHMM, always higher). Checked on a freshly generated Capacitor iOS project: both
+  settings in both build configurations. The release routine for the website and both apps: docs/APP_PLAN.md.
