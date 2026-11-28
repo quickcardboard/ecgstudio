@@ -3453,3 +3453,72 @@ AVNRT → flutter and AVRT → sinus all switch.
   and light/dark splash images in `app/ios/App/App/Assets.xcassets`; the three placeholder splash files removed.
 - `ITSAppUsesNonExemptEncryption` false in `app/ios/App/App/Info.plist` (the app uses only the system's HTTPS), so App
   Store Connect does not ask about export compliance for each build.
+
+## claude/round-3 round 1: tutorial LAD view, touch Blocks sheet, fixed heart on desktop, Training reports
+
+- Tutorial, "tap the LAD": a new camera preset `lad` (world direction [0.75, 0.17, 0.63]: 50° toward the patient's left,
+  10° from above). From the front of the chest the LAD runs down the heart's left border at a glancing angle (68% of it
+  tappable); in this view it runs down the middle (97%). A scan of yaw −40…65° and pitch 0/20° chose it.
+- Phones and tablets: the Blocks sheet hides the SA/AV/His sliders until the SA or AV node is tapped, or while an SA, AV
+  or His block is on (`syncAvVisible`, `ui.avShown`, cleared when the sheet closes); the desktop panel always shows them.
+- Larger screens: the heart no longer shifts aside when the control panel opens or closes (`resize3D`: no horizontal view
+  offset); the panel covers it. Checked at 1280×720, 1440×900, 1920×1080: the heart stays put.
+- Training (problem reports 2026-11-27): a posterior STEMI in the blind read also accepts ST depression and posterior MI
+  (seen as ST depression in V1–V3); a recent infarct always accepts ST elevation (residual at 2 days); an infarct of a day or
+  more with R > S in V1 accepts a dominant R in V1 (not RVH); no hypokalaemia with AF (the U wave is lost); flutter and
+  variable flutter must pass the blind rhythm read also in "as is" mode (`strictRead`: rebuilt otherwise; measured 4 of 14
+  flutter and 4 of 6 variable flutter strips read as AF, sinus or SVT).
+- Seen on the way: fast AF (150–170/min) fell into an unlogged ventricular re-entry in 5–8 of 12 ten-second runs before
+  the R-on-T fix and 0–2 of 12 after; Training rejects those strips and rebuilds.
+
+## claude/round-3 round 2: VF that does not look like torsades; SA node wording; Q-wave credit; PNG of a short page
+
+- VF (the author: "looks very similar to torsades"). The 12 fixed foci (140–240 ms) each swept most of the ventricles: large,
+  repeating complexes with a turning axis, as torsades. Now (`vfScatter`): 6 random spots of ventricular muscle every
+  10–30 ms, only recovered patches responding, so wavelets are many, small and colliding; a fixed patchwork of refractoriness
+  for each episode (`vfApdHet` 0.2: each cell's APD 0–20% longer) keeps them from settling into one rotor (without it, one of
+  four 20 s runs became a regular wave at 0.99 organisation); an APD floor in VF (`vfApdMin` 120 ms) stops a degenerate state
+  in which patches re-fired the moment they recovered (~600/min, ~3 mm, twice the computing). Measured on the app's heart
+  (hypertrophyOptions anatomy: the plain Anatomy that most tools use behaves differently) over 20 s, four runs: 297–339/min,
+  16–20 mm in II, organisation (share of power at the dominant frequency, per 4 s) ≤ 0.85, ~880 ms of computing per simulated
+  second (old VF ~800). A lower rate (a wait after recovery, ~300/min) brought back large organised waves: the difference from
+  torsades is organisation, not rate. `tools/rhythmread.js`: VF also when the strip has no baseline (iso < 0.06), no separable
+  complexes (width ≥ 250 ms) and an irregular cycle (CV > 0.15): the new VF's smooth waves can correlate up to ~0.9. Reader
+  55/57, scorecard 61/66, Training VF read as VF (4 of 4); the shock ends it. (Testing note: parameters set with
+  `Object.assign(S.P, …)` change the shared model's P for every later Sim in the process: one setting per process.)
+- `tools/seo_shots.js` waits for a full 10 s page since the scenario loaded (VF is read at once and its image had ~1 s of
+  trace); the VF library image is redone.
+- Save PNG: a page not yet full (under 10 s since a reset or a new scenario) is drawn from the left, as on screen.
+- The Blocks note and the phone help name the SA node with the AV node and His bundle as opening the sliders.
+- Tablet tutorial: the heart was off centre because of the panel shift removed in round 1 (the sheet counted as the panel);
+  now centred in every tutorial view (iPad mini, iPad 7th gen).
+- Training: ST elevation named for a recent infarct's Q waves counts fully when the ST is still up in those leads, half
+  ("more exactly: Q waves") otherwise (the author: losing all the marks was unfair); both recent-infarct branches.
+
+## claude/round-3 round 3: heart centred between the bars; smaller VF
+
+- The heart is centred in the space between the tab row and the view bar, measured in `resize3D` (it was shifted down by 6%
+  of the pane's height: in the tall, narrow pane of a tablet held sideways it sat ~40–50 px low; the author). Measured over
+  the outside, LAD and four-chamber views: within 5 px of the usable centre on desktop (1440×900, 1280×720), tablets
+  sideways (iPad mini, iPad 7th gen, Galaxy Tab S4), iPads upright and an iPhone both ways.
+- VF amplitude (the author: "much lower"): the leads are scaled by `vfEcgGain` 0.35 while VF runs, easing in and out over
+  ~0.5 s. Lead II and V3 (5th–95th percentile): 16–20 mm → 5.5–7 mm, coarse VF as usually seen (3–10 mm); rate and
+  disorder unchanged. Reader 55/57; Training VF read as VF; the library image redone.
+
+## claude/round-3 round 4: touch layout for tablets held sideways
+
+The desktop layout on an iPad mini held sideways (1024–1133 px) wrapped and scrolled (the author): the tagline on two
+lines and Get the app on three, the rhythm-strip buttons and the measurement chips on two rows, the view bar cut off at
+Apex, the floating panel over a third of a narrow heart pane; the same in the app. Touch tablets held sideways
+(`MQ_TABL`: coarse pointer, landscape, 900–1400 px wide, over 500 px tall: iPad mini to the 12.9" iPad Pro, website and
+app) now take the touch layout of tablets held upright (body `m t tl`): the compact header (speed, pause, ⋯ menu), the
+full 12-lead sheet, the sheets and the Blocks sliders as on an upright tablet; heart (40%) and ECG (60%) side by side; the
+tab bar under the heart pane only and its sheets over the heart (`--heartR`, set in `sizeSheet`); the full-screen ECG
+without rotation. The first-paint script knows tablets too (no desktop flash). Checked: iPad mini (website and app),
+1180×820, 1366×1024: no sideways scroll, no wrapping; upright iPads, desktops (a 1024 px window with a mouse included) and
+phones unchanged.
+- (round 4) The rhythm reading sits above the ECG on phones and tablets too, as on the desktop (the author); tapping it opens
+  it downward. The full-screen ECG keeps it as its side column.
+- (round 4) The opened rhythm reading (phones and tablets) drops down over the ECG as a panel (shadow, its own scrolling,
+  up to 75% of the pane) instead of growing into it: the pane keeps the closed reading's height at its top (`--interpH`),
+  so the ECG keeps its size and place (it squeezed a phone's lead strips to a sliver; the author). A tap outside closes it.
