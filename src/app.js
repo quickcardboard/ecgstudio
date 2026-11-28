@@ -373,9 +373,13 @@
     g3.camera.fov = w / h < FIT ? 2 * Math.atan(Math.tan(16 * Math.PI / 180) * FIT / (w / h)) * 180 / Math.PI : 32;
     // (the heart no longer moves aside when the control panel opens: it jumped each time a menu opened or closed on larger
     // screens; the panel covers it instead (the author, 2026-11-27))
-    // keep the heart clear of the tab row above and the view bar below: the view
-    // is shifted down by the difference of the two insets
-    const vb = parseFloat(getComputedStyle(el).getPropertyValue('--vb')) || 44, down = Math.round(0.06 * h + (vb - 44) / 2);
+    // centre the heart in the space between the tab row above and the view bar below, measured (it was shifted down by 6% of
+    // the pane's height: in the tall, narrow pane of a tablet held sideways the heart sat low, the author 2026-11-28); on
+    // phones and upright tablets neither bar is in the pane, and the heart is centred in it
+    const pr = el.getBoundingClientRect(), tb = $('tabs'), vbar = el.querySelector('.viewbar');
+    const top = tb && tb.offsetHeight ? Math.max(0, tb.getBoundingClientRect().bottom - pr.top) : 0;
+    const bot = vbar && vbar.offsetHeight ? Math.max(0, pr.bottom - vbar.getBoundingClientRect().top) : 0;
+    const down = Math.round((top - bot) / 2);
     g3.camera.setViewOffset(w, h, 0, -down, w, h);
     g3.camera.updateProjectionMatrix();
   }

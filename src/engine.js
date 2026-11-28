@@ -223,7 +223,7 @@
     // 10–30 ms, only recovered patches responding, and a patchwork of refractoriness (vfApdHet: each cell's APD 0–20% longer,
     // see _activate) that keeps the wavelets from settling into one rotor. On the app's heart (layered walls): 327–363/min,
     // 19–23 mm in II, never organised over 20 s (four runs), the same computing as the 12 fixed foci it replaces (vfScatter 0)
-    vfScatter: 1, vfScatterMin: 10, vfScatterMax: 30, vfScatterN: 6, vfApdHet: 0.2, vfApdMin: 120,
+    vfScatter: 1, vfScatterMin: 10, vfScatterMax: 30, vfScatterN: 6, vfApdHet: 0.2, vfApdMin: 120, vfEcgGain: 0.35,
     adenosineDelay: 1000, adenosineBlock: 3000, shockRefractory: 160,
 
     // Accessory pathway (see Sim.setAccessoryPathway)
@@ -3091,6 +3091,13 @@
         if (this._hpReset) { hx.set(L); this._hpReset = false; }   // absorb the step when ischaemia changes
         for (let k = 0; k < 12; k++) { const y = a * (hy[k] + L[k] - hx[k]); hx[k] = L[k]; hy[k] = y; L[k] = y; }
       }
+      // VF: a smaller ECG (the author, 2026-11-28: "the amplitude should be much lower"). Real VF is mostly 3–10 mm: its
+      // wavelets are far smaller than this model's and cancel more, and the ischaemic ventricles' action potentials shrink
+      // within the first minute. The leads are scaled by vfEcgGain while VF runs, easing in and out over ~0.5 s
+      const gT = this.arrhythmia && this.arrhythmia.type === 'vf' ? this.P.vfEcgGain : 1;
+      if (this._vfG === undefined) this._vfG = 1;
+      if (this._vfG !== gT) { this._vfG += (gT - this._vfG) / 500; if (Math.abs(this._vfG - gT) < 1e-4) this._vfG = gT; }
+      if (this._vfG !== 1) for (let k = 0; k < 12; k++) L[k] *= this._vfG;
       for (const f of this.listeners) f(t, L);
     }
 

@@ -955,7 +955,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (de5cbab).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (7d9b13a).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -1000,7 +1000,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (de5cbab).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (7d9b13a).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -2363,7 +2363,7 @@ THE SOFTWARE.
     // 10–30 ms, only recovered patches responding, and a patchwork of refractoriness (vfApdHet: each cell's APD 0–20% longer,
     // see _activate) that keeps the wavelets from settling into one rotor. On the app's heart (layered walls): 327–363/min,
     // 19–23 mm in II, never organised over 20 s (four runs), the same computing as the 12 fixed foci it replaces (vfScatter 0)
-    vfScatter: 1, vfScatterMin: 10, vfScatterMax: 30, vfScatterN: 6, vfApdHet: 0.2, vfApdMin: 120,
+    vfScatter: 1, vfScatterMin: 10, vfScatterMax: 30, vfScatterN: 6, vfApdHet: 0.2, vfApdMin: 120, vfEcgGain: 0.35,
     adenosineDelay: 1000, adenosineBlock: 3000, shockRefractory: 160,
 
     // Accessory pathway (see Sim.setAccessoryPathway)
@@ -5231,6 +5231,13 @@ THE SOFTWARE.
         if (this._hpReset) { hx.set(L); this._hpReset = false; }   // absorb the step when ischaemia changes
         for (let k = 0; k < 12; k++) { const y = a * (hy[k] + L[k] - hx[k]); hx[k] = L[k]; hy[k] = y; L[k] = y; }
       }
+      // VF: a smaller ECG (the author, 2026-11-28: "the amplitude should be much lower"). Real VF is mostly 3–10 mm: its
+      // wavelets are far smaller than this model's and cancel more, and the ischaemic ventricles' action potentials shrink
+      // within the first minute. The leads are scaled by vfEcgGain while VF runs, easing in and out over ~0.5 s
+      const gT = this.arrhythmia && this.arrhythmia.type === 'vf' ? this.P.vfEcgGain : 1;
+      if (this._vfG === undefined) this._vfG = 1;
+      if (this._vfG !== gT) { this._vfG += (gT - this._vfG) / 500; if (Math.abs(this._vfG - gT) < 1e-4) this._vfG = gT; }
+      if (this._vfG !== 1) for (let k = 0; k < 12; k++) L[k] *= this._vfG;
       for (const f of this.listeners) f(t, L);
     }
 
@@ -5759,9 +5766,13 @@ THE SOFTWARE.
     g3.camera.fov = w / h < FIT ? 2 * Math.atan(Math.tan(16 * Math.PI / 180) * FIT / (w / h)) * 180 / Math.PI : 32;
     // (the heart no longer moves aside when the control panel opens: it jumped each time a menu opened or closed on larger
     // screens; the panel covers it instead (the author, 2026-11-27))
-    // keep the heart clear of the tab row above and the view bar below: the view
-    // is shifted down by the difference of the two insets
-    const vb = parseFloat(getComputedStyle(el).getPropertyValue('--vb')) || 44, down = Math.round(0.06 * h + (vb - 44) / 2);
+    // centre the heart in the space between the tab row above and the view bar below, measured (it was shifted down by 6% of
+    // the pane's height: in the tall, narrow pane of a tablet held sideways the heart sat low, the author 2026-11-28); on
+    // phones and upright tablets neither bar is in the pane, and the heart is centred in it
+    const pr = el.getBoundingClientRect(), tb = $('tabs'), vbar = el.querySelector('.viewbar');
+    const top = tb && tb.offsetHeight ? Math.max(0, tb.getBoundingClientRect().bottom - pr.top) : 0;
+    const bot = vbar && vbar.offsetHeight ? Math.max(0, pr.bottom - vbar.getBoundingClientRect().top) : 0;
+    const down = Math.round((top - bot) / 2);
     g3.camera.setViewOffset(w, h, 0, -down, w, h);
     g3.camera.updateProjectionMatrix();
   }

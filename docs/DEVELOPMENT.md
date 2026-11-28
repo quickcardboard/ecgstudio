@@ -3494,3 +3494,13 @@ AVNRT → flutter and AVRT → sinus all switch.
   now centred in every tutorial view (iPad mini, iPad 7th gen).
 - Training: ST elevation named for a recent infarct's Q waves counts fully when the ST is still up in those leads, half
   ("more exactly: Q waves") otherwise (the author: losing all the marks was unfair); both recent-infarct branches.
+
+## claude/round-3 round 3: heart centred between the bars; smaller VF
+
+- The heart is centred in the space between the tab row and the view bar, measured in `resize3D` (it was shifted down by 6%
+  of the pane's height: in the tall, narrow pane of a tablet held sideways it sat ~40–50 px low; the author). Measured over
+  the outside, LAD and four-chamber views: within 5 px of the usable centre on desktop (1440×900, 1280×720), tablets
+  sideways (iPad mini, iPad 7th gen, Galaxy Tab S4), iPads upright and an iPhone both ways.
+- VF amplitude (the author: "much lower"): the leads are scaled by `vfEcgGain` 0.35 while VF runs, easing in and out over
+  ~0.5 s. Lead II and V3 (5th–95th percentile): 16–20 mm → 5.5–7 mm, coarse VF as usually seen (3–10 mm); rate and
+  disorder unchanged. Reader 55/57; Training VF read as VF; the library image redone.
