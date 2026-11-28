@@ -3504,3 +3504,16 @@ AVNRT → flutter and AVRT → sinus all switch.
 - VF amplitude (the author: "much lower"): the leads are scaled by `vfEcgGain` 0.35 while VF runs, easing in and out over
   ~0.5 s. Lead II and V3 (5th–95th percentile): 16–20 mm → 5.5–7 mm, coarse VF as usually seen (3–10 mm); rate and
   disorder unchanged. Reader 55/57; Training VF read as VF; the library image redone.
+
+## claude/round-3 round 4: touch layout for tablets held sideways
+
+The desktop layout on an iPad mini held sideways (1024–1133 px) wrapped and scrolled (the author): the tagline on two
+lines and Get the app on three, the rhythm-strip buttons and the measurement chips on two rows, the view bar cut off at
+Apex, the floating panel over a third of a narrow heart pane; the same in the app. Touch tablets held sideways
+(`MQ_TABL`: coarse pointer, landscape, 900–1400 px wide, over 500 px tall: iPad mini to the 12.9" iPad Pro, website and
+app) now take the touch layout of tablets held upright (body `m t tl`): the compact header (speed, pause, ⋯ menu), the
+full 12-lead sheet, the sheets and the Blocks sliders as on an upright tablet; heart (40%) and ECG (60%) side by side; the
+tab bar under the heart pane only and its sheets over the heart (`--heartR`, set in `sizeSheet`); the full-screen ECG
+without rotation. The first-paint script knows tablets too (no desktop flash). Checked: iPad mini (website and app),
+1180×820, 1366×1024: no sideways scroll, no wrapping; upright iPads, desktops (a 1024 px window with a mouse included) and
+phones unchanged.

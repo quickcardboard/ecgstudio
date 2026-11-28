@@ -3058,6 +3058,10 @@ body.only .chips { margin-top: 0; }
   // rhythm strip in the ECG pane instead of one lead group (body.t). Narrower tablets (7") keep the phone's lead groups;
   // tablets held sideways get the desktop layout.
   const MQ_TAB = matchMedia('(min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (pointer: coarse)');
+  // touch tablets held sideways (body.t.tl; taller than a phone, up to the 12.9" iPad Pro): the same touch layout, heart and
+  // ECG side by side, the tab bar and its sheets under and over the heart (the author, 2026-11-28: the desktop layout
+  // wrapped and scrolled sideways on an iPad mini)
+  const MQ_TABL = matchMedia('(min-width: 900px) and (max-width: 1400px) and (min-height: 501px) and (orientation: landscape) and (pointer: coarse)');
   const isT = () => document.body.classList.contains('t');
   const isM = () => document.body.classList.contains('m');
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
@@ -3067,8 +3071,8 @@ body.only .chips { margin-top: 0; }
   const buzz = (ms = 10) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
 
   function setMode() {
-    const b = document.body, was = isM(), tab = MQ_TAB.matches, m = MQ_PORT.matches || MQ_LAND.matches || tab;
-    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab);
+    const b = document.body, was = isM(), tl = MQ_TABL.matches, tab = MQ_TAB.matches || tl, m = MQ_PORT.matches || MQ_LAND.matches || tab;
+    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab); b.classList.toggle('tl', tl);
     if (S) syncAvVisible();   // (turned sideways: the desktop layout, sliders shown)
     // phones (website and app): dark only, as the app; desktop follows the system setting
     if (m) document.documentElement.dataset.theme = 'dark'; else if (!INAPP) delete document.documentElement.dataset.theme;
@@ -3216,6 +3220,13 @@ body.only .chips { margin-top: 0; }
   function setSheetFull(f) { document.body.classList.toggle('sheet-full', f); }
   function sizeSheet() {
     if (!isM()) return;
+    // (tablets held sideways: the tab bar and the sheets span the heart pane only; the sheet may rise to the pane's top)
+    if (document.body.classList.contains('tl')) {
+      const r = $('pane3d').getBoundingClientRect(), tabs = $('mTabs').getBoundingClientRect().top;
+      document.body.style.setProperty('--heartR', `${Math.round(r.right + 6)}px`);
+      document.body.style.setProperty('--sheetmax', `${Math.max(160, Math.round(tabs - r.top))}px`);
+      return;
+    }
     const tabs = $('mTabs').getBoundingClientRect().top, b = document.body.classList;
     const top = b.contains('fs-heart') ? (() => { const r = $('pane3d').getBoundingClientRect(); return r.top + 0.55 * r.height; })() : $('paneEcg').getBoundingClientRect().top;
     document.body.style.setProperty('--sheetmax', `${Math.max(160, Math.round(tabs - top))}px`);
@@ -3658,7 +3669,7 @@ body.only .chips { margin-top: 0; }
   }
 
   function initPhone() {
-    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode); MQ_TAB.addEventListener('change', setMode);
+    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode); MQ_TAB.addEventListener('change', setMode); MQ_TABL.addEventListener('change', setMode);
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
     initTouch(); initEcgTouch(); initSheet(); initAlpha();

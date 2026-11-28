@@ -492,6 +492,16 @@ body.m.t #pane3d { flex: 0 0 50%; }
 body.m.t #controls, body.m.t.sheet-full #controls { left: 0; right: 0; width: auto; max-width: 680px; margin: 0 auto; }   /* (the control sheet: centred, not edge to edge) */
 body.m.t #cecg { display: block; width: 100%; height: 100%; }
 body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { display: none; }
+/* tablets held sideways (body.t.tl): heart and ECG side by side; the tab bar runs under the heart pane only (fixed, as wide
+   as the pane: --heartR, set by app.js) and its sheets open over the heart; the ECG pane runs to the bottom */
+body.m.tl #split { flex-direction: row; padding: 0 8px 8px; gap: 8px; }
+body.m.tl #pane3d { flex: 0 0 40%; margin-bottom: calc(var(--tabh) + var(--sa-b) - 8px); }
+body.m.tl #paneEcg { flex: 1 1 0; min-width: 0; }
+body.m.tl .mtabs { position: fixed; z-index: 11; left: 0; bottom: 0; width: var(--heartR, 50%); box-sizing: border-box; border-right: 1px solid var(--line); }
+body.m.tl #controls, body.m.tl.sheet-full #controls { left: 8px; right: auto; width: calc(var(--heartR, 50%) - 22px); max-width: none; margin: 0; }
+body.m.tl.sheet-full #controls { top: calc(var(--sa-t) + 50px); }
+body.m.tl.fs-ecg #paneEcg { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 var(--sa-r) 0 var(--sa-l); }
+body.m.tl.fs-ecg #fsFlip { display: none; }
 /* tablets held upright: heart above, ECG below */
 @media (min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (min-height: 501px) {
   #split { flex-direction: column; }
@@ -515,7 +525,9 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
 // (inside #app: the body exists by now) phone layout from the first paint (app.js setMode() repeats this once the page has loaded, and moves the controls):
 // without it the desktop layout shows while the large scripts below are parsed
 (function () { var p = matchMedia('(max-width: 743px) and (orientation: portrait)').matches, l = matchMedia('(max-height: 500px) and (orientation: landscape) and (pointer: coarse)').matches;
-  if (p || l) { document.body.classList.add('m'); document.documentElement.dataset.theme = 'dark'; } if (l && !p) document.body.classList.add('ml'); })();   // (phones: dark only, as the app)
+  var t = matchMedia('(min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (pointer: coarse)').matches, tl = matchMedia('(min-width: 900px) and (max-width: 1400px) and (min-height: 501px) and (orientation: landscape) and (pointer: coarse)').matches;
+  if (p || l || t || tl) { document.body.classList.add('m'); document.documentElement.dataset.theme = 'dark'; } if (l && !p) document.body.classList.add('ml');
+  if (t || tl) document.body.classList.add('t'); if (tl) document.body.classList.add('tl'); })();   // (phones: dark only, as the app)
 </script>
   <header class="top">
     <div class="brand">{{LOGO_SVG}}<div class="brandtext"><h1>ECG <b>Studio</b></h1><span>Interactive 3D heart and 12-lead ECG simulator</span></div></div>

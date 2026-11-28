@@ -667,6 +667,16 @@ body.m.t #pane3d { flex: 0 0 50%; }
 body.m.t #controls, body.m.t.sheet-full #controls { left: 0; right: 0; width: auto; max-width: 680px; margin: 0 auto; }   /* (the control sheet: centred, not edge to edge) */
 body.m.t #cecg { display: block; width: 100%; height: 100%; }
 body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { display: none; }
+/* tablets held sideways (body.t.tl): heart and ECG side by side; the tab bar runs under the heart pane only (fixed, as wide
+   as the pane: --heartR, set by app.js) and its sheets open over the heart; the ECG pane runs to the bottom */
+body.m.tl #split { flex-direction: row; padding: 0 8px 8px; gap: 8px; }
+body.m.tl #pane3d { flex: 0 0 40%; margin-bottom: calc(var(--tabh) + var(--sa-b) - 8px); }
+body.m.tl #paneEcg { flex: 1 1 0; min-width: 0; }
+body.m.tl .mtabs { position: fixed; z-index: 11; left: 0; bottom: 0; width: var(--heartR, 50%); box-sizing: border-box; border-right: 1px solid var(--line); }
+body.m.tl #controls, body.m.tl.sheet-full #controls { left: 8px; right: auto; width: calc(var(--heartR, 50%) - 22px); max-width: none; margin: 0; }
+body.m.tl.sheet-full #controls { top: calc(var(--sa-t) + 50px); }
+body.m.tl.fs-ecg #paneEcg { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 var(--sa-r) 0 var(--sa-l); }
+body.m.tl.fs-ecg #fsFlip { display: none; }
 /* tablets held upright: heart above, ECG below */
 @media (min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (min-height: 501px) {
   #split { flex-direction: column; }
@@ -690,7 +700,9 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
 // (inside #app: the body exists by now) phone layout from the first paint (app.js setMode() repeats this once the page has loaded, and moves the controls):
 // without it the desktop layout shows while the large scripts below are parsed
 (function () { var p = matchMedia('(max-width: 743px) and (orientation: portrait)').matches, l = matchMedia('(max-height: 500px) and (orientation: landscape) and (pointer: coarse)').matches;
-  if (p || l) { document.body.classList.add('m'); document.documentElement.dataset.theme = 'dark'; } if (l && !p) document.body.classList.add('ml'); })();   // (phones: dark only, as the app)
+  var t = matchMedia('(min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (pointer: coarse)').matches, tl = matchMedia('(min-width: 900px) and (max-width: 1400px) and (min-height: 501px) and (orientation: landscape) and (pointer: coarse)').matches;
+  if (p || l || t || tl) { document.body.classList.add('m'); document.documentElement.dataset.theme = 'dark'; } if (l && !p) document.body.classList.add('ml');
+  if (t || tl) document.body.classList.add('t'); if (tl) document.body.classList.add('tl'); })();   // (phones: dark only, as the app)
 </script>
   <header class="top">
     <div class="brand"><svg class="logo" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -955,7 +967,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (7d9b13a).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (94d2ead).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -1000,7 +1012,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (7d9b13a).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (94d2ead).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -8451,6 +8463,10 @@ body.only .chips { margin-top: 0; }
   // rhythm strip in the ECG pane instead of one lead group (body.t). Narrower tablets (7") keep the phone's lead groups;
   // tablets held sideways get the desktop layout.
   const MQ_TAB = matchMedia('(min-width: 744px) and (max-width: 1100px) and (orientation: portrait) and (pointer: coarse)');
+  // touch tablets held sideways (body.t.tl; taller than a phone, up to the 12.9" iPad Pro): the same touch layout, heart and
+  // ECG side by side, the tab bar and its sheets under and over the heart (the author, 2026-11-28: the desktop layout
+  // wrapped and scrolled sideways on an iPad mini)
+  const MQ_TABL = matchMedia('(min-width: 900px) and (max-width: 1400px) and (min-height: 501px) and (orientation: landscape) and (pointer: coarse)');
   const isT = () => document.body.classList.contains('t');
   const isM = () => document.body.classList.contains('m');
   const GROUPS = [['I', 'II', 'III'], ['aVR', 'aVL', 'aVF'], ['V1', 'V2', 'V3'], ['V4', 'V5', 'V6']];
@@ -8460,8 +8476,8 @@ body.only .chips { margin-top: 0; }
   const buzz = (ms = 10) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
 
   function setMode() {
-    const b = document.body, was = isM(), tab = MQ_TAB.matches, m = MQ_PORT.matches || MQ_LAND.matches || tab;
-    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab);
+    const b = document.body, was = isM(), tl = MQ_TABL.matches, tab = MQ_TAB.matches || tl, m = MQ_PORT.matches || MQ_LAND.matches || tab;
+    b.classList.toggle('m', m); b.classList.toggle('ml', m && !MQ_PORT.matches && !tab); b.classList.toggle('t', tab); b.classList.toggle('tl', tl);
     if (S) syncAvVisible();   // (turned sideways: the desktop layout, sliders shown)
     // phones (website and app): dark only, as the app; desktop follows the system setting
     if (m) document.documentElement.dataset.theme = 'dark'; else if (!INAPP) delete document.documentElement.dataset.theme;
@@ -8609,6 +8625,13 @@ body.only .chips { margin-top: 0; }
   function setSheetFull(f) { document.body.classList.toggle('sheet-full', f); }
   function sizeSheet() {
     if (!isM()) return;
+    // (tablets held sideways: the tab bar and the sheets span the heart pane only; the sheet may rise to the pane's top)
+    if (document.body.classList.contains('tl')) {
+      const r = $('pane3d').getBoundingClientRect(), tabs = $('mTabs').getBoundingClientRect().top;
+      document.body.style.setProperty('--heartR', `${Math.round(r.right + 6)}px`);
+      document.body.style.setProperty('--sheetmax', `${Math.max(160, Math.round(tabs - r.top))}px`);
+      return;
+    }
     const tabs = $('mTabs').getBoundingClientRect().top, b = document.body.classList;
     const top = b.contains('fs-heart') ? (() => { const r = $('pane3d').getBoundingClientRect(); return r.top + 0.55 * r.height; })() : $('paneEcg').getBoundingClientRect().top;
     document.body.style.setProperty('--sheetmax', `${Math.max(160, Math.round(tabs - top))}px`);
@@ -9051,7 +9074,7 @@ body.only .chips { margin-top: 0; }
   }
 
   function initPhone() {
-    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode); MQ_TAB.addEventListener('change', setMode);
+    MQ_PORT.addEventListener('change', setMode); MQ_LAND.addEventListener('change', setMode); MQ_TAB.addEventListener('change', setMode); MQ_TABL.addEventListener('change', setMode);
     window.addEventListener('popstate', () => { const l = layers.pop(); if (l) l.close(); });
     document.addEventListener('gesturestart', (e) => { if (isM()) e.preventDefault(); });   // iOS page pinch-zoom
     initTouch(); initEcgTouch(); initSheet(); initAlpha();
