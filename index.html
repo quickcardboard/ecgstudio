@@ -955,7 +955,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     </ul>
       <p>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</p>
       <p>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</p>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (64d2cb6).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (0d0c4b2).</p>
       <p class="src">Anatomy: Rodero C, Strocchi M, et al. "Virtual cohort of extreme and average four-chamber heart meshes from statistical shape model." Zenodo, 2021, doi:10.5281/zenodo.4593739. Licensed CC BY 4.0. Three.js (MIT licence) renders the heart.</p>
     </section>
     <!-- phones (body.m): their own Getting started, Control panel and About pages -->
@@ -1000,7 +1000,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
         <li>The papers and guidelines behind the model are listed under <button type="button" class="linkbtn" data-goto="resources">Resources</button>.</li>
         <li>Criteria and example ECGs for each pattern: the <a href="https://ecgstudio.app/ecg/" target="_blank" rel="noopener">ECG library</a>.</li>
       </ul>
-      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (64d2cb6).</p>
+      <p class="credit">Created by Thomas Liou. © 2026 Thomas Liou. All rights reserved. Version 2026-11-28 (0d0c4b2).</p>
     </section>
     <section class="hpage refs" data-page="resources" hidden>
       <h3>Resources</h3>
@@ -9312,8 +9312,10 @@ body.only .chips { margin-top: 0; }
     ring.classList.toggle('nodim', !!(t && t.noDim));   // (the rest stays bright and usable, e.g. the ECG to swipe)   // (a hole only: the shell rings its own tab)
     let ty = null;
     if (t && t.rect) {
-      const p = t.pad === undefined ? 4 : t.pad, r = t.rect;
-      Object.assign(ring.style, { left: `${r.left - p}px`, top: `${r.top - p}px`, width: `${r.width + 2 * p}px`, height: `${r.height + 2 * p}px` });
+      // (kept on the screen: a full-width panel at the bottom, as Training's keyboard and result, has its ring inside the edges)
+      const p = t.pad === undefined ? 4 : t.pad, r = t.rect, m = 2;
+      const L = Math.max(m, r.left - p), T = Math.max(m, r.top - p), Rt = Math.min(innerWidth - m, r.left + r.width + p), B = Math.min(H - m, r.top + r.height + p);
+      Object.assign(ring.style, { left: `${L}px`, top: `${T}px`, width: `${Math.max(0, Rt - L)}px`, height: `${Math.max(0, B - T)}px` });
       ring.classList.add('rect'); ty = r.top + r.height / 2;
     } else if (t) {
       const r = t.r || 26;

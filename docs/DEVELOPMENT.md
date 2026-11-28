@@ -3417,3 +3417,6 @@ AVNRT → flutter and AVRT → sinus all switch.
   with an `env()` fallback): the screen's insets on the website, zero under `html.inapp`. Website and Android unchanged.
 - Checked in the app preview at 402×874: `--sa-t` 0 in both frames, the corner on the header, the tabs showing. Still to
   check in the iOS Simulator; the tutorial card sits 58 px under the frame's top, so it moves up by the status bar's height.
+- The tutorial's ring stays on the screen (`src/tutorial.js` `place`): around a full-width panel at the bottom (Training's
+  keyboard and result) it was drawn 2–4 px past the left, right and bottom edges and cut off. Checked at 402×874: the
+  ring 2 px inside the edges on steps 8 and 12.
