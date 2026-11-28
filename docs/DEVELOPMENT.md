@@ -3420,3 +3420,17 @@ AVNRT → flutter and AVRT → sinus all switch.
 - The tutorial's ring stays on the screen (`src/tutorial.js` `place`): around a full-width panel at the bottom (Training's
   keyboard and result) it was drawn 2–4 px past the left, right and bottom edges and cut off. Checked at 402×874: the
   ring 2 px inside the edges on steps 8 and 12.
+
+## claude/festive-cori round 2: iOS purchases, and an app-only build
+
+- Purchases on iOS (`src/shell.html`): the plugin has no `purchaseState` there, so the shell asks for StoreKit's current
+  entitlements (`onlyCurrentEntitlements`: verified, this Apple ID's only) and drops any revoked (refunded) one; Android
+  keeps `purchaseState === '1'`. A "Transaction pending" error (Ask to Buy) is a pending purchase. The shell sends the
+  store's name with `ents` (`the App Store`/`Apple ID`, `Google Play`/`Google account`) for Training's messages (the
+  button while the store opens, payment pending, nothing to restore). The App Store Connect product id is `training`, as
+  on Play.
+- Checked with a stand-in Capacitor in the built `app/www` (402×874): iOS owned → unlocked, refunded or none → locked,
+  pending purchase and empty restore toast the App Store / Apple ID; Android purchased → unlocked, pending → locked.
+- `python3 tools/build.py --app-only` (app/'s `npm run build`; `npm run sync:ios` adds the iOS sync) writes `app/www/`
+  from memory and nothing else, so building the app on the Mac leaves git clean. Checked: the same `app/www/` as
+  `--app`, and no tracked file changed.

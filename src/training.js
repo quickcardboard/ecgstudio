@@ -378,8 +378,9 @@
   // premium for everyone: site.json "premium" (the build's meta tag); a preview: this device only
   const premiumLive = ((document.querySelector('meta[name="premium"]') || {}).content || '') === '1';
   const premiumOn = () => premiumLive || store.get(PREMIUM_KEY) === '1';
-  // what is owned: in the app, from Google Play through the shell ('ents'); elsewhere (previews) the stand-in purchase
-  const shop = { app: false, dev: false, ents: {}, prices: {} };
+  // what is owned: in the app, from the phone's store (Google Play or the App Store) through the shell ('ents'); elsewhere
+  // (previews) the stand-in purchase
+  const shop = { app: false, dev: false, ents: {}, prices: {}, store: 'Google Play', account: 'Google account' };
   // (a preview: the stand-in purchase on this device; the website with premium on for everyone: never owned, bought in the app)
   const preview = () => store.get(PREMIUM_KEY) === '1';
   const ownsTraining = () => !premiumOn() || (shop.app ? shop.dev || !!shop.ents.training : preview() && store.get(OWNED_KEY) === '1');
@@ -877,7 +878,7 @@
   function payButtons(busy) {
     const web = webStore();
     $('payPrice').textContent = price();
-    $('payBuy').textContent = busy ? 'Opening Google Play…' : web ? 'Get ECG Studio on Google Play' : `Unlock Training · ${price()}`;
+    $('payBuy').textContent = busy ? `Opening ${shop.store}…` : web ? 'Get ECG Studio on Google Play' : `Unlock Training · ${price()}`;
     $('payBuy').disabled = !!busy; $('payRestore').hidden = web;
   }
   function showPaywall() { payButtons(false); $('paywall').hidden = false; }
@@ -895,6 +896,7 @@
   if (INAPP) {
     window.ECGInApp.listen('ents', (d) => {
       shop.app = !!d.billing; shop.dev = !!d.dev; shop.ents = d.ents || {}; shop.prices = d.prices || {};
+      if (d.store) { shop.store = d.store; shop.account = d.account; }
       if (!$('home').hidden) renderHome();
       if (!$('paywall').hidden) {
         // (a payment confirmed after the purchase sheet closed, or a code redeemed in the Play Store: leave the unlock page)
@@ -905,12 +907,12 @@
     window.ECGInApp.listen('bought', (d) => {
       payButtons(false);
       if (d.ok) { unlocked(); toast('Training unlocked. Thank you!'); }
-      else if (d.pending) toast('Payment pending: Training unlocks when Google Play confirms it');
+      else if (d.pending) toast(`Payment pending: Training unlocks when ${shop.store} confirms it`);
       else if (!d.cancelled) toast('The purchase did not go through. Please try again.');
     });
     window.ECGInApp.listen('restored', (d) => {
       $('payRestore').disabled = false;
-      if (ownsTraining()) { unlocked(); toast('Purchase restored'); } else toast('No Training purchase found for this Google account');
+      if (ownsTraining()) { unlocked(); toast('Purchase restored'); } else toast(`No Training purchase found for this ${shop.account}`);
     });
   }
   function shareDaily() {
