@@ -2642,6 +2642,8 @@ No engine change. New crawlable content and metadata (plan and outreach drafts: 
   `"verify"` for the Google/Bing ownership meta tags.
 - `tools/promo_clips.js`: portrait 1080×1920, 60 fps clips of the phone layout for Shorts/TikTok/Reels, with the page's
   animation frames stepped by hand and captured over CDP (not in the build).
+  Edited versions: `PROMO_CAM=1` zooms and pans at capture (the page drawn at 4x, each frame capturing the camera's
+  rectangle), then `tools/promo_edit.js` adds captions, the shock flash and an end card from `tools/promo_story.json`.
 - Contact page `/contact/`: the Google Form in `site.json` `"contactForm"` embedded (`?embedded=true`), linked from the
   library header, Help → About and `llms.txt`; nothing is built while `contactForm` is empty. Privacy policy: a
   "Contact form" section.
@@ -3065,6 +3067,345 @@ random sinus rate (`avSev`: sites and severity range; `rec.avs`; share links `AV
   visible in ≥ 80% of beats, not on the blind rhythm read, which took grouped Wenckebach beating for AF when P's sat on the
   T. Sampled: 12/18 AV items passed (the rest on unrelated criteria or hidden P's); `tools/trainlive.js 40 7` 29/40 as
   before.
+
+## claude/hopeful-brahmagupta-ahil2p round 1: Training on the course's block presets; RVH inferior Q; problem reports; heart centred
+
+- **Block presets in Training** (`LH.BLOCK_PRESETS` in `src/engine.js`: the course's lesson presets, `docs/COURSE_PLAN.md` on
+  `claude/relaxed-goodall-p59d4n`). `sample()` sets `rec.pre` (`preOf`): RBBB alone or with LAFB → `rbbb`; LPFB alone or with
+  RBBB → `lpfb`; everything else the live model. Old recipes (no `pre`) build as before. Measured (sinus, single beat):
+  | | live | preset |
+  |---|---|---|
+  | RBBB | −51°, QS in aVF, V1 r 2.7 / R′ 4.9 | −19°, V1 r 4.1 / R′ 6.2, QRS 138 |
+  | RBBB + LAFB | −64° (RBBB alone −51°: not told apart) | −60° (RBBB alone −19°) |
+  | LPFB | 92°, R III 31 mm | 100°, R III 20 mm, rS in I |
+  RBBB + LAFB is back in Training (`BIFASC`), and the "cannot be judged" LAFB/bifascicular answer with RBBB applies to old
+  recipes only. RBBB with infarcts on the preset: mid LAD and proximal RCA STEMI, old mid LAD and mid RCA MI and mid LAD
+  narrowing all pass with the right lead groups. Still discarded: RBBB + LPFB (live and preset: the reader calls an old
+  inferior MI and RVH), LPFB + mid LAD STEMI on the preset (reader: RVH; passes on the live model, which is no longer used for
+  it), RBBB + proximal LCx STEMI (both). Share links carry `lp=rbbb|lpfb`; the simulator builds that heart (`ui.preset`,
+  `heartParams`), and Reset returns to the live model.
+- **RVH**: the thickening's centre on the RV free wall 0.4 → 0.0 rad (`hypertrophyOptions`: simulator and Training). The 0.4
+  heart had an inferior Q of 41 ms / 10.7 mm in III and 41 ms / 5.1 mm in aVF (an old inferior MI look); now III q 36 ms / 3.2
+  mm, aVF 24 ms / 2.6 mm, axis 146° → 128°, R V1 16.1 → 10.3 mm (R/S > 1), T inverted V1–V2. Scorecard RVH 4/4 (normal
+  17/17, LVH 4/4), reader 55/57, RVH read as RVH. ECG library image rebuilt (`seo_shots.js right-ventricular-hypertrophy`).
+- **Problem reports**:
+  - Mobitz I at 93/min (AVN 0.54) conducted 3:2, 2:1, 3:2 …: read by eye as 2:1. `avPattern` returns "mixed 2:1" when a
+    blocked P is followed by one conducted beat and another blocked P among longer cycles; Mobitz I/II gates reject it
+    (mobitz1 14/14 still passed in a sample).
+  - NSVT whose first PVC fired as the sinus beat conducted (fusion, on time): read as a couplet. The run's first PVC now
+    waits, like a single PVC, for a cycle where it comes before the next sinus P, and the gate needs the first beat premature.
+  - Non-specific ST-T vs ST depression (the author): under 1 mm is non-specific, from 1 mm ST depression (round 2). The ST
+    depression finding is only asked at ≥ 1 mm in two contiguous leads, so naming it non-specific earns nothing there.
+- **Heart centred** in every view preset (`centreHeart` in `src/app.js`): the camera aimed at the anatomy's centre, which
+  includes the great vessels and hidden posterior parts; on a phone the four-chamber view showed the heart ~45 px left of
+  centre. The world group is panned so the heart's outline is centred (the view's downward shift and desktop panel shift kept).
+- `node tools/trainlive.js 40 7`: 28/40 (29/40 before; the misses are rhythm reads and hidden P's, not the presets).
+
+## claude/hopeful-brahmagupta-ahil2p round 2: the author's review of the rejected combinations
+
+Each item tried on the live model and the block presets first (scratch builds, seeds 4242 and 5219):
+- **Non-specific ST-T threshold 1 mm** (the author): round 1's half credit for ST depression under 2 mm removed. A narrowing
+  whose ST depression stays under 1 mm (≥ 0.5 mm in two contiguous leads, or flat T) is no longer thrown away: it is asked
+  as non-specific ST-T (`nonspecific` on the narrowing's criteria; ST depression named instead earns half, `part`), only
+  when no lead (aVR, V1 aside) reaches 1 mm: an OM1 narrowing with 1.1–1.3 mm in I, II and V5 (no contiguous pair) read by
+  eye as ST depression and is discarded, as before. 25 new-pass ECGs rendered for the author's check by eye.
+- **Now allowed** (all passed in the trials): flutter with an acute or evolving STEMI (mid and proximal LAD, proximal RCA,
+  proximal LCx; the ST elevation is read through the flutter waves); first-degree AV block with a proximal or mid RCA infarct
+  (acute and old: the P stays visible); WPW with ectopic beats (pauses and SA block still not); PVCs, couplets and NSVT in AF
+  and flutter (fired at a fixed coupling after the last QRS when the cycle is caught early; rate capped at 105/min so the
+  pause is seen; the premature-beat test is not applied to an irregular rhythm); Wellens with LAFB or LPFB; LAFB + Brugada.
+- **RBBB + LPFB** now passes (live and lpfb preset): with a QRS ≥ 120 ms and RBBB the reader's RVH is not counted, and in
+  LPFB a q under 40 ms before a tall R in II, III, aVF is the fascicular qR, not an old inferior MI (lpfb preset: q III
+  33 ms / 4 mm).
+- **Preset fallback**: a scenario that fails on its block preset is built again on the live model (LPFB + mid LAD STEMI reads
+  RVH on the lpfb preset and passes live).
+- **Still out or discarded**: LPFB + Brugada (reads RVH); junctional + non-specific ST-T (the retrograde P inverts the T in
+  II and aVF; no flat T); LPFB + proximal LCx STEMI (axis 89–93°, all models); RBBB + proximal LCx STEMI (fails the RBBB
+  check on all models). Old MI and recent infarcts pass at the proximal and mid RCA and mid LAD on every model; the recent
+  mid RCA infarct fails on its missing T inversion, not the Q waves, on every model.
+
+## claude/hopeful-brahmagupta-ahil2p round 3: the author's eye check of the 25 new passes
+
+- 22 fine as drawn. LAFB + Brugada out again (by eye too much like pericarditis or an acute MI). A narrowing under 1 mm:
+  non-specific ST-T is optional (credited if named, not required); naming ST depression there counts as not present.
+
+## claude/hopeful-brahmagupta-ahil2p round 4: Training ECGs made faster (no engine change)
+
+- Profile (Node, 20–24 random scenarios): 97% of the time is `Sim.run`; a build simulates ~24 s of heart time at ~2× real
+  time (a plain sinus heart ~4.5×; inside the step, `_activate` ~90%, of which the lead entry `_ecgEnter` ~40%). The main
+  14 s strip (4 s settle + 10 s) is ~90% of it; 30–45% of recipes fail their checks, each costing a full strip.
+- **Screening before simulating**: the page drops ECGs that repeat a recent combination (up to 3 running) or that a fully
+  right answer would raise the rating by less than 1 (up to 6 running), each after a full build. The page now sends the
+  worker the recent combinations and a per-skill gain table (`screenFor`: Glicko gain against ratings 400–3200, step 25),
+  and `make` passes such recipes over before simulating them (`screened`; up to 400 per request). The page's drops stay as
+  a backstop. The table gives the page's own keep/drop decision in 1116/1116 checked cases.
+- **Twin strips** follow the rate (about four beats, 3–6 s; 6 s for irregular rhythms and pauses): the same answer keys in
+  60/60 scenarios, ~3% faster.
+
+## claude/hopeful-brahmagupta-ahil2p round 5: fewer discarded Training recipes (300-scenario audit)
+
+Audit (6 × 50 random recipes, ratings 1100–2100): 230/300 passed (77%); failures took 23% of the time. Adopted (free
+filters before simulating):
+- Hyperacute T out of the random mix (`ABN_W.hyper` 0): 1/12 passed (mid and proximal LAD 0/8: T not tall enough).
+- Mobitz I 62–90/min (was 98): at 92 and above the P hid in the T or the pattern came out 2:1 or first degree.
+- No recent (2-day) infarct at the PDA, distal or proximal RCA (no T inversion yet); no old infarct at OM2 or distal LCx
+  (Q only in III and aVF).
+- Atrial tachycardia: the reader's RAE/LAE/biatrial enlargement is not an extra finding (the P on the previous T).
+Not adopted after a closer look at the passes as well as the failures: fast AF (130–170) with infarcts or narrowing passed
+4/8, and by eye an inferior STEMI at 149/min is plain where the gate's ST measurement missed it (to the author); narrowing
+above 100/min passed 11/16. The flutter and atrial tachycardia strips the blind rhythm read rejected (16) rendered for the
+author.
+
+## claude/training-as-is round 1: answer keys read from the ECG as it came out (no discards)
+
+The author's direction (2026-11-23): Training discarded about a quarter of its builds (and the variety with them) because
+an ECG did not show what was put in. On this branch the key is what the ECG shows (`AS_IS` in `src/training_gen.js`;
+`opts.strict` or `setAsIs(false)` restores the gate):
+- Rhythm from the engine's beats, not the blind rhythm read (its disagreement is noted in the checks). A graded AV block
+  is keyed from the conduction that happened (`AV_KEY`): 2:1, high grade and Wenckebach with 2:1 stretches → Mobitz II
+  (the author: 2:1 is always Mobitz II; Mobitz I half for the mixed pattern), complete → complete AV block, first degree →
+  sinus with first-degree AV block asked. Hidden P waves, a slight sinus arrhythmia (→ the sinus rhythm of its rate) and a
+  regular variable flutter (→ flutter) no longer discard.
+- An abnormality whose criteria are not met, that barely changes the tracing (twin), whose ectopic beats did not show
+  as planned, or whose pauses did not show is not asked but credited if named (`dropOr`; optional), and leaves the rating
+  and the skills. A recent infarct with Q waves but no T inversion yet is asked as Q waves (`asQ`).
+- A finding the blind read sees that was not put in is credited if named (optional, `DX_ID`), not a discard.
+- Kept discards: not induced, too few beats, the sinus-arrest P check and escape rate, too few atrial foci (WAP/MAT), a
+  left-atrial focus whose P is not inverted.
+- Round 5's audit exclusions undone (hyperacute T weight 2, Mobitz I to 98/min, recent/old infarct sites): nothing is
+  discarded for them now.
+- First 20-ECG reading batch for the author (keys in `tools/data/reading/batch1_keys.json`): 20/20 kept on their first
+  build, 1.4–21 s each.
+
+## claude/training-as-is round 2: reading batch 1 (the author's reads, `tools/data/reading/batch1_review.md`)
+
+9/20 agreed fully. Four keys were wrong and are fixed: a PVC that set off VF halfway through the strip (a ventricular
+arrhythmia the scenario did not ask for now discards), atrial tachycardia with a first-degree block conducting in groups
+(a P-wave rhythm dropping beats without an AV block asked for now discards), RBBB read in WPW (RBBB, LBBB and IVCD neutral
+with pre-excitation), right axis in WPW not credited (LAD/RAD now optional from the measured axis). AVRT earns half for
+AVNRT, as AVNRT did for AVRT. The author's misses were mostly first-degree block and LAFB (not measured by eye) and a subtle
+inferior ST depression (−1.2 mm at J+80; to watch). Batch 2 made with the fixes: 20/20 on their first build.
+
+## claude/training-as-is round 3: reading batch 2 (`tools/data/reading/batch2_review.md`); hypokalaemia U wave; reading page
+
+- Keys fixed: AF that turned into a regular tachycardia the engine did not log as a ventricular rhythm (no ventricular beat
+  logged for over 2.5 s and twice the usual RR, with no pause or block asked for, now discards; AF must stay irregular in
+  both halves of the strip, which also discards AF that came out perfectly regular at 62/min; a regular rhythm whose rate
+  changes by over 30% between the halves discards); high-grade AV block keyed Mobitz II with complete AV block half; the ST
+  depression region of a multivessel narrowing is where it is deepest; a recent infarct with the ST still up accepts STEMI
+  for its Q waves (`alts`).
+- Hypokalaemia U wave (the author: too like a P wave): `elecHypoKTail` 0.18 → 0.13, `elecHypoKTailW` 90 → 130 ms: a low,
+  broad U running off the end of the T in V2–V3 instead of a separate rounded hump (simulator and Training; ECG library
+  image rebuilt).
+- Reading batches move to a page (claude.ai artifact "ECG Reading Batches", free-text reads saved per ECG in its store,
+  collection `reads`, documents `<batch>-<nn>`; `batches/<batch>` marks one done). Batch 3: 20/20 kept, one on its second
+  build.
+
+## claude/training-as-is round 4: reading batch 3 (`tools/data/reading/batch3_review.md`, 14/20)
+
+- Diffuse (multivessel) ST depression: any lead group that shows it is fully right (`anyRegion` on the finding; `score()`
+  in `src/training.js` takes any allowed group instead of the deepest one).
+- Non-specific ST-T loosened (the author): ST depression under 2 mm at its deepest accepts non-specific ST-T as an equal
+  answer (`alts`), after 1.1–1.5 mm inferior depressions were read as non-specific by eye in 3 of 3 cases. From 2 mm ST
+  depression is required. `score()` gives full credit for an equal answer without lead groups. Checked with Training's own
+  `score()` on the batch 3 reads: ECG 07 (lateral) and 12 (non-specific) 100%; ST depression in a wrong group still half.
+- Still to check: whether the J+80 measurement against its baseline overstates the depression the eye sees.
+
+## claude/training-as-is round 5: ST depression measured at the J point
+
+The author: ST depression is judged at the J point (4th UDMI), not J+80. `stdLeads`, `dipped`, the narrowing checks and
+regions, the non-specific allowance (`mildStd`) and the simulator's analysis (`src/app.js`) now read `stJ`; horizontal or
+downsloping still means the ST at J+80 not 0.5 mm or more above the J point. In this model the depression at the J point is
+about the same as at J+80 or slightly deeper (single narrowings 1.0–2.5 mm; 24 site and severity checks: all but one asked,
+OM1 at 0.8 not), so the J+80 point did not explain the shallower look by eye; the baseline is the TP segment as it should
+be. Most single narrowings stay under 2 mm, where non-specific ST-T is an equal answer.
+
+## claude/training-as-is round 6: "simulated, not asked" on the result screen; checks before replacing the live generator
+
+- What was simulated but did not come out is listed on the result screen (`key.notAsked`: id, site, a plain name such as
+  "a recent mid RCA infarct (2 days old)", why): a grey "simulated, not asked" chip, or a note on the student's credited
+  chip when they named it; tapping it says why it was not asked, that naming it is credited and that the simulator link
+  shows it as simulated (`rowLine`; exposed on `window.ECGTraining` for tests).
+- Torsades and VT are excluded from the "no beats logged" and "rate changed partway" checks (their rate swings by nature;
+  a torsades strip was discarded by them).
+- Checks: 100-recipe audit 97/102 kept (95%; discards: AF turning regular ×2, VF started by itself, too few beats, the
+  torsades case, now kept), no errors, median build 5.6 s with the cores shared; blind reader 55/57 (none wrong);
+  scorecard 61/66 (as Round 69); Training in app mode on a Pixel 7 profile: first ECG in 5 s, the next in 7 s, scoring
+  and the result screen working, no console errors.
+
+## claude/training-as-is round 7: reading batch 4 (`tools/data/reading/batch4_review.md`, 11/20, no wrong keys)
+
+A single narrowing's ST depression now accepts any lead group showing it (`anyRegion`, as for diffuse depression): it does
+not localise the artery, and V4 and V5 equally deep were asked as anterior. The other differences were reading calls
+(LAFB, RVH read as LPFB, small normal inferior q read as Q, trigeminy named as single ectopics).
+
+## claude/training-as-is round 8: Q waves deeper than 25% of the QRS
+
+The author: a Q wave also counts when deeper than 25% of the QRS height (R plus the deepest negative deflection), with the
+existing 30 ms floor (`qBig` in `qLeads`). Without the floor every normal ECG would show inferior Q waves: this model's
+normal inferior q is III 31 ms / 3.7 mm (~60% of its QRS), aVF 26 ms / 3.2 mm (~37%), II 23 ms / 2.9 mm (~24%). Normal
+ECGs stay clean, and the rule changed none of the 80 reading-batch keys (each batch re-keyed with and without it): every
+Q of 30 ms or more there was already at least 2 mm deep, or had no contiguous partner.
+
+## claude/training-as-is round 9: reading batch 5 (`tools/data/reading/batch5_review.md`, 11/20, no wrong keys)
+
+Electrolytes and hypothermia keyed correctly (hypercalcemia ×4, hypocalcemia ×2, hyperkalemia, hypokalemia, hypothermia).
+Second batch in a row with no wrong key. Model traits the author's reads exposed (not key errors): small flutter waves in
+II (read as sinus with first-degree block), J (Osborn) waves that look like diffuse ST elevation, and tall broad inferior T
+waves after an old anterior infarct (read as hyperkalemia).
+
+## claude/osborn-pericarditis round 1: Osborn wave as a notch; pericarditis tried
+
+- Hypothermia's J (Osborn) wave: the outer wall's action potential gets an early notch (new per-cell `notchN`,
+  `notchMin`, `notchMs`; `vm()` and two new ECG pieces, `NOTCH` and `NOTCH + 2`, with events at the notch's lowest point
+  and its end), deepest `elecOsbornMinMs` 25 ms after the upstroke and back to the dome by `elecOsbornMs` 90 ms. Before, it
+  was a lowered plateau climbing back over the whole APD, which drew a downsloping ST like pericarditis (the author read
+  it as pericarditis). Now a hump right after the QRS in II and V3–V6 with the ST at baseline. Depth `elecOsbornNotch`
+  0.25 (the author: at 0.4 and 0.6 the V3–V4 hump merged into the QRS and looked like an RBBB R′). J hump vs R (mm), II
+  1.6/9.9, V3 0.6/5.1, V4 1.2/7.7, V5 1.0/7.9; at 0.4 the V3 R grew 5.1 → 6.1 (hump merging), at 0.6 to 10.3.
+- Pericarditis: a late notch option (`pericardNotch`, off) kept the QRS but gave almost no ST elevation; a deeper plateau
+  sag pulled the mid-ST below baseline; a larger plateau drop shrinks the R waves and the blind read then calls an
+  inferior Q. Proposed (not yet applied): resting shift 14, plateau drop 0.35, atrial injury 20, the strongest setting
+  with a clean blind read on three seeds. Awaiting the author's choice.
+- Pericarditis's delayed repolarisation (the author's question): `pericardApd` (off) lengthens the inflamed layer's APD by
+  that share × outer. With the proposed setting, +8% flattens the T and +18% flattens it further, with the ST still
+  raised: the stage 2–3 picture (T flattening, then inversion), not stage 1, whose T stays upright.
+
+- Adopted: Osborn notch 0.25; pericarditis `pericardDv` 10 → 14, `pericardAmpDrop` 0.3 → 0.35, `pericardAtrialDv` 12 → 20
+  (a little more ST elevation, ST depression in aVR and PR depression; R waves kept, blind read clean on three seeds). The
+  ST is still not concave (the author): every cell's plateau is a straight line, so their sum is straight until the T. A
+  wider, earlier repolarisation of the inflamed layer (`pericardRepW`, off) bends the ST into the T but adds a dip after the
+  T (the outer layer then finishes before the inner wall); not adopted. A concave ST would need a curved plateau for the
+  inflamed layer (a fast early fall then a slower one, built from more straight pieces as the Osborn notch is).
+- PR depression with a first-degree block or LAE (the author): the reader's PR level (10–20 ms before the QRS) missed it
+  (atria already repolarised with a long PR; a broad P leaves no PR segment). New `prDeep`: the deepest 10-ms level from 90
+  ms after the P onset to the QRS (anchored on the P onset: in pericarditis the depressed PR segment can be the last atrial
+  peak the P finder takes, which also inflated its P durations); used by the reader's pericarditis read and Training's
+  criterion, which also waives PR depression where the PR segment cannot be judged (PR over 200 ms, or under 40 ms from P end
+  to QRS). Pericarditis with a first-degree block now measures PR II −0.9, aVR +1.1 mm and is asked; with LAE aVR +0.8 mm.
+- Checks: reader 55/57 (pericarditis and Brugada read right), scorecard 61/66; Training builds hypothermia (4 rates) and
+  pericarditis (alone, with a first-degree block, LAE, RAE) as asked; the simulator with each condition (worker and
+  `?noworker`) without errors; ECG library images rebuilt (hypothermia, pericarditis).
+
+## claude/peri-curve round 1 (experiment, not adopted): a curved plateau for pericarditis
+
+- The notch's end and lowest point are now capped to fit the action potential (`_nEnd`: at most 55% of the APD; `_nMin`: at
+  most 40% of that), so a notch is always drawn in the ECG; before, a notch ending after repolarisation began was skipped
+  by the ECG pieces (why the round-1 "late notch" showed almost nothing). Hypothermia's output is unchanged (checked equal).
+- Pericarditis's curved plateau (`pericardNotch`, off; the plateau drop and sag now apply alongside it): a dip at
+  activation recovering by `pericardNotchMs` on a smaller plateau drop (drop 0.2, dip 0.2, 80 ms, sag −0.4) gives a
+  saddle-shaped ST in I, II, V5 that passes the reader and every case tried (80, 100, 62/min, first-degree block, LAE, AF,
+  where the concavity check passes and the current setting fails). The author: the J point standing out before the dip
+  looks like an Osborn wave. Slower recovery (130, 160 ms) deepens the dip (an "M" in V3); gentler dips (0.1, 0.06) keep a
+  small knob. Not adopted: with the injury strongest right after the QRS the J point always leads. A concave ST that builds
+  into the T would need the inflamed layer's repolarisation reshaped instead (the `pericardRepW` test showed a dip after
+  the T; untried: an accelerating plateau decline).
+- The author's question (repolarisation timing of the epicardium): yes, but earlier and more gradual with the end kept
+  (`pericardKeepEnd` with `pericardRepW`, off): the inflamed layer's repolarisation window widens towards its start only (the
+  APD moves earlier by half the widening). The dip after the T goes (it came from the widened window ending late), and the
+  ST ramps into the T with no J knob. The T grows (earlier outer-layer repolarisation widens the gradient that makes it):
+  II / V3 / V5 T 4.5 / 5.5 / 2.3 mm now, ×1.4 6.1 / 7.9 / 2.9, ×1.6 6.7 / 8.9 / 3.2, ×1.8 7.2 / 9.8 / 3.4; the J point and
+  ST elevation unchanged; reader clean to ×1.8, at ×2.5 an inferior Q is read. Awaiting the author.
+- Adopted (the author): `pericardRepW` 1.4 with `pericardKeepEnd` (×1.2 and ×1.0 compared; ×1.0 is the old setting): the ST
+  ramps into the T with no J knob; T II / V3 / V5 6.1 / 7.9 / 2.9 mm (was 4.5 / 5.5 / 2.3); ST elevation unchanged. AF
+  pericarditis now passes the concavity check in every raised lead (the old setting failed it). Reader 55/57 (pericarditis
+  read right), scorecard 61/66; Training: pericarditis at 62, 80, 100/min, with a first-degree block, LAE, RAE and in AF all
+  asked; hypothermia and Brugada unchanged. ECG library image rebuilt. The curved-plateau dip (`pericardNotch`) stays off.
+
+## claude/loving-noether-jdkvjd round 2: Google Play launch (1.0.0)
+
+- Paywall on (`site.json` `premium: true`); release 1.0.0 (version code 25) built from milestone-1 at PR #26 plus:
+  purchases completed outside the purchase sheet (Play Store promo codes, payments confirmed late) are acknowledged on
+  every entitlement check (`src/shell.html` `refreshEnts`; the plugin only acknowledges after its own sheet and in
+  `restorePurchases`, and Google refunds unacknowledged purchases after 3 days), and Training leaves the unlock page when
+  the entitlement arrives there (`src/training.js`).
+- `ecgstudio.app/training` is now the app's page (`tools/learn_pages.py` `app_page`: one screen on phones; two Training
+  screenshots beside the text on wide screens, from `tools/app_shots.js`); the Training page builds to `app/training.html`
+  (the /app preview frames it; `--app` copies it into the Android app). The simulator's "Join the alpha" is "Get the app"
+  (to /training); library pages link it too.
+- Promo tools: `tools/promo_store.js` (the 30 s Play Store video, `--music`), `tools/music_loop.py`.
+
+
+## claude/website-fixes round 1: PNG export, arrhythmia gestures, AVNRT/AVRT at fast sinus rates
+
+- **Save PNG** draws the last 10 s as one continuous sheet (the ring buffer rotated to start just after the sweep
+  cursor), offscreen at the on-screen size, with no cursor or erase bar.
+- **Gestures**: one tap counter for the heart (`countTap`): 3 quick taps on the ventricles start VT (atria: flutter),
+  4 start VF (atria: AF), also when the taps land near an artery (the artery's single/double tap is cancelled). An
+  artery double tap now waits `DOUBLE_MS` before occluding, so a third tap can still turn it into a burst. Artery touch
+  zones are smaller (`arteryAt` reach 12 px; pick tubes 1.8, LM 2.6): on a phone the arteries took 69% of the heart's
+  taps, now 35%.
+- **AVNRT/AVRT**: induction success is read from the engine's logs (slow-pathway echoes; retrograde-only pathway
+  conduction), not RR < 450 ms (sinus tachycardia above 133/min passed that, so induction stopped as if it had
+  worked). Both retry 20 ms earlier down to 140 ms. Above 80/min AVRT can't be induced (no window where the pathway is
+  refractory and the node conducts), so the sinus drive slows to 60 for 2.5 s first and stays there while AVRT runs
+  (the sinus rate sets the AV node's tone; a faster node ends the circuit). The rate slider during AVNRT/AVRT is held
+  and applied when the rhythm is sinus again. Browser check at sinus 60/100/130/150: AVNRT 165–216/min and AVRT
+  201/min sustained for 20 s at every rate (before: AVRT ended within 3 s above 80/min).
+
+## claude/sinus-escape round 1: SA node slider, escape rate sliders
+
+For making teaching ECGs (the author): a faster junctional or ventricular escape, or none at all (sinus arrest), and
+graded sinus node disease.
+
+- Blocks tab: an SA node slider above the AV node and His–Purkinje sliders, its stops named by severity as theirs are
+  (Normal, Mild, Moderate, Severe, Complete): mild 2nd-degree SA exit block 4:3, moderate 3:2, severe recurrent sinus
+  pauses, complete sinus arrest. The Active blocks list and the reading name what it produces. A tap on the SA node
+  opens the sliders (as the AV node's does) instead of a menu (desktop) or cycling (phones).
+- Engine: SAN `'pauses'`: the node stops at random moments for 2–3 s (`sinusPauseMin/Max`), the next 2–4 s after
+  (`sinusPauseGapMin/Max`): every 10 s window holds a whole pause (checked over 2 min at sinus 60, 72, 100). The
+  junctional escape breaks a pause after its cycle (48/min: ~1.25 s), as in life; with it off the whole pause shows.
+- Rhythm tab: junctional and ventricular escape rate sliders (`Sim.setEscapeRates`; the ventricular one sets both
+  ventricular foci), far left Off, shown once an escape can come on (severe or complete SA node, severe or complete AV
+  block, both bundles blocked, an escape beat in the last 10 s, or rates changed). The escape still takes over only when
+  conduction from above is lost. The reading names the rhythm at the rate: junctional escape (≤ 60), accelerated
+  junctional (61–100), junctional tachycardia (> 100); ventricular escape (≤ 40), accelerated idioventricular (> 40);
+  no QRS for 6 s: asystole, or ventricular standstill with P waves (the reading needed two beats and stayed on
+  "Acquiring…").
+- Share links: `SAN.sa-exit4`, `SAN.pauses`, `je=`/`ve=` (0: off); Reset restores the defaults; a heart rebuilt for a
+  condition keeps the rates.
+
+## claude/sinus-escape round 2: one escape slider; the new rhythms in Training
+
+- One escape slider (the author): ventricular when conduction is lost below the AV node (His–Purkinje severe or
+  complete, both bundle branches), junctional when lost at the SA or AV node (severe or complete); otherwise the escape
+  that fired in the last 10 s; nothing: hidden.
+- Training (`training_gen.js`, `training_vocab.txt`): accelerated junctional rhythm (`accelJunctional`: sinus arrest, the
+  junctional focus at 65–100/min, measured 60–105; junctional rhythm partly right), accelerated idioventricular rhythm
+  (`aivr`: 50–100/min from the five escape sites, measured 45–105; idioventricular partly right), asystole (`asystole`:
+  sinus arrest, escapes off) and ventricular standstill (`standstill`: complete His block, escapes off, P waves at
+  60–90/min; asystole or complete AV block partly right). The no-QRS strips take VF's path (no measurements). Escape
+  rhythms take their limits from `escLim`; `escOff` turns the escapes off (`Sim.setEscapeRates`). Built on the Training
+  page through its worker: all four, no errors.
+## claude/r-on-t round 1: no QRS on the T wave in AF or after Training's premature beats
+
+The author saw R on T in AF and with PACs. Measured on the ECG (V3: is the previous T still rising when the next QRS
+starts?): plain AF and PACs with a normal QT almost never did it; with a long QT they did. AF's ventricular response
+draws each RR from 0.55–1.45 of the target, knowing nothing of the QT, so with hypocalcaemia, hypothermia or hypokalaemia
+the short cycles put the QRS on (even before the peak of) the T. AF 110 with hypocalcaemia: 4 of 22 beats before the T
+peak, and beats dropped; AF 140 with hypothermia: an R on T set off polymorphic VT. Training's PACs and PVCs were timed
+from a fixed share of the RR or a Bazett QT, also blind to a long QT.
+
+- `Sim.qtEnd()`: the last beat's T end (90% of the ventricular myocardium it activated repolarised: APD + repW/2),
+  cached per beat; 380 ms at 72/min (measured QT 373), 475 with hypocalcaemia.
+- AF: an impulse reaching the lower AV node whose QRS would come before that T end − 100 ms − random 0–80 ms (drawn once
+  per beat) is not conducted (`_afOnT`, `afQtGap`, `afQtJitter`, `afJoinToQrs`). Checked against the beat that has just
+  ended, at the node: a floor set at the previous conduction used the QT of the beat before (too short after a long
+  pause), and each wave it blocked re-armed the node and slowed the response; one fixed limit lined the early beats up at
+  it and the AF looked regular. Normal-QT AF unchanged (mean rate over 3 seeds: 104 vs 106 at 110, 120 vs 118 at 140);
+  long QT: no QRS before the T peak, the response slower (AF 110 with hypocalcaemia: 91/min).
+- Training (`training_gen.js`): PVCs (single, bigeminy, AF/flutter, the first of a run) at least `qtEnd() + 40` after the
+  QRS; PACs (single, bigeminy, couplet, the first of a run) so that their QRS comes after the T (P' ≥ QRS + qtEnd − 120;
+  bigeminy coupling ≥ qtEnd + 10).
+- Checks: 33 Training strips with long-QT conditions and premature beats: QRS before the previous T peak 4 → 0. Reader
+  55/57, scorecard 61/66, `arrhythmia.js` AF 107 → 100/min (one 10-beat sample; rand stream).
+## claude/svt-switch round 1: AVNRT ↔ AVRT directly
+
+Choosing AVRT while AVNRT ran left AVNRT running (the author): `stopArrhythmia` stops drivers, and a re-entry circuit has
+none, so the new extrastimulus fell into the running circuit. `startRhythm` now ends a running AVNRT/AVRT first with
+`S.shock()` (as choosing sinus already did) when another rhythm is chosen, and AVRT turns the dual AV-nodal pathways off
+(as AVNRT turns the accessory pathway off: one circuit at a time). Browser, sinus 72 and 120: AVNRT → AVRT, AVRT → AVNRT,
+AVNRT → flutter and AVRT → sinus all switch.
 
 ## claude/festive-cori round 1: iOS app safe areas (first run in the iOS Simulator)
 

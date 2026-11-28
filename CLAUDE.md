@@ -12,7 +12,8 @@ all rights reserved (LICENSE).
   it is what the site serves.
   Variants (`src/variants/*.json`: other engine defaults and torso field) build to `<dir>/` as a preview with its own shell,
   simulator and Training pages: `app-oldmodel/` is the model live until Round 69 (`app-48normalaxis/` now redirects to /app).
-  It also writes `training/index.html` and the app shell `app/index.html` (`src/shell.html`, a preview framing both pages
+  It also writes Training to `app/training.html` (`ecgstudio.app/training` is the Android app's page since launch:
+  `tools/learn_pages.py`, screenshots `node tools/app_shots.js`) and the app shell `app/index.html` (`src/shell.html`, a preview framing both pages
   with `?app`; `src/inapp.js` handles that mode; `src/tutorial.js`, the interactive tutorial, goes into both pages); `--app` adds `app/www/` for the native app (not in git).
 - `src/engine.js`: anatomy, model, simulation and lead fields; runs in the browser
   (`window.ECGStudio`) and in Node (`require('./src/engine.js')`). Parameters live in `DEFAULTS`.
@@ -22,7 +23,8 @@ all rights reserved (LICENSE).
   keeps a replica Sim that never steps: commands run on it and are forwarded, and each frame's snapshot (time, per-cell
   activation, ECG samples, logs, rhythm state) is written into it. `?noworker` steps on the page as before (also the
   fallback without workers or if the worker fails).
-- `site.json`: author, contact, year shown in Help → About; the build stamps date + commit. `contactForm` (a Google Form
+- `site.json`: author, contact, year shown in Help → About; the build stamps date + commit. `premium: true` locks Training
+  until bought (on since the Google Play launch; the website's unlock button opens the store page). `contactForm` (a Google Form
   link) builds the contact page `/contact/`; `verify` holds search-engine ownership codes.
 - `src/learn/topics.json` → the ECG library at `/ecg/` (`tools/learn_pages.py`, run by the build; images and reads:
   `node tools/seo_shots.js`, rerun after engine changes), plus `sitemap.xml`, `llms.txt`. Marketing plan: `docs/MARKETING.md`.
@@ -44,7 +46,7 @@ Run before and after any engine change and compare:
 - `node tools/scorecard.js ['{params}'] [scenarios]`: textbook scorecard (66 checks over normal, the blocks, LVH/RVH and
   infarcts: intervals, axes, amplitudes, morphology), independent of the reader's verdicts; `TV2=` for a variant's torso.
   Round 69 live model 61/66 (the old model 53/66)
-- `node tools/hyper.js '[{"lv":6,"P":{"lvStrain":1,"lvSourceGain":1.5}},{"lv":2,"rv":6,"an":{"rvThickPhiC":0.4,"rvThickPhiW":0.8},"P":{"rvStrain":0.7,"rvSourceGain":1.8,"rvCvMul":0.8}}]'` (the LVH and RVH presets of `hypertrophyOptions`)
+- `node tools/hyper.js '[{"lv":6,"P":{"lvStrain":1,"lvSourceGain":1.5}},{"lv":2,"rv":6,"an":{"rvThickPhiC":0,"rvThickPhiW":0.8},"P":{"rvStrain":0.7,"rvSourceGain":1.8,"rvCvMul":0.8}}]'` (the LVH and RVH presets of `hypertrophyOptions`)
 - `node tools/ischaudit.js [sites] [hours]`: ST/Q/T per lead for every occlusion site and time
   stop (`MP='{...}'` overrides parameters; the marginal branches `OM1,OM2,AM` only when named)
 - `node tools/stcheck.js`, `node tools/arrhythmia.js`, `node tools/avnrt.js`, `node tools/avrt.js`
@@ -75,6 +77,8 @@ Known limitations (rebuild-1 rounds 10–17 in docs/DEVELOPMENT.md):
   solved torso in V5–V6, 75% in V4, 50% in V3 (`chestTorsoTLead`, Round 67; V3–V6 fields in `src/torso_limb.json`). V1–V2
   ST-T stay on the blend (the torso field breaks Brugada's coved ST). The `cavityWindowT` bandage is gone (1). A torso QRS
   loses R progression and the infarct Q waves (Round 49).
+- Training's RBBB (alone or with LAFB) and LPFB (alone or with RBBB) use the course's block presets (`LH.BLOCK_PRESETS`,
+  `rec.pre`, links `lp=`); the free simulator keeps the live model
 - fascicular block voltages stay high (LPFB R III ~31 mm); the old mid-RCA infarct's T in III is −5.3 mm; proximal LCx
   at 30 days adds inferior Q; OM1 at 1 h spills ST into V3–V4; Training's hyperacute mid-LAD T is often not tall enough
 - the Purkinje network (Round 68): septal fascicle with its own territory, fast cross-territory bands at the territory

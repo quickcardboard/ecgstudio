@@ -503,7 +503,7 @@ body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { 
 :root { --sa-t: env(safe-area-inset-top, 0px); --sa-b: env(safe-area-inset-bottom, 0px); --sa-l: env(safe-area-inset-left, 0px); --sa-r: env(safe-area-inset-right, 0px); }
 html.inapp { --sa-t: 0px; --sa-b: 0px; --sa-l: 0px; --sa-r: 0px; }
 /* In the app (html.inapp, src/inapp.js): the app shell draws the module tabs over the left of the header, which
-   turns dark (the app's chrome); the brand and Join the alpha (testers already have the app) are hidden. */
+   turns dark (the app's chrome); the brand and Get the app (already in the app) are hidden. */
 html.inapp header.top { --bg: #0b131a; --surface: #1b2834; --fg: #e3eaf0; --muted: #93a3b1; --line: #33434f; --accent: #ef5b7a; --accent-fg: #160a0d;
   background: var(--bg); color: var(--fg); color-scheme: dark; min-height: 50px; box-sizing: border-box; padding-left: var(--tabs-w, 12px); }
 html.inapp body:not(.m) header.top { margin: -10px calc(-1 * max(16px, var(--sa-r))) 0 calc(-1 * max(16px, var(--sa-l))); padding-right: 16px; }
@@ -528,7 +528,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
       <button id="btnReset" type="button">Reset</button>
     </div>
     <button id="btnShare" type="button" title="Copy a link that reopens this exact scenario">Share</button>
-    <button id="btnAlpha" type="button" class="balpha" title="Sign up to test the ECG Studio Android app (Google Group)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Join the alpha</button>
+    <button id="btnAlpha" type="button" class="balpha" title="ECG Studio for Android, with Training (Google Play)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Get the app</button>
     <button id="btnHelp" type="button">Help</button>
     <a id="btnContact" class="hbtn" href="https://ecgstudio.app/contact/" target="_blank" rel="noopener"{{CONTACT_HIDDEN}}>Contact</a>
     <div class="mctl" role="group" aria-label="Simulation">
@@ -542,7 +542,7 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
     <button type="button" role="menuitem" id="mPng">Save ECG image</button>
     <button type="button" role="menuitem" id="mHelp">Help</button>
     <a role="menuitem" id="mContact" href="https://ecgstudio.app/contact/" target="_blank" rel="noopener"{{CONTACT_HIDDEN}}>Contact</a>
-    <button type="button" role="menuitem" id="mAlpha" class="malpha"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Join the alpha</button>
+    <button type="button" role="menuitem" id="mAlpha" class="malpha"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Get the app</button>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
@@ -578,6 +578,12 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
               <div class="row"><span class="lab" id="rateLab">Sinus rate</span><span class="val" id="rateVal">72 bpm</span></div>
               <input id="rate" type="range" min="30" max="180" step="1" value="72" aria-label="Sinus rate">
             </div>
+            <div class="ctl" id="escCtl" hidden>
+              <div class="row" id="junRow"><span class="lab">Junctional escape</span><span class="val" id="junVal">48 bpm</span></div>
+              <input id="junRate" type="range" min="18" max="140" step="2" value="48" aria-label="Junctional escape rate; far left: off">
+              <div class="row" id="venRow"><span class="lab">Ventricular escape</span><span class="val" id="venVal">32 bpm</span></div>
+              <input id="venRate" type="range" min="14" max="120" step="2" value="32" aria-label="Ventricular escape rate; far left: off">
+            </div>
             <div class="ctl">
               <span class="lab">Therapy</span>
               <div class="btnrow">
@@ -589,6 +595,8 @@ html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !imp
 
           <section class="tabpanel" data-panel="blocks" hidden>
             <div class="ctl" id="avCtl">
+              <div class="row"><span class="lab">SA node</span><span class="val" id="sanVal">Normal</span></div>
+              <input id="sanSev" type="range" min="0" max="4" step="1" value="0" aria-label="SA node disease, from normal to sinus arrest">
               <div class="row"><span class="lab">AV node</span><span class="val" id="avnVal">Normal</span></div>
               <input id="avnSev" type="range" min="0" max="4" step="1" value="0" aria-label="AV node disease, from normal to complete block">
               <div class="row"><span class="lab">His–Purkinje</span><span class="val" id="hisVal">Normal</span></div>

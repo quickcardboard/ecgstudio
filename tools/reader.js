@@ -58,10 +58,14 @@ function read(rec, hint, rr, opts = {}) {
   const pr = pOn !== null ? on - pOn : null, pdur = pOn !== null ? pOff - pOn : null;
   // P amplitude per lead (largest excursion between P onset and end), V1 terminal negativity (mm·s, PTF),
   // PR-segment level (10–20 ms before the QRS, against the TP baseline)
-  const pAmp = {}, prSeg = {}; let ptfV1 = 0;
+  const pAmp = {}, prSeg = {}, prDeep = {}; let ptfV1 = 0;
   for (const n of LEADS) {
     const k = K(n); let a = 0; if (pOn !== null) for (let t = pOn; t <= pOff; t++) if (Math.abs(x(t, k)) > Math.abs(a)) a = x(t, k);
     pAmp[n] = +a.toFixed(3); let sg = 0; for (let t = on - 20; t < on - 10; t++) sg += x(t, k) / 10; prSeg[n] = +sg.toFixed(3);
+    // (the deepest PR-segment level: the 10-ms mean furthest from baseline from 90 ms after the P onset (past a normal P) to 10 ms
+    // before the QRS, downward in II, upward in aVR: with a long PR the atria have repolarised before the fixed window. Anchored
+    // on the P onset: in pericarditis the depressed PR segment can be the last atrial peak the P finder takes)
+    if (pOn !== null && (n === 'II' || n === 'aVR')) { let best = 0; for (let t0 = pOn + 90; t0 + 10 <= on - 10; t0++) { let m2 = 0; for (let t = t0; t < t0 + 10; t++) m2 += x(t, k) / 10; if (n === 'II' ? m2 < best : m2 > best) best = m2; } prDeep[n] = +best.toFixed(3); }
   }
   if (pOn !== null) { const k = K('V1'); for (let t = pOn; t <= pOff; t++) if (x(t, k) < 0) ptfV1 += -x(t, k) * 10 * 0.001; }   // mm × s
   // P mitrale notch: two humps in II (5 ms smoothing) with a dip of ≥ 0.02 mV between them; the gap in ms
@@ -103,7 +107,7 @@ function read(rec, hint, rr, opts = {}) {
   const qrs = off - on, axis = Math.round(Math.atan2((2 / Math.sqrt(3)) * L.aVF.net, L.I.net) * 180 / Math.PI);
   // delta wave: slow initial QRS (largest-R lead: time from QRS onset to half its R peak)
   const big = LEADS.reduce((b, n) => (L[n].R > L[b].R ? n : b), 'I'), kb = K(big); let up = 0; while (up < 120 && x(on + up, kb) < 0.5 * L[big].R) up++;
-  const m = { on, qrs, pr, pdur, qt, qtc: Math.round(qtc), axis, rate: Math.round(60000 / (rr || 833)), pAmp, prSeg, ptfV1: +ptfV1.toFixed(3), pNotch, upstroke: up, upLead: big };
+  const m = { on, qrs, pr, pdur, qt, qtc: Math.round(qtc), axis, rate: Math.round(60000 / (rr || 833)), pAmp, prSeg, prDeep, ptfV1: +ptfV1.toFixed(3), pNotch, upstroke: up, upLead: big };
   return { m, L, interpret };
   function interpret() { return diagnose(m, L); }
 }
@@ -174,7 +178,7 @@ function diagnose(m, L) {
     // acute pericarditis: ST elevation in ≥ 4 leads over ≥ 2 territories, ST depression in aVR, no
     // reciprocal depression outside aVR and V1, PR depression (II ≤ −0.08 mV or aVR ≥ +0.08 mV)
     const recip = std.filter((n) => n !== 'V1');
-    const peri = ste.length >= 4 && f.steT.filter((t) => t !== 'posterior').length >= 2 && L.aVR.stJ <= -0.05 && !recip.length && m.prSeg && (m.prSeg.II <= -0.08 || m.prSeg.aVR >= 0.08);
+    const peri = ste.length >= 4 && f.steT.filter((t) => t !== 'posterior').length >= 2 && L.aVR.stJ <= -0.05 && !recip.length && m.prSeg && (m.prSeg.II <= -0.08 || m.prSeg.aVR >= 0.08 || (m.prDeep && (m.prDeep.II <= -0.08 || m.prDeep.aVR >= 0.08)));
     // Brugada type 1: coved J elevation ≥ 0.2 mV in V1 or V2, the ST descending into a negative T
     const brug = ['V1', 'V2'].filter((n) => L[n].stJ >= 0.2 && L[n].stJ > L[n].st40 && L[n].st40 > L[n].st80 && L[n].tTerm < -0.03);
     if (peri) dx.push('pericarditis');

@@ -8,6 +8,19 @@ Read first, in this order:
 
 The history of every change is in `docs/DEVELOPMENT.md` ("Round N"; the latest are Rounds 48–57).
 
+## Training "read as is" (branch `claude/training-as-is`, 2026-11-23/24; not merged)
+
+- Cut from `claude/hopeful-brahmagupta-ahil2p` (pull request #24 into `milestone-1`, open). The answer key is read from the
+  ECG as it came out instead of discarding ECGs that did not show what was put in (docs/DEVELOPMENT.md, "claude/training-as-is
+  round 1–3").
+- Validation by reading batches: 20 unanswered ECGs at a time, the author reads them in free text on the claude.ai artifact
+  "ECG Reading Batches" (https://claude.ai/artifact/YEUQJ6NTdNy4Ut2Hr8mfgV; reads in its store, collection `reads`,
+  `<batch>-<nn>`), and they are scored against the keys. Keys and reviews: `tools/data/reading/batch*_keys.json`,
+  `batch*_review.md`. Agreement: batch 1 9/20, batch 2 11/20, batch 3 14/20, batch 4 11/20, batch 5 11/20; batches 4 and 5
+  had no wrong keys (the condition set for replacing the live generator).
+- Done after batch 3: diffuse ST depression accepts any lead group; non-specific ST-T is an equal answer for ST depression
+  under 2 mm. Next: check the J+80 measurement's baseline against the TP segment (the eye saw less depression); then batch 4.
+
 ## Where things are
 
 - **`milestone-1`** is the live site (ecgstudio.app) and now holds everything.
@@ -70,6 +83,49 @@ Other recent UI:
 
   Combinations of findings start around 1700.
 - VT, torsades and VF never have other abnormalities, but can have artifacts. Tremor varies in length and strength.
+
+## Marketing and video tools (2026-11-16 to 26)
+
+The plan, post drafts and outreach templates are in `docs/MARKETING.md`. The ECG library (`/ecg/`), the app page
+(`/training`), `sitemap.xml`, `llms.txt` and `robots.txt` are built by `tools/build.py` (see CLAUDE.md).
+
+**Videos.** All record the real app with Playwright, write MP4 (H.264, 60 fps, silent AAC track) and need ffmpeg and
+Python with PIL. Output goes to the folder given (use the scratchpad; the parts are reused with `--skip-take`).
+
+| Tool | Makes | Time | Edit |
+|---|---|---|---|
+| `node tools/promo_clips.js <out> [stemi,af,chb]` | raw portrait clips 1080×1920 of the phone layout | ~5 min each | `CLIPS` in the file |
+| `PROMO_CAM=1 node tools/promo_clips.js <out>` then `node tools/promo_edit.js <out>` | the same with zooms (camera at capture), captions, flash, end card, and `-script.txt` voice-over scripts | ~20 + 1 min | `tools/promo_story.json` |
+| `node tools/promo_store.js <out> [--skip-take] [--music song.mp3 [--music-start s]]` | the 30 s Google Play video, 1920×1080: one camera take through the heart, app reveal, Training phone, logo | ~25 min; overlays only ~3 min | tables at the top (`CAM`, `SPEED`, `EVENTS`, `CAPTIONS`) |
+| `node tools/promo_vf.js <out> [--skip-take]` | "Recipe for disaster" 19.6 s, 1080×1920: VF cold open, click on the LAD, ischaemia, an R-on-T click that starts VF, logo | ~25 min; overlays ~3 min | `SHOTS`, `CAPTIONS`, `CLICK_*`, `LAD_AT` at the top |
+| `python3 tools/music_loop.py song.mp3 out.wav --start s --length s` | loop part of a song in whole bars (crossfaded joins) | seconds | |
+
+Shared: `tools/promo_logo.js` (the animated logo: voxels drop in, the activation wave sweeps them), `tools/promo_purple.py`
+(the ischaemic area's position in a screenshot). The Play Store video's music was "Unconditional" (YouTube Audio Library;
+its licence suits YouTube, so the Play video only), the 4-bar drum intro looped: `--start 0.9516 --length 8.20513`, 117 BPM.
+The song file is not in the repository; ask the author for it.
+
+**Lessons (each cost a failed render):**
+- Time is stepped by hand: `requestAnimationFrame` and `performance.now` are replaced in the page, one frame per capture,
+  captured over CDP (`Page.captureScreenshot`; Playwright's own screenshot waits on animation frames and stalls). Load
+  `index.html?noworker` so the engine steps on the page (the simulation worker would run on its own clock).
+- Pre-roll in steps under 34 ms (`1000 / 32`): bigger steps look like a slow machine to the app's adaptive quality
+  (`ECGStudioApp.quality`), which then draws the 3D view only every 4th frame and at lower resolution.
+- Zooms are done at capture: the page is drawn at 4× (a temporary copy of `index.html` with the canvas pixel-ratio caps,
+  `Math.min(1.5|2, window.devicePixelRatio`, raised to 4) and each frame captures the zoom rectangle, so it stays sharp.
+- ffmpeg: set `setsar=1` (zoomed captures' pixel aspect differs by a hair) and reset the timebase after `concat`
+  (`settb=1/60,fps=60`) before `xfade`, or the filter graph fails ("Error reinitializing filters").
+- Beat timing: `ECGStudioApp.sim.nextSinus()` gives the next sinus firing; spread the simulated time to it over the frames
+  of an "align" segment, then slow down. Seen from outside, the ventricular wave reaches the surface 160–220 ms after the
+  P wave, so a slow-motion window that ends earlier shows nothing.
+- R-on-T VF (`stimulate` / `vulnerable` in `src/engine.js`): a ventricular stimulus between 60% of the beat's
+  repolarisation and 20 ms after its end (`log.vent[...].on`, `.repEnd`), in a heart 0.1–48 h after an occlusion, on a
+  cell no longer refractory. Aim at 85% of the way (not at `qtEnd()`, which comes later). Tap the purple area found in a
+  screenshot: the median of the ischaemic cells' projections can fall on healthy muscle in front of them.
+- Camera azimuth is about the screen's vertical, relative to the chest view (`tour.outside()`). The LAD faces the camera
+  at +55°; at negative angles it shows through the heart from behind (hidden vessels are drawn see-through).
+- Debug the timing with `TAKE_SECONDS=n node tools/promo_store.js …` (logs each speed segment); rehearse clicks on a small,
+  1× page before a 25-minute render.
 
 ## Settled questions (check here before proposing a rebuild)
 

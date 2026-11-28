@@ -212,6 +212,7 @@
     // instead of sweeping the atria as one; in sinus rhythm the P wave is broader.
     fibCv: 1, fibHet: 0.45,
     afDefaultRate: 110, afIrregularity: 0.45, afAvnToV: 110, afAvnRvrExp: 2,   // AF ventricular response: mean rate, ±fraction of RR
+    afQtGap: -100, afQtJitter: 80, afJoinToQrs: 40,   // AF: the next conducted QRS no earlier than the last beat's T end (qtEnd) plus afQtGap and a random 0–afQtJitter (on the T's last tail at most, as in fast AF); the lower AV node to QRS onset (ms)
     flutterRingSlow: 1.1, flutterIsthmusSlow: 2.8, flutterGateTol: 0.03, flutterRadius: 25, flutterBachmannSlow: 40,
     matClMin: 380, matClMax: 640,
     ectopicDist: 25,        // ectopic atrial focus: distance (mm) from the AV node, low in the right atrium
@@ -247,9 +248,9 @@
     stenosisSev: { LAD: 0.65, LCx: 0.8, RCA: 0.45, LM: 0.5 },   // (Round 68: LCx 0.55 → 0.8, RCA 0.17 → 0.45 with subendoQRS 0.3)
     // electrolytes and hypothermia (Sim.setElectrolyte): factors on the healthy values
     elecHyperKRepW: 0.5, elecHyperKApd: 0.85, elecHyperKGrad: 0.3, elecHyperKSync: 0, elecHyperKCv: 2.6, elecHyperKCvAtrial: 1.8, elecHyperKPAmp: 0.4,
-    elecHypoKRepW: 1.2, elecHypoKSag: 0.05, elecHypoKMid: 0, elecHypoKLayer: 0.5, elecHypoKLayerW: 0.25, elecHypoKTail: 0.18, elecHypoKTailMs: 230, elecHypoKTailW: 90,
+    elecHypoKRepW: 1.2, elecHypoKSag: 0.05, elecHypoKMid: 0, elecHypoKLayer: 0.5, elecHypoKLayerW: 0.25, elecHypoKTail: 0.13, elecHypoKTailMs: 230, elecHypoKTailW: 130,
     elecHypoCaApd: 1.45, elecHyperCaApd: 0.75,
-    elecHypothermiaApd: 1.3, elecHypothermiaCv: 1.25, elecOsbornNotch: 0.5,
+    elecHypothermiaApd: 1.3, elecHypothermiaCv: 1.25, elecOsbornNotch: 0.25, elecOsbornMinMs: 25, elecOsbornMs: 90,   // (Osborn: the outer wall's notch depth, the ms to its deepest point, and to the dome)
     wellensA: 0.65, wellensB: 1.2, wellensEndo: 0.1, wellensAt: 0.22,   // Wellens (Sim.setWellens): APD prolongation of type A / B, inner-wall share, LAD node (fraction along it)
     stenosisGlobal: 0.3,   // narrowing: share of its severity in the rest of the LV inner wall
     stenosisBaseGain: 1, stenosisBaseZ: 0.6,   // narrowing: severity in the basal inner wall (apicobasal UVC above stenosisBaseZ)
@@ -289,7 +290,7 @@
     occlusionDeadS: null, occlusionBorderMm: { LAD: 18 }, occlusionScarWindow: { RCA: 0 },   // occlusionScarWindow: per family, the scar window instead of scarWindow
     occlusionMarginMm: { RCA: 2 },   // per family: the rim of the territory (mm from its edge) that survives (scar only; the acute injury is unchanged)  // per artery family, e.g. { RCA: 0.6 }: a higher threshold leaves more of the territory alive (smaller infarct)
     ischFrontMax: 1.05,    // how far through the LV wall necrosis reaches (<1 leaves a surviving epicardial rim)
-    pericardDepth: 0.7, pericardDv: 10, pericardAmpDrop: 0.3, pericardSag: -0.55, pericardAtrialDv: 12, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
+    pericardDepth: 0.7, pericardDv: 14, pericardAmpDrop: 0.35, pericardSag: -0.55, pericardNotch: 0, pericardNotchMin: 10, pericardNotchMs: 80, pericardApd: 0, pericardRepW: 1.4, pericardKeepEnd: 1, pericardAtrialDv: 20, pericardAtrialDecline: 0.5,   // pericarditis: outer 30% of the LV wall, RV and atrial epicardium
     brugadaMm: 32, brugadaDomeLoss: 0.8, brugadaApdLong: 0.5,                       // Brugada: RVOT epicardium within 32 mm of the pulmonary valve
     ischBlockInj: 0.7,     // injury level above which living ischaemic muscle (after 2 h) no longer conducts
     ischHaloMm: 10, ischHaloLate: 0.45,   // zone of ischaemia around the infarct: width (mm) and late APD prolongation (T inversion)
@@ -302,6 +303,9 @@
     junctionalRate: 48,
     ventEscapeRate: 32,
     idioventricularRate: 34,
+    // recurring sinus pauses (SAN 'pauses', the SA node slider): each pause 2–3 s, the next 2–4 s after it ends, so a 10 s
+    // strip always shows at least one whole pause (the author: a little random, at least once per 10 s)
+    sinusPauseMin: 2000, sinusPauseMax: 3000, sinusPauseGapMin: 2000, sinusPauseGapMax: 4000,
 
     // ECG
     ecgGain: 0.0123,      // converts Σ W·Vm into mV (calibrated once on sinus rhythm; rescaled for the rebuild-1 heart and torso-field limb leads)
@@ -1564,6 +1568,7 @@
   const RING = 8192;
   const HRING = 2048;   // repolarisation histogram ring (ms): ≥ longest APD + window
   const FLAT = 100;     // piece/event id: flat plateau after the APD (convolution path); FLAT + 1: end
+  const NOTCH = 110, NOTCH_END = 111;   // piece/event id: an early notch before the plateau (hypothermia; NOTCH + 2 its recovering half), and its end
   const REP_SEG = 8;  // straight segments per repolarisation (ECG running sums)  // ms horizon of the arrival queue
 
   class Sim {
@@ -1581,6 +1586,7 @@
       this.blocked = new Uint8Array(N);
       this.cvMul = new Float32Array(N).fill(1);       // >1 slows conduction (ischaemia)
       this.cvElec = new Float32Array(N).fill(1);      // >1 slows conduction (electrolytes, hypothermia: setElectrolyte)
+      this.notchN = new Float32Array(N); this.notchMs = new Float32Array(N); this.notchMin = new Float32Array(N);   // an early notch: deepest at notchMin, dome back by notchMs (hypothermia's J wave)
       this.buckets = Array.from({ length: RING }, () => []);
       this._assignParams();
       if (!opts.noMemory && this.P.electrotonicK > 0) this._electrotonicMemory();
@@ -1713,6 +1719,19 @@
     setSinusArrhythmia(opts) {
       this.sinusArr = opts && opts.amp > 0 ? { amp: Math.min(0.35, opts.amp), period: opts.period || 5000, t0: this.t } : null;
     }
+    // escape pacemaker rates (bpm; 0: that escape does not fire at all). Ventricular sets both ventricular escape foci
+    // (below the His bundle and in the left posterior Purkinje network). Each still takes over only when conduction from
+    // above it is interrupted; the rate sets how fast it then goes (accelerated junctional, accelerated idioventricular)
+    setEscapeRates({ junctional, ventricular } = {}) {
+      this.escapeRates = { ...(this.escapeRates || {}) };
+      if (junctional !== undefined) this.escapeRates.junctional = junctional;
+      if (ventricular !== undefined) this.escapeRates.ventricular = ventricular;
+      const cl = (r) => (r > 0 ? 60000 / r : 0);
+      for (const pm of this.pacemakers) {
+        if (pm.name === 'junctional' && this.escapeRates.junctional !== undefined) pm.cl = cl(this.escapeRates.junctional);
+        if ((pm.name === 'ventricular' || pm.name === 'idioventricular') && this.escapeRates.ventricular !== undefined) pm.cl = cl(this.escapeRates.ventricular);
+      }
+    }
     setRate(bpm) {
       this.sinusBpm = bpm;
       this._avnTone = Math.pow(72 / bpm, this.P.avnToneExp);
@@ -1724,7 +1743,7 @@
 
     // ---- Conduction blocks ---------------------------------------------------
     // Block types by structure (the UI offers the ones listed for each site):
-    //   SAN: 'sa-exit' (2nd-degree SA exit block, n:n−1), 'pause' (one sinus pause), 'arrest'
+    //   SAN: 'sa-exit' (2nd-degree SA exit block, n:n−1), 'pause' (one sinus pause), 'pauses' (recurring), 'arrest'
     //   AVN: 'first' (1st degree), 'wenckebach' (Mobitz I), 'two-to-one', 'complete'
     //   HIS: 'mobitz2' (infranodal intermittent, n:n−1), 'complete'
     //   LBB, RBB, LAF, LPF: 'complete'
@@ -1733,7 +1752,7 @@
       const cells = site === 'SAN' ? [M.sanCell] : site === 'AVN' ? M.avn : cs[site];
       // clear what this site had
       for (const c of cells) { this.blocked[c] = 0; this.gates.delete(c); if (site !== 'AVN' && site !== 'SAN') this.cvMul[c] = 1; }
-      if (site === 'SAN') { this.saExit = null; this.sinusArrest = false; this.sinusPauseUntil = -1; }
+      if (site === 'SAN') { this.saExit = null; this.sinusArrest = false; this.sinusPauseUntil = -1; this.sinusPauses = null; }
       if (site === 'AVN') { this.avnBlockMul = 1; for (const c of M.avn) { this.erpExtra[c] = P.avnErpExtra; this.cvK[c] = P.avnCvRestK; this.cvTau[c] = P.avnCvRestTau; } }
       delete this.blocks[site];
       if (site === M.lsfTie) for (const c of cs.LSF) { this.blocked[c] = 0; this.cvMul[c] = 1; }
@@ -1743,6 +1762,7 @@
       if (site === 'SAN') {
         if (type === 'sa-exit') this.saExit = { n: opts.n || 3, count: 0 };
         else if (type === 'pause') { this.sinusPauseUntil = this.t + (opts.ms || 2800); this.pauseEscape = opts.escape !== false; }   // (escape: false: the junctional escape stays silent too, a pure pause)
+        else if (type === 'pauses') { this.sinusPauses = { nextAt: this.t + 1000 + this.rand() * 2000 }; this.pauseEscape = true; }
         else if (type === 'arrest') this.sinusArrest = true;
       } else if (site === 'AVN') {
         if (type === 'first') this.avnBlockMul = P.avnFirstDegreeMul;
@@ -2021,7 +2041,8 @@
         if (k === KIND.VENT) {
           const outer = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (A.tm[c] - P.pericardDepth) / (1 - P.pericardDepth)));
           const peri = this.pericarditis && outer > 0;
-          if (peri) { dv += P.pericardDv * outer; amp *= 1 - P.pericardAmpDrop * outer; }
+          if (peri) { dv += P.pericardDv * outer; amp *= 1 - P.pericardAmpDrop * outer; apd *= 1 + P.pericardApd * outer; }   // (pericardApd: delayed repolarisation of the inflamed layer; 0 = none)
+          const periRepW = peri ? 1 + (P.pericardRepW - 1) * outer : 1;   // (pericardRepW: a wider, more gradual repolarisation of the inflamed layer; 1 = none)
           let nsSag = 0;
           if (patch) {
             // flatten the transmural gradient here: endocardium shorter, epicardium longer, by up to nssttGrad of it
@@ -2041,9 +2062,19 @@
           if (E.hypoK) { repWE *= P.elecHypoKRepW; declE += P.elecHypoKSag; const mid = Math.max(0, 1 - Math.abs(tmE - P.elecHypoKLayer) / P.elecHypoKLayerW); apd *= 1 + P.elecHypoKMid * mid; }
           if (E.hypoCa) apd *= P.elecHypoCaApd;
           if (E.hyperCa) apd *= P.elecHyperCaApd;
-          if (E.hypothermia) { apd *= P.elecHypothermiaApd; cvE *= P.elecHypothermiaCv; const epi = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (tmE - 0.6) / 0.3)); if (epi > 0) amp *= 1 - P.elecOsbornNotch * epi; }
+          let notch = 0, nMin = P.elecOsbornMinMs, nMs = P.elecOsbornMs;
+          // (pericarditis's curved plateau, when pericardNotch is set: on top of the lowered, climbing plateau, the inflamed layer
+          // dips by pericardNotch × outer within pericardNotchMin after the upstroke and recovers by pericardNotchMs: a fast
+          // early recovery and a slow late one, so the ST elevation falls quickly after the J point and then levels off into the
+          // T (a concave, saddle-shaped ST) instead of a straight line)
+          if (peri && P.pericardNotch) { notch = P.pericardNotch * outer; nMin = P.pericardNotchMin; nMs = P.pericardNotchMs; }
+          if (E.hypothermia) { apd *= P.elecHypothermiaApd; cvE *= P.elecHypothermiaCv; const epi = A.label[c] === LAB.RV ? (A.epi[c] ? 1 : 0) : Math.max(0, Math.min(1, (tmE - 0.6) / 0.3)); notch = Math.max(notch, P.elecOsbornNotch * epi); }
+          // (the J (Osborn) wave: the outer wall's action potential dips right after the upstroke and its dome recovers within
+          // elecOsbornMs: a hump at the J point that is gone before the ST; it was a lowered plateau climbing back over the whole
+          // APD, which drew a downsloping ST like pericarditis)
+          this.notchN[c] = notch; this.notchMs[c] = nMs; this.notchMin[c] = nMin;
           if (this.wellens && this._wellensMap.has(c)) apd *= 1 + (this.wellens === 'A' ? P.wellensA : P.wellensB) * this._wellensMap.get(c) * (P.wellensEndo + (1 - P.wellensEndo) * tmE);
-          this.cvElec[c] = cvE; this.repW[c] = (this._repWBase || (this._repWBase = this.repW.slice()))[c] * repWE;
+          this.cvElec[c] = cvE; this.repW[c] = (this._repWBase || (this._repWBase = this.repW.slice()))[c] * repWE * periRepW;
           if (this.brugada && A.label[c] === LAB.RV && A.epi[c]) {
             const d = Math.hypot(A.pos[3 * c] - puv[0], A.pos[3 * c + 1] - puv[1], A.pos[3 * c + 2] - puv[2]);
             const w = Math.max(0, Math.min(1, (P.brugadaMm - d) / 8));
@@ -2054,8 +2085,11 @@
           // (pericarditis: the inflamed epicardial plateau starts low and partly recovers
           // (negative slope), so ST elevation is highest at the J point, sags mid-ST and
           // rises again into the T wave: the concave-upward "saddle")
-          this.pDecl[c] = (amp < 1 && ((this.brugada && A.label[c] === LAB.RV) || (this.elec && this.elec.hypothermia)) ? 1 - (1 - P.plateauDecline) / amp
+          this.pDecl[c] = (amp < 1 && this.brugada && A.label[c] === LAB.RV ? 1 - (1 - P.plateauDecline) / amp
             : peri ? P.plateauDecline + P.pericardSag * outer : P.plateauDecline + nsSag) + declE;
+          // (pericardRepW with pericardKeepEnd: the inflamed layer's repolarisation starts earlier and more gradually but ends
+          // when it did: the APD moves earlier by half the widening, so the T's upslope begins inside the ST)
+          if (peri && P.pericardKeepEnd && periRepW !== 1) apd -= 0.5 * this._repWBase[c] * repWE * (periRepW - 1) / this._apdBase[c];
           this.vAmp0[c] = this._vAmpBase[c] * amp; this.apdMax0[c] = this._apdBase[c] * apd;
           if (!this._ischCells.has(c)) { this.vAmp[c] = this.vAmp0[c]; this.apdMax[c] = this.apdMax0[c]; }
         } else if (k === KIND.ATRIAL) {
@@ -2493,6 +2527,30 @@
     // to ~2 days after onset)
     vulnerable() { return this.insults.length > 0 && this.ischemiaHours >= 0.1 && this.ischemiaHours <= 48; }
 
+    // the end of the last beat's T wave, in ms after its QRS onset: 90% of the ventricular myocardium that beat activated has
+    // finished repolarising (each cell's repolarisation window is centred on its APD, repW wide). Cached per beat once the
+    // beat is complete. Used to keep AF's next conducted beat and Training's premature beats off the T wave
+    qtEnd() {
+      const v = this.log.vent[this.log.vent.length - 1];
+      if (!v) return this._qtVal || 400;
+      if (this._qtFor === v.on) return this._qtVal;
+      if (this.t < v.on + 200 && this._qtVal) return this._qtVal;   // (the beat still under way: the one before)
+      const M = this.M, vals = [];
+      for (let c = 0; c < M.nVox; c++) if (M.kind[c] === KIND.VENT && this.tAct[c] >= v.on - 20) vals.push(this.repEnd[c] + 0.5 * this.repW[c]);
+      if (vals.length < 50) return this._qtVal || 400;
+      vals.sort((a, b) => a - b);
+      const q = vals[Math.floor(0.9 * (vals.length - 1))] - v.on;
+      if (this.t > v.on + 200) { this._qtFor = v.on; this._qtVal = q; }
+      return q;
+    }
+    // AF: would a QRS at time t land on the last beat's T wave? (its end (qtEnd) plus afQtGap, plus a random 0–afQtJitter
+    // drawn once per beat: one fixed limit lined every early beat up at it, and the response looked regular)
+    _afOnT(t) {
+      const P = this.P, v = this.log.vent[this.log.vent.length - 1], lim = v.on + this.qtEnd() + P.afQtGap;
+      if (t >= lim + P.afQtJitter) return false;
+      if (this._afJitFor !== v.on) { this._afJitFor = v.on; this._afJit = this.rand() * P.afQtJitter; }
+      return t < lim + this._afJit;
+    }
     // ventricular response in AF and flutter (bpm; null = natural for flutter, default for AF)
     // opts.variable (flutter): conduction ratios drawn at random beat by beat (e.g. [2, 4]: variable 2:1–4:1 block),
     // so the response is irregular; bpm then only sets the first ratio
@@ -2624,6 +2682,12 @@
       const M = this.M, st = M.start, nb = M.nbr, w0 = M.w0, nVox = M.nVox;
       const cvE = this.cvElec, blocked = this.blocked, cvMul = this.cvMul, refEnd = this.refEnd, repEnd = this.repEnd, cvK = this.cvK, cvTau = this.cvTau, arrive = this.arrive, tAct = this.tAct;
       const fg = this._flutterGate, iaSlow = this._iaSlow;
+      // AF: an impulse reaching the lower AV node (where the pathways join) before the last beat's T wave has ended (less
+      // afQtGap) does not go on: the next QRS would land on that T. The random RR drawn below knew nothing of the QT, so
+      // with a long QT (hypocalcaemia, hypothermia, hypokalaemia) the short cycles put the QRS on the T (the author: R on T).
+      // (checked here, against the beat that has just ended, not as a floor set at the previous conduction: that used the
+      // QT of the beat before, too short after a long pause, and every wave it blocked re-armed the node and slowed it)
+      const afJoin = this.arrhythmia && this.arrhythmia.type === 'af' ? M.avn[M.avn.length - 2] : -1;
       for (let e = st[c]; e < st[c + 1]; e++) {
         const j = nb[e];
         if (blocked[j]) { if (this._pOn && this.phantom[j] && ta + w0[e] * cvMul[j] - this._pAct[j] >= P.scarRefractory) this.schedule(j, ta + w0[e] * cvMul[j]); continue; }
@@ -2637,6 +2701,7 @@
         if (iaSlow && j < nVox && c < nVox && this._atrialSide[c] > 0 && this._atrialSide[j] < 0) tau *= iaSlow;   // RA→LA delay (LAE)
         const tEst = ta + tau;
         if (tEst < refEnd[j]) continue;               // will meet refractory tissue
+        if (j === afJoin && this.log.vent.length && this._afOnT(tEst + P.afJoinToQrs)) continue;
         const dij = tEst - repEnd[j], ct = cvTau[j];
         if (dij < 12 * ct) tau *= 1 + cvK[j] * Math.exp(-Math.max(dij, 0) / ct);   // (fully recovered tissue: no slowing)
         const tArr = ta + tau;
@@ -2723,9 +2788,16 @@
       let up = 1; if (s < uw) { const x = s / uw; up = x * x * (3 - 2 * x); }
       let rep = 1; const r0 = apd - 0.5 * w;
       if (s > r0) { const x = (s - r0) / w; rep = 1 - x * x * (3 - 2 * x); }
-      const pl = 1 - this.pDecl[c] * (s < apd ? s / apd : 1);
+      let pl = 1 - this.pDecl[c] * (s < apd ? s / apd : 1);
+      const nn = this.notchN[c];   // (the notch: deepening to its lowest at notchMin, then recovering by notchMs; both capped to fit the APD)
+      if (nn) { const e = this._nEnd(c); if (s < e) { const m = this._nMin(c); pl *= 1 - nn * (s < m ? (m > 0 ? s / m : 1) : 1 - (s - m) / (e - m)); } }
       return vr + this.vAmp[c] * up * pl * rep;
     }
+
+    // the notch's end and lowest point (ms after activation), capped so the notch ends well before repolarisation starts (the
+    // ECG pieces need it to): at most 55% of the APD, its lowest point at most 40% of that
+    _nEnd(c) { return Math.min(this.notchMs[c], 0.55 * this.apd[c]); }
+    _nMin(c) { return Math.min(this.notchMin[c], 0.4 * this._nEnd(c)); }
 
     phase(c, t = this.t) {
       const s = t - this.tAct[c], apd = this.apd[c], w = this.repW[c];
@@ -2749,6 +2821,9 @@
       let k0 = 0, k1 = 0;
       if (piece === FLAT) {                                  // plateau after the APD (pl = 1 − p), cancelled by the convolution
         k0 = this.vAmp[c] * (1 - this.pDecl[c]);
+      } else if (piece === NOTCH || piece === NOTCH + 2) {   // the notch: down to its lowest point, then back up to the dome (two straight lines)
+        const ta = this.tAct[c], tm = ta + Math.max(this.P.upW, this._nMin(c)), t0 = piece === NOTCH ? Math.ceil(ta + this.P.upW) : tm, t1 = piece === NOTCH ? tm : ta + this._nEnd(c), va = this.vm(c, t0) - this.vRest[c], vb = this.vm(c, t1) - this.vRest[c];
+        const b = (vb - va) / Math.max(1, t1 - t0); k0 = va - b * t0; k1 = -b;
       } else if (piece === 1) {                              // plateau
         const A = this.vAmp[c], p = this.pDecl[c], apd = this.apd[c];
         k0 = A * (1 + p * this.tAct[c] / apd); k1 = A * p / apd;
@@ -2778,7 +2853,9 @@
       this._histRemove(c);
       if (tRep <= tPl) { this._dynAdd(c); return; }             // (very short APD: summed explicitly)
       this._dynRemove(c);
-      this._setPiece(c, 1);
+      const notched = this.notchN[c] > 0 && ta + this._nEnd(c) < tRep - 1;
+      this._setPiece(c, notched ? NOTCH : 1);
+      if (notched) { this.tbuckets[Math.max(Math.ceil(ta + Math.max(this.P.upW, this._nMin(c))), this.t + 1) % RING].push(c, g, NOTCH + 2); this.tbuckets[Math.max(Math.ceil(ta + this._nEnd(c)), this.t + 1) % RING].push(c, g, NOTCH_END); }
       const p = this.pDecl[c];
       if (Math.abs(p) > 0.1 + 1e-6) {                           // unusual plateau (Brugada dome, inflamed atria): exact segments
         this.tbuckets[Math.max(this._segT(c, 0), this.t + 1) % RING].push(c, g, 2);
@@ -2803,6 +2880,12 @@
     }    // Advance one millisecond
     step() {
       const t = this.t;
+      // 0. recurring sinus pauses: at a random moment the node stops for a random 2–3 s, then the next is drawn
+      if (this.sinusPauses && t >= this.sinusPauses.nextAt) {
+        const P = this.P, d = P.sinusPauseMin + this.rand() * (P.sinusPauseMax - P.sinusPauseMin);
+        this.sinusPauseUntil = t + d;
+        this.sinusPauses.nextAt = t + d + P.sinusPauseGapMin + this.rand() * (P.sinusPauseGapMax - P.sinusPauseGapMin);
+      }
       // 1. automaticity: a pacemaker fires when its cycle length has elapsed
       //    since it was last activated (being activated resets it: overdrive suppression)
       for (const pm of this.pacemakers) {
@@ -2849,6 +2932,8 @@
         const kind = tb[q + 2];
         if (kind === FLAT) { this._setPiece(c, FLAT); continue; }
         if (kind === FLAT + 1) { this._setPiece(c, 0); this.hTau[c] = -1e9; continue; }   // window over: plateau piece and R = 1 cancel
+        if (kind === NOTCH + 2) { if (this.piece[c] === NOTCH) this._setPiece(c, NOTCH + 2); continue; }   // lowest point: the notch recovers
+        if (kind === NOTCH_END) { if (this.piece[c] === NOTCH || this.piece[c] === NOTCH + 2) this._setPiece(c, 1); continue; }   // dome recovered: onto the plateau line
         if (kind === 1) this._dynRemove(c);
         this._setPiece(c, kind < 2 + REP_SEG ? kind : 0);    // last event: back at rest
         if (kind < 2 + REP_SEG) { const tn = this._segT(c, kind - 1); this.tbuckets[Math.max(tn, this.t) % RING].push(c, tb[q + 1], kind + 1); }
@@ -3029,12 +3114,24 @@
     return {
       // RVH: free-wall hypertrophy (thickening centred on the free wall, sparing the septal insertions),
       // slower conduction in the hypertrophied RV muscle, stronger sources and a strain gradient
-      anatomy: { lvWallLayers: lvh ? 6 : 2, rvWallLayers: rvh ? 6 : 0, ...(rvh ? { rvThickPhiC: 0.4, rvThickPhiW: 0.8 } : {}) },
+      anatomy: { lvWallLayers: lvh ? 6 : 2, rvWallLayers: rvh ? 6 : 0, ...(rvh ? { rvThickPhiC: 0.0, rvThickPhiW: 0.8 } : {}) },   // (centre 0.4 → 0.0 rad: the 0.4 heart had an inferior Q of 41 ms, 10.7 mm in III)
       params: { lvStrain: lvh ? 1 : 0, lvSourceGain: lvh ? 1.5 : 1, rvStrain: rvh ? 0.7 : 0, rvSourceGain: rvh ? 1.8 : 1, rvCvMul: (rvh ? 0.8 : 1) * DEFAULTS.rvCvMul },   // (relative to the default RV muscle speed)
     };
   }
 
-  const api = { hypertrophyOptions, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, setDefaultTorso2, lvThickenWeight, rvThickenWeight };
+  // Block presets: extra engine settings that make one conduction block read as in the textbook where the live model
+  // falls short (the course's lesson presets; docs/COURSE_PLAN.md, Model accuracy). They change conduction and source
+  // strength only, never the heart's position, and are used only for the block they are named after: Training's RBBB
+  // (alone or with LAFB) and LPFB (alone or with RBBB) scenarios and the simulator links made from them (lp=).
+  //   rbbb: RBBB axis −51° → −19° (no QS in aVF), V1 r 4.1 / R′ 6.2 mm; with LAFB −60° (the live model's RBBB alone
+  //         already reads −51°, so RBBB + LAFB could not be told apart). Its normal beat: axis 63°.
+  //   lpfb: LPFB axis 92° → 100°, R III 31 → 20 mm, a clear rS in I. Its normal beat: axis 29°, low voltage.
+  const BLOCK_PRESETS = {
+    rbbb: { rvSourceGain: 0.9, pmjRetroRV: 50, purkZmaxRV: 0.8, septalTerrHalf: 0.85, lsfPhi: 1.1, lsfZ: 0.25, rvCvMul: 1, cvVentTrans: 0.34, cvVentSheet: 0.25, precordialDipoleW: 0.6, dowerChest: 0, rbbSeptalFrac: 0 },
+    lpfb: { lpfTerrLo: -2.9, lpfTerrHi: 1.2, purkCrossSlow: 10, lsfTie: 'LPF', lsfTieDelay: 3, septalTerrHalf: 0.2, lpfApexZ: 0.2, lvSourceGain: 0.6, lpfPhi: -1.8, lpfZ: 0.4, fascConnectFrac: 0.35, cvVentLong: 0.45, rvSourceGain: 0.7, purkCrossFastPhi: null },
+  };
+
+  const api = { hypertrophyOptions, BLOCK_PRESETS, Anatomy, Model, Sim, DEFAULTS, LAB, KIND, SEG, SEG_NAME, PHASE, LEADS, rng, setDefaultTorso, setDefaultTorso2, lvThickenWeight, rvThickenWeight };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ECGStudio = api;
 })(typeof window !== 'undefined' ? window : globalThis);

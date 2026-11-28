@@ -79,6 +79,8 @@
         const r = $('c3d').getBoundingClientRect(), lx = x - r.left, ly = y - r.top, ray = rayAt(lx, ly);
         if (pathwayAt(lx, ly)) return 'AP';
         if (ui.view === 'cutaway') { const site = conductionAt(ray, lx, ly); if (site) return site; }
+        if (ray.intersectObject(g3.sanPick, false).length) return 'SAN';
+        if (onArtery(ray, lx, ly)) return 'artery';   // (a coronary artery or marker within reach: a tap acts on it first)
         const c = tissueAt(ray); if (c < 0) return null;
         return A.label[c] === LH.LAB.RA ? 'RA' : A.label[c] === LH.LAB.LA ? 'LA' : 'V';
       },
@@ -93,7 +95,7 @@
     setLoading(ui.struct.lvh || ui.struct.rvh ? 'Growing the hypertrophied wall…' : 'Reading anatomy…'); await tick();
     A = new LH.Anatomy(JSON.parse($('anatomy-data').textContent), ho.anatomy);
     setLoading('Building tissue graph and conduction system…'); await tick();
-    M = new LH.Model(A, ho.params);
+    M = new LH.Model(A, heartParams(ho));
     setLoading('Tuning repolarization to the sinus beat…'); await tick();
     newSim(keepEcg);
   }
@@ -101,7 +103,10 @@
   // once built, so switching back to it is immediate.
   const heartCache = new Map();
   const G3_FIXED = new Set(['renderer', 'scene', 'camera', 'world', 'outer', 'inner', 'controls', 'planeDirty']);
-  const heartKey = () => CONDITIONS.filter((c) => c.rebuild).map((c) => +!!ui.struct[c.id]).join('');
+  const heartKey = () => CONDITIONS.filter((c) => c.rebuild).map((c) => +!!ui.struct[c.id]).join('') + (ui.preset ? `/${ui.preset}` : '');
+  // a block preset of the engine (LH.BLOCK_PRESETS), from a Training link (lp=rbbb, lp=lpfb): the heart Training drew that
+  // block with; Reset returns to the live model
+  const heartParams = (ho) => ({ ...ho.params, ...((ui.preset && LH.BLOCK_PRESETS[ui.preset]) || {}) });
   function storeHeart(key) {
     if (heartCache.has(key)) return;
     const fields = {}; for (const k of Object.keys(g3)) if (!G3_FIXED.has(k)) fields[k] = g3[k];
@@ -136,6 +141,8 @@
     bridgeSim(S);
     S.setRate(ui.rate);
     S.setDualAVN(!!ui.struct.dual);                                  // (off unless the condition is on: the slow pathway is open by default in the engine)
+    if (!ui.esc) ui.esc = { ...ESC_DEF };
+    if (ui.esc.j !== ESC_DEF.j || ui.esc.v !== ESC_DEF.v) S.setEscapeRates({ junctional: ui.esc.j, ventricular: ui.esc.v });
     for (const c of CONDITIONS) if (c.apply && ui.struct[c.id]) c.apply(ui.struct[c.id]);
     if (!keepEcg) for (const b of ecg.buf) b.fill(NaN);
     ecg.full = true;
@@ -198,7 +205,7 @@
     sim.beatEnds = (vb) => vb.ends || ends.call(sim, vb);
     const ho = LH.hypertrophyOptions(ui.struct);
     SIMW.simId++; SIMW.pending = 0; SIMW.carry = 0;
-    SIMW.w.postMessage({ type: 'heart', key: heartKey(), anatomy: ho.anatomy, params: ho.params });
+    SIMW.w.postMessage({ type: 'heart', key: heartKey(), anatomy: ho.anatomy, params: heartParams(ho) });
     SIMW.w.postMessage({ type: 'sim', simId: SIMW.simId, opts: { seed: 1 } });
   }
   function onSimMessage(e) {
@@ -735,7 +742,7 @@
       // tappable through it)
       const deep = SEE_THROUGH.includes(name);
       if (deep) { const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, depthTest: false, depthWrite: false })); ghost.renderOrder = 9; grp.add(ghost); }
-      const pick = new THREE.Mesh(new THREE.TubeGeometry(curve, tub, name === 'LM' ? 5 : 3.6, rad, false), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      const pick = new THREE.Mesh(new THREE.TubeGeometry(curve, tub, name === 'LM' ? 2.6 : 1.8, rad, false), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
       pick.userData.map = map; pick.userData.seeThrough = deep; grp.add(pick); g3.corPick.push(pick);
     }
     // where a see-through vessel leaves its parent: a short stretch of the parent drawn the same way (whole, solid where
@@ -1013,7 +1020,29 @@
     if (up.lengthSq() > 0.5 && y.lengthSq() > 0.5) g3.world.quaternion.setFromAxisAngle(f, Math.atan2(f.dot(new THREE.Vector3().crossVectors(up, y)), up.dot(y)));
     g3.viewRoll = 0;
     cam.up.set(0, 1, 0); cam.lookAt(0, 0, 0); ctl.update();
+    centreHeart();
     g3.planeDirty = true;
+  }
+  // centre the heart's outline as seen from the camera (the anatomy's centre, which the camera aims at, includes the
+  // great vessels and the parts hidden behind; seen from the four-chamber direction it left the heart ~10% of the view's
+  // width left of centre on a phone): the world group is panned so the outline's angular box is on the view axis
+  function centreHeart() {
+    const cam = g3.camera; if (!g3.tissueMeshes || !g3.tissueMeshes.length) return;
+    g3.scene.updateMatrixWorld(true); cam.updateMatrixWorld();
+    const m = new THREE.Matrix4().multiplyMatrices(cam.matrixWorldInverse, g3.inner.matrixWorld), v = new THREE.Vector3();
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const t of g3.tissueMeshes) {
+      const p = t.geo.attributes.position;
+      for (let i = 0; i < p.count; i += 7) {
+        v.fromBufferAttribute(p, i).applyMatrix4(m); if (v.z > -1) continue;
+        const x = v.x / -v.z, y = v.y / -v.z;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+    }
+    if (!isFinite(x0)) return;
+    const d = cam.position.length(), right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), up = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
+    g3.world.position.addScaledVector(right, -d * (x0 + x1) / 2).addScaledVector(up, -d * (y0 + y1) / 2);
+    g3.world.updateMatrixWorld(true);
   }
 
   // ---------------------------------------------------------------------------
@@ -1365,7 +1394,7 @@
   // ---------------------------------------------------------------------------
   const SITE_NAME = { SAN: 'SA node', AVN: 'AV node', HIS: 'His bundle', LBB: 'Left bundle branch', RBB: 'Right bundle branch', LAF: 'Left anterior fascicle', LPF: 'Left posterior fascicle', LSF: 'Septal fascicle' };
   const BLOCK_MENU = {
-    SAN: [['sa-exit', '2nd-degree SA exit block (3:2)', { n: 3 }], ['pause', 'Sinus pause (2.8 s)', { ms: 2800 }], ['arrest', 'Sinus arrest']],
+    SAN: [['sa-exit', '2nd-degree SA exit block (3:2)', { n: 3 }], ['sa-exit4', '2nd-degree SA exit block (4:3)', { n: 4 }], ['pause', 'Sinus pause (2.8 s)', { ms: 2800 }], ['pauses', 'recurrent sinus pauses'], ['arrest', 'Sinus arrest']],
     AVN: [['first', '1st-degree AV block'], ['wenckebach', '2nd-degree AV block, Mobitz I (Wenckebach)'], ['two-to-one', '2:1 AV block'], ['complete', '3rd-degree (complete) AV block']],
     HIS: [['mobitz2', '2nd-degree AV block, Mobitz II (4:3)', { n: 4 }], ['complete', '3rd-degree (complete) block in the His bundle']],
     LBB: [['complete', 'Left bundle branch block']], RBB: [['complete', 'Right bundle branch block']],
@@ -1388,26 +1417,69 @@
     for (const [site, id, val] of [['AVN', 'avnSev', 'avnVal'], ['HIS', 'hisSev', 'hisVal']]) {
       const k = levelOf(site, sevOf(site)); $(id).value = k; $(val).textContent = AV_LEVELS[k];
     }
+    { const k = sanLevel(); $('sanSev').value = k; $('sanVal').textContent = AV_LEVELS[k]; }
   }
   function setSeverity(site, v) {
     if (v > 0) S.setBlock(site, 'severity', { s: v }); else S.setBlock(site, null);
     syncAvSliders();
   }
+  // SA node slider (above the AV sliders, named by severity as they are; the author 2026-11-25): mild 2nd-degree SA exit
+  // block 4:3, moderate 3:2, severe recurrent sinus pauses (2–3 s, at least one in every 10 s), complete sinus arrest
+  const SA_LEVELS = [null, ['sa-exit', { n: 4 }], ['sa-exit', { n: 3 }], ['pauses', {}], ['arrest', {}]];
+  const SA_DESC = ['', '2nd-degree SA exit block, 4:3', '2nd-degree SA exit block, 3:2', 'recurrent sinus pauses', 'sinus arrest'];
+  function sanLevel() {
+    const b = S.blocks.SAN; if (!b) return 0;
+    return b.type === 'arrest' ? 4 : b.type === 'pauses' || b.type === 'pause' ? 3 : b.type === 'sa-exit' || b.type === 'sa-exit4' ? ((b.n || 3) >= 4 ? 1 : 2) : 0;
+  }
+  function setSanLevel(k) {
+    const e = SA_LEVELS[k]; if (e) S.setBlock('SAN', e[0], e[1]); else S.setBlock('SAN', null);
+    syncAvSliders();
+  }
+  // escape pacemaker rates (Rhythm tab, shown once an escape rhythm can come on): the far left of each slider is off, so
+  // sinus arrest or complete block can show no escape at all; faster: accelerated junctional / idioventricular rhythm
+  const ESC_DEF = { j: LH.DEFAULTS.junctionalRate, v: LH.DEFAULTS.ventEscapeRate }, ESC_OFF = { j: 18, v: 14 };
+  function escRate(kind, sliderVal) { return sliderVal <= ESC_OFF[kind] ? 0 : sliderVal; }
+  function applyEscape() {
+    S.setEscapeRates({ junctional: ui.esc.j, ventricular: ui.esc.v });
+    $('junRate').value = ui.esc.j || ESC_OFF.j; $('venRate').value = ui.esc.v || ESC_OFF.v;
+    $('junVal').textContent = ui.esc.j ? `${ui.esc.j} bpm` : 'Off'; $('venVal').textContent = ui.esc.v ? `${ui.esc.v} bpm` : 'Off';
+  }
+  // (one slider, for the escape that would take over (the author): ventricular when conduction is lost below the AV node
+  // (His–Purkinje severe or complete, both bundle branches), junctional when it is lost at the SA or AV node (severe or
+  // complete); else the escape that fired in the last 10 s; none: both hidden)
+  function escapeKind() {
+    const B = S.blocks, sev = (k, min) => B[k] && (B[k].type === 'severity' ? levelOf(k, B[k].s) >= min : B[k].type === 'complete');
+    if (sev('HIS', 3) || (B.RBB && (B.LBB || (B.LAF && B.LPF)))) return 'v';
+    if (sanLevel() >= 3 || sev('AVN', 3)) return 'j';
+    const f = S.fireLog.filter((x) => x.t > S.t - 10000 && /junctional|ventricular/.test(x.name)).pop();
+    return f ? (f.name === 'junctional' ? 'j' : 'v') : null;
+  }
+  function syncEscapeCtl() {
+    const k = escapeKind();
+    if ($('escCtl').hidden !== !k) $('escCtl').hidden = !k;
+    for (const [kind, ids] of [['j', ['junRow', 'junRate']], ['v', ['venRow', 'venRate']]]) for (const id of ids) if ($(id).hidden !== (k !== kind)) $(id).hidden = k !== kind;
+  }
+  // the escape rhythm's name at the rate set (escape ≤ 60 junctional / ≤ 40 ventricular; faster: accelerated)
+  function escName(kind) {
+    if (kind === 'junctional') return ui.esc.j > 100 ? 'junctional tachycardia' : ui.esc.j > 60 ? 'accelerated junctional rhythm' : 'junctional escape rhythm';
+    return ui.esc.v > 40 ? 'accelerated idioventricular rhythm' : 'ventricular escape rhythm';
+  }
   // a tap on the AV node or His bundle: the sliders (Blocks panel; phones: the sheet), instead of a list or cycling
   function showAvSliders(x, y) {
     if (isM()) openSheet('blocks'); else if (INAPP) setTab('blocks', false, true); else autoTab('blocks');
     const el = $('avCtl'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
-    if (x !== undefined) flash(x, y, 'AV node and His–Purkinje: use the sliders');
+    if (x !== undefined) flash(x, y, 'Conduction: use the sliders');
   }
   function blockLabel(site) {
     const b = S.blocks[site]; if (!b) return '';
     if (b.type === 'severity') return `${AV_LEVELS[levelOf(site, b.s)].toLowerCase()}`;
+    if (site === 'SAN' && b.type !== 'pause') return `${AV_LEVELS[sanLevel()].toLowerCase()} (${SA_DESC[sanLevel()]})`;
     const item = BLOCK_MENU[site].find((x) => x[0] === b.type);
     return item ? item[1] : `${SITE_NAME[site]} block`;
   }
 
   function renderBlockList() {
-    markChange(); updateBadges(); emit('blocks'); syncAvSliders(); drawBlockChips();
+    markChange(); updateBadges(); emit('blocks'); syncAvSliders(); drawBlockChips(); syncEscapeCtl();
   }
   // the Active blocks list (also redrawn when a graded AV block's reading changes, without restarting the reading)
   // (the AV node and His–Purkinje make one entry, "AV block: <the degree it is producing>", and its × clears both)
@@ -1491,12 +1563,16 @@
       // (sinus node; the rest in the cut view) blocks, a coronary artery or its marker narrows/occludes, muscle stimulates
       // (the conduction system is drawn in the cut view, see-through over the tissue; the sinus node marker in both views)
       if (ray.intersectObject(g3.sanPick, false).length || (ui.view === 'cutaway' && ray.intersectObjects(g3.pickTubes, false).length)) { pickBlock(ray, x, y); return; }
+      // (three quick clicks in one spot on the muscle start flutter or VT, four AF or VF, as taps do on phones)
+      const n = countTap(x, y, e.timeStamp, 12);
       if (onArtery(ray, x, y)) {
+        if (n >= 3) { const c = tissueAt(ray); if (c >= 0 && quickBurst(c, n, x, y)) { cancelArteryTaps(ischClick); return; } }
         // a click narrows the artery (after a moment, so a double-click can occlude it instead)
         const r0 = new THREE.Raycaster(); r0.ray.copy(ray.ray);
         ischPress(ischClick, x, y, e.timeStamp, (mode) => pickIschemia(r0, x, y, mode), 12);
         return;
       }
+      { const c = tissueAt(ray); if (c >= 0 && n >= 3 && quickBurst(c, n, x, y)) return; }
       pickStimulus(ray, x, y);
     });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideBlockMenu(); });
@@ -1507,7 +1583,7 @@
     const targets = [g3.sanPick].concat(ui.view === 'cutaway' ? g3.pickTubes : []);
     const hit = ray.intersectObjects(targets, false)[0];
     if (!hit) { flash(x, y, ui.view === 'cutaway' ? 'Click the conduction system' : 'Use Cutaway for blocks'); return; }
-    if (hit.object === g3.sanPick) { showBlockMenu('SAN', 'sa-exit', x, y); return; }
+    if (hit.object === g3.sanPick) { showAvSliders(x, y); return; }   // (the SA node slider, above the AV ones)
     const id = hit.object.userData.map[hit.face.a], site = SEG_SITE[M.seg[id]];
     if (!site) return;
     // a single choice (bundle branches, fascicles) needs no menu
@@ -1592,7 +1668,7 @@
     if (!g3.cor.visible) return -1;
     const corHit = ray.intersectObjects(g3.corPick, false).find((h) => h.object.userData.seeThrough || inSight(h.point));
     if (corHit) return corHit.object.userData.map[corHit.face.a];
-    const cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld, R = (isM() ? 30 : 20) ** 2, near = [];
+    const cor = M.coronary, rect = $('c3d').getBoundingClientRect(), v = new THREE.Vector3(), mw = g3.inner.matrixWorld, R = (isM() ? 12 : 12) ** 2, near = [];
     g3.corPos.forEach((q, i) => {
       if (!cor.branches[cor.nodes[i].branch]) return;
       v.copy(q).applyMatrix4(mw).project(g3.camera);
@@ -1664,7 +1740,8 @@
     const l = st.last;
     if (l && now - l.t < DOUBLE_MS && Math.hypot(x - l.x, y - l.y) < tol) {
       st.last = null;
-      if (l.timer) { clearTimeout(l.timer); run('occlude'); return; }
+      // (the occlusion waits DOUBLE_MS: a third quick tap in the same spot is an arrhythmia burst instead, quickBurst)
+      if (l.timer) { clearTimeout(l.timer); st.occTimer = setTimeout(() => { st.occTimer = 0; run('occlude'); }, DOUBLE_MS); return; }
       const d = l.done;
       if (!d || !d.region) return;
       const cur = S.insults.find((v) => (v.kind === 'occlusion' || v.stenosis) && segmentName(v.node) === d.region);
@@ -1800,16 +1877,33 @@
   // AVNRT induction as in the EP lab: a PAC after a sinus beat, each one more
   // premature than the last, until one blocks in the fast pathway, conducts
   // down the slow one and re-enters (the window moves with the sinus rate)
-  function avnrtTrial(c) {
-    const t0 = S.nextSinus();
-    S.stimulateAt(A.nearest(A.landmarks.SVC.c, (x) => A.label[x] === 4), t0 + c);
-    ui.avnrt = { c, checkAt: t0 + c + 1600 };
+  // AVNRT / AVRT induction: an atrial extrastimulus a set interval after a sinus beat (high RA for AVNRT, LA appendage for
+  // AVRT over the left lateral pathway), 20 ms earlier each time it fails, down to 140 ms. Success is re-entry in the
+  // engine's logs (retrograde slow-pathway echoes; retrograde-only pathway conduction), not a fast rate: sinus tachycardia
+  // above 133/min passed the old RR < 450 ms test, so induction stopped as if it had worked
+  function reentryNow(kind) {
+    const from = S.t - 1200;
+    if (kind === 'avnrt') return (S.retroLog || []).filter((x) => x.t > from).length >= 3;
+    const ap = (S.apLog || []).filter((x) => x.t > from);
+    return ap.filter((x) => x.dir === 'retrograde').length >= 3 && !ap.some((x) => x.dir === 'antegrade');
+  }
+  function inductionTrial(kind, c) {
+    const t0 = S.nextSinus(), cell = kind === 'avnrt' ? A.nearest(A.landmarks.SVC.c, (x) => A.label[x] === 4) : A.nearest(A.landmarks.LAA.c, (x) => A.label[x] === 3);
+    S.stimulateAt(cell, t0 + c);
+    ui.avnrt = { kind, c, checkAt: t0 + c + 1600 };
   }
   function checkAvnrt() {
-    if (!ui.avnrt || S.t < ui.avnrt.checkAt) return;
-    const V = S.log.vent.filter((v) => v.on > ui.avnrt.checkAt - 1200), rr = V.slice(1).map((v, i) => v.on - V[i].on);
-    const tachy = rr.length >= 2 && rr.every((x) => x < 450);
-    if (tachy || ui.avnrt.c <= 160 || S.arrhythmia) ui.avnrt = null; else avnrtTrial(ui.avnrt.c - 20);
+    const a = ui.avnrt;
+    if (a) {
+      if (a.startAt !== undefined) { if (S.t >= a.startAt) inductionTrial(a.kind, a.c0); }
+      else if (S.t >= a.checkAt) {
+        if (reentryNow(a.kind) || S.arrhythmia) { ui.avnrt = null; if (!S.arrhythmia) ui.pendingRhythm = { type: a.kind, until: S.t + 2500 }; }   // (the label holds until the rhythm read confirms it)
+        else if (a.c - 20 >= 140) inductionTrial(a.kind, a.c - 20);
+        else { ui.avnrt = null; toast(`${a.kind === 'avnrt' ? 'AVNRT' : 'AVRT'} could not be started this time: choose it again.`, 3200); }
+      }
+    }
+    // (the sinus rate set while AVNRT/AVRT ran (or the slower drive for AVRT) applies once the rhythm is sinus again)
+    if (ui.rateHeld && !ui.avnrt && !['avnrt', 'avrt'].includes(currentRhythm())) { S.setRate(ui.rate); ui.rateHeld = false; }
   }
   // Rhythm menu (Rhythm tab): shows the rhythm running now (sinus after a shock or
   // adenosine, VF after an R-on-T PVC…) and starts the one chosen. The rate slider
@@ -1824,7 +1918,7 @@
   function currentRhythm() {
     const arr = S.arrhythmia && S.arrhythmia.type;
     if (arr) return arr;
-    if (ui.avnrt) return 'avnrt';                                  // induction under way
+    if (ui.avnrt) return ui.avnrt.kind || 'avnrt';                 // induction under way
     if (ui.pendingRhythm && S.t < ui.pendingRhythm.until) return ui.pendingRhythm.type;
     const from = Math.max(S.t - 3000, ui.rhythmFrom || 0);          // (beats before a return to sinus or a shock do not count)
     const apWin = (S.apLog || []).filter((x) => x.t > from);
@@ -1885,19 +1979,28 @@
   // start a rhythm (Rhythm menu and the heart gestures)
   function startRhythm(type) {
     if (type !== 'af' && S.arrhythmia && S.arrhythmia.type === 'af') leaveAF();
+    // (AVNRT and AVRT have no driver to stop: a running circuit kept going under the new rhythm, and AVNRT → AVRT stayed
+    // AVNRT (the author). It ends first, as a return to sinus ends it)
+    const cur = currentRhythm();
+    if ((cur === 'avnrt' || cur === 'avrt') && type !== cur) { S.shock(); ui.rhythmFrom = S.t; }
     ui.avnrt = null; ui.pendingRhythm = null; markChange();
+    if (ui.rateHeld) { S.setRate(ui.rate); ui.rateHeld = false; }   // (a sinus rate held during AVNRT/AVRT applies again)
     if (type === 'avnrt') {
       if (S.ap) setCondition('ap', false);
       if (!ui.struct.dual) setCondition('dual', true);             // AVNRT needs dual AV-nodal pathways (as AVRT needs a pathway)
       S.stopArrhythmia();
-      avnrtTrial(280);
+      inductionTrial('avnrt', Math.min(280, Math.round(60000 / ui.rate - 80)));
       return;
     }
     if (type === 'avrt') {
       if (!S.ap || S.apLocation !== 'left-lateral') setCondition('ap', true);
-      ui.pendingRhythm = { type: 'avrt', until: S.t + 3000 };
+      if (ui.struct.dual) setCondition('dual', false);             // (as AVNRT takes the pathway away: one circuit at a time)
       S.stopArrhythmia();
-      S.stimulateAt(A.nearest(A.landmarks.LAA.c, (c) => A.label[c] === 3), S.nextSinus() + 270);
+      // (above 80/min no atrial extrastimulus finds the window where the pathway is refractory and the AV node conducts:
+      // the sinus drive slows to 60 for 2.5 s first, as the EP lab paces at a set cycle, and stays there while AVRT runs:
+      // the sinus rate also sets the AV node's tone, and a faster node ends the circuit)
+      if (ui.rate > 80) { S.setRate(60); ui.rateHeld = true; ui.avnrt = { kind: 'avrt', startAt: S.t + 2500, c0: 270 }; }
+      else inductionTrial('avrt', 270);
       return;
     }
     if (type === 'af' && !ui.struct.fib) { setCondition('fib', true); toast('AF needs a substrate: atrial fibrosis added. It stays after a shock and goes when you choose another rhythm.', 4200); }
@@ -1975,7 +2078,7 @@
       let mn = Infinity, mx = -Infinity, first = NaN;
       for (let s = a; s < b; s++) {
         const ahead = (s - cursor + PAGE) % PAGE;
-        if (ahead > 0 && ahead < ERASE) continue;           // erase bar ahead of the cursor
+        if (cursor >= 0 && ahead > 0 && ahead < ERASE) continue;           // erase bar ahead of the cursor (none on a saved sheet: cursor −1)
         const v = buf[s]; if (v !== v) continue;
         if (first !== first) first = v;
         if (v < mn) mn = v; if (v > mx) mx = v;
@@ -1996,6 +2099,7 @@
   function drawECG() {
     if (!ecg.mm || (ecg.canvas.isConnected && !ecg.canvas.offsetWidth)) return;   // (phones show it only full screen)
     const ctx = ecg.ctx, mm = ecg.mm;
+    if (ecg.export) { ctx.drawImage(ecg.grid, 0, 0); drawRange(ctx, 0, PAGE, -1); return; }   // (a saved sheet: no sweep cursor or erase bar)
     const cursor = Math.floor((S.t + ecg.t0) % PAGE);
     if (ecg.full) {
       ctx.drawImage(ecg.grid, 0, 0);
@@ -2044,6 +2148,7 @@
   function showAcquiring() { $('rhythm').textContent = 'Acquiring…'; $('chips').innerHTML = ''; $('findings').innerHTML = ''; }
   function markChange() { if (!S) return; ui.acqUntil = S.t + ACQ_MS; showAcquiring(); }
   function interpret() {
+    syncEscapeCtl();
     const arr = S.arrhythmia ? S.arrhythmia.type : null;
     if (arr === 'vf') {
       $('rhythm').textContent = 'Ventricular fibrillation';
@@ -2052,6 +2157,14 @@
     }
     if (S.t < ui.acqUntil) { if ($('rhythm').textContent !== 'Acquiring…') showAcquiring(); return; }
     const V = S.log.vent.filter((b) => S.t > b.repEnd + 60), Aa = S.log.atrial;
+    // no QRS for 6 s (sinus arrest or complete block with the escapes off): asystole, or ventricular standstill when P
+    // waves go on (the reading needs two beats, so it stayed on "Acquiring…")
+    if (!S.log.vent.some((v) => v.on > S.t - 6000)) {
+      const pw = Aa.some((a) => a.on > S.t - 6000);
+      $('rhythm').textContent = pw ? 'P waves with no QRS: ventricular standstill (complete AV block, no escape rhythm)' : 'Asystole (sinus arrest, no escape rhythm)';
+      $('chips').innerHTML = '<span class="chip flag"><em>QRS</em>none</span>'; $('findings').innerHTML = '';
+      ui.snap = { rhythm: $('rhythm').textContent, arr: null, B: S.blocks, findings: [] }; if (ui.tab === 'learn') renderLearn(); return;
+    }
     if (V.length < 2) return;
     const vb = V[V.length - 1];
     // orthodromic AVRT: every beat returns to the atria through the pathway
@@ -2146,20 +2259,23 @@
     else if (arr === 'vt') rhythm = 'Monomorphic ventricular tachycardia';
     else if (arr === 'tdp') rhythm = 'Torsades de pointes';
     else if (avnrt) rhythm = 'AVNRT';
-    else if (avrt) rhythm = 'Orthodromic AVRT'; else if (B.SAN && B.SAN.type === 'arrest') rhythm = `Sinus arrest with ${fired('ventricular') || fired('idioventricular') ? 'ventricular' : 'junctional'} escape rhythm`;
+    else if (avrt) rhythm = 'Orthodromic AVRT';
+    // (the escape at the rate set: escape, accelerated, or none at all: the escape sliders' far left)
+    else if (B.SAN && B.SAN.type === 'arrest') rhythm = !recent.length && S.t - since > 3000 ? 'Sinus arrest with no escape rhythm (asystole)' : `Sinus arrest with ${escName(fired('ventricular') || fired('idioventricular') ? 'ventricular' : 'junctional')}`;
     else if (avComplete) {
-      const esc = fired('idioventricular') ? 'idioventricular' : fired('ventricular') ? 'ventricular' : 'junctional';
+      const esc = fired('idioventricular') || fired('ventricular') ? 'ventricular' : 'junctional';
       const level = distal && !(B.HIS && B.HIS.type === 'complete') && !(B.AVN && B.AVN.type === 'complete')
         ? (B.LBB ? ' (bilateral bundle branch block)' : ' (trifascicular block)') : '';
-      rhythm = `Complete AV block${level} with ${esc} escape rhythm`;
-    } else if (B.SAN && B.SAN.type === 'pause' && S.t < S.sinusPauseUntil + 6000) rhythm = `Sinus rhythm with sinus pause${fired('junctional') ? ' and junctional escape beats' : ''}`;
-    else if (B.SAN && B.SAN.type === 'sa-exit') rhythm = 'Sinus rhythm with 2nd-degree SA exit block';
+      rhythm = !recent.length && S.t - since > 3000 ? `Complete AV block${level} with no escape rhythm (ventricular standstill)` : `Complete AV block${level} with ${escName(esc)}`;
+    } else if (B.SAN && B.SAN.type === 'pauses') rhythm = `Sinus rhythm with recurrent sinus pauses${fired('junctional') ? ' and junctional escape beats' : fired('ventricular') || fired('idioventricular') ? ' and ventricular escape beats' : ''}`;
+    else if (B.SAN && B.SAN.type === 'pause' && S.t < S.sinusPauseUntil + 6000) rhythm = `Sinus rhythm with sinus pause${fired('junctional') ? ' and junctional escape beats' : ''}`;
+    else if (B.SAN && B.SAN.type === 'sa-exit') rhythm = `Sinus rhythm with 2nd-degree SA exit block (${B.SAN.n || 3}:${(B.SAN.n || 3) - 1})`;
     else if (B.AVN && B.AVN.type === 'wenckebach') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz I (Wenckebach)';
     else if (B.AVN && B.AVN.type === 'two-to-one') rhythm = 'Sinus rhythm with 2:1 AV block';
     else if (B.HIS && B.HIS.type === 'mobitz2') rhythm = 'Sinus rhythm with 2nd-degree AV block, Mobitz II';
     else if (sevPattern) rhythm = sevPattern;
-    else if (fired('junctional')) rhythm = 'Junctional escape rhythm';
-    else if (fired('ventricular') || fired('idioventricular')) rhythm = 'Ventricular escape rhythm';
+    else if (fired('junctional')) rhythm = escName('junctional').replace(/^./, (c) => c.toUpperCase());
+    else if (fired('ventricular') || fired('idioventricular')) rhythm = escName('ventricular').replace(/^./, (c) => c.toUpperCase());
     else rhythm = sinusLabel(aRate || rate);
     { // (graded AV conduction: what each slider is producing, for the Active blocks list)
       const graded = ['AVN', 'HIS'].filter((k) => B[k] && B[k].type === 'severity');
@@ -2280,7 +2396,7 @@
     else if (B.AVN && B.AVN.type === 'two-to-one') keys.push('sinus', 'twoone');
     else if (B.HIS && B.HIS.type === 'mobitz2') keys.push('sinus', 'mobitz2');
     else if (B.SAN && B.SAN.type === 'sa-exit') keys.push('sinus', 'saexit');
-    else if (B.SAN && (B.SAN.type === 'pause' || B.SAN.type === 'arrest')) keys.push('pause', 'escape');
+    else if (B.SAN && (B.SAN.type === 'pause' || B.SAN.type === 'pauses' || B.SAN.type === 'arrest')) keys.push('pause', 'escape');
     else if (s.escape) keys.push('escape');
     else keys.push('sinus');
     if (/1st-degree/.test(s.rhythm || '')) keys.push('first');
@@ -2329,7 +2445,7 @@
       // ST deviation must hold from early ST (J+20) to J+40, so the upstroke of an early tall T is not read as ST shift
       const s20 = at(k, J + 20) - base, s40 = at(k, J + 40) - base;
       const st = s20 * s40 > 0 ? Math.sign(s40) * Math.min(Math.abs(s20), Math.abs(s40)) : 0;
-      const stJ = at(k, J) - base, st80 = at(k, J + 80) - base;   // (textbook ST depression: at J+80, and its slope from J)
+      const stJ = at(k, J) - base, st80 = at(k, J + 80) - base;   // (textbook ST depression: at the J point; J+80 for its slope)
       let qDur = 0, qAmp = 0, rMax = 0;
       for (let t = vb.on; t < vb.on + 60; t++) { const v = at(k, t) - base; if (v > 0.05) break; if (v < -0.04) qDur = t - vb.on + 1; qAmp = Math.min(qAmp, v); }
       for (let t = vb.on; t <= J; t++) rMax = Math.max(rMax, at(k, t) - base);
@@ -2485,9 +2601,9 @@
     if (sub) {
       // subendocardial injury points into the cavity: ST depression over the
       // region (elevation in the opposite leads is its mirror image, not a STEMI).
-      // Textbook (4th UDMI, at the teaching threshold): ≥ 1 mm at J+80, horizontal or downsloping (rising
-      // < 0.5 mm from the J point), in two contiguous leads, aVR and V1 not counted; upsloping is nonspecific
-      const hd = (n) => !['aVR', 'V1'].includes(n) && m[n].st80 <= -0.1 && m[n].st80 - m[n].stJ < 0.05;
+      // Textbook (4th UDMI, at the teaching threshold): ≥ 1 mm at the J point, horizontal or downsloping (the ST at J+80
+      // rising < 0.5 mm from the J point), in two contiguous leads, aVR and V1 not counted; upsloping is nonspecific
+      const hd = (n) => !['aVR', 'V1'].includes(n) && m[n].stJ <= -0.1 && m[n].st80 - m[n].stJ < 0.05;
       const Ds = order(contiguous(hd)), Es = order(new Set(LH.LEADS.filter((n) => m[n].st >= 0.08)));
       if (Ds.length >= 2) {
         out.push({ head: true, text: `ST depression in ${span(Ds)}` });
@@ -2708,7 +2824,9 @@
     if (arr && (arr === 'af' || arr === 'flutter') && S.vResponse) q.set('v', Math.round(S.vResponse));
     if (arr === 'flutter' && S.vVariable) q.set('fv', S.vVariable.join('-'));
     if (S.sinusArr) q.set('sar', `${S.sinusArr.amp}-${S.sinusArr.period}`);   // (variable flutter block, e.g. fv=2-4)
-    const blocks = Object.entries(S.blocks).map(([site, b]) => (b.type === 'severity' ? `${site}.s${Math.round(b.s * 100)}` : `${site}.${b.type}`));
+    const blocks = Object.entries(S.blocks).map(([site, b]) => (b.type === 'severity' ? `${site}.s${Math.round(b.s * 100)}` : site === 'SAN' && b.type === 'sa-exit' && b.n === 4 ? 'SAN.sa-exit4' : `${site}.${b.type}`));
+    if (ui.esc.j !== ESC_DEF.j) q.set('je', ui.esc.j);
+    if (ui.esc.v !== ESC_DEF.v) q.set('ve', ui.esc.v);
     if (blocks.length) q.set('b', blocks.join(','));
     const occ = S.insults.filter((x) => x.kind === 'occlusion').map((x) => x.node), sub = S.insults.filter((x) => x.kind === 'subendo' && !x.stenosis).map((x) => x.cell), nar = S.insults.filter((x) => x.stenosis).map((x) => x.node);
     if (occ.length) q.set('o', occ.join(','));
@@ -2719,6 +2837,7 @@
     const st = STRUCT_KEYS.filter((k) => ui.struct[k]);
     if (st.length) q.set('s', st.join(','));
     for (const c of CONDITIONS) if (c.options && ui.struct[c.id]) q.set(c.id, ui.struct[c.id]);
+    if (ui.preset) q.set('lp', ui.preset);
     return `${INAPP ? window.ECGInApp.site : location.origin + location.pathname}#${q.toString()}`;
   }
   // Parse (and validate: links come from anywhere) the scenario in the address,
@@ -2730,15 +2849,18 @@
     if (r >= 30 && r <= 180) { ui.rate = Math.round(r); $('rate').value = ui.rate; $('rateVal').textContent = `${ui.rate} bpm`; }
     for (const k of (q.get('s') || '').split(',')) if (STRUCT_KEYS.includes(k)) ui.struct[k] = true;
     for (const c of CONDITIONS) { const v = q.get(c.id); if (c.options && c.options.some((o) => o[0] === v)) ui.struct[c.id] = v; }
-    if (q.get('ap')) ui.struct.ap = true;                                // links made when WPW had a site option (ap=left-lateral)
+    if (q.get('ap')) ui.struct.ap = true;
+    if (LH.BLOCK_PRESETS && Object.prototype.hasOwnProperty.call(LH.BLOCK_PRESETS, q.get('lp'))) ui.preset = q.get('lp');                                // links made when WPW had a site option (ap=left-lateral)
     const a = q.get('a'), v = +q.get('v'), h = +q.get('h');
     return {
       arr: ARR_TYPES.includes(a) ? a : null, vRate: v >= 30 && v <= 180 ? Math.round(v) : null, fVar: (q.get('fv') || '').split('-').map(Number).filter((x) => x >= 2 && x <= 6), sar: (q.get('sar') || '').split('-').map(Number),
       blocks: (q.get('b') || '').split(',').map((x) => x.split('.')).filter(([site, type]) => BLOCK_MENU[site] && (BLOCK_MENU[site].some((m) => m[0] === type) || ((site === 'AVN' || site === 'HIS') && /^s\d{1,3}$/.test(type)))),
+      esc: ['je', 've'].map((k) => (q.has(k) && isFinite(+q.get(k)) ? Math.max(0, Math.min(140, Math.round(+q.get(k)))) : null)),
       occ: ints('o'), nar: ints('n'), nsev: +q.get('ns') || 1, legacyCor: q.get('c') !== CORONARY_VERSION, sub: ints('se'), h: isFinite(h) && h > 0 ? ISCH_STOPS[stopOf(h)][0] : 1,
     };
   }
   function applyScenario(sc) {
+    if (sc.esc && (sc.esc[0] !== null || sc.esc[1] !== null)) { ui.esc = { j: sc.esc[0] !== null ? sc.esc[0] : ESC_DEF.j, v: sc.esc[1] !== null ? sc.esc[1] : ESC_DEF.v }; applyEscape(); }
     const nodes = M.coronary.nodes.length, sub = !SUBENDO_ON ? [] : sc.sub.filter((c) => c < A.n && (A.label[c] === LH.LAB.LV || A.label[c] === LH.LAB.RV));
     const cor = M.coronary, offered = (list) => (sc.legacyCor ? list.map(legacyNode) : list).filter((n) => n >= 0).filter((n) => n < nodes && (cor.branches[cor.nodes[n].branch] || (cor.sites && cor.sites[cor.nodes[n].branch])));   // (site branches too: S1, D1 from Training)   // offered vessels only (links made before an anatomy change may name side branches)
     const occ = offered(sc.occ), nar = offered(sc.nar);
@@ -2746,7 +2868,7 @@
     if (sc.blocks.length || occ.length || nar.length || sub.length) { S.run(2600); captureRef(); ecg.full = true; }
     for (const [site, type] of sc.blocks) {
       if (/^s\d/.test(type)) { const v = Math.min(100, +type.slice(1)) / 100; if (v > 0) S.setBlock(site, 'severity', { s: v }); continue; }   // (AV conduction sliders: AVN.s45)
-      const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type, m[2] || {});
+      const m = BLOCK_MENU[site].find((x) => x[0] === type); S.setBlock(site, type === 'sa-exit4' ? 'sa-exit' : type, m[2] || {});
     }
     renderBlockList();
     if (occ.length || nar.length || sub.length) {
@@ -2860,14 +2982,19 @@ body.only .chips { margin-top: 0; }
   // The ECG as shown, with the interpretation above it and a "simulated" stamp
   // The 12-lead sheet: the one on screen, or (phones, where it is shown only
   // full screen) one drawn offscreen at a fixed size
+  // (always drawn offscreen, at the on-screen size where the sheet is shown, from the last 10 s in time order: the sheet on
+  // screen is a sweep, split at the drawing line with an erase bar ahead of it, so a save mid-sweep cut the strip in two)
   function sheetCanvas() {
-    if (ecg.canvas.offsetWidth) return { cv: ecg.canvas, dpr: ecg.canvas.width / $('ecgWrap').clientWidth };
-    const keep = { canvas: ecg.canvas, ctx: ecg.ctx, grid: ecg.grid, mm: ecg.mm, W: ecg.W, H: ecg.H, ox: ecg.ox, oy: ecg.oy, lastCursor: ecg.lastCursor }, keepP = Object.assign({}, PAPER);
+    const wrap = $('ecgWrap'), shown = ecg.canvas.offsetWidth && wrap.clientWidth;
+    const size = shown ? { w: wrap.clientWidth, h: wrap.clientHeight, dpr: Math.max(2, Math.min(3, window.devicePixelRatio || 1)) } : { w: 1100, h: 540, dpr: 2 };
+    const keep = { canvas: ecg.canvas, ctx: ecg.ctx, grid: ecg.grid, mm: ecg.mm, W: ecg.W, H: ecg.H, ox: ecg.ox, oy: ecg.oy, lastCursor: ecg.lastCursor, buf: ecg.buf }, keepP = Object.assign({}, PAPER);
+    // the ring buffer rotated so index 0 is the oldest sample (the newest is at the sweep's cursor)
+    const cur = Math.floor((S.t + ecg.t0) % PAGE), rot = ecg.buf.map((b) => { const r = new Float32Array(PAGE); for (let i = 0; i < PAGE; i++) r[i] = b[(cur + 1 + i) % PAGE]; return r; });
     const cv = document.createElement('canvas');
-    Object.assign(ecg, { canvas: cv, ctx: cv.getContext('2d'), grid: document.createElement('canvas') });
-    resizeECG({ w: 1100, h: 540, dpr: 2 }); drawECG();
-    Object.assign(ecg, keep, { full: true }); Object.assign(PAPER, keepP);
-    return { cv, dpr: 2 };
+    Object.assign(ecg, { canvas: cv, ctx: cv.getContext('2d'), grid: document.createElement('canvas'), buf: rot, export: true });
+    try { resizeECG(size); ecg.full = true; drawECG(); }
+    finally { Object.assign(ecg, keep, { full: true, export: false }); Object.assign(PAPER, keepP); }
+    return { cv, dpr: size.dpr };
   }
   function saveEcgPng() {
     const { cv: src, dpr } = sheetCanvas(), W = src.width;
@@ -3202,8 +3329,7 @@ body.only .chips { margin-top: 0; }
   // gestures on the heart
   const ARR_NAME = { flutter: 'Atrial flutter', af: 'Atrial fibrillation', vt: 'Ventricular tachycardia', vf: 'Ventricular fibrillation' };
   const AV_CYCLE = [null, ['AVN', 'first'], ['AVN', 'wenckebach'], ['AVN', 'two-to-one'], ['HIS', 'mobitz2'], ['AVN', 'complete'], ['HIS', 'complete']];
-  const SA_CYCLE = [null, 'sa-exit', 'pause', 'arrest'];
-  const burst = { region: '', n: 0, t: 0, x: 0, y: 0 }, avTaps = { n: 0, timer: 0, last: 0, commit: null };
+  const avTaps = { n: 0, timer: 0, last: 0, commit: null };
   let lastEmpty = null;
   function rayAt(x, y) {
     const r = $('c3d').getBoundingClientRect(), ray = new THREE.Raycaster();
@@ -3261,28 +3387,37 @@ body.only .chips { margin-top: 0; }
       avTaps.timer = setTimeout(avTaps.commit, DOUBLE_MS);
       return;
     }
-    if (site === 'SAN') {
-      const cur = S.blocks.SAN ? SA_CYCLE.indexOf(S.blocks.SAN.type) : 0, t = SA_CYCLE[(Math.max(0, cur) + 1) % SA_CYCLE.length];
-      if (t) setBlockFrom('SAN', t); else S.setBlock('SAN', null);
-      flash(x, y, t ? blockText('SAN', t) : 'Sinus node normal');
-    } else {
+    if (site === 'SAN') { showAvSliders(x, y); return; }   // (the SA node slider, as the AV node's)
+    {
       const on = !S.blocks[site];
       if (on) setBlockFrom(site, 'complete'); else S.setBlock(site, null);
       flash(x, y, on ? blockText(site, 'complete') : `${SITE_NAME[site]}: conducting`);
     }
     buzz(); renderBlockList(); interpret(true);
   }
+  // quick taps (or clicks) in one spot, whatever they land on: the third (and fourth) start an arrhythmia when the spot is
+  // muscle, even within reach of a coronary artery, whose pending narrowing or occlusion is then cancelled (the arteries'
+  // fingertip zones cover about two thirds of the heart on a phone, so bursts there never reached the muscle)
+  const tapSeq = { n: 0, t: -1e9, x: 0, y: 0 };
+  function countTap(x, y, now, px) {
+    const same = now - tapSeq.t < BURST_MS && Math.hypot(x - tapSeq.x, y - tapSeq.y) < px;
+    if (same) tapSeq.n++; else Object.assign(tapSeq, { n: 1, x, y });
+    tapSeq.t = now; return tapSeq.n;
+  }
+  function cancelArteryTaps(st) { if (!st) return; if (st.last && st.last.timer) clearTimeout(st.last.timer); clearTimeout(st.occTimer); st.occTimer = 0; st.last = null; }
+  function quickBurst(c, n, x, y) {
+    const lab = A.label[c], region = lab === LH.LAB.RA || lab === LH.LAB.LA ? 'A' : 'V';
+    const arr = n === 3 ? (region === 'A' ? 'flutter' : 'vt') : n === 4 ? (region === 'A' ? 'af' : 'vf') : null;
+    if (!arr) return false;
+    startRhythm(arr); syncRate(); interpret(); updateFloat(); flash(x, y, ARR_NAME[arr]); buzz(40);
+    return true;
+  }
   // taps on muscle stimulate; three quick ones on an atrium or ventricle start
   // a tachyarrhythmia (as burst pacing does), a fourth on the ventricles VF
   // taps in one spot (within BURST_PX of the first) count as a burst: in either
   // atrium three start flutter and a fourth AF; on the ventricles three start VT, a fourth VF
-  function burstTap(c, x, y, now) {
-    const lab = A.label[c], region = lab === LH.LAB.RA || lab === LH.LAB.LA ? 'A' : 'V';
-    const same = burst.region === region && now - burst.t < BURST_MS && Math.hypot(x - burst.x, y - burst.y) < BURST_PX;
-    if (same) burst.n++; else Object.assign(burst, { n: 1, x, y });
-    burst.region = region; burst.t = now;
-    const arr = burst.n === 3 ? (region === 'A' ? 'flutter' : 'vt') : burst.n === 4 ? (region === 'A' ? 'af' : 'vf') : null;
-    if (arr) { startRhythm(arr); syncRate(); interpret(); updateFloat(); flash(x, y, ARR_NAME[arr]); buzz(40); return; }
+  function burstTap(c, x, y, n) {
+    if (quickBurst(c, n, x, y)) return;
     stimulateAt(c, x, y); buzz();
   }
   // the accessory pathway marker (any view) within a fingertip of the tap
@@ -3308,7 +3443,7 @@ body.only .chips { margin-top: 0; }
   // (now: when the finger touched, so a busy main thread does not stretch a burst)
   function mobileTap(x, y, now) {
     hideBlockMenu();
-    const ray = rayAt(x, y);
+    const ray = rayAt(x, y), n = countTap(x, y, now, BURST_PX);
     if (pathwayAt(x, y)) { lastEmpty = null; pathwayTap(x, y, now); return; }
     // a tap on (or within a fingertip of) a coronary artery acts on it, whatever tab is open: one tap narrows it (after a
     // moment, so a second tap can occlude it instead); elsewhere on the muscle, taps stimulate
@@ -3318,11 +3453,12 @@ body.only .chips { margin-top: 0; }
     if (site) { lastEmpty = null; conductionTap(site, x, y, now); return; }
     if (onArtery(ray, x, y)) {
       lastEmpty = null;
+      if (n >= 3) { const c = tissueAt(ray); if (c >= 0 && quickBurst(c, n, x, y)) { cancelArteryTaps(ischTap); return; } }
       ischPress(ischTap, x, y, now, (mode) => { buzz(mode === 'narrow' ? 15 : 35); return mobileIsch(x, y, mode); }, 40);
       return;
     }
     const c = tissueAt(ray);
-    if (c >= 0) { lastEmpty = null; burstTap(c, x, y, now); return; }
+    if (c >= 0) { lastEmpty = null; burstTap(c, x, y, n); return; }
     // empty space: a double-tap fills the screen with the heart (and back)
     if (isM() && lastEmpty && now - lastEmpty.t < DOUBLE_MS && Math.hypot(x - lastEmpty.x, y - lastEmpty.y) < 40) { lastEmpty = null; toggleFsHeart(); }
     else lastEmpty = { x, y, t: now };
@@ -3491,11 +3627,12 @@ body.only .chips { margin-top: 0; }
   }
 
   // Offline use of the website (service worker, only when served, not from file://). The site is no longer offered as an
-  // installable web app (the Android app is on Google Play); instead "Join the alpha" opens the testers' Google Group.
-  const ALPHA_URL = 'https://groups.google.com/g/ecgstudio';
+  // installable web app (the Android app is on Google Play); instead "Get the app" opens the app's page (/training: what the
+  // app adds, and the Google Play link).
+  const ALPHA_URL = 'training/';
   function initAlpha() {
     if (/^https?:$/.test(location.protocol) && !INAPP && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* offline use unavailable */ });
-    const join = () => { if (hasLayer('menu')) closeLayer('menu'); window.open(ALPHA_URL, '_blank', 'noopener'); };
+    const join = () => { if (hasLayer('menu')) closeLayer('menu'); location.href = ALPHA_URL; };
     $('mAlpha').addEventListener('click', join); $('btnAlpha').addEventListener('click', join);
   }
 
@@ -3578,7 +3715,11 @@ body.only .chips { margin-top: 0; }
     const rate = $('rate');
     rate.addEventListener('input', () => {
       if (ui.rateMode === 'ventricular') { ui.vRate = +rate.value; S.setVentricularResponse(ui.vRate, { variable: ui.fVar }); $('rateVal').textContent = `${ui.vRate} bpm`; return; }
-      ui.rate = +rate.value; $('rateVal').textContent = `${ui.rate} bpm`; S.setRate(ui.rate);
+      ui.rate = +rate.value; $('rateVal').textContent = `${ui.rate} bpm`;
+      // (during AVNRT/AVRT the sinus rate is kept for afterwards: setting it now would also change the AV node's tone,
+      // which can end the tachycardia)
+      if (ui.avnrt || ['avnrt', 'avrt'].includes(currentRhythm())) { ui.rateHeld = true; return; }
+      S.setRate(ui.rate);
     });
     const ts = $('timescale');
     ts.addEventListener('input', () => { ui.scaleIdx = +ts.value; $('tsVal').textContent = SCALE_LABEL[ui.scaleIdx]; });
@@ -3598,11 +3739,13 @@ body.only .chips { margin-top: 0; }
     $('btnPause').addEventListener('click', () => setPaused(!ui.paused));
     // Reset: normal sinus rhythm at 72 bpm with no abnormalities
     $('btnReset').addEventListener('click', async () => {
-      ui.avnrt = null; ui.pendingRhythm = null; ui.preAtrRate = null; ui.vRate = null; ui.fVar = null;
+      ui.avnrt = null; ui.pendingRhythm = null; ui.preAtrRate = null; ui.vRate = null; ui.fVar = null; ui.rateHeld = false;
       S.setSinusArrhythmia(null);
       ui.rate = 72; $('rate').value = 72;
-      const prev = heartKey(), rebuild = CONDITIONS.some((c) => c.rebuild && ui.struct[c.id]);
+      ui.esc = { ...ESC_DEF }; applyEscape();
+      const prev = heartKey(), rebuild = !!ui.preset || CONDITIONS.some((c) => c.rebuild && ui.struct[c.id]);
       for (const c of CONDITIONS) ui.struct[c.id] = c.options ? '' : false;
+      ui.preset = null;
       placeAPMarker(); showCatalog(false); renderConditions();
       if (rebuild) await rebuildHeart(prev); else newSim();
       renderBlockList(); hideBlockMenu(); setIschTime(0); renderIschList(); ui.rateMode = ''; syncRate();
@@ -3616,6 +3759,12 @@ body.only .chips { margin-top: 0; }
     for (const [site, id] of [['AVN', 'avnSev'], ['HIS', 'hisSev']]) {
       $(id).addEventListener('input', (e) => setSeverity(site, LEVEL_SEV[site][+e.target.value]));
       $(id).addEventListener('change', () => { renderBlockList(); interpret(true); });
+    }
+    $('sanSev').addEventListener('input', (e) => setSanLevel(+e.target.value));
+    $('sanSev').addEventListener('change', () => { renderBlockList(); interpret(true); });
+    for (const [k, id] of [['j', 'junRate'], ['v', 'venRate']]) {
+      $(id).addEventListener('input', (e) => { ui.esc[k] = escRate(k, +e.target.value); applyEscape(); markChange(); });
+      $(id).addEventListener('change', () => interpret(true));
     }
     initRhythmMenu();
     $('btnAdeno').addEventListener('click', () => { S.giveAdenosine(); ui.adenoFrom = S.t; });
