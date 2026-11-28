@@ -3406,3 +3406,39 @@ none, so the new extrastimulus fell into the running circuit. `startRhythm` now 
 `S.shock()` (as choosing sinus already did) when another rhythm is chosen, and AVRT turns the dual AV-nodal pathways off
 (as AVNRT turns the accessory pathway off: one circuit at a time). Browser, sinus 72 and 120: AVNRT → AVRT, AVRT → AVNRT,
 AVNRT → flutter and AVRT → sinus all switch.
+
+## claude/festive-cori round 1: iOS app safe areas (first run in the iOS Simulator)
+
+- In the iOS WebView a frame gets the whole screen's `env(safe-area-inset-*)` (Android's gives a frame zero). The shell
+  already keeps its frames clear of the status bar and home bar, so on iOS the simulator and Training padded themselves a
+  second time: a gap at the top and bottom, and, since the padding then covered the header's top-left corner,
+  `src/inapp.js` reported the header as covered and the shell hid the module tabs.
+- The pages now read the insets through `--sa-t/-b/-l/-r` (`src/template.html`, `src/training.html`; `src/tutorial.js`
+  with an `env()` fallback): the screen's insets on the website, zero under `html.inapp`. Website and Android unchanged.
+- Checked in the app preview at 402×874: `--sa-t` 0 in both frames, the corner on the header, the tabs showing. Still to
+  check in the iOS Simulator; the tutorial card sits 58 px under the frame's top, so it moves up by the status bar's height.
+- The tutorial's ring stays on the screen (`src/tutorial.js` `place`): around a full-width panel at the bottom (Training's
+  keyboard and result) it was drawn 2–4 px past the left, right and bottom edges and cut off. Checked at 402×874: the
+  ring 2 px inside the edges on steps 8 and 12.
+
+## claude/festive-cori round 2: iOS purchases, and an app-only build
+
+- Purchases on iOS (`src/shell.html`): the plugin has no `purchaseState` there, so the shell asks for StoreKit's current
+  entitlements (`onlyCurrentEntitlements`: verified, this Apple ID's only) and drops any revoked (refunded) one; Android
+  keeps `purchaseState === '1'`. A "Transaction pending" error (Ask to Buy) is a pending purchase. The shell sends the
+  store's name with `ents` (`the App Store`/`Apple ID`, `Google Play`/`Google account`) for Training's messages (the
+  button while the store opens, payment pending, nothing to restore). The App Store Connect product id is `training`, as
+  on Play.
+- Checked with a stand-in Capacitor in the built `app/www` (402×874): iOS owned → unlocked, refunded or none → locked,
+  pending purchase and empty restore toast the App Store / Apple ID; Android purchased → unlocked, pending → locked.
+- `python3 tools/build.py --app-only` (app/'s `npm run build`; `npm run sync:ios` adds the iOS sync) writes `app/www/`
+  from memory and nothing else, so building the app on the Mac leaves git clean. Checked: the same `app/www/` as
+  `--app`, and no tracked file changed.
+
+## claude/festive-cori round 3: one version number for Android and iOS
+
+- `app/package.json` `"version"` (now 1.0.0, the version on Google Play) is the app's one version number: Android's
+  `versionName` reads it in `app/android/app/build.gradle` (Groovy's JsonSlurper), and `tools/ios_version.js` (run by
+  `npm run sync:ios`) writes it to the Xcode project's `MARKETING_VERSION` with a build number from the UTC date and time
+  (`CURRENT_PROJECT_VERSION`, YYMMDD.HHMM, always higher). Checked on a freshly generated Capacitor iOS project: both
+  settings in both build configurations. The release routine for the website and both apps: docs/APP_PLAN.md.
