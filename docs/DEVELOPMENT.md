@@ -3065,3 +3065,14 @@ random sinus rate (`avSev`: sites and severity range; `rec.avs`; share links `AV
   visible in ≥ 80% of beats, not on the blind rhythm read, which took grouped Wenckebach beating for AF when P's sat on the
   T. Sampled: 12/18 AV items passed (the rest on unrelated criteria or hidden P's); `tools/trainlive.js 40 7` 29/40 as
   before.
+
+## claude/festive-cori round 1: iOS app safe areas (first run in the iOS Simulator)
+
+- In the iOS WebView a frame gets the whole screen's `env(safe-area-inset-*)` (Android's gives a frame zero). The shell
+  already keeps its frames clear of the status bar and home bar, so on iOS the simulator and Training padded themselves a
+  second time: a gap at the top and bottom, and, since the padding then covered the header's top-left corner,
+  `src/inapp.js` reported the header as covered and the shell hid the module tabs.
+- The pages now read the insets through `--sa-t/-b/-l/-r` (`src/template.html`, `src/training.html`; `src/tutorial.js`
+  with an `env()` fallback): the screen's insets on the website, zero under `html.inapp`. Website and Android unchanged.
+- Checked in the app preview at 402×874: `--sa-t` 0 in both frames, the corner on the header, the tabs showing. Still to
+  check in the iOS Simulator; the tutorial card sits 58 px under the frame's top, so it moves up by the status bar's height.

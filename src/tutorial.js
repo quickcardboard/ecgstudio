@@ -124,8 +124,8 @@
     let where = view.modal || ty === null ? (view.where || 'center') : view.where || (ty > H * 0.45 ? 'top' : 'bottom');
     if (wide && tx !== null && where !== 'center') where = 'top';
     c.classList.toggle('center', where === 'center');
-    c.style.top = where === 'top' ? 'calc(env(safe-area-inset-top, 0px) + 58px)' : '';
-    c.style.bottom = where === 'bottom' ? 'calc(env(safe-area-inset-bottom, 0px) + 12px)' : '';
+    c.style.top = where === 'top' ? 'calc(var(--sa-t, env(safe-area-inset-top, 0px)) + 58px)' : '';
+    c.style.bottom = where === 'bottom' ? 'calc(var(--sa-b, env(safe-area-inset-bottom, 0px)) + 12px)' : '';
     const side = wide && tx !== null && where !== 'center' ? (tx < innerWidth / 2 ? 'right' : 'left') : '';
     c.style.left = side === 'right' ? '52%' : ''; c.style.right = side === 'left' ? '52%' : '';
   }

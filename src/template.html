@@ -64,7 +64,7 @@ html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.4 var(--font-ui); overflow: hidden; }
 #app {
   height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-left: max(16px, var(--sa-l)); padding-right: max(16px, var(--sa-r));
   padding-block: 10px;
 }
 header.top { display: flex; align-items: center; gap: 14px; min-height: 36px; }
@@ -299,7 +299,7 @@ body.m .vsum { display: none; }
 .calnote { position: absolute; right: 8px; bottom: 6px; font: 500 11px/1 var(--font-data); color: #8a5a66; background: rgba(255,255,255,0.85); padding: 3px 5px; border-radius: 3px; }
 
 /* modal + loading */
-.overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(5, 10, 15, 0.55); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(5, 10, 15, 0.55); padding-left: max(16px, var(--sa-l)); padding-right: max(16px, var(--sa-r)); }
 .sheet { background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; max-width: 640px; width: 100%; max-height: 86%; overflow: auto; padding: 20px 22px; box-sizing: border-box; }
 .sheet h2 { margin: 0 0 4px; font: 600 22px/1.2 var(--font-display); }
 .sheet h3 { margin: 18px 0 6px; font: 600 13px/1.2 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
@@ -343,8 +343,8 @@ body:not(.m) .toc .mo, body.m .toc .dk { display: none; }
 body.m { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 body.m button { touch-action: manipulation; }
 body.m #c3d, body.m #ecgWrap, body.m .live, body.m #shead { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-body.m #app { padding: env(safe-area-inset-top, 0px) 0 0; gap: 0; }
-body.m header.top { min-height: 50px; gap: 8px; padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); }
+body.m #app { padding: var(--sa-t) 0 0; gap: 0; }
+body.m header.top { min-height: 50px; gap: 8px; padding: 0 max(12px, var(--sa-r)) 0 max(12px, var(--sa-l)); }
 body.m .brand h1 { font-size: 19px; }
 body.m .brand .logo { width: 26px; height: 26px; }
 body.m .brand span, body.m .simctl, body.m #btnShare, body.m #btnHelp, body.m #btnContact, body.m #btnAlpha { display: none; }
@@ -357,7 +357,7 @@ body.m .mctl { display: flex; align-items: center; gap: 6px; }
 .mplay.paused .ir { display: inline; }
 .mplay::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--accent); }
 .mplay.holding::after { width: 100%; transition: width 0.7s linear; }
-body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index: 21; right: max(10px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 50px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+body.m .mmenu { display: flex; flex-direction: column; position: fixed; z-index: 21; right: max(10px, var(--sa-r)); top: calc(var(--sa-t) + 50px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
 .mmenu button, .mmenu a { color: inherit; text-decoration: none; font-family: var(--font-ui); }
 .mmenu button, .mmenu a { border: 0; text-align: left; padding: 13px 12px; font-size: 15px; background: none; border-radius: 8px; }
 .mmenu .malpha { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; color: var(--accent); font-weight: 600; }
@@ -414,9 +414,9 @@ body.m.interp-open .chips { flex-wrap: wrap; }
 body.m.interp-open .findings { display: flex; font-size: 13px; }
 
 /* controls: bottom sheet above the tab bar (half height, or full) */
-body.m #controls { position: fixed; z-index: 12; left: 8px; right: 8px; top: auto; bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); width: auto; flex: none; height: auto; max-height: var(--sheetmax, 40vh); margin: 0; box-shadow: 0 -6px 24px rgba(0,0,0,0.3); border-radius: 14px 14px 0 0; border-bottom: 0; background: var(--viewport); backdrop-filter: none; }
+body.m #controls { position: fixed; z-index: 12; left: 8px; right: 8px; top: auto; bottom: calc(var(--tabh) + var(--sa-b)); width: auto; flex: none; height: auto; max-height: var(--sheetmax, 40vh); margin: 0; box-shadow: 0 -6px 24px rgba(0,0,0,0.3); border-radius: 14px 14px 0 0; border-bottom: 0; background: var(--viewport); backdrop-filter: none; }
 body.m #controls.wide { width: auto; }
-body.m.sheet-full #controls { position: fixed; z-index: 12; left: 0; right: 0; margin: 0; max-height: none; top: calc(env(safe-area-inset-top, 0px) + 50px); bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); height: auto; }
+body.m.sheet-full #controls { position: fixed; z-index: 12; left: 0; right: 0; margin: 0; max-height: none; top: calc(var(--sa-t) + 50px); bottom: calc(var(--tabh) + var(--sa-b)); height: auto; }
 body.m #controls .shead { display: flex; align-items: center; gap: 8px; padding: 14px 10px 4px 14px; position: sticky; top: 0; z-index: 1; background: var(--viewport); touch-action: none; }
 .shead .grab { position: absolute; left: 50%; top: 6px; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px; background: rgba(255,255,255,0.28); }
 .stitle { flex: 1; font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-muted); }
@@ -425,7 +425,7 @@ body.m #controls .body { padding-top: 4px; }
 body.m #controls .presets button, body.m .btnrow button { padding: 10px 2px; font-size: 13px; }
 body.m .crow b { font-size: 14px; }
 body.m .crow { padding: 11px 12px; }
-body.m .mtabs { display: flex; flex: none; background: var(--surface); border-top: 1px solid var(--line); padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+body.m .mtabs { display: flex; flex: none; background: var(--surface); border-top: 1px solid var(--line); padding: 0 var(--sa-r) var(--sa-b) var(--sa-l); }
 .mtabs button { flex: 1; height: var(--tabh); padding: 0; border: 0; border-radius: 0; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; color: var(--muted); }
 .mtabs svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .mtabs button[aria-selected="true"] { color: var(--accent); }
@@ -456,9 +456,9 @@ body.m.fs-heart.has-isch .vinfo, body.m.fs-heart.has-isch .mfloat { bottom: 160p
 /* full 12-lead ECG, turned sideways (or upright when the phone is held sideways) */
 body.m.fs-ecg #paneEcg { position: fixed; z-index: 15; left: 50%; top: 50%; width: 100vh; width: 100dvh; height: 100vw; box-sizing: border-box;
   transform: translate(-50%, -50%) rotate(90deg); flex-direction: row; border: 0; border-radius: 0;
-  padding: 0 env(safe-area-inset-bottom, 0px) 0 env(safe-area-inset-top, 0px); }
-body.m.fs-ecg.flip #paneEcg { transform: translate(-50%, -50%) rotate(-90deg); padding: 0 env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
-body.m.fs-ecg.ml #paneEcg { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px); }
+  padding: 0 var(--sa-b) 0 var(--sa-t); }
+body.m.fs-ecg.flip #paneEcg { transform: translate(-50%, -50%) rotate(-90deg); padding: 0 var(--sa-t) 0 var(--sa-b); }
+body.m.fs-ecg.ml #paneEcg { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 var(--sa-r) 0 var(--sa-l); }
 body.m.fs-ecg #interp { order: 0; width: 172px; flex: none; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; max-height: none; overflow-y: auto; padding: 10px; border-top: 0; border-right: 1px solid var(--line); cursor: default; }
 body.m.fs-ecg #interp::after { display: none; }
 body.m.fs-ecg #rhythm { flex: none; font-size: 14px; white-space: normal; }
@@ -498,11 +498,15 @@ body.m.t:not(.fs-ecg) #cgroup, body.m.t:not(.fs-ecg) #cgroup2, body.m.t .gbar { 
   #divider { flex: 0 0 12px; cursor: row-resize; }
   #divider::after { width: 44px; height: 4px; }
 }
+/* the screen's safe areas (notch, home bar), as variables: zero in the app, whose shell already keeps its frames clear of
+   them (iOS would give a frame the whole screen's insets again: a second gap, and the module tabs hidden) */
+:root { --sa-t: env(safe-area-inset-top, 0px); --sa-b: env(safe-area-inset-bottom, 0px); --sa-l: env(safe-area-inset-left, 0px); --sa-r: env(safe-area-inset-right, 0px); }
+html.inapp { --sa-t: 0px; --sa-b: 0px; --sa-l: 0px; --sa-r: 0px; }
 /* In the app (html.inapp, src/inapp.js): the app shell draws the module tabs over the left of the header, which
    turns dark (the app's chrome); the brand and Join the alpha (testers already have the app) are hidden. */
 html.inapp header.top { --bg: #0b131a; --surface: #1b2834; --fg: #e3eaf0; --muted: #93a3b1; --line: #33434f; --accent: #ef5b7a; --accent-fg: #160a0d;
   background: var(--bg); color: var(--fg); color-scheme: dark; min-height: 50px; box-sizing: border-box; padding-left: var(--tabs-w, 12px); }
-html.inapp body:not(.m) header.top { margin: -10px calc(-1 * max(16px, env(safe-area-inset-right, 0px))) 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-right: 16px; }
+html.inapp body:not(.m) header.top { margin: -10px calc(-1 * max(16px, var(--sa-r))) 0 calc(-1 * max(16px, var(--sa-l))); padding-right: 16px; }
 html.inapp .brand, html.inapp #mAlpha, html.inapp #btnAlpha { display: none !important; }
 </style>
 

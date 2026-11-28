@@ -6,7 +6,7 @@
 <title>ECG Studio · Training</title>
 <meta name="description" content="ECG Studio Training (prototype): read simulated 12-lead ECGs, name the rhythm and findings, and see why.">
 <meta name="robots" content="noindex">
-<meta name="version" content="2026-11-19 (df76f14)">
+<meta name="version" content="2026-11-28 (d1ad3f3)">
 <meta name="premium" content="0">
 <meta name="report-form" content="https://docs.google.com/forms/d/e/1FAIpQLSetVzP-Z7mmuXei1t2xiYNW8xS-BRA8OwHJpIG1QbCST0vcGw/viewform?usp=pp_url&amp;entry.1607561368=">
 <meta name="theme-color" content="#0b131a">
@@ -219,17 +219,17 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
    dvh taller than the screen, which put the keyboard's bottom row under the home bar. The bottom areas (keyboard,
    result, region, pages) each keep clear of the home bar themselves, so #app adds no bottom padding.) */
 #app { position: fixed; top: 0; bottom: 0; left: 0; right: 0; max-width: 440px; margin: 0 auto; background: var(--bg); display: flex; flex-direction: column;
-  padding: env(safe-area-inset-top, 0px) 0 0; box-sizing: border-box; overflow: hidden; }
+  padding: var(--sa-t) 0 0; box-sizing: border-box; overflow: hidden; }
 header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; min-height: 36px; }
 #menuBtn, #homeMenuBtn { font-size: 18px; line-height: 1; padding: 6px 10px; border-radius: 999px; background: var(--surface); }
-.menu { position: absolute; z-index: 25; top: calc(env(safe-area-inset-top, 0px) + 48px); right: 10px; min-width: 210px; background: var(--raised); border: 1px solid #33434f; border-radius: 10px; padding: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
+.menu { position: absolute; z-index: 25; top: calc(var(--sa-t) + 48px); right: 10px; min-width: 210px; background: var(--raised); border: 1px solid #33434f; border-radius: 10px; padding: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
 .menu button, .menu a { all: unset; display: block; padding: 12px 12px; border-radius: 6px; font-size: 15px; cursor: pointer; color: var(--fg); }
 .menu button:active, .menu a:active { background: rgba(255,255,255,0.08); }
 .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
-.page { position: absolute; inset: 0; z-index: 24; background: var(--bg); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
+.page { position: absolute; inset: 0; z-index: 24; background: var(--bg); display: flex; flex-direction: column; padding-top: var(--sa-t); }
 .page .phead { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .page .phead h2 { margin: 0; font: 600 18px/1 var(--font-display); }
-.page .pbody { flex: 1; overflow-y: auto; padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 30px); -webkit-user-select: text; user-select: text; }
+.page .pbody { flex: 1; overflow-y: auto; padding: 14px 16px calc(var(--sa-b) + 30px); -webkit-user-select: text; user-select: text; }
 .page .pbody h3 { font: 600 13px/1.2 var(--font-ui); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 18px 0 8px; }
 .page .pbody p, .page .pbody li { line-height: 1.5; color: #c9d3dc; }
 .page .pbody ul { padding-left: 18px; margin: 6px 0; }
@@ -294,6 +294,10 @@ body.locked .hskills button b { margin-right: auto; }
 .hspace { flex: 1; }
 header h1 { margin: 0; font: 600 18px/1 var(--font-display); letter-spacing: 0.01em; flex: 1; }
 header h1 span { color: var(--accent); }
+/* the screen's safe areas (notch, home bar), as variables: zero in the app, whose shell already keeps its frames clear of
+   them (iOS would give a frame the whole screen's insets again: a second gap, and the module tabs hidden) */
+:root { --sa-t: env(safe-area-inset-top, 0px); --sa-b: env(safe-area-inset-bottom, 0px); --sa-l: env(safe-area-inset-left, 0px); --sa-r: env(safe-area-inset-right, 0px); }
+html.inapp { --sa-t: 0px; --sa-b: 0px; --sa-l: 0px; --sa-r: 0px; }
 /* In the app (html.inapp, src/inapp.js): the app shell draws the module tabs over the left of the header (and of the
    pages' headers); the way back to the simulator and the page title are the tabs' job */
 html.inapp header, html.inapp .app-bar { min-height: 50px; box-sizing: border-box; padding-top: 0; padding-bottom: 0; padding-left: var(--tabs-w, 12px); }
@@ -384,7 +388,7 @@ html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href]:not(.con
 
 /* in-app keyboard: QWERTY across the full width, Add (the first suggestion) and delete beside z–m,
    a space bar below */
-#kbd { display: flex; flex-direction: column; gap: 7px; padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 16px); background: #0f1922; border-top: 1px solid var(--line); }
+#kbd { display: flex; flex-direction: column; gap: 7px; padding: 6px 4px calc(var(--sa-b) + 16px); background: #0f1922; border-top: 1px solid var(--line); }
 #kbd .row { display: flex; gap: 5px; }
 #kbd button { flex: 1 1 0; min-width: 0; height: 56px; padding: 0; border-radius: 6px; background: var(--key); border-color: #2f3f4e; font: 500 19px/1 var(--font-ui); text-transform: lowercase; }
 #kbd button:active, #kbd button.down { background: #3a4d5f; }
@@ -395,7 +399,7 @@ html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href]:not(.con
 #kbd .gap { flex: 7 1 0; }
 
 /* region mode: pick the lead groups of a finding */
-#region { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 10px); overflow-y: auto; background: #0f1922; border-top: 1px solid var(--line); }
+#region { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px calc(var(--sa-b) + 10px); overflow-y: auto; background: #0f1922; border-top: 1px solid var(--line); }
 #region .title { font-size: 14px; }
 #region .title b { font-weight: 600; }
 #region .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -409,7 +413,7 @@ html.inapp #home .phead h2, html.inapp .tlogo, html.inapp .menu a[href]:not(.con
 /* result */
 #bottom { flex: none; display: flex; flex-direction: column; min-height: 0; }
 #bottom > #result, #bottom > #region { flex: 1 1 auto; min-height: 0; }
-#result { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px); }
+#result { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px calc(var(--sa-b) + 8px); }
 #result .rscroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; margin: -4px; }   /* (room for the selected chip's outline: a scrolling box clips what is drawn past its edge) */
 .scorebar { display: flex; align-items: center; gap: 10px; }
 .scorebar .bar { flex: 1; height: 10px; border-radius: 5px; background: var(--key); overflow: hidden; }
@@ -478,7 +482,7 @@ body.tabl #suggest button:nth-of-type(n+7) { display: none; }   /* (the best six
 body.tabl #fieldRow { order: 3; margin: 0; }
 body.tabl #field { height: 48px; font-size: 17px; }
 body.tabl #fieldRow #submit { height: 48px; padding: 0 20px; }
-body.tabl #kbd { margin-top: 0; padding: 10px 10px calc(env(safe-area-inset-bottom, 0px) + 12px); gap: 8px; }
+body.tabl #kbd { margin-top: 0; padding: 10px 10px calc(var(--sa-b) + 12px); gap: 8px; }
 body.tabl #kbd .row { gap: 6px; }
 body.tabl #kbd button { height: 54px; font-size: 20px; border-radius: 8px; }
 body.tabl #kbd .wide, body.tabl #kbd .fn, body.tabl #kbd .space { font-size: 15px; }
@@ -511,8 +515,8 @@ body.tabl #result, body.tabl #region { border-top: 0; }
 /* full 12-lead turned sideways (double-tap), or upright when the phone is held sideways (body.land) */
 #fs { position: fixed; inset: 0; z-index: 20; background: var(--bg); }
 #fs .inner { position: fixed; left: 50%; top: 50%; width: 100vh; width: 100dvh; height: 100vw; transform: translate(-50%, -50%) rotate(90deg);
-  display: flex; box-sizing: border-box; padding: 0 env(safe-area-inset-bottom, 0px) 0 env(safe-area-inset-top, 0px); }
-body.land #fs .inner { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px); }
+  display: flex; box-sizing: border-box; padding: 0 var(--sa-b) 0 var(--sa-t); }
+body.land #fs .inner { left: 0; top: 0; width: 100%; height: 100%; transform: none; padding: 0 var(--sa-r) 0 var(--sa-l); }
 #fs aside { width: 168px; flex: none; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid var(--line); box-sizing: border-box; }
 #fs aside h3 { margin: 4px 0 0; font: 500 11px/1 var(--font-ui); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 #fs aside .chips { flex-direction: column; align-items: flex-start; padding: 0; overflow: visible; }
@@ -6519,8 +6523,8 @@ self.onmessage = (e) => {
     let where = view.modal || ty === null ? (view.where || 'center') : view.where || (ty > H * 0.45 ? 'top' : 'bottom');
     if (wide && tx !== null && where !== 'center') where = 'top';
     c.classList.toggle('center', where === 'center');
-    c.style.top = where === 'top' ? 'calc(env(safe-area-inset-top, 0px) + 58px)' : '';
-    c.style.bottom = where === 'bottom' ? 'calc(env(safe-area-inset-bottom, 0px) + 12px)' : '';
+    c.style.top = where === 'top' ? 'calc(var(--sa-t, env(safe-area-inset-top, 0px)) + 58px)' : '';
+    c.style.bottom = where === 'bottom' ? 'calc(var(--sa-b, env(safe-area-inset-bottom, 0px)) + 12px)' : '';
     const side = wide && tx !== null && where !== 'center' ? (tx < innerWidth / 2 ? 'right' : 'left') : '';
     c.style.left = side === 'right' ? '52%' : ''; c.style.right = side === 'left' ? '52%' : '';
   }
